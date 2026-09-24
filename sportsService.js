@@ -1,6 +1,6 @@
-import { config } from '../config/env.js';
-import { OddsApiAdapter } from '../adapters/oddsApiAdapter.js';
-import { MockSportsProvider } from '../providers/mockProvider.js';
+import { config } from './env.js';
+import { OddsApiAdapter } from './oddsApiAdapter.js';
+import { MockSportsProvider } from './mockProvider.js';
 
 class SportsService {
   constructor() {
