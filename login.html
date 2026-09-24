@@ -1,1 +1,567 @@
-HTML code
+To update `login.html` directly using your Android phone, follow this single step:
+
+1. Open your browser on your phone, go to **GitHub.com**, navigate to your repository, tap on `login.html` (or tap **Add file** > **Create new file** and type `login.html` if it doesn't exist yet), tap the **Pencil (Edit)** icon, paste the complete code block below, and tap **Commit changes**.
+
+```html
+<!DOCTYPE html>
+<html lang="te">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Telugu Sports Book - Authentication</title>
+  
+  <!-- Inter & Outfit Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Outfit', 'sans-serif'],
+          },
+          colors: {
+            tealDark: '#041c1e',
+            tealGlass: '#082f34',
+            accentGold: '#f59e0b',
+            accentGoldHover: '#d97706',
+            accentRed: '#ef4444',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Glassmorphism & Glow Effects */
+    body {
+      background: radial-gradient(circle at 50% 20%, #083338 0%, #031517 60%, #010a0b 100%);
+      font-family: 'Inter', sans-serif;
+    }
+
+    .glass-card {
+      background: rgba(8, 47, 52, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(245, 158, 11, 0.18);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .glow-bg {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+      pointer-events: none;
+    }
+
+    .glow-gold {
+      background: rgba(245, 158, 11, 0.12);
+      width: 280px;
+      height: 280px;
+      top: -50px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .glow-teal {
+      background: rgba(20, 184, 166, 0.15);
+      width: 320px;
+      height: 320px;
+      bottom: -80px;
+      right: -50px;
+    }
+
+    .input-field {
+      background: rgba(3, 21, 23, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+      transition: all 0.25s ease;
+    }
+
+    .input-field:focus {
+      outline: none;
+      border-color: #f59e0b;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
+      background: rgba(4, 28, 30, 0.9);
+    }
+
+    /* Tab Transition */
+    .form-container {
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .hidden-form {
+      display: none;
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-100 flex items-center justify-center p-4 relative overflow-x-hidden selection:bg-amber-500 selection:text-slate-900">
+
+  <!-- Ambient Glow Elements -->
+  <div class="glow-bg glow-gold"></div>
+  <div class="glow-bg glow-teal"></div>
+
+  <!-- Main Container -->
+  <main class="w-full max-w-md my-auto relative z-10">
+    
+    <!-- Branding Header -->
+    <header class="text-center mb-6">
+      <div class="inline-flex items-center space-x-2 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full mb-3 backdrop-blur-md">
+        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+        <span class="text-[11px] font-bold tracking-widest text-amber-400 uppercase">Informational & Demo Platform</span>
+      </div>
+      <h1 class="font-display text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 tracking-wider drop-shadow-sm">
+        TELUGU SPORTS BOOK
+      </h1>
+      <p class="text-xs text-slate-400 mt-1 font-medium tracking-wide">
+        Premium Sports & Entertainment Demo
+      </p>
+    </header>
+
+    <!-- Glassmorphic Form Card -->
+    <div class="glass-card rounded-2xl p-6 sm:p-8 relative">
+      
+      <!-- Tab Switcher -->
+      <nav class="flex bg-slate-950/60 p-1.5 rounded-xl mb-6 border border-white/5" aria-label="Authentication modes">
+        <button id="tab-login" onclick="switchTab('login')" class="flex-1 py-2.5 text-xs font-bold rounded-lg transition-all duration-200 text-slate-900 bg-amber-400 shadow-md">
+          LOG IN
+        </button>
+        <button id="tab-signup" onclick="switchTab('signup')" class="flex-1 py-2.5 text-xs font-bold rounded-lg transition-all duration-200 text-slate-400 hover:text-white">
+          SIGN UP
+        </button>
+      </nav>
+
+      <!-- Global Message Box -->
+      <div id="status-message" class="hidden mb-4 p-3 rounded-lg text-xs font-medium border" role="alert"></div>
+
+      <!-- LOGIN FORM -->
+      <form id="form-login" onsubmit="handleLogin(event)" class="form-container space-y-4" novalidate>
+        
+        <div>
+          <label for="login-identifier" class="block text-xs font-semibold text-slate-300 mb-1.5">
+            Email or Mobile Number <span class="text-amber-400">*</span>
+          </label>
+          <input 
+            type="text" 
+            id="login-identifier" 
+            required
+            aria-required="true"
+            class="input-field w-full px-3.5 py-2.5 rounded-xl text-sm"
+            placeholder="user@example.com or 9876543210"
+          />
+          <span id="err-login-identifier" class="text-[11px] text-red-400 mt-1 block hidden"></span>
+        </div>
+
+        <div>
+          <label for="login-password" class="block text-xs font-semibold text-slate-300 mb-1.5">
+            Password <span class="text-amber-400">*</span>
+          </label>
+          <div class="relative">
+            <input 
+              type="password" 
+              id="login-password" 
+              required
+              aria-required="true"
+              class="input-field w-full px-3.5 py-2.5 rounded-xl text-sm pr-10"
+              placeholder="••••••••"
+            />
+            <button 
+              type="button" 
+              onclick="togglePasswordVisibility('login-password', this)"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-400 text-xs font-semibold"
+              aria-label="Toggle password view"
+            >
+              SHOW
+            </button>
+          </div>
+          <span id="err-login-password" class="text-[11px] text-red-400 mt-1 block hidden"></span>
+        </div>
+
+        <div class="flex items-center justify-between text-xs pt-1">
+          <label class="flex items-center space-x-2 cursor-pointer text-slate-300 hover:text-white">
+            <input type="checkbox" id="login-remember" class="w-4 h-4 rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-amber-400 focus:ring-offset-slate-900" />
+            <span>Remember me</span>
+          </label>
+          <a href="#" onclick="showForgotPassword(event)" class="text-amber-400 hover:text-amber-300 font-medium">Forgot Password?</a>
+        </div>
+
+        <button 
+          type="submit" 
+          id="btn-login-submit"
+          class="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold py-3 px-4 rounded-xl text-sm transition-all shadow-lg shadow-amber-500/20 active:scale-[0.98] mt-2"
+        >
+          LOG IN TO DEMO HUB
+        </button>
+
+        <p class="text-center text-xs text-slate-400 pt-2">
+          Don't have an account? 
+          <button type="button" onclick="switchTab('signup')" class="text-amber-400 hover:underline font-semibold ml-1">Sign Up</button>
+        </p>
+      </form>
+
+      <!-- SIGNUP FORM -->
+      <form id="form-signup" onsubmit="handleSignup(event)" class="form-container space-y-3.5 hidden-form" novalidate>
+        
+        <div>
+          <label for="signup-fullname" class="block text-xs font-semibold text-slate-300 mb-1">
+            Full Name <span class="text-amber-400">*</span>
+          </label>
+          <input 
+            type="text" 
+            id="signup-fullname" 
+            required
+            aria-required="true"
+            class="input-field w-full px-3.5 py-2.5 rounded-xl text-sm"
+            placeholder="Enter your full name"
+          />
+          <span id="err-signup-fullname" class="text-[11px] text-red-400 mt-1 block hidden"></span>
+        </div>
+
+        <div>
+          <label for="signup-mobile" class="block text-xs font-semibold text-slate-300 mb-1">
+            Mobile Number <span class="text-amber-400">*</span>
+          </label>
+          <input 
+            type="tel" 
+            id="signup-mobile" 
+            required
+            aria-required="true"
+            class="input-field w-full px-3.5 py-2.5 rounded-xl text-sm"
+            placeholder="10-digit mobile number"
+          />
+          <span id="err-signup-mobile" class="text-[11px] text-red-400 mt-1 block hidden"></span>
+        </div>
+
+        <div>
+          <label for="signup-email" class="block text-xs font-semibold text-slate-300 mb-1">
+            Email Address <span class="text-amber-400">*</span>
+          </label>
+          <input 
+            type="email" 
+            id="signup-email" 
+            required
+            aria-required="true"
+            class="input-field w-full px-3.5 py-2.5 rounded-xl text-sm"
+            placeholder="user@example.com"
+          />
+          <span id="err-signup-email" class="text-[11px] text-red-400 mt-1 block hidden"></span>
+        </div>
+
+        <div>
+          <label for="signup-password" class="block text-xs font-semibold text-slate-300 mb-1">
+            Password <span class="text-amber-400">*</span>
+          </label>
+          <div class="relative">
+            <input 
+              type="password" 
+              id="signup-password" 
+              required
+              aria-required="true"
+              class="input-field w-full px-3.5 py-2.5 rounded-xl text-sm pr-10"
+              placeholder="At least 6 characters"
+            />
+            <button 
+              type="button" 
+              onclick="togglePasswordVisibility('signup-password', this)"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-400 text-xs font-semibold"
+            >
+              SHOW
+            </button>
+          </div>
+          <span id="err-signup-password" class="text-[11px] text-red-400 mt-1 block hidden"></span>
+        </div>
+
+        <div>
+          <label for="signup-confirm-password" class="block text-xs font-semibold text-slate-300 mb-1">
+            Confirm Password <span class="text-amber-400">*</span>
+          </label>
+          <input 
+            type="password" 
+            id="signup-confirm-password" 
+            required
+            aria-required="true"
+            class="input-field w-full px-3.5 py-2.5 rounded-xl text-sm"
+            placeholder="Re-enter password"
+          />
+          <span id="err-signup-confirm-password" class="text-[11px] text-red-400 mt-1 block hidden"></span>
+        </div>
+
+        <button 
+          type="submit" 
+          id="btn-signup-submit"
+          class="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold py-3 px-4 rounded-xl text-sm transition-all shadow-lg shadow-amber-500/20 active:scale-[0.98] mt-2"
+        >
+          CREATE DEMO ACCOUNT
+        </button>
+
+        <p class="text-center text-xs text-slate-400 pt-2">
+          Already have an account? 
+          <button type="button" onclick="switchTab('login')" class="text-amber-400 hover:underline font-semibold ml-1">Log In</button>
+        </p>
+      </form>
+
+    </div>
+
+    <!-- Legal & Security Footer Notice -->
+    <footer class="mt-6 text-center text-[11px] text-slate-500 space-y-1">
+      <p>🛡️ Strict Informational Demo Application. No real money deposits or gambling.</p>
+      <p>© 2026 Telugu Sports Book. All rights reserved.</p>
+    </footer>
+
+  </main>
+
+  <!-- DEMO AUTHENTICATION ENGINE -->
+  <script>
+    const MAIN_APP_URL = '/';
+    const AUTH_KEY = 'telugu_sports_auth_user';
+
+    // 1. Initial Page Load - Auto-Redirect if Session Exists
+    document.addEventListener('DOMContentLoaded', () => {
+      const existingSession = localStorage.getItem(AUTH_KEY);
+      if (existingSession) {
+        try {
+          const user = JSON.parse(existingSession);
+          if (user && user.isAuthenticated) {
+            redirectToMainApp('Welcome back! Redirecting to Telugu Sports Book...');
+          }
+        } catch (e) {
+          localStorage.removeItem(AUTH_KEY);
+        }
+      }
+    });
+
+    // 2. Tab Switcher Handler
+    function switchTab(mode) {
+      clearErrors();
+      clearStatus();
+
+      const loginTab = document.getElementById('tab-login');
+      const signupTab = document.getElementById('tab-signup');
+      const loginForm = document.getElementById('form-login');
+      const signupForm = document.getElementById('form-signup');
+
+      if (mode === 'login') {
+        loginTab.className = "flex-1 py-2.5 text-xs font-bold rounded-lg transition-all duration-200 text-slate-900 bg-amber-400 shadow-md";
+        signupTab.className = "flex-1 py-2.5 text-xs font-bold rounded-lg transition-all duration-200 text-slate-400 hover:text-white";
+        loginForm.classList.remove('hidden-form');
+        signupForm.classList.add('hidden-form');
+      } else {
+        signupTab.className = "flex-1 py-2.5 text-xs font-bold rounded-lg transition-all duration-200 text-slate-900 bg-amber-400 shadow-md";
+        loginTab.className = "flex-1 py-2.5 text-xs font-bold rounded-lg transition-all duration-200 text-slate-400 hover:text-white";
+        signupForm.classList.remove('hidden-form');
+        loginForm.classList.add('hidden-form');
+      }
+    }
+
+    // 3. Password Visibility Toggle
+    function togglePasswordVisibility(fieldId, btn) {
+      const field = document.getElementById(fieldId);
+      if (field.type === 'password') {
+        field.type = 'text';
+        btn.textContent = 'HIDE';
+        btn.classList.add('text-amber-400');
+      } else {
+        field.type = 'password';
+        btn.textContent = 'SHOW';
+        btn.classList.remove('text-amber-400');
+      }
+    }
+
+    // 4. Input Validations
+    function validateEmail(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    function validateMobile(mobile) {
+      return /^[0-9]{10}$/.test(mobile.replace(/\D/g, ''));
+    }
+
+    function showError(fieldId, message) {
+      const errSpan = document.getElementById('err-' + fieldId);
+      const inputField = document.getElementById(fieldId);
+      if (errSpan) {
+        errSpan.textContent = message;
+        errSpan.classList.remove('hidden');
+      }
+      if (inputField) {
+        inputField.classList.add('border-red-500');
+      }
+    }
+
+    function clearErrors() {
+      document.querySelectorAll('[id^="err-"]').forEach(el => {
+        el.textContent = '';
+        el.classList.add('hidden');
+      });
+      document.querySelectorAll('.input-field').forEach(input => {
+        input.classList.remove('border-red-500');
+      });
+    }
+
+    function showStatus(message, type = 'success') {
+      const statusBox = document.getElementById('status-message');
+      statusBox.textContent = message;
+      statusBox.classList.remove('hidden', 'bg-red-500/10', 'border-red-500/30', 'text-red-400', 'bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-400');
+
+      if (type === 'error') {
+        statusBox.classList.add('bg-red-500/10', 'border-red-500/30', 'text-red-400');
+      } else {
+        statusBox.classList.add('bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-400');
+      }
+    }
+
+    function clearStatus() {
+      const statusBox = document.getElementById('status-message');
+      statusBox.classList.add('hidden');
+    }
+
+    // 5. Handle Login Submission
+    function handleLogin(e) {
+      e.preventDefault();
+      clearErrors();
+      clearStatus();
+
+      const identifier = document.getElementById('login-identifier').value.trim();
+      const password = document.getElementById('login-password').value;
+      const rememberMe = document.getElementById('login-remember').checked;
+
+      let isValid = true;
+
+      if (!identifier) {
+        showError('login-identifier', 'Please enter your email or mobile number.');
+        isValid = false;
+      } else if (identifier.includes('@') && !validateEmail(identifier)) {
+        showError('login-identifier', 'Please enter a valid email address.');
+        isValid = false;
+      }
+
+      if (!password) {
+        showError('login-password', 'Please enter your password.');
+        isValid = false;
+      } else if (password.length < 6) {
+        showError('login-password', 'Password must be at least 6 characters.');
+        isValid = false;
+      }
+
+      if (!isValid) return;
+
+      setSubmitting('btn-login-submit', true, 'LOGGING IN...');
+
+      setTimeout(() => {
+        const sessionPayload = {
+          name: identifier.split('@')[0],
+          identifier: identifier,
+          isAuthenticated: true,
+          loginTime: new Date().toISOString(),
+          demoBalance: "₹10,000.00"
+        };
+
+        saveSession(sessionPayload, rememberMe);
+        showStatus('Login successful! Loading Telugu Sports Book...', 'success');
+
+        setTimeout(() => {
+          redirectToMainApp();
+        }, 800);
+      }, 600);
+    }
+
+    // 6. Handle Signup Submission
+    function handleSignup(e) {
+      e.preventDefault();
+      clearErrors();
+      clearStatus();
+
+      const fullname = document.getElementById('signup-fullname').value.trim();
+      const mobile = document.getElementById('signup-mobile').value.trim();
+      const email = document.getElementById('signup-email').value.trim();
+      const password = document.getElementById('signup-password').value;
+      const confirmPassword = document.getElementById('signup-confirm-password').value;
+
+      let isValid = true;
+
+      if (!fullname) {
+        showError('signup-fullname', 'Full name is required.');
+        isValid = false;
+      }
+
+      if (!mobile || !validateMobile(mobile)) {
+        showError('signup-mobile', 'Enter a valid 10-digit mobile number.');
+        isValid = false;
+      }
+
+      if (!email || !validateEmail(email)) {
+        showError('signup-email', 'Enter a valid email address.');
+        isValid = false;
+      }
+
+      if (!password || password.length < 6) {
+        showError('signup-password', 'Password must be at least 6 characters.');
+        isValid = false;
+      }
+
+      if (password !== confirmPassword) {
+        showError('signup-confirm-password', 'Passwords do not match.');
+        isValid = false;
+      }
+
+      if (!isValid) return;
+
+      setSubmitting('btn-signup-submit', true, 'CREATING ACCOUNT...');
+
+      setTimeout(() => {
+        const sessionPayload = {
+          name: fullname,
+          email: email,
+          mobile: mobile,
+          isAuthenticated: true,
+          createdTime: new Date().toISOString(),
+          demoBalance: "₹10,000.00"
+        };
+
+        saveSession(sessionPayload, true);
+        showStatus('Account created successfully! Redirecting...', 'success');
+
+        setTimeout(() => {
+          redirectToMainApp();
+        }, 800);
+      }, 700);
+    }
+
+    // 7. Helpers
+    function setSubmitting(buttonId, isSubmitting, text) {
+      const btn = document.getElementById(buttonId);
+      if (btn) {
+        btn.disabled = isSubmitting;
+        btn.style.opacity = isSubmitting ? '0.75' : '1';
+        btn.textContent = text;
+      }
+    }
+
+    function saveSession(payload, remember) {
+      localStorage.setItem(AUTH_KEY, JSON.stringify(payload));
+      if (!remember) {
+        sessionStorage.setItem(AUTH_KEY, JSON.stringify(payload));
+      }
+    }
+
+    function redirectToMainApp(msg) {
+      if (msg) showStatus(msg, 'success');
+      window.location.href = MAIN_APP_URL;
+    }
+
+    function showForgotPassword(e) {
+      e.preventDefault();
+      alert('Demo Mode: For testing, enter any registered email/password with 6+ characters to log in.');
+    }
+  </script>
+</body>
+</html>
+
+```
