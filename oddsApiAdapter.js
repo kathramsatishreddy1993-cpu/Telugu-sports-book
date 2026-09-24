@@ -1,6 +1,6 @@
-import { BaseSportsProvider } from '../providers/baseProvider.js';
-import { createCommonEvent } from '../types/commonEvent.js';
-import { config } from '../config/env.js';
+import { BaseSportsProvider } from './baseProvider.js';
+import { createCommonEvent } from './commonEvent.js';
+import { config } from './env.js';
 
 export class OddsApiAdapter extends BaseSportsProvider {
   constructor() {
