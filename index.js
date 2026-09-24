@@ -12,7 +12,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const distPath = path.join(__dirname, '../dist');
+const distPath = path.join(__dirname, 'dist');
 app.use(express.static(distPath));
 
 // Health check endpoint (Strictly returns boolean flag, never the key)
