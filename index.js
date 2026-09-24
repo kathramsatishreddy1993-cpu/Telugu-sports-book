@@ -14,7 +14,9 @@ app.use(express.json());
 
 const distPath = path.join(__dirname, 'dist');
 app.use(express.static(distPath));
-
+app.get('/login.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'login.html'));
+});
 // Health check endpoint (Strictly returns boolean flag, never the key)
 app.get('/api/health', (req, res) => {
   res.json({
