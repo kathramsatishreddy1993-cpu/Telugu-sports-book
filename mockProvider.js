@@ -1,5 +1,5 @@
 import { BaseSportsProvider } from './baseProvider.js';
-import { createCommonEvent } from '../types/commonEvent.js';
+import { createCommonEvent } from './commonEvent.js';
 
 export class MockSportsProvider extends BaseSportsProvider {
   constructor() {
