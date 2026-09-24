@@ -1,8 +1,65 @@
 <!DOCTYPE html>
-<html>
-<head><title>Telugu Sports Book</title></head>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telugu Sports Book - Live</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; }
+        h1 { text-align: center; color: #333; }
+        .container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; }
+        .match-card { background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); padding: 15px; width: 100%; max-width: 400px; }
+        .sport { font-size: 12px; text-transform: uppercase; color: #666; font-weight: bold; }
+        .teams { font-size: 18px; font-weight: bold; margin: 10px 0; }
+        .score { font-size: 16px; color: #d32f2f; font-weight: bold; }
+        .odds { display: flex; justify-content: space-between; background: #eee; padding: 10px; border-radius: 5px; margin-top: 10px; }
+        .odd-box { text-align: center; }
+        .status { font-size: 12px; color: green; font-weight: bold; }
+    </style>
+</head>
 <body>
-    <h1>Telugu Sports Book</h1>
-    <p>Welcome! The backend is running.</p>
+    <h1>🏏 Telugu Sports Book Live</h1>
+    <div class="container" id="matches">
+        <p>Loading live matches...</p>
+    </div>
+
+    <script>
+        async function fetchMatches() {
+            try {
+                const response = await fetch('/api/sports/events');
+                const result = await response.json();
+                
+                const container = document.getElementById('matches');
+                container.innerHTML = '';
+
+                if (result.success && result.data.length > 0) {
+                    result.data.forEach(event => {
+                        const card = document.createElement('div');
+                        card.className = 'match-card';
+                        card.innerHTML = `
+                            <div class="sport">${event.sport} - ${event.league}</div>
+                            <div class="teams">${event.homeTeam} vs ${event.awayTeam}</div>
+                            <div class="score">${event.score}</div>
+                            <div class="status">${event.status}</div>
+                            <div class="odds">
+                                <div class="odd-box"><strong>Home</strong><br>${event.odds.home || '-'}</div>
+                                <div class="odd-box"><strong>Away</strong><br>${event.odds.away || '-'}</div>
+                                ${event.odds.draw ? `<div class="odd-box"><strong>Draw</strong><br>${event.odds.draw}</div>` : ''}
+                            </div>
+                        `;
+                        container.appendChild(card);
+                    });
+                } else {
+                    container.innerHTML = '<p>No live matches right now.</p>';
+                }
+            } catch (error) {
+                console.error('Error fetching matches:', error);
+                document.getElementById('matches').innerHTML = '<p>Error loading matches. Please try again later.</p>';
+            }
+        }
+
+        fetchMatches();
+        setInterval(fetchMatches, 10000); // ప్రతి 10 సెకన్లకు ఒకసారి అప్‌డేట్ అవుతుంది
+    </script>
 </body>
 </html>
