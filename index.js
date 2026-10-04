@@ -1,6 +1,3 @@
-Here is the complete replacement code for your root `index.js`, incorporating the sports service endpoints (`/api/health`, `/api/sports/events`, `/api/sports/stream`), the existing Fast2SMS authentication endpoints, static asset serving, and SPA catch-all fallback.
-
-```javascript
 import express from 'express';
 import path from 'path';
 import https from 'https';
