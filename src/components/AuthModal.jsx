@@ -49,5 +49,6 @@ const handleDemoLogin = () => {
     >
       Login with Demo ID
     </button>
+    export default AuthModal;
   </>
 )}
