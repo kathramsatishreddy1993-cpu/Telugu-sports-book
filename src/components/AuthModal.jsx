@@ -20,6 +20,7 @@ const handleDemoLogin = () => {
 
   closeModal();
 };
+
 <button
   type="submit"
   disabled={loading || (!isLogin && !verified)}
@@ -31,6 +32,7 @@ const handleDemoLogin = () => {
     ? 'Log In'
     : 'Complete Signup'}
 </button>
+
 {isLogin && (
   <>
     <div className="flex items-center gap-3 my-2">
@@ -49,6 +51,7 @@ const handleDemoLogin = () => {
     >
       Login with Demo ID
     </button>
-    export default AuthModal;
   </>
 )}
+
+export default AuthModal;
