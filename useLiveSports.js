@@ -1,5 +1,8 @@
-import { useState, useEffect } from 'react';
-import { fetchSportsEvents, subscribeToSportsStream } from '../services/sportsApiClient';
+import { useEffect, useState } from 'react';
+import {
+  fetchSportsEvents,
+  subscribeToSportsStream,
+} from '../services/sportsApiClient';
 
 export function useLiveSports(selectedSport = 'all') {
   const [events, setEvents] = useState([]);
@@ -8,41 +11,121 @@ export function useLiveSports(selectedSport = 'all') {
   const [dataFeedType, setDataFeedType] = useState('DEMO_MOCK');
 
   useEffect(() => {
+    let mounted = true;
     let unsubscribe = () => {};
 
-    // Initial REST Fetch
-    fetchSportsEvents(selectedSport).then((data) => {
-      if (data && data.length > 0) {
-        setEvents(data);
-        setIsLiveConnected(true);
-        setDataFeedType(data[0].source || 'DEMO_MOCK');
-        setLoading(false);
-      } else {
-        setIsLiveConnected(false);
-        setDataFeedType('DEMO_MOCK');
-        setLoading(false);
-      }
-    });
+    const sport =
+      String(selectedSport || 'all').toLowerCase();
 
-    // Real-Time SSE Stream Listener
+    const filterEvents = (incomingEvents) => {
+      if (!Array.isArray(incomingEvents)) {
+        return [];
+      }
+
+      if (sport === 'all') {
+        return incomingEvents;
+      }
+
+      return incomingEvents.filter(
+        (event) =>
+          String(event?.sport || '').toLowerCase() === sport
+      );
+    };
+
+    /*
+     * Initial REST request.
+     */
+    const loadInitialEvents = async () => {
+      try {
+        const data = await fetchSportsEvents(sport);
+
+        if (!mounted) return;
+
+        if (Array.isArray(data) && data.length > 0) {
+          const filtered = filterEvents(data);
+
+          setEvents(filtered);
+
+          const source =
+            filtered[0]?.source || 'DEMO_MOCK';
+
+          setDataFeedType(source);
+
+          if (source === 'REAL_API') {
+            setIsLiveConnected(true);
+          }
+        }
+      } catch (error) {
+        console.error(
+          'Initial sports data error:',
+          error
+        );
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadInitialEvents();
+
+    /*
+     * Real-time Server-Sent Events connection.
+     */
     unsubscribe = subscribeToSportsStream(
       (data) => {
-        if (data && data.events) {
-          const filtered = selectedSport === 'all' 
-            ? data.events 
-            : data.events.filter(e => e.sport === selectedSport.toLowerCase());
-          setEvents(filtered);
-          setIsLiveConnected(true);
-          if (filtered.length > 0) setDataFeedType(filtered[0].source);
+        if (!mounted) return;
+
+        if (
+          !data ||
+          !Array.isArray(data.events)
+        ) {
+          return;
         }
+
+        const filtered = filterEvents(data.events);
+
+        setEvents(filtered);
+
+        const source =
+          data.source ||
+          filtered[0]?.source ||
+          'DEMO_MOCK';
+
+        setDataFeedType(source);
+
+        /*
+         * SSE is connected regardless of whether the data
+         * is REAL_API or DEMO_MOCK.
+         */
+        setIsLiveConnected(true);
+
+        setLoading(false);
       },
       () => {
+        if (!mounted) return;
+
+        /*
+         * The REST endpoint / backend polling can still
+         * provide data even if SSE disconnects.
+         */
         setIsLiveConnected(false);
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      mounted = false;
+
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
   }, [selectedSport]);
 
-  return { events, loading, isLiveConnected, dataFeedType };
+  return {
+    events,
+    loading,
+    isLiveConnected,
+    dataFeedType,
+  };
 }
