@@ -200,6 +200,15 @@
           LOG IN TO DEMO HUB
         </button>
 
+        <!-- 👇 LOGIN WITH DEMO ID BUTTON - NEW -->
+        <button 
+          type="button" 
+          onclick="loginWithDemoId()"
+          class="w-full bg-slate-800 hover:bg-slate-700 border border-amber-500/40 text-amber-400 font-bold py-3 px-4 rounded-xl text-sm transition-all active:scale-[0.98] mt-3"
+        >
+          LOGIN WITH DEMO ID
+        </button>
+
         <p class="text-center text-xs text-slate-400 pt-2">
           Don't have an account? 
           <button type="button" onclick="switchTab('signup')" class="text-amber-400 hover:underline font-semibold ml-1">Sign Up</button>
@@ -723,6 +732,31 @@
       e.preventDefault();
       alert('Demo Mode: For testing, enter any registered email/password with 6+ characters to log in.');
     }
+
+    // 8. Login with Demo ID
+    function loginWithDemoId() {
+      clearErrors();
+      clearStatus();
+      
+      setSubmitting('btn-login-submit', true, 'LOGGING IN WITH DEMO...');
+
+      setTimeout(() => {
+        const demoPayload = {
+          name: "Demo User",
+          identifier: "demo@telugusportsbook.com",
+          isAuthenticated: true,
+          loginTime: new Date().toISOString(),
+          demoBalance: "₹10,000.00"
+        };
+
+        saveSession(demoPayload, true);
+        showStatus('Logged in with Demo ID! Redirecting...', 'success');
+
+        setTimeout(() => {
+          redirectToMainApp();
+        }, 800);
+      }, 600);
+    }
   </script>
 </body>
-  </html>
+</html>
