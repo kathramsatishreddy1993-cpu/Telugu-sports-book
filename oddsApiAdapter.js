@@ -21,24 +21,21 @@ export class OddsApiAdapter extends BaseSportsProvider {
 
   async fetchEvents(sportCategory) {
     if (!config.apiKey) {
-      throw new Error(
-        'SPORTS_API_KEY is missing on server.'
-      );
+      throw new Error('SPORTS_API_KEY is missing on server.');
     }
 
+    // Stop unnecessary requests during API backoff
     if (this.isRateLimited) {
       if (Date.now() < this.rateLimitResetTime) {
-        throw new Error(
-          'Rate limit backoff active.'
-        );
+        throw new Error('Sports API backoff active.');
       }
 
       this.isRateLimited = false;
     }
 
-    const category =
-      String(sportCategory || 'football')
-        .toLowerCase();
+    const category = String(
+      sportCategory || 'football'
+    ).toLowerCase();
 
     const vendorKey = this.sportKeyMap[category];
 
@@ -66,6 +63,7 @@ export class OddsApiAdapter extends BaseSportsProvider {
 
       clearTimeout(timeoutId);
 
+      // Rate limit exceeded
       if (response.status === 429) {
         this.isRateLimited = true;
 
@@ -75,6 +73,21 @@ export class OddsApiAdapter extends BaseSportsProvider {
 
         throw new Error(
           'HTTP 429: API Rate Limit Exceeded'
+        );
+      }
+
+      // Invalid API key or access denied
+      if (
+        response.status === 401 ||
+        response.status === 403
+      ) {
+        this.isRateLimited = true;
+
+        this.rateLimitResetTime =
+          Date.now() + 24 * 60 * 60 * 1000;
+
+        throw new Error(
+          `Sports API authentication/access error: ${response.status}`
         );
       }
 
@@ -108,10 +121,6 @@ export class OddsApiAdapter extends BaseSportsProvider {
       Array.isArray(item?.scores) &&
       item.scores.length >= 2;
 
-    /*
-     * The upstream /scores endpoint provides scores for
-     * events that have started / have scoring data.
-     */
     const isLive =
       !isCompleted &&
       hasScores;
@@ -162,10 +171,7 @@ export class OddsApiAdapter extends BaseSportsProvider {
 
       score: scoreStr,
 
-      /*
-       * Informational/demo odds values only.
-       * No wagering/payment logic is implemented.
-       */
+      // Demo odds until real odds integration
       odds: {
         home: 1.90,
         away: 1.90,
