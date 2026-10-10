@@ -6,6 +6,7 @@ import HeroBonusCard from './components/HeroBonusCard';
 import BonusPage from './components/BonusPage';
 import AuthModal from './components/AuthModal';
 import SportsSections from './components/SportsSections';
+import DemoDashboard from './components/DemoDashboard';
 
 const AUTH_KEY = 'telugu_sports_auth_user';
 
@@ -45,6 +46,17 @@ export default function App() {
     setView('home');
   };
 
+  // AFTER LOGIN — SHOW DASHBOARD
+  if (user?.isAuthenticated) {
+    return (
+      <DemoDashboard
+        user={user}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  // BEFORE LOGIN — SHOW HOME PAGE
   return (
     <div className="min-h-screen bg-[#080d16] text-white flex flex-col font-sans">
 
