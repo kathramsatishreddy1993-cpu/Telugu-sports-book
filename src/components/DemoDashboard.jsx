@@ -142,6 +142,9 @@ export default function DemoDashboard({ user, onLogout }) {
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdrawal, setShowWithdrawal] = useState(false);
 
+  // CUSTOMER MENU
+  const [showCustomerMenu, setShowCustomerMenu] = useState(false);
+
   const tabs = [
     'INPLAY',
     'SPORTS',
@@ -150,6 +153,31 @@ export default function DemoDashboard({ user, onLogout }) {
     'PREDIX',
     'OTHERS',
   ];
+
+  const customerMenuItems = [
+    'Home',
+    'Account Statement',
+    'Bet History',
+    'Unsettled Bet',
+    'Set Button Values',
+    'Change Password',
+    'Rule',
+  ];
+
+  const handleCustomerMenu = (item) => {
+    setShowCustomerMenu(false);
+
+    if (item === 'Home') {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+      return;
+    }
+
+    // Pages will be connected one by one in the next steps.
+    alert(`${item} — Demo page will be connected next`);
+  };
 
   // OPEN DEPOSIT PAGE
   if (showDeposit) {
@@ -175,7 +203,8 @@ export default function DemoDashboard({ user, onLogout }) {
     <div className="min-h-screen bg-white text-black">
 
       {/* TOP HEADER */}
-      <header className="bg-[#895000] px-3 py-3 text-white">
+      <header className="relative bg-[#895000] px-3 py-3 text-white">
+
         <div className="flex items-center justify-between gap-2">
 
           <div className="flex items-center gap-2">
@@ -192,23 +221,71 @@ export default function DemoDashboard({ user, onLogout }) {
             </div>
           </div>
 
-          <div className="text-right">
+          {/* USER / CUSTOMER MENU */}
+          <div className="relative text-right">
 
             <p className="text-xs font-bold text-amber-200">
               🪙 10,000 Demo Coins
             </p>
 
-            <p className="max-w-32 truncate text-xs">
-              {user?.name || 'Demo User'}
-            </p>
-
             <button
               type="button"
-              onClick={onLogout}
-              className="mt-1 rounded bg-red-700 px-2 py-1 text-[10px] font-bold"
+              onClick={() =>
+                setShowCustomerMenu((previous) => !previous)
+              }
+              className="mt-1 flex max-w-40 items-center gap-1 rounded border border-amber-300/50 bg-black/20 px-2 py-1 text-xs font-bold text-white"
             >
-              Logout
+              <span className="max-w-28 truncate">
+                {user?.name || 'Demo User'}
+              </span>
+
+              <span
+                className={`text-[10px] transition-transform ${
+                  showCustomerMenu ? 'rotate-180' : ''
+                }`}
+              >
+                ▼
+              </span>
             </button>
+
+            {/* DROPDOWN */}
+            {showCustomerMenu && (
+              <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-md border border-gray-300 bg-white text-left shadow-2xl">
+
+                <div className="border-b bg-teal-800 px-4 py-3 text-white">
+                  <p className="text-[10px] font-semibold uppercase text-teal-100">
+                    Customer
+                  </p>
+
+                  <p className="truncate text-sm font-extrabold">
+                    {user?.name || 'Demo User'}
+                  </p>
+                </div>
+
+                {customerMenuItems.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => handleCustomerMenu(item)}
+                    className="block w-full border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-800 hover:bg-gray-100"
+                  >
+                    {item}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCustomerMenu(false);
+                    onLogout();
+                  }}
+                  className="block w-full bg-red-50 px-4 py-3 text-left text-sm font-extrabold text-red-700 hover:bg-red-100"
+                >
+                  Logout
+                </button>
+
+              </div>
+            )}
 
           </div>
         </div>
@@ -237,6 +314,7 @@ export default function DemoDashboard({ user, onLogout }) {
         <div className="mt-3 text-center text-xs font-bold text-amber-100">
           🏆 OUR EXCHANGE • DREAM BIG WIN BIG 🏆
         </div>
+
       </header>
 
       {/* MAIN NAVIGATION */}
