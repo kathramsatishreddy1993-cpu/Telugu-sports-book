@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import DepositPage from './DepositPage';
 
 const sports = [
   { icon: '🏏', name: 'CRICKET' },
@@ -84,6 +85,7 @@ const providers = [
   'GAMZIX',
   'KING MIDAS',
 ];
+
 const demoGameColors = [
   'from-purple-950 via-indigo-800 to-fuchsia-700',
   'from-blue-950 via-violet-800 to-pink-700',
@@ -135,6 +137,9 @@ export default function DemoDashboard({ user, onLogout }) {
   const [selectedTab, setSelectedTab] = useState('INPLAY');
   const [matchFilter, setMatchFilter] = useState('LIVE');
 
+  // DEPOSIT PAGE CONTROL
+  const [showDeposit, setShowDeposit] = useState(false);
+
   const tabs = [
     'INPLAY',
     'SPORTS',
@@ -143,6 +148,16 @@ export default function DemoDashboard({ user, onLogout }) {
     'PREDIX',
     'OTHERS',
   ];
+
+  // OPEN DEPOSIT PAGE
+  if (showDeposit) {
+    return (
+      <DepositPage
+        user={user}
+        onBack={() => setShowDeposit(false)}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white text-black">
@@ -186,7 +201,7 @@ export default function DemoDashboard({ user, onLogout }) {
         <div className="mt-3 grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={() => alert('Demo Deposit — Coming Soon')}
+            onClick={() => setShowDeposit(true)}
             className="rounded-md border border-white bg-green-700 py-3 text-sm font-extrabold text-white"
           >
             💰 DEPOSIT
@@ -248,7 +263,6 @@ export default function DemoDashboard({ user, onLogout }) {
 
       {/* MATCHES AREA */}
       <section className="bg-white">
-
         <div className="flex items-center justify-between gap-2 border-b px-2 py-2">
           <div className="flex gap-1">
             {['LIVE', 'VIRTUAL', 'PREMIUM'].map((filter) => (
@@ -272,11 +286,7 @@ export default function DemoDashboard({ user, onLogout }) {
           </span>
         </div>
 
-        {/*
-          IMPORTANT:
-          Only the white match list scrolls inside this box.
-          Scrolling the games below scrolls the full page.
-        */}
+        {/* MATCHES ONLY SCROLL */}
         <div
           className="h-[320px] overflow-y-auto overscroll-contain bg-white"
           style={{ WebkitOverflowScrolling: 'touch' }}
@@ -335,7 +345,6 @@ export default function DemoDashboard({ user, onLogout }) {
 
       {/* GAMES SECTION — NORMAL PAGE SCROLL */}
       <div className="bg-white">
-
         <GameGrid games={featuredGames} />
 
         <GameGrid
@@ -352,7 +361,6 @@ export default function DemoDashboard({ user, onLogout }) {
           title="OUR PROVIDERS"
           games={providers}
         />
-
       </div>
 
       {/* FOOTER */}
