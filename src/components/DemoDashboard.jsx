@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import DepositPage from './DepositPage';
+import WithdrawalPage from './WithdrawalPage';
 
 const sports = [
   { icon: '🏏', name: 'CRICKET' },
@@ -137,8 +138,9 @@ export default function DemoDashboard({ user, onLogout }) {
   const [selectedTab, setSelectedTab] = useState('INPLAY');
   const [matchFilter, setMatchFilter] = useState('LIVE');
 
-  // DEPOSIT PAGE CONTROL
+  // PAGE CONTROLS
   const [showDeposit, setShowDeposit] = useState(false);
+  const [showWithdrawal, setShowWithdrawal] = useState(false);
 
   const tabs = [
     'INPLAY',
@@ -159,12 +161,23 @@ export default function DemoDashboard({ user, onLogout }) {
     );
   }
 
+  // OPEN WITHDRAWAL PAGE
+  if (showWithdrawal) {
+    return (
+      <WithdrawalPage
+        user={user}
+        onBack={() => setShowWithdrawal(false)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white text-black">
 
       {/* TOP HEADER */}
       <header className="bg-[#895000] px-3 py-3 text-white">
         <div className="flex items-center justify-between gap-2">
+
           <div className="flex items-center gap-2">
             <span className="text-xl">🏠</span>
 
@@ -172,6 +185,7 @@ export default function DemoDashboard({ user, onLogout }) {
               <h1 className="text-lg font-black italic tracking-tight text-amber-300">
                 TELUGU SPORTS
               </h1>
+
               <p className="text-[10px] font-bold tracking-widest">
                 BOOK • DEMO
               </p>
@@ -179,6 +193,7 @@ export default function DemoDashboard({ user, onLogout }) {
           </div>
 
           <div className="text-right">
+
             <p className="text-xs font-bold text-amber-200">
               🪙 10,000 Demo Coins
             </p>
@@ -194,11 +209,13 @@ export default function DemoDashboard({ user, onLogout }) {
             >
               Logout
             </button>
+
           </div>
         </div>
 
         {/* WALLET BUTTONS */}
         <div className="mt-3 grid grid-cols-2 gap-3">
+
           <button
             type="button"
             onClick={() => setShowDeposit(true)}
@@ -209,11 +226,12 @@ export default function DemoDashboard({ user, onLogout }) {
 
           <button
             type="button"
-            onClick={() => alert('Demo Withdrawal — Coming Soon')}
+            onClick={() => setShowWithdrawal(true)}
             className="rounded-md border border-white bg-red-700 py-3 text-sm font-extrabold text-white"
           >
             💸 WITHDRAWAL
           </button>
+
         </div>
 
         <div className="mt-3 text-center text-xs font-bold text-amber-100">
@@ -241,6 +259,7 @@ export default function DemoDashboard({ user, onLogout }) {
 
       {/* SPORTS CATEGORIES */}
       <div className="flex overflow-x-auto bg-teal-800 text-white">
+
         {sports.map((sport) => (
           <button
             key={sport.name}
@@ -252,19 +271,25 @@ export default function DemoDashboard({ user, onLogout }) {
                 : 'bg-teal-800'
             }`}
           >
-            <span className="text-2xl">{sport.icon}</span>
+            <span className="text-2xl">
+              {sport.icon}
+            </span>
 
             <span className="text-[10px] font-extrabold">
               {sport.name}
             </span>
           </button>
         ))}
+
       </div>
 
       {/* MATCHES AREA */}
       <section className="bg-white">
+
         <div className="flex items-center justify-between gap-2 border-b px-2 py-2">
+
           <div className="flex gap-1">
+
             {['LIVE', 'VIRTUAL', 'PREMIUM'].map((filter) => (
               <button
                 key={filter}
@@ -279,24 +304,29 @@ export default function DemoDashboard({ user, onLogout }) {
                 {filter}
               </button>
             ))}
+
           </div>
 
           <span className="text-[10px] font-bold">
             DEMO MATCHES
           </span>
+
         </div>
 
-        {/* MATCHES ONLY SCROLL */}
+        {/* ONLY MATCH LIST SCROLLS */}
         <div
           className="h-[320px] overflow-y-auto overscroll-contain bg-white"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
+
           {matches.map((match) => (
             <div
               key={match.id}
               className="border-b-4 border-gray-200 px-2 py-3"
             >
+
               <div className="flex items-start justify-between gap-2">
+
                 <div>
                   <h3 className="text-sm font-extrabold text-black">
                     {match.teams}
@@ -310,6 +340,7 @@ export default function DemoDashboard({ user, onLogout }) {
                 <span className="text-xs text-green-600">
                   ● DEMO
                 </span>
+
               </div>
 
               <div className="mt-3 grid grid-cols-3 text-center text-xs font-bold">
@@ -319,6 +350,7 @@ export default function DemoDashboard({ user, onLogout }) {
               </div>
 
               <div className="mt-2 grid grid-cols-6 gap-[2px]">
+
                 {match.odds.map((odd, index) => (
                   <button
                     key={index}
@@ -337,14 +369,17 @@ export default function DemoDashboard({ user, onLogout }) {
                     {odd}
                   </button>
                 ))}
+
               </div>
             </div>
           ))}
+
         </div>
       </section>
 
-      {/* GAMES SECTION — NORMAL PAGE SCROLL */}
+      {/* GAMES SECTION */}
       <div className="bg-white">
+
         <GameGrid games={featuredGames} />
 
         <GameGrid
@@ -361,10 +396,12 @@ export default function DemoDashboard({ user, onLogout }) {
           title="OUR PROVIDERS"
           games={providers}
         />
+
       </div>
 
       {/* FOOTER */}
       <footer className="bg-white px-4 py-8 text-center">
+
         <p className="text-sm font-extrabold text-green-700">
           🛡️ DEMO WEBSITE
         </p>
@@ -373,6 +410,7 @@ export default function DemoDashboard({ user, onLogout }) {
           For demonstration and informational purposes only.
           No real-money transactions.
         </p>
+
       </footer>
 
     </div>
