@@ -46,34 +46,13 @@ const matches = [
 ];
 
 const featuredGames = [
-  {
-    name: 'CREED ROOMZ',
-    image: '/games/creed-roomz.png',
-  },
-  {
-    name: 'LIGHTNING',
-    image: '/games/lightning.png',
-  },
-  {
-    name: 'INSTA LIVE',
-    image: '/games/insta-live.png',
-  },
-  {
-    name: 'EZUGI',
-    image: '/games/ezugi.png',
-  },
-  {
-    name: 'AVIATOR',
-    image: '/games/aviator.png',
-  },
-  {
-    name: 'MINES',
-    image: '/games/mines.png',
-  },
-  {
-    name: 'BIKINI GAMES',
-    image: '/games/bikini-games.png',
-  },
+  { name: 'CREED ROOMZ', image: '/games/creed-roomz.png' },
+  { name: 'LIGHTNING', image: '/games/lightning.png' },
+  { name: 'INSTA LIVE', image: '/games/insta-live.png' },
+  { name: 'EZUGI', image: '/games/ezugi.png' },
+  { name: 'AVIATOR', image: '/games/aviator.png' },
+  { name: 'MINES', image: '/games/mines.png' },
+  { name: 'BIKINI GAMES', image: '/games/bikini-games.png' },
   {
     name: 'COLOR PREDICTION',
     image: '/games/color-prediction.png',
@@ -125,11 +104,6 @@ const placeholderBackgrounds = [
   'from-[#431407] via-[#9a3412] to-[#dc2626]',
 ];
 
-/* =========================================================
-   CHANGE 1:
-   MULTI-COLOR NEON SCROLLING LINE
-   ========================================================= */
-
 function NeonScrollingLine() {
   return (
     <div className="neon-scroll-area">
@@ -145,11 +119,6 @@ function NeonScrollingLine() {
     </div>
   );
 }
-
-/* =========================================================
-   CHANGE 3:
-   FEATURED GAME CLICK -> COMING SOON SCREEN
-   ========================================================= */
 
 function FeaturedGamesGrid({ onGameClick }) {
   return (
@@ -235,31 +204,20 @@ export default function DemoDashboard({ user, onLogout }) {
 
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdrawal, setShowWithdrawal] = useState(false);
-
   const [showAccountStatement, setShowAccountStatement] =
     useState(false);
-
-  const [showBetHistory, setShowBetHistory] =
-    useState(false);
-
+  const [showBetHistory, setShowBetHistory] = useState(false);
   const [showUnsettledBet, setShowUnsettledBet] =
     useState(false);
-
   const [showSetButtonValues, setShowSetButtonValues] =
     useState(false);
-
   const [showChangePassword, setShowChangePassword] =
     useState(false);
-
   const [showCustomerMenu, setShowCustomerMenu] =
     useState(false);
 
-  const [selectedMatch, setSelectedMatch] =
-    useState(null);
-
-  /* NEW - SELECTED FEATURED GAME */
-  const [selectedGame, setSelectedGame] =
-    useState(null);
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [selectedGame, setSelectedGame] = useState(null);
 
   const [demoBalance] = useState(() => {
     try {
@@ -272,15 +230,12 @@ export default function DemoDashboard({ user, onLogout }) {
           'telugu_sports_demo_balance',
           '10000'
         );
-
         return 10000;
       }
 
       const value = Number(saved);
 
-      return Number.isFinite(value)
-        ? value
-        : 10000;
+      return Number.isFinite(value) ? value : 10000;
     } catch {
       return 10000;
     }
@@ -313,7 +268,6 @@ export default function DemoDashboard({ user, onLogout }) {
         top: 0,
         behavior: 'smooth',
       });
-
       return;
     }
 
@@ -369,9 +323,7 @@ export default function DemoDashboard({ user, onLogout }) {
     return (
       <AccountStatementPage
         user={user}
-        onBack={() =>
-          setShowAccountStatement(false)
-        }
+        onBack={() => setShowAccountStatement(false)}
       />
     );
   }
@@ -380,9 +332,7 @@ export default function DemoDashboard({ user, onLogout }) {
     return (
       <BetHistoryPage
         user={user}
-        onBack={() =>
-          setShowBetHistory(false)
-        }
+        onBack={() => setShowBetHistory(false)}
       />
     );
   }
@@ -391,9 +341,7 @@ export default function DemoDashboard({ user, onLogout }) {
     return (
       <UnsettledBetPage
         user={user}
-        onBack={() =>
-          setShowUnsettledBet(false)
-        }
+        onBack={() => setShowUnsettledBet(false)}
       />
     );
   }
@@ -402,9 +350,7 @@ export default function DemoDashboard({ user, onLogout }) {
     return (
       <SetButtonValuesPage
         user={user}
-        onBack={() =>
-          setShowSetButtonValues(false)
-        }
+        onBack={() => setShowSetButtonValues(false)}
       />
     );
   }
@@ -413,9 +359,7 @@ export default function DemoDashboard({ user, onLogout }) {
     return (
       <ChangePasswordPage
         user={user}
-        onBack={() =>
-          setShowChangePassword(false)
-        }
+        onBack={() => setShowChangePassword(false)}
       />
     );
   }
@@ -425,23 +369,15 @@ export default function DemoDashboard({ user, onLogout }) {
       <MatchDetailsPage
         match={selectedMatch}
         user={user}
-        onBack={() =>
-          setSelectedMatch(null)
-        }
+        onBack={() => setSelectedMatch(null)}
       />
     );
   }
 
-  /* =======================================================
-     FEATURED GAME COMING SOON PAGE
-     ======================================================= */
-
   if (selectedGame) {
     return (
       <div className="min-h-screen bg-[#062f2b] text-white">
-
         <header className="flex items-center bg-[#9a5a00] px-3 py-3">
-
           <button
             type="button"
             onClick={() => setSelectedGame(null)}
@@ -453,11 +389,9 @@ export default function DemoDashboard({ user, onLogout }) {
           <h1 className="text-sm font-black text-amber-200">
             {selectedGame.name}
           </h1>
-
         </header>
 
         <div className="flex min-h-[70vh] flex-col items-center justify-center px-5 text-center">
-
           <img
             src={selectedGame.image}
             alt={selectedGame.name}
@@ -477,9 +411,7 @@ export default function DemoDashboard({ user, onLogout }) {
           <p className="mt-4 text-xs text-gray-300">
             Demo preview only
           </p>
-
         </div>
-
       </div>
     );
   }
@@ -487,17 +419,18 @@ export default function DemoDashboard({ user, onLogout }) {
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#eeeeee] text-black">
 
-      {/* NEON SCROLL ANIMATION */}
       <style>
         {`
           .neon-scroll-area {
             width: 100%;
-            height: 18px;
+            height: 34px;
             overflow: hidden;
             position: relative;
-            margin-top: 4px;
-            margin-bottom: 2px;
+            margin-top: 5px;
+            margin-bottom: 3px;
             white-space: nowrap;
+            display: flex;
+            align-items: center;
           }
 
           .neon-scroll-track {
@@ -511,8 +444,8 @@ export default function DemoDashboard({ user, onLogout }) {
           .neon-scroll-text {
             display: inline-block;
             padding-right: 70px;
-            font-size: 9px;
-            line-height: 18px;
+            font-size: 16px;
+            line-height: 34px;
             font-weight: 900;
             letter-spacing: 1px;
 
@@ -563,11 +496,8 @@ export default function DemoDashboard({ user, onLogout }) {
 
       {/* HEADER */}
       <header className="bg-[#9a5a00] px-3 pb-2 pt-3 text-white">
-
         <div className="flex items-start justify-between gap-2">
-
           <div>
-
             <h1 className="text-lg font-black text-amber-300">
               🏠 TELUGU SPORTS
             </h1>
@@ -575,11 +505,9 @@ export default function DemoDashboard({ user, onLogout }) {
             <p className="ml-7 mt-0.5 text-[10px] font-black tracking-[0.15em]">
               BOOK • DEMO
             </p>
-
           </div>
 
           <div className="relative text-right">
-
             <p className="text-xs font-black text-amber-200">
               🪙 {demoBalance.toLocaleString('en-IN')} Demo Coins
             </p>
@@ -587,9 +515,7 @@ export default function DemoDashboard({ user, onLogout }) {
             <button
               type="button"
               onClick={() =>
-                setShowCustomerMenu(
-                  (value) => !value
-                )
+                setShowCustomerMenu((value) => !value)
               }
               className="mt-1 rounded border border-amber-300/50 bg-[#7c4800] px-2 py-1.5 text-xs font-black"
             >
@@ -601,21 +527,16 @@ export default function DemoDashboard({ user, onLogout }) {
 
             {showCustomerMenu && (
               <div className="absolute right-0 top-full z-50 mt-1 w-52 overflow-hidden rounded-md border bg-white text-left text-gray-900 shadow-2xl">
-
-                {customerMenuItems.map(
-                  (item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      onClick={() =>
-                        handleCustomerMenu(item)
-                      }
-                      className="block w-full border-b px-3 py-2 text-left text-[11px] font-bold"
-                    >
-                      {item}
-                    </button>
-                  )
-                )}
+                {customerMenuItems.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => handleCustomerMenu(item)}
+                    className="block w-full border-b px-3 py-2 text-left text-[11px] font-bold"
+                  >
+                    {item}
+                  </button>
+                ))}
 
                 <button
                   type="button"
@@ -624,46 +545,36 @@ export default function DemoDashboard({ user, onLogout }) {
                 >
                   Logout
                 </button>
-
               </div>
             )}
-
           </div>
-
         </div>
 
-        {/* CHANGE 1 - SCROLLING LINE */}
+        {/* DOUBLE SIZE NEON SCROLL */}
         <NeonScrollingLine />
 
-        {/* DEPOSIT / WITHDRAWAL - SIZE UNCHANGED */}
+        {/* ONLY 2PX SMALLER */}
         <div className="mt-3 grid grid-cols-2 gap-2">
-
           <button
             type="button"
-            onClick={() =>
-              setShowDeposit(true)
-            }
-            className="h-[46px] rounded-md border border-white bg-green-700 px-2 text-xs font-black text-white shadow"
+            onClick={() => setShowDeposit(true)}
+            className="h-[44px] rounded-md border border-white bg-green-700 px-2 text-xs font-black text-white shadow"
           >
             💰 DEPOSIT
           </button>
 
           <button
             type="button"
-            onClick={() =>
-              setShowWithdrawal(true)
-            }
-            className="h-[46px] rounded-md border border-white bg-red-700 px-2 text-xs font-black text-white shadow"
+            onClick={() => setShowWithdrawal(true)}
+            className="h-[44px] rounded-md border border-white bg-red-700 px-2 text-xs font-black text-white shadow"
           >
             💸 WITHDRAWAL
           </button>
-
         </div>
 
         <p className="mt-2 text-center text-[9px] font-black text-amber-100">
           🏆 OUR EXCHANGE • DREAM BIG WIN BIG 🏆
         </p>
-
       </header>
 
       {/* MAIN NAV */}
@@ -674,16 +585,12 @@ export default function DemoDashboard({ user, onLogout }) {
           touchAction: 'pan-x',
         }}
       >
-
         <div className="flex w-max min-w-full">
-
           {tabs.map((tab) => (
             <button
               key={tab}
               type="button"
-              onClick={() =>
-                setSelectedTab(tab)
-              }
+              onClick={() => setSelectedTab(tab)}
               className={`shrink-0 border-r border-amber-300/40 px-5 py-2.5 text-[10px] font-black ${
                 selectedTab === tab
                   ? 'bg-[#c35b08]'
@@ -693,9 +600,7 @@ export default function DemoDashboard({ user, onLogout }) {
               {tab}
             </button>
           ))}
-
         </div>
-
       </nav>
 
       {/* SPORTS */}
@@ -706,23 +611,18 @@ export default function DemoDashboard({ user, onLogout }) {
           touchAction: 'pan-x',
         }}
       >
-
         <div className="flex w-max">
-
           {sports.map((sport) => (
             <button
               key={sport.name}
               type="button"
-              onClick={() =>
-                setSelectedSport(sport.name)
-              }
+              onClick={() => setSelectedSport(sport.name)}
               className={`w-[88px] shrink-0 px-1 py-1.5 text-center text-white ${
                 selectedSport === sport.name
                   ? 'bg-[#043d38]'
                   : 'bg-[#0b6259]'
               }`}
             >
-
               <span className="block text-lg leading-none">
                 {sport.icon}
               </span>
@@ -730,27 +630,20 @@ export default function DemoDashboard({ user, onLogout }) {
               <span className="mt-1 block whitespace-nowrap text-[7px] font-black leading-none">
                 {sport.name}
               </span>
-
             </button>
           ))}
-
         </div>
-
       </section>
 
       {/* FILTER */}
       <section className="flex items-center justify-between gap-1 border-b bg-white px-2 py-2">
-
         <div className="flex gap-1">
-
           {['LIVE', 'VIRTUAL', 'PREMIUM'].map(
             (filter) => (
               <button
                 key={filter}
                 type="button"
-                onClick={() =>
-                  setMatchFilter(filter)
-                }
+                onClick={() => setMatchFilter(filter)}
                 className={`rounded-full border px-2.5 py-1.5 text-[8px] font-black ${
                   matchFilter === filter
                     ? 'border-amber-600 bg-amber-50 text-amber-900'
@@ -761,34 +654,25 @@ export default function DemoDashboard({ user, onLogout }) {
               </button>
             )
           )}
-
         </div>
 
         <span className="text-[8px] font-black">
           DEMO MATCHES
         </span>
-
       </section>
 
       {/* MATCH LIST */}
       <section className="bg-[#eeeeee]">
-
         {matches.map((match) => (
           <article
             key={match.id}
             className="mb-1 border-b border-gray-300 bg-white px-2 py-2"
           >
-
             <div className="flex items-start justify-between gap-2">
-
               <div className="min-w-0 flex-1">
-
-                {/* CHANGE 2 - MATCH NAME CLICKABLE */}
                 <button
                   type="button"
-                  onClick={() =>
-                    setSelectedMatch(match)
-                  }
+                  onClick={() => setSelectedMatch(match)}
                   className="block w-full text-left"
                 >
                   <h2 className="truncate border-b-2 border-teal-700 pb-1 text-[13px] font-black">
@@ -799,19 +683,15 @@ export default function DemoDashboard({ user, onLogout }) {
                 <p className="mt-1 text-[9px] font-bold text-red-600">
                   {match.date}
                 </p>
-
               </div>
 
               <button
                 type="button"
-                onClick={() =>
-                  setSelectedMatch(match)
-                }
+                onClick={() => setSelectedMatch(match)}
                 className="shrink-0 rounded bg-[#0b766d] px-2 py-1.5 text-[8px] font-black text-white"
               >
                 OPEN ›
               </button>
-
             </div>
 
             <div className="mt-2 grid grid-cols-3 text-center text-[9px] font-black">
@@ -821,49 +701,36 @@ export default function DemoDashboard({ user, onLogout }) {
             </div>
 
             <div className="mt-1 grid grid-cols-6 gap-[2px]">
-
-              {match.odds.map(
-                (odd, index) => (
-                  <button
-                    key={`${match.id}-${index}`}
-                    type="button"
-                    onClick={() =>
-                      setSelectedMatch(match)
-                    }
-                    className={`h-[38px] text-[9px] font-black ${
-                      index % 2 === 0
-                        ? 'bg-sky-300'
-                        : 'bg-pink-300'
-                    }`}
-                  >
-                    {odd}
-                  </button>
-                )
-              )}
-
+              {match.odds.map((odd, index) => (
+                <button
+                  key={`${match.id}-${index}`}
+                  type="button"
+                  onClick={() => setSelectedMatch(match)}
+                  className={`h-[38px] text-[9px] font-black ${
+                    index % 2 === 0
+                      ? 'bg-sky-300'
+                      : 'bg-pink-300'
+                  }`}
+                >
+                  {odd}
+                </button>
+              ))}
             </div>
 
             <button
               type="button"
-              onClick={() =>
-                setSelectedMatch(match)
-              }
+              onClick={() => setSelectedMatch(match)}
               className="mt-1.5 h-[30px] w-full rounded border border-teal-700 bg-teal-50 text-[8px] font-black text-teal-900"
             >
               VIEW MATCH ODDS & FANCY MARKETS ›
             </button>
-
           </article>
         ))}
-
       </section>
 
       {/* 8 FEATURED GAMES */}
-      <FeaturedGamesGrid
-        onGameClick={setSelectedGame}
-      />
+      <FeaturedGamesGrid onGameClick={setSelectedGame} />
 
-      {/* OTHER SECTIONS */}
       <DemoGameGrid
         title="NEW LAUNCH"
         games={newLaunch}
@@ -879,9 +746,7 @@ export default function DemoDashboard({ user, onLogout }) {
         games={providers}
       />
 
-      {/* FOOTER */}
       <footer className="bg-white px-4 py-8 text-center">
-
         <p className="text-sm font-black text-green-700">
           📕 DEMO WEBSITE
         </p>
@@ -890,9 +755,7 @@ export default function DemoDashboard({ user, onLogout }) {
           For demonstration and informational purposes only.
           No real-money transactions.
         </p>
-
       </footer>
-
     </div>
   );
 }
