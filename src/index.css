@@ -1,13 +1,258 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  background-color: #080d16;
-  color: #ffffff;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-    Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+
+/* =========================================
+   TELUGU SPORTS BOOK
+   GLOBAL PREMIUM DARK THEME
+   ========================================= */
+
+:root {
+  font-family: 'Roboto Condensed', Arial, sans-serif;
+
+  --tsb-black: #030712;
+  --tsb-black-soft: #071421;
+  --tsb-card: #0a1724;
+
+  --tsb-green: #20c7b5;
+  --tsb-green-bright: #2dd4bf;
+  --tsb-green-dark: #0f766e;
+  --tsb-green-deep: #064e49;
+
+  --tsb-white: #ffffff;
+  --tsb-gray: #cbd5e1;
+  --tsb-gray-dark: #64748b;
+
+  --tsb-gold: #fbbf24;
+
+  color: var(--tsb-white);
+  background: var(--tsb-black);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+
+/* =========================================
+   BASIC RESET
+   ========================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  margin: 0;
+  padding: 0;
+  background: var(--tsb-black);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+
+  min-width: 320px;
+  min-height: 100vh;
+
+  font-family: 'Roboto Condensed', Arial, sans-serif;
+
+  background:
+    radial-gradient(
+      circle at top,
+      rgba(32, 199, 181, 0.08),
+      transparent 35%
+    ),
+    var(--tsb-black);
+
+  color: var(--tsb-white);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+
+/* =========================================
+   TEXT
+   ========================================= */
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Roboto Condensed', Arial, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+
+/* =========================================
+   TSB CUSTOM CLASSES
+   ========================================= */
+
+.tsb-page {
+  min-height: 100vh;
+  background: var(--tsb-black);
+  color: var(--tsb-white);
+}
+
+.tsb-header {
+  background: rgba(3, 7, 18, 0.98);
+  color: var(--tsb-white);
+  border-bottom: 1px solid rgba(45, 212, 191, 0.35);
+}
+
+.tsb-brand {
+  color: var(--tsb-green-bright);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.tsb-card {
+  background: var(--tsb-card);
+  border: 1px solid rgba(45, 212, 191, 0.18);
+  border-radius: 12px;
+}
+
+.tsb-section-title {
+  background: linear-gradient(
+    90deg,
+    #064e49,
+    #0f766e
+  );
+
+  color: #ffffff;
+
+  border-bottom: 1px solid
+    rgba(45, 212, 191, 0.35);
+}
+
+.tsb-button {
+  background: linear-gradient(
+    135deg,
+    #0f766e,
+    #20c7b5
+  );
+
+  color: #ffffff;
+
+  border: 1px solid
+    rgba(45, 212, 191, 0.45);
+
+  border-radius: 8px;
+
+  font-weight: 800;
+
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.tsb-button:active {
+  transform: scale(0.98);
+}
+
+.tsb-button:hover {
+  box-shadow:
+    0 0 18px
+    rgba(45, 212, 191, 0.25);
+}
+
+.tsb-outline-button {
+  background: #071421;
+
+  border: 1px solid
+    var(--tsb-green);
+
+  color: var(--tsb-green-bright);
+
+  border-radius: 8px;
+
+  font-weight: 800;
+}
+
+.tsb-input {
+  background: #071421;
+
+  color: #ffffff;
+
+  border: 1px solid
+    rgba(45, 212, 191, 0.35);
+
+  border-radius: 8px;
+}
+
+.tsb-input:focus {
+  outline: none;
+
+  border-color:
+    var(--tsb-green-bright);
+
+  box-shadow:
+    0 0 0 2px
+    rgba(45, 212, 191, 0.12);
+}
+
+.tsb-muted {
+  color: var(--tsb-gray);
+}
+
+.tsb-green-text {
+  color: var(--tsb-green-bright);
+}
+
+.tsb-gold-text {
+  color: var(--tsb-gold);
+}
+
+
+/* =========================================
+   SCROLLBAR
+   ========================================= */
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #030712;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #0f766e;
+  border-radius: 10px;
+}
+
+
+/* =========================================
+   MOBILE
+   ========================================= */
+
+@media (max-width: 640px) {
+  body {
+    font-size: 15px;
+  }
+
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
