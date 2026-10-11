@@ -59,19 +59,32 @@ const featuredGames = [
   },
 ];
 
+/* NEW LAUNCH — REAL UPLOADED IMAGES */
 const newLaunch = [
-  'JILI',
-  'GOLDEN KICK',
-  'SNAKES & LADDERS',
-  'PREDIX',
-  'MONEY HEIST',
-  'FOOTBALL X',
-  'TWIST X',
-  'INSTANT RUMMY',
-  'JHANDI MUNDA',
-  'BLACKJACK',
-  'DEAL OR NO DEAL',
-  'LOOT BOXES',
+  { name: 'JILI', image: '/games/jili.png' },
+  { name: 'GOLDEN KICK', image: '/games/golden-kick.png' },
+  {
+    name: 'SNAKES & LADDERS',
+    image: '/games/snakes-ladders.png',
+  },
+  { name: 'PREDIX', image: '/games/predix.png' },
+  { name: 'MONEY HEIST', image: '/games/money-heist.png' },
+  { name: 'FOOTBALL X', image: '/games/football-x.png' },
+  { name: 'TWIST X', image: '/games/twist-x.png' },
+  {
+    name: 'INSTANT RUMMY',
+    image: '/games/instant-rummy.png',
+  },
+  {
+    name: 'JHANDI MUNDA',
+    image: '/games/jhandi-munda.png',
+  },
+  { name: 'BLACKJACK', image: '/games/blackjack.png' },
+  {
+    name: 'DEAL OR NO DEAL',
+    image: '/games/deal-or-no-deal.png',
+  },
+  { name: 'LOOT BOXES', image: '/games/loot-boxes.png' },
 ];
 
 const favourites = [
@@ -125,6 +138,46 @@ function FeaturedGamesGrid({ onGameClick }) {
     <section className="border-t-4 border-[#073c37] bg-[#062f2b]">
       <div className="grid grid-cols-4 gap-[2px]">
         {featuredGames.map((game) => (
+          <button
+            key={game.name}
+            type="button"
+            onClick={() => onGameClick(game)}
+            className="min-w-0 overflow-hidden bg-[#10251f] text-white"
+          >
+            <div className="relative aspect-square w-full overflow-hidden bg-black">
+              <img
+                src={game.image}
+                alt={game.name}
+                className="h-full w-full object-cover"
+              />
+
+              <span className="absolute right-1 top-1 rounded bg-black/60 px-1 py-[1px] text-[6px] font-bold">
+                DEMO
+              </span>
+            </div>
+
+            <div className="flex h-[25px] items-center justify-center bg-gradient-to-b from-[#7c4b0b] to-[#063c34] px-1">
+              <span className="line-clamp-2 text-center text-[7px] font-black uppercase leading-tight">
+                {game.name}
+              </span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* NEW LAUNCH IMAGE GRID */
+function NewLaunchGrid({ onGameClick }) {
+  return (
+    <section className="border-t border-[#164c46] bg-[#062f2b]">
+      <h2 className="px-3 py-2 text-sm font-black text-white">
+        NEW LAUNCH
+      </h2>
+
+      <div className="grid grid-cols-4 gap-[2px]">
+        {newLaunch.map((game) => (
           <button
             key={game.name}
             type="button"
@@ -418,7 +471,6 @@ export default function DemoDashboard({ user, onLogout }) {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#eeeeee] text-black">
-
       <style>
         {`
           .neon-scroll-area {
@@ -550,10 +602,8 @@ export default function DemoDashboard({ user, onLogout }) {
           </div>
         </div>
 
-        {/* DOUBLE SIZE NEON SCROLL */}
         <NeonScrollingLine />
 
-        {/* ONLY 2PX SMALLER */}
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -728,14 +778,13 @@ export default function DemoDashboard({ user, onLogout }) {
         ))}
       </section>
 
-      {/* 8 FEATURED GAMES */}
+      {/* FIRST 8 IMAGES */}
       <FeaturedGamesGrid onGameClick={setSelectedGame} />
 
-      <DemoGameGrid
-        title="NEW LAUNCH"
-        games={newLaunch}
-      />
+      {/* NEW LAUNCH 12 REAL IMAGES */}
+      <NewLaunchGrid onGameClick={setSelectedGame} />
 
+      {/* THESE TWO STAY AS BEFORE */}
       <DemoGameGrid
         title="MY FAVOURITES"
         games={favourites}
