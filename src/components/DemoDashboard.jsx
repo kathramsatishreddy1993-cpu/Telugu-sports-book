@@ -5,6 +5,7 @@ import WithdrawalPage from './WithdrawalPage';
 import AccountStatementPage from './AccountStatementPage';
 import BetHistoryPage from './BetHistoryPage';
 import UnsettledBetPage from './UnsettledBetPage';
+import SetButtonValuesPage from './SetButtonValuesPage';
 
 const sports = [
   { icon: '🏏', name: 'CRICKET' },
@@ -172,6 +173,11 @@ export default function DemoDashboard({
   const [showUnsettledBet, setShowUnsettledBet] =
     useState(false);
 
+  const [
+    showSetButtonValues,
+    setShowSetButtonValues,
+  ] = useState(false);
+
   // CUSTOMER MENU
   const [showCustomerMenu, setShowCustomerMenu] =
     useState(false);
@@ -222,6 +228,11 @@ export default function DemoDashboard({
       return;
     }
 
+    if (item === 'Set Button Values') {
+      setShowSetButtonValues(true);
+      return;
+    }
+
     alert(
       `${item} — Demo page will be connected next`
     );
@@ -247,7 +258,7 @@ export default function DemoDashboard({
     );
   }
 
-  // ACCOUNT STATEMENT
+  // ACCOUNT STATEMENT PAGE
   if (showAccountStatement) {
     return (
       <AccountStatementPage
@@ -259,22 +270,38 @@ export default function DemoDashboard({
     );
   }
 
-  // BET HISTORY
+  // BET HISTORY PAGE
   if (showBetHistory) {
     return (
       <BetHistoryPage
         user={user}
-        onBack={() => setShowBetHistory(false)}
+        onBack={() =>
+          setShowBetHistory(false)
+        }
       />
     );
   }
 
-  // UNSETTLED BET
+  // UNSETTLED BET PAGE
   if (showUnsettledBet) {
     return (
       <UnsettledBetPage
         user={user}
-        onBack={() => setShowUnsettledBet(false)}
+        onBack={() =>
+          setShowUnsettledBet(false)
+        }
+      />
+    );
+  }
+
+  // SET BUTTON VALUES PAGE
+  if (showSetButtonValues) {
+    return (
+      <SetButtonValuesPage
+        user={user}
+        onBack={() =>
+          setShowSetButtonValues(false)
+        }
       />
     );
   }
@@ -288,6 +315,7 @@ export default function DemoDashboard({
         <div className="flex items-center justify-between gap-2">
 
           <div className="flex items-center gap-2">
+
             <span className="text-xl">
               🏠
             </span>
@@ -301,6 +329,7 @@ export default function DemoDashboard({
                 BOOK • DEMO
               </p>
             </div>
+
           </div>
 
           {/* USER MENU */}
@@ -388,7 +417,9 @@ export default function DemoDashboard({
 
           <button
             type="button"
-            onClick={() => setShowDeposit(true)}
+            onClick={() =>
+              setShowDeposit(true)
+            }
             className="rounded-md border border-white bg-green-700 py-3 text-sm font-extrabold text-white"
           >
             💰 DEPOSIT
@@ -419,7 +450,9 @@ export default function DemoDashboard({
           <button
             key={tab}
             type="button"
-            onClick={() => setSelectedTab(tab)}
+            onClick={() =>
+              setSelectedTab(tab)
+            }
             className={`shrink-0 border-r border-amber-200/50 px-4 py-3 text-xs font-extrabold ${
               selectedTab === tab
                 ? 'bg-amber-700 text-white'
@@ -569,7 +602,9 @@ export default function DemoDashboard({
       {/* GAMES */}
       <div className="bg-white">
 
-        <GameGrid games={featuredGames} />
+        <GameGrid
+          games={featuredGames}
+        />
 
         <GameGrid
           title="NEW LAUNCH"
