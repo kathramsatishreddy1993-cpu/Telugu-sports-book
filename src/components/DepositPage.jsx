@@ -1,449 +1,226 @@
-import React, { useState } from 'react';
+import React from 'react';
 
-const DEMO_BANK = {
-  bankName: '',
-  accountNumber: '',
-  ifsc: '',
-  accountHolder: '',
-  minAmount: 300,
-  maxAmount: 100000,
-};
-
-const METHODS = [
-  { name: 'WHATSAPP DEPOSIT', icon: '🟢' },
-  { name: 'ACCOUNT', icon: '🏦' },
-  { name: 'PAYTM', icon: '💳' },
-  { name: 'GPAY', icon: '💳' },
-];
-
-const INSTRUCTIONS = [
-  'This page is for demonstration purposes only.',
-  'Enter an amount and select SUBMIT to continue.',
-  'Only administrator-configured demo account information will be displayed.',
-  'Enter a 6 to 12 digit demo reference number.',
-  'Upload a sample image to test the request form.',
-  'Submitted demo requests will appear as PENDING in Transaction History.',
-];
-
-export default function DepositPage({ onBack }) {
-  const [step, setStep] = useState(1);
-
-  const [method, setMethod] = useState('ACCOUNT');
-  const [amount, setAmount] = useState('');
-  const [utr, setUtr] = useState('');
-  const [proof, setProof] = useState(null);
-
-  const [transactions, setTransactions] = useState([]);
-
-  const bankConfigured = Boolean(
-    DEMO_BANK.bankName &&
-    DEMO_BANK.accountNumber &&
-    DEMO_BANK.ifsc &&
-    DEMO_BANK.accountHolder
-  );
-
-  const handleAmountSubmit = (event) => {
-    event.preventDefault();
-
-    const value = Number(amount);
-
-    if (
-      !Number.isFinite(value) ||
-      value < DEMO_BANK.minAmount ||
-      value > DEMO_BANK.maxAmount
-    ) {
-      alert(
-        `Enter an amount between ${DEMO_BANK.minAmount} and ${DEMO_BANK.maxAmount}`
-      );
-      return;
-    }
-
-    setStep(2);
-    window.scrollTo(0, 0);
-  };
-
-  const handleRequestSubmit = (event) => {
-    event.preventDefault();
-
-    if (!/^[0-9]{6,12}$/.test(utr)) {
-      alert('Enter a valid 6 to 12 digit demo reference');
-      return;
-    }
-
-    if (!proof) {
-      alert('Please upload a sample image');
-      return;
-    }
-
-    const transaction = {
-      id: `TSB${Date.now()}`,
-      amount: Number(amount),
-      utr,
-      method,
-      status: 'PENDING',
-      date: new Date().toLocaleString('en-IN'),
-    };
-
-    setTransactions((previous) => [
-      transaction,
-      ...previous,
-    ]);
-
-    setAmount('');
-    setUtr('');
-    setProof(null);
-    setMethod('ACCOUNT');
-
-    setStep(1);
-    window.scrollTo(0, 0);
-
-    alert('Demo request submitted. Status: PENDING');
-  };
-
+export default function BonusPage({ onBack }) {
   return (
-    <div className="min-h-screen bg-[#f3f2f7] text-gray-900">
-
+    <div className="min-h-screen bg-[#080d16] text-white">
       {/* HEADER */}
-      <header className="bg-[#116258] px-4 py-4 text-white">
-        <div className="mx-auto flex max-w-3xl items-center justify-between">
-          <h1 className="text-lg font-black italic text-amber-300">
-            TELUGU SPORTS BOOK
-          </h1>
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#080d16] px-4 py-4">
+        <div className="mx-auto flex max-w-4xl items-center justify-between">
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-lg border border-amber-400/50 bg-[#111827] px-3 py-2 text-xs font-black text-white"
+          >
+            ‹ BACK
+          </button>
 
-          <span className="text-xs font-bold">
-            DEMO
-          </span>
+          <div className="text-right">
+            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-amber-400">
+              TELUGU SPORTS BOOK
+            </p>
+
+            <h1 className="text-sm font-black">
+              BONUS DETAILS
+            </h1>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-3 py-5">
+      <main className="mx-auto max-w-4xl px-4 py-6">
+        {/* PAGE TITLE */}
+        <section className="mb-6 text-center">
+          <div className="text-4xl">🎁</div>
 
-        {/* BACK BUTTON */}
-        <button
-          type="button"
-          onClick={() => {
-            if (step === 2) {
-              setStep(1);
-            } else {
-              onBack?.();
-            }
-          }}
-          className="mb-5 rounded-lg bg-[#895000] px-6 py-3 font-semibold text-white"
-        >
-          ← BACK
-        </button>
+          <p className="mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-amber-400">
+            EXCLUSIVE MEMBER BONUS
+          </p>
 
-        {step === 1 ? (
-          <>
-            {/* STEP 1: AMOUNT */}
-            <section className="mb-5 rounded-lg bg-white p-5 shadow-sm">
-              <form onSubmit={handleAmountSubmit}>
+          <h2 className="mt-2 text-2xl font-black">
+            Bonus Offers
+          </h2>
+        </section>
 
-                <label
-                  htmlFor="depositAmount"
-                  className="mb-3 block text-base font-bold"
-                >
-                  Amount
-                </label>
+        {/* 1. WELCOME BONUS */}
+        <section className="mb-4 overflow-hidden rounded-2xl border border-emerald-500/40 bg-[#10192b]">
+          <div className="px-5 py-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <span className="inline-flex rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-wider text-emerald-400">
+                  NEW PLAYERS
+                </span>
 
-                <div className="flex overflow-hidden rounded-lg border border-gray-300">
-
-                  <input
-                    id="depositAmount"
-                    type="number"
-                    min={DEMO_BANK.minAmount}
-                    max={DEMO_BANK.maxAmount}
-                    step="1"
-                    value={amount}
-                    onChange={(event) =>
-                      setAmount(event.target.value)
-                    }
-                    placeholder="Enter amount"
-                    className="min-w-0 flex-1 px-4 py-4 text-base outline-none"
-                    required
-                  />
-
-                  <button
-                    type="submit"
-                    className="shrink-0 bg-[#116258] px-5 py-4 font-extrabold text-white"
-                  >
-                    SUBMIT
-                  </button>
-
-                </div>
-
-              </form>
-            </section>
-
-            {/* STEP 1: INSTRUCTIONS */}
-            <section className="mb-5 rounded-lg bg-white px-5 py-7 shadow-sm">
-
-              <h2 className="mb-5 text-lg font-extrabold">
-                DEPOSIT INSTRUCTIONS
-              </h2>
-
-              <div className="space-y-6">
-                {INSTRUCTIONS.map((instruction, index) => (
-                  <p
-                    key={index}
-                    className="text-sm leading-7 text-red-600"
-                  >
-                    {index + 1}. {instruction}
-                  </p>
-                ))}
+                <h3 className="mt-3 text-xl font-black">
+                  Welcome Bonus
+                </h3>
               </div>
 
-            </section>
+              <span className="text-3xl font-black text-emerald-400">
+                20%
+              </span>
+            </div>
 
-            {/* STEP 1: TRANSACTION HISTORY */}
-            <section className="rounded-lg bg-white p-4 shadow-sm">
+            <p className="mt-4 text-[12px] leading-5 text-gray-300">
+              Eligible amounts from ₹2,000 are eligible for a
+              20% Welcome Bonus. Bonus eligibility is calculated
+              only up to ₹10,000.
+            </p>
 
-              <h2 className="mb-5 text-xl font-extrabold">
-                TRANSACTION HISTORY
-              </h2>
-
-              <div className="overflow-x-auto">
-
-                <table className="w-full min-w-[570px] border-collapse text-sm">
-
-                  <thead className="bg-[#116258] text-white">
-                    <tr>
-                      <th className="p-3 text-left">
-                        TRANSACTION NO
-                      </th>
-                      <th className="p-3 text-left">
-                        AMOUNT
-                      </th>
-                      <th className="p-3 text-left">
-                        STATUS
-                      </th>
-                      <th className="p-3 text-left">
-                        DATE
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {transactions.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={4}
-                          className="p-6 text-center text-gray-500"
-                        >
-                          No demo transactions yet
-                        </td>
-                      </tr>
-                    ) : (
-                      transactions.map((transaction) => (
-                        <tr
-                          key={transaction.id}
-                          className="border-b even:bg-gray-50"
-                        >
-                          <td className="p-3">
-                            {transaction.id}
-                          </td>
-
-                          <td className="p-3">
-                            {transaction.amount.toFixed(2)}
-                          </td>
-
-                          <td className="p-3">
-                            <span className="rounded border border-amber-500 bg-amber-50 px-3 py-1 font-bold text-amber-700">
-                              {transaction.status}
-                            </span>
-                          </td>
-
-                          <td className="p-3">
-                            {transaction.date}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-
-                </table>
-
-              </div>
-            </section>
-          </>
-        ) : (
-          <>
-            {/* STEP 2: SELECT METHOD */}
-            <section className="mb-4 rounded-2xl bg-white p-3 shadow-sm">
-
-              <div className="grid grid-cols-4 gap-1">
-
-                {METHODS.map((item) => (
-                  <button
-                    key={item.name}
-                    type="button"
-                    onClick={() => setMethod(item.name)}
-                    className={`flex min-h-24 flex-col items-center justify-center gap-2 rounded-xl border px-1 py-3 text-center ${
-                      method === item.name
-                        ? 'border-teal-800 bg-[#116258] text-white'
-                        : 'border-gray-300 bg-white text-gray-900'
-                    }`}
-                  >
-                    <span className="text-[10px] font-extrabold sm:text-sm">
-                      {item.name}
-                    </span>
-
-                    <span className="text-2xl">
-                      {item.icon}
-                    </span>
-                  </button>
-                ))}
-
-              </div>
-            </section>
-
-            {/* STEP 2: BANK DETAILS */}
-            <section className="mb-5 rounded-lg bg-white p-5 shadow-sm">
-
-              <h2 className="mb-5 text-center text-2xl font-extrabold">
-                {method === 'ACCOUNT'
-                  ? 'BANK ACCOUNT'
-                  : method}
-              </h2>
-
-              {method === 'ACCOUNT' ? (
-                bankConfigured ? (
-                  <div className="space-y-3 rounded-2xl bg-[#f3f2f7] p-4">
-
-                    {[
-                      ['Bank Name', DEMO_BANK.bankName],
-                      ['A/C No', DEMO_BANK.accountNumber],
-                      ['IFSC Code', DEMO_BANK.ifsc],
-                      ['Account Name', DEMO_BANK.accountHolder],
-                    ].map(([label, value]) => (
-                      <div
-                        key={label}
-                        className="flex items-center justify-between gap-2 border-b pb-2"
-                      >
-                        <span className="text-sm font-bold">
-                          {label}
-                        </span>
-
-                        <span className="break-all text-right text-sm">
-                          {value}
-                        </span>
-                      </div>
-                    ))}
-
-                  </div>
-                ) : (
-                  <div className="rounded-xl bg-gray-100 p-6 text-center text-sm text-gray-500">
-                    Demo bank details are not configured.
-                  </div>
-                )
-              ) : (
-                <div className="rounded-xl bg-gray-100 p-6 text-center text-sm text-gray-500">
-                  {method} demo details are not configured.
-                </div>
-              )}
-
-              <div className="mt-4 rounded-xl bg-gray-100 p-4 text-sm">
-
-                <p>
-                  <strong>Min Amount:</strong>{' '}
-                  {DEMO_BANK.minAmount}
+            {/* MIN / MAX */}
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                <p className="text-[9px] font-black uppercase text-gray-500">
+                  Minimum Eligible Amount
                 </p>
 
-                <p className="mt-2">
-                  <strong>Max Amount:</strong>{' '}
-                  {DEMO_BANK.maxAmount}
+                <p className="mt-2 text-xl font-black text-white">
+                  ₹2,000
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                <p className="text-[9px] font-black uppercase text-gray-500">
+                  Maximum Eligible Amount
                 </p>
 
+                <p className="mt-2 text-xl font-black text-white">
+                  ₹10,000
+                </p>
               </div>
+            </div>
 
-            </section>
+            {/* RULE */}
+            <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-emerald-400">
+                WELCOME BONUS RULE
+              </p>
 
-            {/* STEP 2: REQUEST FORM */}
-            <form
-              onSubmit={handleRequestSubmit}
-              className="space-y-5 rounded-lg bg-white p-5 shadow-sm"
-            >
+              <p className="mt-3 text-[11px] leading-5 text-gray-300">
+                Amounts below ₹2,000 are not eligible for the
+                Welcome Bonus.
+              </p>
 
-              <h2 className="text-xl font-extrabold">
-                DEMO DEPOSIT REQUEST
-              </h2>
+              <p className="mt-2 text-[11px] leading-5 text-gray-300">
+                Eligible amounts from ₹2,000 up to ₹10,000
+                receive a 20% Bonus.
+              </p>
 
+              <p className="mt-2 text-[11px] leading-5 text-gray-300">
+                If the amount is above ₹10,000, Bonus eligibility
+                remains capped at ₹10,000.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* 2. PROMO CODE BONUS */}
+        <section className="mb-4 overflow-hidden rounded-2xl border border-blue-500/40 bg-[#10192b]">
+          <div className="px-5 py-5">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <label className="mb-2 block font-bold">
-                  Amount
-                </label>
+                <span className="inline-flex rounded-md border border-blue-500/40 bg-blue-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-wider text-blue-400">
+                  SPECIAL CODE
+                </span>
 
-                <div className="rounded-lg border bg-gray-100 p-4 font-bold">
-                  {Number(amount).toFixed(2)}
-                </div>
+                <h3 className="mt-3 text-xl font-black">
+                  Promo Code Bonus
+                </h3>
               </div>
 
+              <span className="text-3xl font-black text-blue-400">
+                10%
+              </span>
+            </div>
+
+            <p className="mt-4 text-[12px] leading-5 text-gray-300">
+              Eligible users with a valid and active promotional
+              code can receive a 10% Bonus according to the
+              applicable promotional offer.
+            </p>
+
+            <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">
+                PROMO CONDITIONS
+              </p>
+
+              <p className="mt-2 text-[10px] leading-5 text-gray-400">
+                Promo codes may have separate eligibility,
+                validity and offer conditions. Only active
+                promotional codes are eligible.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* 3. LOSING BONUS */}
+        <section className="mb-4 overflow-hidden rounded-2xl border border-orange-500/40 bg-[#10192b]">
+          <div className="px-5 py-5">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <label
-                  htmlFor="demoUtr"
-                  className="mb-2 block font-bold"
-                >
-                  Demo Transaction Reference *
-                </label>
+                <span className="inline-flex rounded-md border border-red-500/40 bg-red-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-wider text-red-400">
+                  LOSS PROTECTION
+                </span>
 
-                <input
-                  id="demoUtr"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={12}
-                  value={utr}
-                  onChange={(event) =>
-                    setUtr(
-                      event.target.value.replace(/\D/g, '')
-                    )
-                  }
-                  placeholder="6 to 12 digit reference"
-                  className="w-full rounded-lg border border-gray-300 p-4 outline-none focus:border-teal-700"
-                  required
-                />
+                <h3 className="mt-3 text-xl font-black">
+                  Losing Bonus
+                </h3>
               </div>
 
-              <div>
-                <label
-                  htmlFor="demoProof"
-                  className="mb-2 block font-bold"
-                >
-                  Upload Demo Payment Proof *
-                </label>
+              <span className="text-3xl font-black text-orange-400">
+                10%
+              </span>
+            </div>
 
-                <input
-                  id="demoProof"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={(event) =>
-                    setProof(event.target.files?.[0] || null)
-                  }
-                  className="w-full rounded-lg border border-gray-300 p-3"
-                  required={!proof}
-                />
+            <p className="mt-4 text-[12px] leading-5 text-gray-300">
+              Eligible net losses can receive a 10% Losing Bonus
+              according to the applicable offer conditions.
+            </p>
 
-                {proof && (
-                  <p className="mt-2 text-sm text-green-700">
-                    Selected: {proof.name}
-                  </p>
-                )}
-              </div>
+            <div className="mt-4 rounded-xl border border-orange-500/20 bg-orange-500/5 p-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-orange-400">
+                LOSING BONUS
+              </p>
 
-              <button
-                type="submit"
-                className="w-full rounded-lg bg-[#116258] py-4 font-extrabold text-white"
-              >
-                SUBMIT DEMO REQUEST
-              </button>
+              <p className="mt-2 text-[10px] leading-5 text-gray-300">
+                Losing Bonus eligibility is calculated according
+                to the applicable offer rules and eligible net
+                loss amount.
+              </p>
+            </div>
+          </div>
+        </section>
 
-            </form>
-          </>
-        )}
+        {/* 4. LIMITED PERIOD OFFER */}
+        <section className="mb-6 rounded-2xl border border-amber-500/40 bg-[#10192b] p-5">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">
+              ⏳
+            </span>
 
-        <p className="py-6 text-center text-xs text-gray-500">
-          Demo interface only. No real payments are processed.
-        </p>
+            <div>
+              <h3 className="text-sm font-black uppercase tracking-wider text-amber-400">
+                Limited Period Offer
+              </h3>
 
+              <p className="mt-3 text-[11px] leading-5 text-gray-300">
+                These bonus offers are available for a limited
+                period only and may be modified or withdrawn
+                at any time.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* NOTICE */}
+        <section className="rounded-xl border border-white/10 bg-black/20 px-4 py-4 text-center">
+          <p className="text-[9px] font-black uppercase tracking-[0.15em] text-gray-500">
+            DEMO WEBSITE
+          </p>
+
+          <p className="mt-2 text-[9px] leading-4 text-gray-500">
+            For demonstration and informational purposes only.
+            No real-money transactions.
+          </p>
+        </section>
       </main>
     </div>
   );
