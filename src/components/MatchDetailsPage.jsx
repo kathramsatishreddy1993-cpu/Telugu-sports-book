@@ -1,5 +1,10 @@
 import React, { useState } from 'react';
 
+const BALANCE_KEY = 'telugu_sports_demo_balance';
+const BETS_KEY = 'telugu_sports_demo_bets';
+
+const DEFAULT_BALANCE = 10000;
+
 const quickStakes = [
   100,
   200,
@@ -98,15 +103,57 @@ const demoFancyMarkets = [
   },
 ];
 
+const getSavedBalance = () => {
+  try {
+    const savedBalance = localStorage.getItem(
+      BALANCE_KEY
+    );
+
+    if (savedBalance === null) {
+      localStorage.setItem(
+        BALANCE_KEY,
+        String(DEFAULT_BALANCE)
+      );
+
+      return DEFAULT_BALANCE;
+    }
+
+    const numberBalance = Number(savedBalance);
+
+    if (
+      Number.isNaN(numberBalance) ||
+      numberBalance < 0
+    ) {
+      localStorage.setItem(
+        BALANCE_KEY,
+        String(DEFAULT_BALANCE)
+      );
+
+      return DEFAULT_BALANCE;
+    }
+
+    return numberBalance;
+  } catch (error) {
+    return DEFAULT_BALANCE;
+  }
+};
+
 export default function MatchDetailsPage({
   match,
   user,
   onBack,
 }) {
-  const [selectedMarket, setSelectedMarket] = useState(null);
+  const [selectedMarket, setSelectedMarket] =
+    useState(null);
+
   const [stake, setStake] = useState('');
+
   const [message, setMessage] = useState('');
+
   const [placed, setPlaced] = useState(false);
+
+  const [demoBalance, setDemoBalance] =
+    useState(() => getSavedBalance());
 
   const currentMatch = match || {
     id: 1,
@@ -167,38 +214,50 @@ export default function MatchDetailsPage({
   };
 
   const addStake = (amount) => {
+    if (placed) {
+      return;
+    }
+
     const currentStake = Number(stake) || 0;
 
-    setStake(String(currentStake + amount));
+    setStake(
+      String(currentStake + amount)
+    );
+
     setMessage('');
-    setPlaced(false);
   };
 
   const placeDemoSelection = () => {
-    if (!selectedMarket) {
+    if (!selectedMarket || placed) {
       return;
     }
 
     const amount = Number(stake);
 
     if (!amount || amount <= 0) {
-      setMessage('Please enter a valid demo stake.');
-      setPlaced(false);
+      setMessage(
+        'Please enter a valid demo stake.'
+      );
       return;
     }
 
-    if (amount > 10000) {
+    if (amount > demoBalance) {
       setMessage(
-        'Maximum demo stake is 10,000 demo coins.'
+        `Insufficient demo coins. Available balance: ${demoBalance.toLocaleString(
+          'en-IN'
+        )}`
       );
-      setPlaced(false);
       return;
     }
+
+    const newBalance =
+      demoBalance - amount;
 
     const demoBet = {
       id: Date.now(),
       matchId: currentMatch.id,
       match: currentMatch.teams,
+      sport: 'CRICKET',
       market: selectedMarket.market,
       selection: selectedMarket.selection,
       rate: selectedMarket.rate,
@@ -206,15 +265,25 @@ export default function MatchDetailsPage({
       stake: amount,
       status: 'MATCHED',
       result: 'PENDING',
+      profitLoss: 0,
+      balanceAfterBet: newBalance,
       createdAt: new Date().toISOString(),
     };
 
     try {
-      const oldBets = JSON.parse(
-        localStorage.getItem(
-          'telugu_sports_demo_bets'
-        ) || '[]'
-      );
+      let oldBets = [];
+
+      const savedBets =
+        localStorage.getItem(BETS_KEY);
+
+      if (savedBets) {
+        const parsedBets =
+          JSON.parse(savedBets);
+
+        if (Array.isArray(parsedBets)) {
+          oldBets = parsedBets;
+        }
+      }
 
       const updatedBets = [
         demoBet,
@@ -222,23 +291,30 @@ export default function MatchDetailsPage({
       ];
 
       localStorage.setItem(
-        'telugu_sports_demo_bets',
+        BETS_KEY,
         JSON.stringify(updatedBets)
       );
 
-      setMessage(
-        `Demo bet placed successfully • ${selectedMarket.market} • ${selectedMarket.selection} • ${amount.toLocaleString(
-          'en-IN'
-        )} demo coins`
+      localStorage.setItem(
+        BALANCE_KEY,
+        String(newBalance)
       );
 
+      setDemoBalance(newBalance);
+
       setPlaced(true);
+
+      setMessage(
+        `✓ Demo bet placed successfully. ${amount.toLocaleString(
+          'en-IN'
+        )} demo coins deducted. Balance: ${newBalance.toLocaleString(
+          'en-IN'
+        )}`
+      );
     } catch (error) {
       setMessage(
         'Demo bet could not be saved. Please try again.'
       );
-
-      setPlaced(false);
     }
   };
 
@@ -247,7 +323,8 @@ export default function MatchDetailsPage({
 
       {/* HEADER */}
       <header className="sticky top-0 z-40 bg-[#063f39] text-white shadow-lg">
-        <div className="flex min-h-[58px] items-center justify-between gap-2 px-3">
+
+        <div className="flex min-h-[64px] items-center justify-between gap-2 px-3">
 
           <button
             type="button"
@@ -258,6 +335,7 @@ export default function MatchDetailsPage({
           </button>
 
           <div className="min-w-0 flex-1 text-center">
+
             <p className="truncate text-sm font-black text-amber-400">
               TELUGU SPORTS BOOK
             </p>
@@ -265,15 +343,28 @@ export default function MatchDetailsPage({
             <p className="text-[9px] font-bold tracking-[0.25em] text-teal-100">
               • DEMO •
             </p>
+
           </div>
 
-          <div className="max-w-[85px] truncate text-right text-xs font-bold">
-            {user?.name ||
-              user?.identifier ||
-              'Demo User'}
+          <div className="text-right">
+
+            <p className="whitespace-nowrap text-[11px] font-black text-amber-300">
+              🪙{' '}
+              {demoBalance.toLocaleString(
+                'en-IN'
+              )}
+            </p>
+
+            <p className="max-w-[90px] truncate text-[10px] font-bold text-white">
+              {user?.name ||
+                user?.identifier ||
+                'Demo User'}
+            </p>
+
           </div>
 
         </div>
+
       </header>
 
       {/* MATCH TITLE */}
@@ -293,12 +384,40 @@ export default function MatchDetailsPage({
 
       </section>
 
+      {/* DEMO BALANCE */}
+      <section className="border-t border-teal-700 bg-[#075249] px-3 py-3 text-white">
+
+        <div className="flex items-center justify-between">
+
+          <div>
+            <p className="text-[10px] font-bold uppercase text-teal-100">
+              Available Demo Balance
+            </p>
+
+            <p className="mt-1 text-xl font-black text-amber-300">
+              🪙{' '}
+              {demoBalance.toLocaleString(
+                'en-IN'
+              )}{' '}
+              Demo Coins
+            </p>
+          </div>
+
+          <span className="rounded bg-black/20 px-2 py-1 text-[9px] font-black">
+            DEMO
+          </span>
+
+        </div>
+
+      </section>
+
       {/* DEMO SCORE */}
       <section className="mt-2 bg-[#082f2c] px-3 py-4 text-white">
 
         <div className="flex items-center justify-between">
 
           <div>
+
             <p className="text-xs font-bold text-teal-200">
               DEMO LIVE SCORE
             </p>
@@ -310,9 +429,11 @@ export default function MatchDetailsPage({
             <p className="text-xs text-gray-300">
               9.4 Overs
             </p>
+
           </div>
 
           <div className="text-right">
+
             <p className="text-xs text-teal-200">
               Current Run Rate
             </p>
@@ -320,9 +441,11 @@ export default function MatchDetailsPage({
             <p className="text-xl font-black text-amber-400">
               8.48
             </p>
+
           </div>
 
         </div>
+
       </section>
 
       {/* CURRENT BATSMEN */}
@@ -335,6 +458,7 @@ export default function MatchDetailsPage({
         <div className="grid grid-cols-2 gap-[1px] bg-gray-200">
 
           <div className="bg-white p-3">
+
             <p className="text-xs font-bold text-gray-500">
               BATSMAN
             </p>
@@ -346,9 +470,11 @@ export default function MatchDetailsPage({
             <p className="mt-1 text-xs">
               34 Runs • 21 Balls
             </p>
+
           </div>
 
           <div className="bg-white p-3">
+
             <p className="text-xs font-bold text-gray-500">
               BATSMAN
             </p>
@@ -360,15 +486,18 @@ export default function MatchDetailsPage({
             <p className="mt-1 text-xs">
               21 Runs • 16 Balls
             </p>
+
           </div>
 
         </div>
+
       </section>
 
       {/* MATCH ODDS */}
       <section className="mt-2 bg-white">
 
         <div className="flex items-center justify-between bg-[#0b6259] px-3 py-2 text-white">
+
           <h2 className="text-sm font-black">
             MATCH ODDS
           </h2>
@@ -376,16 +505,21 @@ export default function MatchDetailsPage({
           <span className="text-[10px] font-bold">
             DEMO
           </span>
+
         </div>
 
         <div className="grid grid-cols-[1fr_72px_72px] border-b bg-gray-100 px-2 py-2 text-center text-[10px] font-black text-gray-600">
+
           <span className="text-left">
             SELECTION
           </span>
+
           <span>BACK</span>
           <span>LAY</span>
+
         </div>
 
+        {/* INDIA */}
         <div className="grid grid-cols-[1fr_72px_72px] items-center gap-[2px] border-b p-2">
 
           <span className="text-sm font-black">
@@ -405,9 +539,11 @@ export default function MatchDetailsPage({
             className="min-h-12 bg-sky-300 text-sm font-black"
           >
             {odds[0]}
+
             <span className="block text-[8px]">
               BACK
             </span>
+
           </button>
 
           <button
@@ -423,13 +559,16 @@ export default function MatchDetailsPage({
             className="min-h-12 bg-pink-300 text-sm font-black"
           >
             {odds[1]}
+
             <span className="block text-[8px]">
               LAY
             </span>
+
           </button>
 
         </div>
 
+        {/* DRAW */}
         <div className="grid grid-cols-[1fr_72px_72px] items-center gap-[2px] border-b p-2">
 
           <span className="text-sm font-black">
@@ -449,9 +588,11 @@ export default function MatchDetailsPage({
             className="min-h-12 bg-sky-300 text-sm font-black"
           >
             {odds[2]}
+
             <span className="block text-[8px]">
               BACK
             </span>
+
           </button>
 
           <button
@@ -467,13 +608,16 @@ export default function MatchDetailsPage({
             className="min-h-12 bg-pink-300 text-sm font-black"
           >
             {odds[3]}
+
             <span className="block text-[8px]">
               LAY
             </span>
+
           </button>
 
         </div>
 
+        {/* AUSTRALIA */}
         <div className="grid grid-cols-[1fr_72px_72px] items-center gap-[2px] p-2">
 
           <span className="text-sm font-black">
@@ -493,9 +637,11 @@ export default function MatchDetailsPage({
             className="min-h-12 bg-sky-300 text-sm font-black"
           >
             {odds[4]}
+
             <span className="block text-[8px]">
               BACK
             </span>
+
           </button>
 
           <button
@@ -511,9 +657,11 @@ export default function MatchDetailsPage({
             className="min-h-12 bg-pink-300 text-sm font-black"
           >
             {odds[5]}
+
             <span className="block text-[8px]">
               LAY
             </span>
+
           </button>
 
         </div>
@@ -526,6 +674,7 @@ export default function MatchDetailsPage({
         <div className="flex items-center justify-between bg-[#0b6259] px-3 py-3 text-white">
 
           <div>
+
             <h2 className="text-base font-black">
               FANCY MARKET
             </h2>
@@ -533,6 +682,7 @@ export default function MatchDetailsPage({
             <p className="text-[9px] text-teal-100">
               Demo Sessions
             </p>
+
           </div>
 
           <span className="rounded bg-amber-400 px-2 py-1 text-[9px] font-black text-black">
@@ -587,6 +737,7 @@ export default function MatchDetailsPage({
               }
               className="min-h-[58px] rounded-sm bg-pink-300 px-1 text-center text-black"
             >
+
               <span className="block text-base font-black">
                 {market.no}
               </span>
@@ -594,6 +745,7 @@ export default function MatchDetailsPage({
               <span className="block text-[9px] font-bold">
                 NO
               </span>
+
             </button>
 
             <button
@@ -608,6 +760,7 @@ export default function MatchDetailsPage({
               }
               className="min-h-[58px] rounded-sm bg-sky-300 px-1 text-center text-black"
             >
+
               <span className="block text-base font-black">
                 {market.yes}
               </span>
@@ -615,6 +768,7 @@ export default function MatchDetailsPage({
               <span className="block text-[9px] font-bold">
                 YES
               </span>
+
             </button>
 
           </div>
@@ -624,11 +778,13 @@ export default function MatchDetailsPage({
 
       {/* DEMO NOTICE */}
       <section className="m-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
+
         <p className="text-[11px] font-bold leading-5 text-amber-900">
           DEMO ONLY — Score, players, odds and fancy
           values are simulated examples for interface
           testing. No real-money transactions.
         </p>
+
       </section>
 
       <button
@@ -655,13 +811,18 @@ export default function MatchDetailsPage({
             >
 
               <div>
+
                 <p className="text-sm font-black">
                   DEMO BET SLIP
                 </p>
 
                 <p className="text-[10px] font-bold">
-                  Demo Coins Only
+                  Available 🪙{' '}
+                  {demoBalance.toLocaleString(
+                    'en-IN'
+                  )}
                 </p>
+
               </div>
 
               <button
@@ -687,6 +848,7 @@ export default function MatchDetailsPage({
               <div className="mt-3 grid grid-cols-2 gap-2">
 
                 <div className="rounded-md bg-gray-100 p-3">
+
                   <p className="text-[10px] font-bold text-gray-500">
                     SELECTION
                   </p>
@@ -694,9 +856,11 @@ export default function MatchDetailsPage({
                   <p className="mt-1 text-base font-black">
                     {selectedMarket.selection}
                   </p>
+
                 </div>
 
                 <div className="rounded-md bg-amber-100 p-3">
+
                   <p className="text-[10px] font-bold text-gray-500">
                     DEMO RATE
                   </p>
@@ -704,6 +868,7 @@ export default function MatchDetailsPage({
                   <p className="mt-1 text-base font-black">
                     {selectedMarket.rate}
                   </p>
+
                 </div>
 
               </div>
@@ -717,8 +882,9 @@ export default function MatchDetailsPage({
                 inputMode="numeric"
                 value={stake}
                 onChange={handleStakeChange}
+                disabled={placed}
                 placeholder="Enter demo coins"
-                className="mt-2 w-full rounded-md border-2 border-gray-300 px-3 py-3 text-lg font-black outline-none focus:border-teal-700"
+                className="mt-2 w-full rounded-md border-2 border-gray-300 px-3 py-3 text-lg font-black outline-none focus:border-teal-700 disabled:bg-gray-100"
               />
 
               <div className="mt-3 grid grid-cols-4 gap-2">
@@ -727,8 +893,11 @@ export default function MatchDetailsPage({
                   <button
                     key={amount}
                     type="button"
-                    onClick={() => addStake(amount)}
-                    className="rounded-md bg-gray-200 py-2 text-[11px] font-black"
+                    disabled={placed}
+                    onClick={() =>
+                      addStake(amount)
+                    }
+                    className="rounded-md bg-gray-200 py-2 text-[11px] font-black disabled:opacity-50"
                   >
                     +
                     {amount.toLocaleString(
@@ -747,6 +916,7 @@ export default function MatchDetailsPage({
                       : 'border-amber-300 bg-amber-50'
                   }`}
                 >
+
                   <p
                     className={`text-xs font-bold leading-5 ${
                       placed
@@ -756,6 +926,7 @@ export default function MatchDetailsPage({
                   >
                     {message}
                   </p>
+
                 </div>
               )}
 
@@ -766,7 +937,9 @@ export default function MatchDetailsPage({
                   onClick={closeBetSlip}
                   className="rounded-md border border-gray-400 py-3 text-sm font-black"
                 >
-                  CANCEL
+                  {placed
+                    ? 'CLOSE'
+                    : 'CANCEL'}
                 </button>
 
                 <button
