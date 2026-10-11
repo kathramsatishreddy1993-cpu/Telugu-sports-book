@@ -8,45 +8,172 @@ import AuthModal from './components/AuthModal';
 import SportsSections from './components/SportsSections';
 import DemoDashboard from './components/DemoDashboard';
 
+/* ADMIN */
+import AdminLoginPage from './components/AdminLoginPage';
+import AdminDashboard from './components/AdminDashboard';
+
 const AUTH_KEY = 'telugu_sports_auth_user';
+const ADMIN_AUTH_KEY = 'telugu_sports_demo_admin';
 
 export default function App() {
   const [view, setView] = useState('home');
   const [authMode, setAuthMode] = useState(null);
 
+  /* CUSTOMER LOGIN */
+
   const [user, setUser] = useState(() => {
     try {
-      const savedUser = localStorage.getItem(AUTH_KEY);
+      const savedUser =
+        localStorage.getItem(AUTH_KEY);
 
       if (!savedUser) {
         return null;
       }
 
-      const parsedUser = JSON.parse(savedUser);
+      const parsedUser =
+        JSON.parse(savedUser);
 
       return parsedUser?.isAuthenticated
         ? parsedUser
         : null;
     } catch (error) {
-      console.error('Unable to restore login:', error);
+      console.error(
+        'Unable to restore login:',
+        error
+      );
+
       return null;
     }
   });
 
-  const handleLoginSuccess = (loggedInUser) => {
+  /* ADMIN LOGIN */
+
+  const [admin, setAdmin] = useState(() => {
+    try {
+      const savedAdmin =
+        localStorage.getItem(
+          ADMIN_AUTH_KEY
+        );
+
+      if (!savedAdmin) {
+        return null;
+      }
+
+      const parsedAdmin =
+        JSON.parse(savedAdmin);
+
+      return parsedAdmin?.isAuthenticated
+        ? parsedAdmin
+        : null;
+    } catch (error) {
+      console.error(
+        'Unable to restore admin login:',
+        error
+      );
+
+      return null;
+    }
+  });
+
+  /*
+    ADMIN MODE
+
+    Open:
+    https://your-site.com/?admin=1
+  */
+
+  const isAdminMode =
+    new URLSearchParams(
+      window.location.search
+    ).get('admin') === '1';
+
+  /* CUSTOMER LOGIN SUCCESS */
+
+  const handleLoginSuccess = (
+    loggedInUser
+  ) => {
     setUser(loggedInUser);
     setAuthMode(null);
     setView('home');
   };
 
+  /* CUSTOMER LOGOUT */
+
   const handleLogout = () => {
-    localStorage.removeItem(AUTH_KEY);
+    try {
+      localStorage.removeItem(
+        AUTH_KEY
+      );
+    } catch (error) {
+      console.error(
+        'Unable to logout:',
+        error
+      );
+    }
+
     setUser(null);
     setAuthMode(null);
     setView('home');
   };
 
-  // AFTER LOGIN — SHOW DASHBOARD
+  /* ADMIN LOGIN SUCCESS */
+
+  const handleAdminLogin = (
+    loggedInAdmin
+  ) => {
+    setAdmin(loggedInAdmin);
+  };
+
+  /* ADMIN LOGOUT */
+
+  const handleAdminLogout = () => {
+    try {
+      localStorage.removeItem(
+        ADMIN_AUTH_KEY
+      );
+    } catch (error) {
+      console.error(
+        'Unable to logout admin:',
+        error
+      );
+    }
+
+    setAdmin(null);
+  };
+
+  /* EXIT ADMIN */
+
+  const handleExitAdmin = () => {
+    window.location.href =
+      window.location.pathname;
+  };
+
+  /* =========================
+     ADMIN BLOCK
+     ========================= */
+
+  if (isAdminMode) {
+    if (admin?.isAuthenticated) {
+      return (
+        <AdminDashboard
+          admin={admin}
+          onLogout={handleAdminLogout}
+        />
+      );
+    }
+
+    return (
+      <AdminLoginPage
+        onLogin={handleAdminLogin}
+        onBack={handleExitAdmin}
+      />
+    );
+  }
+
+  /* =========================
+     CUSTOMER DASHBOARD
+     ========================= */
+
   if (user?.isAuthenticated) {
     return (
       <DemoDashboard
@@ -56,12 +183,17 @@ export default function App() {
     );
   }
 
-  // BEFORE LOGIN — SHOW HOME PAGE
+  /* =========================
+     PUBLIC HOME PAGE
+     ========================= */
+
   return (
     <div className="min-h-screen bg-[#080d16] text-white flex flex-col font-sans">
 
       <Header
-        onOpenAuth={(mode) => setAuthMode(mode)}
+        onOpenAuth={(mode) =>
+          setAuthMode(mode)
+        }
         user={user}
         isAuthenticated={!!user}
         onLogout={handleLogout}
@@ -73,9 +205,13 @@ export default function App() {
           <HeroBanner />
 
           <div className="max-w-xl mx-auto px-4 my-4">
+
             <HeroBonusCard
-              onOpenBonus={() => setView('bonus')}
+              onOpenBonus={() =>
+                setView('bonus')
+              }
             />
+
           </div>
 
           <SportsSections />
@@ -83,14 +219,20 @@ export default function App() {
         </main>
       ) : (
         <BonusPage
-          onBack={() => setView('home')}
+          onBack={() =>
+            setView('home')
+          }
         />
       )}
 
       <AuthModal
         isOpen={!!authMode}
-        onClose={() => setAuthMode(null)}
-        onLoginSuccess={handleLoginSuccess}
+        onClose={() =>
+          setAuthMode(null)
+        }
+        onLoginSuccess={
+          handleLoginSuccess
+        }
       />
 
     </div>
