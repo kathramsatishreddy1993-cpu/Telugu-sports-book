@@ -25,6 +25,7 @@ export default function RulesPage({ user, onBack }) {
             <div className="text-sm font-black tracking-wide text-amber-400 sm:text-base">
               TELUGU SPORTS BOOK
             </div>
+
             <div className="text-[10px] font-bold tracking-[0.2em] text-teal-200">
               • DEMO •
             </div>
