@@ -717,3 +717,370 @@ export const rulesData = [
       }
     ]
   },
+  
+  {
+    id: 'ipl-special-2026',
+    title: 'IPL SPECIAL 2026',
+    groups: [
+      {
+        heading: 'IPL Special Rules',
+        rules: [
+          'If IPL Fixture of 74 Matches Gets Reduced Due to any Reason, then all the Special Fancies will be Voided (Match Abandoned Due to Rain/Bad Light will not be Considered in this).',
+          'At any situation if result is given for any particular event based on the rates given for the same, then the particular result will be considered valid.',
+          'Management decision will be final.',
+          'Highest Innings run (1st Inn) - Only First Innings is Valid.',
+          'Lowest Innings run (1st Inn) - Only First Innings is Valid. First innings playing team must play 20 overs or get all out.',
+          'Lowest Innings run (both Inn) - Both Innings are Valid. Second innings team must complete the match or get all out. DLS result is not considered.',
+          'Highest Total Runs in Single Match of IPL: Maximum runs scored by both teams in a single match.',
+          'Highest Partnership Runs in IPL: Both innings are valid.',
+          'Highest Partnership Balls in IPL: Both innings are valid.',
+          'Tournament Top Batsman Runs: Highest runs scored by any individual batsman in an innings. Both innings are valid.',
+          'Largest Margin Win by Runs: Maximum runs margin win by any team.',
+          'Highest Run Scorer Runs (Orange Cap): Maximum runs scored by an individual batsman in the full tournament.',
+          'Highest Wicket Taker Wickets (Purple Cap): Maximum wickets taken by a bowler in the full tournament.',
+          'Total 4s: Average 30 fours in case match is abandoned or overs are reduced.',
+          'Total 6s: Average 18 sixes in case match is abandoned or overs are reduced.',
+          'Total 30s: Average 3 thirties.',
+          'Total 50s: Average 2 fifties.',
+          'Total No Balls: Average 1 no ball.',
+          'Total Wickets: Average 13 wickets.',
+          'Total Wides: Average 11 wides.',
+          'Total Extras: Average 17 extras.',
+          'Total Caught Outs: Average 9.',
+          'Total Bowled: Average 2.',
+          'Total LBW: Average 1.',
+          'Total Run Outs: Average 1.',
+          'Total Duckouts: Average 1.',
+          'Total 50+ Partnerships: Average 2.',
+          'Total Highest Scoring Over Runs: Average 22 runs.',
+          'Highest Match 1st Over Run: First innings only.',
+          'Highest 1st 6 Over Run: First innings only.',
+          'Highest 1st 10 Over Run: First innings only.',
+          'Highest Scoring Over Runs: Both innings are valid.',
+          'Most Balls Faced by a Batsman: Maximum balls faced by an individual batsman in a single match.',
+          'Most Runs Given by a Bowler: Maximum runs conceded by an individual bowler in an innings.',
+          'Most Wickets by a Bowler: Maximum wickets taken by an individual bowler in an innings.',
+          'Most 4s Hit by a Batsman: Maximum fours hit by a batsman in the full tournament.',
+          'Most 6s Hit by a Batsman: Maximum sixes hit by a batsman in the full tournament.',
+          'Most 50s Scored by a Batsman: Maximum fifties scored by a batsman in the full tournament.',
+          'Most Catches by a Player: Fielder, bowler and wicketkeeper catches are considered.',
+          'Super over will not be included.'
+        ]
+      }
+    ]
+  },
+
+  {
+    id: 'hundred-men',
+    title: "The Hundred Men's",
+    groups: [
+      {
+        heading: "The Hundred Men's Rules",
+        rules: [
+          'If Hundred fixture of 34 matches gets reduced, all special fancies will be voided, excluding matches abandoned due to rain/bad light.',
+          'Management decision will be final.',
+          'Highest innings run - Only first innings is valid.',
+          'Lowest innings run - Only first innings is valid. The team must face 100 balls or be all out.',
+          'Highest Partnership Runs: Both innings are valid.',
+          'Highest Partnership Balls: Both innings are valid.',
+          'Highest Run Scorer: Total runs scored by an individual batsman in the full tournament.',
+          'Highest Wicket Taker: Total wickets taken by an individual bowler in the full tournament.',
+          'Total 4s: Average 24.',
+          'Total 6s: Average 11.',
+          'Total Boundaries: Average 35.',
+          'Total 30s: Average 2.',
+          'Total 50s: Average 1.',
+          'Total Wickets: Average 12.',
+          'Total Wides: Average 9.',
+          'Total Extras: Average 17.',
+          'Total Caught Outs: Average 8.',
+          'Total Bowled: Average 2.',
+          'Total LBW: Average 1.',
+          'Total Run Outs: Average 1.',
+          'Total Duckouts: Average 1.',
+          'Total Single Digit Scorers: Average 6.',
+          'Total Double Digit Scorers: Average 9.',
+          'Most 4s by a batsman: Maximum fours hit by an individual batsman in a single match.',
+          'Most 6s by a batsman: Maximum sixes hit by an individual batsman in a single match.',
+          'Most Balls Faced: Maximum balls faced by an individual batsman in a single match.',
+          'Most Runs Given by Bowler: Maximum runs conceded by an individual bowler in an innings.',
+          'Most Wickets by Bowler: Maximum wickets taken by an individual bowler in an innings.',
+          'Super Over (Super 5) will not be included.'
+        ]
+      }
+    ]
+  },
+
+  {
+    id: 'hundred-women',
+    title: "The Hundred Women's",
+    groups: [
+      {
+        heading: "The Hundred Women's Rules",
+        rules: [
+          'If Hundred Women fixture of 34 matches gets reduced, all special fancies will be voided, excluding matches abandoned due to rain/bad light.',
+          'Management decision will be final.',
+          'Highest innings run - Only first innings is valid.',
+          'Lowest innings run - Only first innings is valid. Team must face 100 balls or be all out.',
+          'Highest Total Runs: Maximum runs scored by both teams in a single match.',
+          'Highest Partnership Runs: Both innings are valid.',
+          'Highest Partnership Balls: Both innings are valid.',
+          'Largest Margin Win by Runs: Maximum runs margin win by any team.',
+          'Highest Run Scorer: Total runs scored by an individual batsman in the full tournament.',
+          'Highest Wicket Taker: Total wickets taken by a bowler in the full tournament.',
+          'Total 4s: Average 27.',
+          'Total 6s: Average 3.',
+          'Total Boundaries: Average 30.',
+          'Total 30s: Average 2.',
+          'Total 50s: Average 1.',
+          'Total Wickets: Average 12.',
+          'Total Wides: Average 7.',
+          'Total Extras: Average 13.',
+          'Total Caught Outs: Average 7.',
+          'Total Bowled: Average 2.',
+          'Total LBW: Average 1.',
+          'Total Run Outs: Average 1.',
+          'Total Duckouts: Average 1.',
+          'Total Single Digit Scorers: Average 6.',
+          'Total Double Digit Scorers: Average 7.',
+          'Total 50+ Partnerships: Average 1.',
+          'Total 25+ Ball Facing Players: Average 2.',
+          'Highest 1st 5 Ball Runs: First innings only.',
+          'Super Over (Super 5) will not be included.'
+        ]
+      }
+    ]
+  },
+
+  {
+    id: 'wpl',
+    title: "Women's Premier League (WPL)",
+    groups: [
+      {
+        heading: 'WPL Rules',
+        rules: [
+          'If WPL fixture of 22 matches gets reduced, all special fancies will be voided, excluding matches abandoned due to rain/bad light.',
+          'Management decision will be final.',
+          'Highest Innings Run: Only first innings is valid.',
+          'Lowest Innings Run: Only first innings is valid.',
+          'Highest Total Runs: Maximum runs scored by two teams in a single match.',
+          'Highest Partnership Runs: Both innings are valid.',
+          'Highest Partnership Balls: Both innings are valid.',
+          'Highest Run Scorer Runs (Orange Cap): Total runs scored by an individual batsman in the full tournament.',
+          'Highest Wicket Taker Wickets (Purple Cap): Total wickets taken by a bowler in the full tournament.',
+          'Total Match 1st Over Runs: Average 6. First innings only.',
+          'Total 4s: Average 34.',
+          'Total Wickets: Average 12.',
+          'Total Wides: Average 8.',
+          'Total Extras: Average 14.',
+          'Total Caught Outs: Average 8.',
+          'Total Bowled: Average 2.',
+          'Total LBW: Average 1.',
+          'Total Run Outs: Average 1.',
+          'Total 30s: Average 2.',
+          'Total 50s: Average 1.',
+          'Total Duckouts: Average 1.',
+          'Total Single Digit Scorers: Average 6.',
+          'Total Double Digit Scorers: Average 8.',
+          'Total Four Hitters: Average 10.',
+          'Total Six Hitters: Average 4.',
+          'Total Wicket Takers: Average 7.',
+          'Highest 1st Over Runs: First innings only.',
+          'Highest 1st 6 Over Run: First innings only.',
+          'Highest Scoring Over Runs: Maximum runs scored in any single over.',
+          'Super over will not be included.'
+        ]
+      }
+    ]
+  },
+
+  {
+    id: 'psl',
+    title: 'Pakistan Super League (PSL)',
+    groups: [
+      {
+        heading: 'PSL Rules',
+        rules: [
+          'If PSL fixture of 34 matches gets reduced, all special fancies will be voided, excluding matches abandoned due to rain/bad light.',
+          'Total Matches 1st Over Runs: Average 6. First innings only.',
+          'Total Matches 1st 6 Over Runs: Average 50. First innings only.',
+          'Total Fours: Average 32.',
+          'Total Sixes: Average 13.',
+          'Total 30s: Average 2.',
+          'Total Fifties: Average 2.',
+          'Total Wickets: Average 13.',
+          'Total Wides: Average 11.',
+          'Total Extras: Average 18.',
+          'Total Caught Outs: Average 8.',
+          'Total Bowled: Average 2.',
+          'Total LBW: Average 1.',
+          'Total Run Outs: Average 1.',
+          'Highest Innings Run: Both innings are valid.',
+          'Lowest Innings Run: Only first innings is valid.',
+          'Highest Match 1st Over Runs: Only first innings is valid.',
+          'Highest 1st 6 Over Runs: Only first innings is valid.',
+          'Highest 4s, 6s, wickets, extras and over runs: Both innings are valid.',
+          'Most Balls Faced: Maximum balls faced by a batsman in one innings.',
+          'Most Runs Given by Bowler: Maximum runs conceded by a bowler in an innings.',
+          'Most Wickets by Bowler: Maximum wickets taken by a bowler in an innings.',
+          'Super over will not be included.'
+        ]
+      }
+    ]
+  },
+
+  {
+    id: 'kabaddi',
+    title: 'Kabaddi',
+    groups: [
+      {
+        heading: 'Kabaddi Rules',
+        rules: [
+          'In any circumstances management decision will be final related to all Kabaddi fancy markets.',
+          'All fancy selections will be validated when the match has been tied.',
+          'Individual player results will be validated only when the player participates in that match.',
+          'If an incorrect rate has been displayed, the affected selection may be cancelled.',
+          'For playoffs, the final result after 40 minutes of two halves will be considered.'
+        ]
+      }
+    ]
+  },
+
+  {
+    id: 'horse-racing',
+    title: 'Horse Racing',
+    groups: [
+      {
+        heading: 'General',
+        rules: [
+          'Individual race markets are determined according to the official result at the weigh-in announcement or equivalent.',
+          'If a race is abandoned, declared void, or is a walkover, selections on that race will be void.',
+          'If the scheduled venue changes after the market is published, the market will be void.',
+          'If the scheduled surface changes, for example turf to dirt, selections will stand.',
+          'A horse that does not come under starter orders is treated as a non-runner.',
+          'Non-runner adjustments may apply to remaining runners.',
+          'Win and place markets may use different non-runner adjustments.',
+          'Reserves may be introduced when officially confirmed.',
+          'Card numbers are provided as a guide; the named horse identifies the selection.'
+        ]
+      }
+    ]
+  },
+
+  {
+    id: 'world-cup',
+    title: 'World Cup',
+    groups: [
+      {
+        heading: 'World Cup Rules',
+        rules: [
+          'Management decision will be final for World Cup special markets.',
+          'WC means World Cup. MOM means Man of the Match.',
+          'Match 1st Over Run: First innings only. Average 4 runs if the match is abandoned or the full 50 overs are not played.',
+          'Highest Innings Run: First innings only.',
+          'Lowest Innings Run: First innings only.',
+          'Total Fours: Average 48.',
+          'Total Sixes: Average 10.',
+          'Total Wickets: Average 15.',
+          'Total Wides: Average 14.',
+          'Total Extras: Average 25.',
+          'Total No Balls: Average 2.',
+          'Total Fifties: Average 3.',
+          'Total Centuries: Average 1.',
+          'Total Run Outs: Average 1.',
+          'Total Ducks: Average 1.',
+          'Total Caught Outs: Average 10.',
+          'Team-specific special rules apply to league-stage matches.',
+          'First 10 Over Runs are valid for both innings.',
+          'Player participation requirements apply to player-specific events.'
+        ]
+      }
+    ]
+  },
+
+  {
+    id: 'binary',
+    title: 'Binary',
+    groups: [
+      {
+        heading: 'Binary Rules',
+        rules: [
+          'All session entries will be confirmed at the displayed market rate.',
+          'Settlement information should be checked against the relevant official market source.',
+          'Each product may have SPOT and FUTURE prices. The displayed demo section uses the configured reference price.',
+          'NSE reference session: Monday to Friday, 10:00 AM to 2:30 PM.',
+          'MCX reference session: Monday to Friday, 11:30 AM to 10:30 PM.',
+          'Duplicate simultaneous entries are not permitted in this demo.',
+          'Incorrectly displayed rates may be cancelled.',
+          'This section is informational/demo-only and does not execute financial trades.'
+        ]
+      }
+    ]
+  },
+
+  {
+    id: 'match',
+    title: 'Match',
+    groups: [
+      {
+        heading: 'Match Rules',
+        rules: [
+          'Tennis Match Odds: If the first set has not been completed at retirement or disqualification, the match market may be void.',
+          'Football Match Odds: Regular time includes stoppage time. Extra time and penalty shoot-outs are excluded unless specifically stated.',
+          'For a goal cancelled following VAR review, affected entries during the review period may be void.',
+          'For a red card cancelled following VAR review, affected entries during the review period may be void.',
+          'Football Under/Over Goals: If a match starts but is not completed, the market may be void unless its outcome has already been determined.'
+        ]
+      }
+    ]
+  },
+
+  {
+    id: 'khado',
+    title: 'Khado',
+    groups: [
+      {
+        heading: 'Test Khado Rules',
+        rules: [
+          'A minimum of 70 overs must be played by the particular team for the team Khado to be considered valid.',
+          'If a team is all out or declares, the innings run result is considered valid.',
+          'Rules follow the same general conditions as Lambi.',
+          'If the match is abandoned or overs are reduced, affected selections will be void.'
+        ]
+      }
+    ]
+  },
+
+  {
+    id: 'election',
+    title: 'Election',
+    groups: [
+      {
+        heading: 'Election Rules',
+        rules: [
+          'This market is based on the outcome of various legislative assembly elections in India.',
+          'Results are based on the official number of seats declared by the Election Commission of India.',
+          'If the election does not take place within the applicable period, affected markets may be void.',
+          'Unexpected election-related circumstances will be handled according to the published rules.',
+          'If a candidate withdraws, nomination is cancelled, or the candidate dies, the applicable market will be handled according to the published settlement rules.'
+        ]
+      }
+    ]
+  },
+
+  {
+    id: 'virtual-tennis',
+    title: 'Virtual Tennis',
+    groups: [
+      {
+        heading: 'Virtual Tennis Rules',
+        rules: [
+          'If streaming stops because of a technical issue, the simulated match may be abandoned.',
+          'If technical interference affects the match, the simulated match may be abandoned.',
+          'A match contains 3 sets, with 3 games in each set under the displayed virtual format.',
+          'When a set reaches the configured level-game condition, a 5-point tie-break is used. A player must lead by 2 points to win the set.'
+        ]
+      }
+    ]
+  }
+];
