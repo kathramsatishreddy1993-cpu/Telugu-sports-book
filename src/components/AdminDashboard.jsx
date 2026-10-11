@@ -9,9 +9,9 @@ export default function AdminDashboard({
   const [activeSection, setActiveSection] =
     useState('Dashboard');
 
-  /*
-   * DEMO DATA
-   */
+  /* =========================
+     DEPOSIT REQUESTS
+     ========================= */
 
   const depositRequests = useMemo(() => {
     try {
@@ -31,6 +31,10 @@ export default function AdminDashboard({
     }
   }, []);
 
+  /* =========================
+     WITHDRAWAL REQUESTS
+     ========================= */
+
   const withdrawalRequests = useMemo(() => {
     try {
       const saved = localStorage.getItem(
@@ -49,6 +53,10 @@ export default function AdminDashboard({
     }
   }, []);
 
+  /* =========================
+     PENDING COUNTS
+     ========================= */
+
   const pendingDeposits =
     depositRequests.filter(
       (item) =>
@@ -65,35 +73,17 @@ export default function AdminDashboard({
         ).toUpperCase() === 'PENDING'
     ).length;
 
-  /*
-   * ADMIN MANAGEMENT BOXES
-   */
+  /* =========================
+     ADMIN MANAGEMENT BOXES
+     ========================= */
 
   const adminBoxes = [
     {
-      title: 'Payment Settings',
+      title: 'Deposit Accounts',
       icon: '🏦',
-      section: 'Payment Settings',
+      section: 'Deposit Accounts',
       description:
-        'Bank account, PhonePe, GPay and Paytm settings',
-    },
-
-    {
-      title: 'Deposit Requests',
-      icon: '📥',
-      section: 'Deposit Requests',
-      badge: pendingDeposits,
-      description:
-        'View customer demo deposit requests',
-    },
-
-    {
-      title: 'Withdrawal Management',
-      icon: '💸',
-      section: 'Withdrawal Management',
-      badge: pendingWithdrawals,
-      description:
-        'Manage customer demo withdrawal records',
+        'Bank, PhonePe, GPay and Paytm deposit details',
     },
 
     {
@@ -125,7 +115,7 @@ export default function AdminDashboard({
       icon: '📒',
       section: 'Transaction History',
       description:
-        'View demo management activity',
+        'View demo transaction activity',
     },
 
     {
@@ -137,11 +127,11 @@ export default function AdminDashboard({
     },
   ];
 
-  /*
-   * PAYMENT SETTINGS
-   */
+  /* =========================
+     DEPOSIT ACCOUNTS PAGE
+     ========================= */
 
-  if (activeSection === 'Payment Settings') {
+  if (activeSection === 'Deposit Accounts') {
     return (
       <AdminPaymentSettings
         onBack={() =>
@@ -154,13 +144,16 @@ export default function AdminDashboard({
   return (
     <div className="min-h-screen bg-[#061c1a] text-white">
 
-      {/* HEADER */}
+      {/* =====================
+          HEADER
+          ===================== */}
 
       <header className="sticky top-0 z-50 border-b border-amber-500/30 bg-[#9a5a00] px-4 py-4 shadow-xl">
 
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
 
           <div>
+
             <p className="text-[9px] font-black tracking-[0.16em] text-amber-200">
               TELUGU SPORTS BOOK
             </p>
@@ -168,29 +161,32 @@ export default function AdminDashboard({
             <h1 className="mt-1 text-lg font-black">
               🛡️ ADMIN CONTROL PANEL
             </h1>
+
           </div>
 
           <div className="text-right">
+
             <p className="text-[8px] text-amber-100">
               ADMIN ID
             </p>
 
             <p className="text-[11px] font-black">
-              {admin?.username ||
-                'admin'}
+              {admin?.username || 'admin'}
             </p>
+
           </div>
 
         </div>
 
       </header>
 
-      {/* DASHBOARD */}
+      {/* =====================
+          DASHBOARD
+          ===================== */}
 
       {activeSection === 'Dashboard' && (
-        <main className="mx-auto max-w-5xl px-3 py-5">
 
-          {/* WELCOME */}
+        <main className="mx-auto max-w-5xl px-3 py-5">
 
           <section className="mb-5">
 
@@ -203,26 +199,31 @@ export default function AdminDashboard({
             </h2>
 
             <p className="mt-2 text-[10px] leading-5 text-gray-400">
-              Customer management, payment
-              settings, demo wallet and API
+              Customer management, deposit
+              accounts, demo wallet and API
               controls.
             </p>
 
           </section>
 
-          {/* ALERT SUMMARY */}
+          {/* =====================
+              PENDING ALERTS
+              ===================== */}
 
           <section className="mb-5 grid grid-cols-2 gap-2">
+
+            {/* PENDING DEPOSITS */}
 
             <button
               type="button"
               onClick={() =>
                 setActiveSection(
-                  'Deposit Requests'
+                  'Pending Deposits'
                 )
               }
               className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 text-left"
             >
+
               <div className="flex items-center justify-between">
 
                 <span className="text-2xl">
@@ -238,17 +239,21 @@ export default function AdminDashboard({
               <p className="mt-3 text-[10px] font-black">
                 PENDING DEPOSITS
               </p>
+
             </button>
+
+            {/* PENDING WITHDRAWALS */}
 
             <button
               type="button"
               onClick={() =>
                 setActiveSection(
-                  'Withdrawal Management'
+                  'Pending Withdrawals'
                 )
               }
               className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-left"
             >
+
               <div className="flex items-center justify-between">
 
                 <span className="text-2xl">
@@ -264,11 +269,14 @@ export default function AdminDashboard({
               <p className="mt-3 text-[10px] font-black">
                 PENDING WITHDRAWALS
               </p>
+
             </button>
 
           </section>
 
-          {/* MANAGEMENT BOXES */}
+          {/* =====================
+              ADMIN MANAGEMENT
+              ===================== */}
 
           <section>
 
@@ -290,13 +298,6 @@ export default function AdminDashboard({
                   }
                   className="relative min-h-[145px] rounded-xl border border-[#28655f] bg-[#083d37] p-4 text-left shadow-lg"
                 >
-
-                  {typeof item.badge ===
-                    'number' && (
-                    <span className="absolute right-3 top-3 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-600 px-1.5 text-[9px] font-black text-white">
-                      {item.badge}
-                    </span>
-                  )}
 
                   <span className="block text-3xl">
                     {item.icon}
@@ -322,7 +323,9 @@ export default function AdminDashboard({
 
           </section>
 
-          {/* LOGOUT */}
+          {/* =====================
+              LOGOUT
+              ===================== */}
 
           <button
             type="button"
@@ -339,25 +342,28 @@ export default function AdminDashboard({
           </p>
 
         </main>
+
       )}
 
-      {/* DEPOSIT REQUESTS */}
+      {/* =====================
+          PENDING DEPOSITS PAGE
+          ===================== */}
 
       {activeSection ===
-        'Deposit Requests' && (
+        'Pending Deposits' && (
 
         <AdminPage
-          title="Deposit Requests"
+          title="Pending Deposits"
           icon="📥"
           onBack={() =>
             setActiveSection('Dashboard')
           }
         >
 
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+          <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-4">
 
-            <p className="text-[9px] font-black text-amber-300">
-              PENDING REQUESTS
+            <p className="text-[9px] font-black text-green-300">
+              TOTAL PENDING
             </p>
 
             <p className="mt-1 text-3xl font-black">
@@ -366,86 +372,102 @@ export default function AdminDashboard({
 
           </div>
 
-          <p className="mt-4 text-[10px] leading-5 text-gray-300">
-            Customer ID, demo amount,
-            reference/UTR and uploaded
-            proof will appear in this
-            section.
-          </p>
-
-          {depositRequests.length === 0 ? (
+          {depositRequests.filter(
+            (item) =>
+              String(
+                item?.status || ''
+              ).toUpperCase() ===
+              'PENDING'
+          ).length === 0 ? (
 
             <EmptyState
-              text="No deposit requests"
+              text="No pending deposits"
             />
 
           ) : (
 
             <div className="mt-4 space-y-3">
 
-              {depositRequests.map(
-                (request, index) => (
+              {depositRequests
+                .filter(
+                  (item) =>
+                    String(
+                      item?.status || ''
+                    ).toUpperCase() ===
+                    'PENDING'
+                )
+                .map(
+                  (request, index) => (
 
-                  <div
-                    key={
-                      request?.id ||
-                      index
-                    }
-                    className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
-                  >
+                    <div
+                      key={
+                        request?.id ||
+                        index
+                      }
+                      className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
+                    >
 
-                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start justify-between gap-3">
 
-                      <div>
-                        <p className="text-[8px] text-gray-400">
-                          CUSTOMER
-                        </p>
+                        <div>
 
-                        <p className="mt-1 text-xs font-black">
-                          {request?.customerId ||
-                            request?.userId ||
-                            request?.customer ||
-                            'Demo Customer'}
-                        </p>
+                          <p className="text-[8px] text-gray-400">
+                            CUSTOMER
+                          </p>
+
+                          <p className="mt-1 text-xs font-black">
+                            {request?.customerId ||
+                              request?.userId ||
+                              request?.customer ||
+                              'Demo Customer'}
+                          </p>
+
+                        </div>
+
+                        <span className="rounded bg-amber-500/20 px-2 py-1 text-[8px] font-black text-amber-300">
+                          PENDING
+                        </span>
+
                       </div>
 
-                      <span className="rounded bg-amber-500/20 px-2 py-1 text-[8px] font-black text-amber-300">
-                        {request?.status ||
-                          'PENDING'}
-                      </span>
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+
+                        <InfoBox
+                          label="AMOUNT"
+                          value={
+                            request?.amount
+                              ? `₹${Number(
+                                  request.amount
+                                ).toLocaleString(
+                                  'en-IN'
+                                )}`
+                              : '—'
+                          }
+                        />
+
+                        <InfoBox
+                          label="REFERENCE / UTR"
+                          value={
+                            request?.reference ||
+                            request?.utr ||
+                            '—'
+                          }
+                        />
+
+                      </div>
+
+                      <p className="mt-3 text-[8px] leading-4 text-gray-500">
+                        Accept / Reject demo
+                        controls will be
+                        connected after the
+                        customer deposit flow
+                        is finalized.
+                      </p>
 
                     </div>
 
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-
-                      <InfoBox
-                        label="AMOUNT"
-                        value={
-                          request?.amount
-                            ? `₹${Number(
-                                request.amount
-                              ).toLocaleString(
-                                'en-IN'
-                              )}`
-                            : '—'
-                        }
-                      />
-
-                      <InfoBox
-                        label="REFERENCE / UTR"
-                        value={
-                          request?.reference ||
-                          request?.utr ||
-                          '—'
-                        }
-                      />
-
-                    </div>
-
-                  </div>
-
-                )
-              )}
+                  )
+                )}
 
             </div>
 
@@ -455,13 +477,15 @@ export default function AdminDashboard({
 
       )}
 
-      {/* WITHDRAWAL MANAGEMENT */}
+      {/* =====================
+          PENDING WITHDRAWALS
+          ===================== */}
 
       {activeSection ===
-        'Withdrawal Management' && (
+        'Pending Withdrawals' && (
 
         <AdminPage
-          title="Withdrawal Management"
+          title="Pending Withdrawals"
           icon="💸"
           onBack={() =>
             setActiveSection('Dashboard')
@@ -471,7 +495,7 @@ export default function AdminDashboard({
           <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4">
 
             <p className="text-[9px] font-black text-red-300">
-              PENDING REQUESTS
+              TOTAL PENDING
             </p>
 
             <p className="mt-1 text-3xl font-black">
@@ -480,64 +504,81 @@ export default function AdminDashboard({
 
           </div>
 
-          <p className="mt-4 text-[10px] leading-5 text-gray-300">
-            Customer-specific demo
-            withdrawal requests and status
-            records will appear here.
-          </p>
+          {withdrawalRequests.filter(
+            (item) =>
+              String(
+                item?.status || ''
+              ).toUpperCase() ===
+              'PENDING'
+          ).length === 0 ? (
 
-          {withdrawalRequests.length === 0 ? (
             <EmptyState
-              text="No withdrawal requests"
+              text="No pending withdrawals"
             />
+
           ) : (
+
             <div className="mt-4 space-y-3">
 
-              {withdrawalRequests.map(
-                (request, index) => (
-
-                  <div
-                    key={
-                      request?.id ||
-                      index
-                    }
-                    className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
-                  >
-
-                    <p className="text-xs font-black">
-                      {request?.customerId ||
-                        request?.userId ||
-                        'Demo Customer'}
-                    </p>
-
-                    <p className="mt-2 text-lg font-black text-amber-300">
-                      {request?.amount
-                        ? `${Number(
-                            request.amount
-                          ).toLocaleString(
-                            'en-IN'
-                          )} Demo Coins`
-                        : '—'}
-                    </p>
-
-                    <p className="mt-2 text-[8px] font-black text-gray-400">
-                      {request?.status ||
-                        'PENDING'}
-                    </p>
-
-                  </div>
-
+              {withdrawalRequests
+                .filter(
+                  (item) =>
+                    String(
+                      item?.status || ''
+                    ).toUpperCase() ===
+                    'PENDING'
                 )
-              )}
+                .map(
+                  (request, index) => (
+
+                    <div
+                      key={
+                        request?.id ||
+                        index
+                      }
+                      className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
+                    >
+
+                      <p className="text-[8px] text-gray-400">
+                        CUSTOMER
+                      </p>
+
+                      <p className="mt-1 text-xs font-black">
+                        {request?.customerId ||
+                          request?.userId ||
+                          'Demo Customer'}
+                      </p>
+
+                      <p className="mt-3 text-lg font-black text-amber-300">
+                        {request?.amount
+                          ? `${Number(
+                              request.amount
+                            ).toLocaleString(
+                              'en-IN'
+                            )} Demo Coins`
+                          : '—'}
+                      </p>
+
+                      <span className="mt-2 inline-block rounded bg-red-500/10 px-2 py-1 text-[8px] font-black text-red-300">
+                        PENDING
+                      </span>
+
+                    </div>
+
+                  )
+                )}
 
             </div>
+
           )}
 
         </AdminPage>
 
       )}
 
-      {/* COIN MANAGEMENT */}
+      {/* =====================
+          COIN MANAGEMENT
+          ===================== */}
 
       {activeSection ===
         'Coin Management' && (
@@ -552,8 +593,7 @@ export default function AdminDashboard({
 
           <p className="text-[10px] leading-5 text-gray-300">
             Customer demo coin management
-            will be configured in this
-            section.
+            will be configured here.
           </p>
 
           <EmptyState
@@ -564,7 +604,9 @@ export default function AdminDashboard({
 
       )}
 
-      {/* CUSTOMERS */}
+      {/* =====================
+          CUSTOMERS
+          ===================== */}
 
       {activeSection ===
         'Customers' && (
@@ -590,7 +632,9 @@ export default function AdminDashboard({
 
       )}
 
-      {/* API SETTINGS */}
+      {/* =====================
+          API SETTINGS
+          ===================== */}
 
       {activeSection ===
         'API Settings' && (
@@ -621,7 +665,9 @@ export default function AdminDashboard({
 
       )}
 
-      {/* TRANSACTION HISTORY */}
+      {/* =====================
+          TRANSACTION HISTORY
+          ===================== */}
 
       {activeSection ===
         'Transaction History' && (
@@ -656,7 +702,9 @@ export default function AdminDashboard({
 
       )}
 
-      {/* ADMIN SETTINGS */}
+      {/* =====================
+          ADMIN SETTINGS
+          ===================== */}
 
       {activeSection ===
         'Admin Settings' && (
@@ -721,6 +769,7 @@ function AdminPage({
           </span>
 
           <div>
+
             <p className="text-[8px] font-black text-gray-500">
               ADMIN MANAGEMENT
             </p>
@@ -728,6 +777,7 @@ function AdminPage({
             <h2 className="text-lg font-black text-amber-300">
               {title}
             </h2>
+
           </div>
 
         </div>
