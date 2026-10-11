@@ -1,17 +1,21 @@
 import React, { useEffect, useState } from 'react';
 
 const ACCOUNT_KEY = 'tsb_demo_withdrawal_account';
-const TRANSACTION_KEY = 'tsb_demo_withdrawal_transactions';
-const BALANCE_KEY = 'tsb_demo_coin_balance';
+const TRANSACTION_KEY = 'telugu_sports_demo_withdrawals';
+const BALANCE_KEY = 'telugu_sports_demo_balance';
+const AUTH_KEY = 'telugu_sports_auth_user';
 
 const STARTING_BALANCE = 10000;
+const MIN_WITHDRAWAL = 100;
+const HISTORY_LIMIT = 20;
 
 export default function WithdrawalPage({ onBack }) {
   const [showAddAccount, setShowAddAccount] = useState(false);
 
   const [account, setAccount] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem(ACCOUNT_KEY)) || null;
+      const saved = localStorage.getItem(ACCOUNT_KEY);
+      return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
     }
@@ -19,19 +23,40 @@ export default function WithdrawalPage({ onBack }) {
 
   const [transactions, setTransactions] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem(TRANSACTION_KEY)) || [];
+      const saved = localStorage.getItem(TRANSACTION_KEY);
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
   });
 
   const [balance, setBalance] = useState(() => {
-    const saved = localStorage.getItem(BALANCE_KEY);
-    return saved === null ? STARTING_BALANCE : Number(saved);
+    try {
+      const saved = localStorage.getItem(BALANCE_KEY);
+
+      if (saved === null) {
+        localStorage.setItem(
+          BALANCE_KEY,
+          String(STARTING_BALANCE)
+        );
+
+        return STARTING_BALANCE;
+      }
+
+      const parsed = Number(saved);
+
+      return Number.isFinite(parsed)
+        ? parsed
+        : STARTING_BALANCE;
+    } catch {
+      return STARTING_BALANCE;
+    }
   });
 
   const [form, setForm] = useState({
     holderName: '',
+    bankName: '',
     accountNumber: '',
     confirmAccountNumber: '',
     ifsc: '',
@@ -43,15 +68,75 @@ export default function WithdrawalPage({ onBack }) {
   const [withdrawPassword, setWithdrawPassword] = useState('');
 
   useEffect(() => {
-    localStorage.setItem(
-      TRANSACTION_KEY,
-      JSON.stringify(transactions)
-    );
+    try {
+      localStorage.setItem(
+        TRANSACTION_KEY,
+        JSON.stringify(transactions)
+      );
+    } catch (error) {
+      console.error(
+        'Unable to save withdrawal transactions:',
+        error
+      );
+    }
   }, [transactions]);
 
   useEffect(() => {
-    localStorage.setItem(BALANCE_KEY, String(balance));
+    try {
+      localStorage.setItem(
+        BALANCE_KEY,
+        String(balance)
+      );
+
+      window.dispatchEvent(
+        new CustomEvent('tsb-demo-balance-updated', {
+          detail: {
+            balance,
+          },
+        })
+      );
+    } catch (error) {
+      console.error(
+        'Unable to save demo balance:',
+        error
+      );
+    }
   }, [balance]);
+
+  const getCustomer = () => {
+    try {
+      const saved = localStorage.getItem(AUTH_KEY);
+
+      if (!saved) {
+        return {
+          customerId: 'DEMO',
+          customerName: 'Demo User',
+        };
+      }
+
+      const user = JSON.parse(saved);
+
+      return {
+        customerId:
+          user?.customerId ||
+          user?.username ||
+          user?.identifier ||
+          user?.mobile ||
+          user?.email ||
+          'DEMO',
+
+        customerName:
+          user?.name ||
+          user?.username ||
+          'Demo User',
+      };
+    } catch {
+      return {
+        customerId: 'DEMO',
+        customerName: 'Demo User',
+      };
+    }
+  };
 
   const updateForm = (field, value) => {
     setForm((previous) => ({
@@ -60,31 +145,45 @@ export default function WithdrawalPage({ onBack }) {
     }));
   };
 
-  const saveAccount = (e) => {
-    e.preventDefault();
+  const saveAccount = (event) => {
+    event.preventDefault();
 
-    if (!form.holderName.trim()) {
+    const holderName = form.holderName.trim();
+    const bankName = form.bankName.trim();
+    const accountNumber = form.accountNumber.trim();
+    const confirmAccountNumber =
+      form.confirmAccountNumber.trim();
+    const ifsc = form.ifsc.trim().toUpperCase();
+
+    if (!holderName) {
       alert('Enter account holder name');
       return;
     }
 
-    if (!/^[0-9]{9,18}$/.test(form.accountNumber)) {
+    if (!bankName) {
+      alert('Enter bank name');
+      return;
+    }
+
+    if (!/^[0-9]{9,18}$/.test(accountNumber)) {
       alert('Enter a valid account number');
       return;
     }
 
-    if (form.accountNumber !== form.confirmAccountNumber) {
+    if (accountNumber !== confirmAccountNumber) {
       alert('Account numbers do not match');
       return;
     }
 
-    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.ifsc.toUpperCase())) {
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
       alert('Enter a valid IFSC code');
       return;
     }
 
     if (form.password.length < 6) {
-      alert('Withdrawal password must contain at least 6 characters');
+      alert(
+        'Withdrawal password must contain at least 6 characters'
+      );
       return;
     }
 
@@ -94,22 +193,34 @@ export default function WithdrawalPage({ onBack }) {
     }
 
     const newAccount = {
-      holderName: form.holderName.trim(),
-      accountNumber: form.accountNumber,
-      ifsc: form.ifsc.toUpperCase(),
+      holderName,
+      bankName,
+      accountNumber,
+      ifsc,
       password: form.password,
     };
 
-    localStorage.setItem(
-      ACCOUNT_KEY,
-      JSON.stringify(newAccount)
-    );
+    try {
+      localStorage.setItem(
+        ACCOUNT_KEY,
+        JSON.stringify(newAccount)
+      );
+    } catch (error) {
+      console.error(
+        'Unable to save withdrawal account:',
+        error
+      );
+
+      alert('Unable to save account');
+      return;
+    }
 
     setAccount(newAccount);
     setShowAddAccount(false);
 
     setForm({
       holderName: '',
+      bankName: '',
       accountNumber: '',
       confirmAccountNumber: '',
       ifsc: '',
@@ -117,21 +228,26 @@ export default function WithdrawalPage({ onBack }) {
       confirmPassword: '',
     });
 
-    alert('Demo account added successfully');
+    alert('Demo bank account saved successfully');
   };
 
-  const handleWithdraw = (e) => {
-    e.preventDefault();
+  const handleWithdraw = (event) => {
+    event.preventDefault();
 
     if (!account) {
-      alert('Please add an account first');
+      alert('Please add a bank account first');
       return;
     }
 
     const value = Number(amount);
 
-    if (!Number.isInteger(value) || value < 100) {
-      alert('Minimum withdrawal is 100 demo coins');
+    if (
+      !Number.isInteger(value) ||
+      value < MIN_WITHDRAWAL
+    ) {
+      alert(
+        `Minimum withdrawal is ${MIN_WITHDRAWAL} demo coins`
+      );
       return;
     }
 
@@ -145,50 +261,158 @@ export default function WithdrawalPage({ onBack }) {
       return;
     }
 
+    const customer = getCustomer();
+
     const transaction = {
       id: `TSBW${Date.now()}`,
+
+      customerId: customer.customerId,
+      customerName: customer.customerName,
+
       amount: value,
+
       status: 'PENDING',
+
+      holderName: account.holderName,
+      bankName: account.bankName,
+      accountNumber: account.accountNumber,
+      ifsc: account.ifsc,
+
+      accountLast4:
+        account.accountNumber.slice(-4),
+
+      createdAt: new Date().toISOString(),
+
       date: new Date().toLocaleString('en-IN'),
+
+      coinsHeld: value,
+      coinsRestored: false,
+
+      type: 'DEMO_WITHDRAWAL',
     };
 
-    setBalance((previous) => previous - value);
+    const nextBalance = balance - value;
 
-    setTransactions((previous) => [
+    const nextTransactions = [
       transaction,
-      ...previous,
-    ]);
+      ...transactions,
+    ];
+
+    setBalance(nextBalance);
+    setTransactions(nextTransactions);
+
+    try {
+      localStorage.setItem(
+        BALANCE_KEY,
+        String(nextBalance)
+      );
+
+      localStorage.setItem(
+        TRANSACTION_KEY,
+        JSON.stringify(nextTransactions)
+      );
+    } catch (error) {
+      console.error(
+        'Unable to submit withdrawal request:',
+        error
+      );
+    }
 
     setAmount('');
     setWithdrawPassword('');
 
-    alert('Demo withdrawal request submitted. Status: PENDING');
+    alert(
+      'Demo withdrawal request submitted. Status: PENDING'
+    );
+  };
+
+  const deleteAccount = () => {
+    const confirmed = window.confirm(
+      'Remove saved demo bank account?'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      localStorage.removeItem(ACCOUNT_KEY);
+    } catch (error) {
+      console.error(
+        'Unable to remove account:',
+        error
+      );
+    }
+
+    setAccount(null);
   };
 
   const maskAccount = (number) => {
-    if (!number) return '';
+    if (!number) {
+      return '';
+    }
+
     return `XXXX XXXX ${number.slice(-4)}`;
   };
+
+  const statusClass = (status) => {
+    const normalized = String(
+      status || ''
+    ).toUpperCase();
+
+    if (
+      normalized === 'APPROVED' ||
+      normalized === 'SUCCESS'
+    ) {
+      return 'border border-green-500 bg-green-50 text-green-700';
+    }
+
+    if (
+      normalized === 'REJECTED' ||
+      normalized === 'REJECT'
+    ) {
+      return 'border border-red-500 bg-red-50 text-red-700';
+    }
+
+    return 'border border-amber-500 bg-amber-50 text-amber-700';
+  };
+
+  const history = transactions.slice(
+    0,
+    HISTORY_LIMIT
+  );
 
   return (
     <div className="min-h-screen bg-[#f3f2f7] text-gray-900">
 
       {/* HEADER */}
-      <header className="bg-teal-800 px-4 py-4 text-white">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-black">
-            TELUGU SPORTS BOOK
-          </h1>
 
-          <span className="text-xs font-bold">
+      <header className="bg-teal-800 px-4 py-4 text-white">
+
+        <div className="mx-auto flex max-w-3xl items-center justify-between">
+
+          <div>
+            <p className="text-[10px] font-bold tracking-wider text-teal-100">
+              TELUGU SPORTS BOOK
+            </p>
+
+            <h1 className="text-lg font-black">
+              WITHDRAWAL
+            </h1>
+          </div>
+
+          <span className="rounded bg-white/10 px-2 py-1 text-[10px] font-bold">
             DEMO
           </span>
+
         </div>
+
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-5">
 
         {/* BACK */}
+
         <button
           type="button"
           onClick={onBack}
@@ -198,8 +422,10 @@ export default function WithdrawalPage({ onBack }) {
         </button>
 
         {/* BALANCE */}
-        <div className="mb-5 rounded-xl bg-white p-5 text-center shadow-sm">
-          <p className="text-sm font-semibold text-gray-500">
+
+        <section className="mb-5 rounded-xl bg-white p-5 text-center shadow-sm">
+
+          <p className="text-xs font-bold text-gray-500">
             AVAILABLE DEMO BALANCE
           </p>
 
@@ -210,313 +436,525 @@ export default function WithdrawalPage({ onBack }) {
           <p className="mt-1 text-xs text-gray-500">
             Demo Coins
           </p>
-        </div>
 
-        {/* ADD ACCOUNT BUTTON */}
-        <div className="mb-7 text-center">
+        </section>
+
+        {/* ADD ACCOUNT */}
+
+        <div className="mb-6 text-center">
+
           <button
             type="button"
-            onClick={() => setShowAddAccount(!showAddAccount)}
+            onClick={() =>
+              setShowAddAccount(
+                (previous) => !previous
+              )
+            }
             className="rounded-full bg-green-600 px-8 py-4 text-lg font-black text-white"
           >
-            + ADD ACCOUNT
+            {account
+              ? '✎ CHANGE ACCOUNT'
+              : '+ ADD ACCOUNT'}
           </button>
+
         </div>
 
-        {/* ADD ACCOUNT FORM */}
+        {/* ACCOUNT FORM */}
+
         {showAddAccount && (
+
           <form
             onSubmit={saveAccount}
             className="mb-6 space-y-4 rounded-xl bg-white p-5 shadow-sm"
           >
+
             <h2 className="text-center text-xl font-black">
               ADD BANK ACCOUNT
             </h2>
 
-            <input
-              type="text"
-              placeholder="Account Holder Name"
-              value={form.holderName}
-              onChange={(e) =>
-                updateForm('holderName', e.target.value)
-              }
-              className="w-full rounded-lg border p-4"
-              required
-            />
-
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="Bank Account Number"
-              value={form.accountNumber}
-              onChange={(e) =>
-                updateForm('accountNumber', e.target.value)
-              }
-              className="w-full rounded-lg border p-4"
-              required
-            />
-
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="Confirm Account Number"
-              value={form.confirmAccountNumber}
-              onChange={(e) =>
-                updateForm('confirmAccountNumber', e.target.value)
-              }
-              className="w-full rounded-lg border p-4"
-              required
-            />
-
-            <input
-              type="text"
-              placeholder="IFSC Code"
-              value={form.ifsc}
-              onChange={(e) =>
-                updateForm('ifsc', e.target.value.toUpperCase())
-              }
-              className="w-full rounded-lg border p-4"
-              required
-            />
-
-            <input
-              type="password"
-              placeholder="Create Withdrawal Password"
-              value={form.password}
-              onChange={(e) =>
-                updateForm('password', e.target.value)
-              }
-              className="w-full rounded-lg border p-4"
-              required
-            />
-
-            <input
-              type="password"
-              placeholder="Confirm Withdrawal Password"
-              value={form.confirmPassword}
-              onChange={(e) =>
-                updateForm('confirmPassword', e.target.value)
-              }
-              className="w-full rounded-lg border p-4"
-              required
-            />
-
-            <button
-              type="submit"
-              className="w-full rounded-lg bg-teal-800 py-4 font-bold text-white"
-            >
-              SAVE ACCOUNT
-            </button>
-          </form>
-        )}
-
-        {/* INSTRUCTIONS */}
-        <section className="mb-5 rounded-xl bg-white p-6 shadow-sm">
-          <div className="space-y-5 text-sm leading-6 text-red-600">
-            <p>
-              1. This form is for requesting demo coin
-              withdrawals from the main demo wallet only.
-            </p>
-
-            <p>
-              2. Bonus demo coins are not eligible for
-              withdrawal requests.
-            </p>
-
-            <p>
-              3. Minimum withdrawal request is 100 demo coins.
-            </p>
-
-            <p>
-              4. Withdrawal requests require sufficient
-              available demo coins.
-            </p>
-
-            <p>
-              5. Demo requests are reviewed by the administrator.
-            </p>
-
-            <p>
-              6. No real money is transferred through this
-              demonstration system.
-            </p>
-          </div>
-        </section>
-
-        {/* SUPPORT */}
-        <section className="mb-6 rounded-xl bg-white p-3">
-          <div className="rounded-2xl bg-amber-700 px-4 py-5 text-center text-white">
-            <p className="text-xs font-black">
-              FOR WITHDRAWAL PASSWORD RELATED ISSUES
-            </p>
-
-            <p className="mt-2 text-2xl">
-              💬
-            </p>
-
-            <p className="mt-1 text-xs">
-              Contact Demo Support
-            </p>
-          </div>
-        </section>
-
-        {/* SAVED ACCOUNT */}
-        {account ? (
-          <section className="mb-6 rounded-xl bg-white p-5 shadow-sm">
-
-            <h2 className="mb-5 text-center text-xl font-black">
-              {account.holderName.toUpperCase()}
-            </h2>
-
-            <div className="space-y-3 rounded-xl bg-gray-100 p-4">
-              <div className="border-b pb-3">
-                <p className="text-sm text-gray-500">
-                  Account No
-                </p>
-
-                <p className="font-semibold">
-                  {maskAccount(account.accountNumber)}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-sm text-gray-500">
-                  IFSC Code
-                </p>
-
-                <p className="font-semibold">
-                  {account.ifsc}
-                </p>
-              </div>
-            </div>
-
-            {/* WITHDRAW FORM */}
-            <form
-              onSubmit={handleWithdraw}
-              className="mt-5 space-y-4"
-            >
-              <input
-                type="number"
-                min="100"
-                step="1"
-                placeholder="Enter amount"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="w-full rounded-lg border p-4"
-                required
-              />
+            <div>
+              <label className="mb-1 block text-xs font-bold text-gray-600">
+                ACCOUNT HOLDER NAME
+              </label>
 
               <input
-                type="password"
-                placeholder="Enter Withdrawal Password"
-                value={withdrawPassword}
-                onChange={(e) =>
-                  setWithdrawPassword(e.target.value)
+                type="text"
+                placeholder="Enter account holder name"
+                value={form.holderName}
+                onChange={(event) =>
+                  updateForm(
+                    'holderName',
+                    event.target.value
+                  )
                 }
                 className="w-full rounded-lg border p-4"
                 required
               />
+            </div>
 
-              <button
-                type="submit"
-                className="w-full rounded bg-red-700 py-4 text-lg font-bold text-white"
-              >
-                WITHDRAW
-              </button>
-            </form>
-          </section>
-        ) : (
-          <div className="mb-6 rounded-xl bg-white p-6 text-center text-gray-500">
-            No account added yet.
-            <br />
-            Click ADD ACCOUNT to continue.
-          </div>
+            <div>
+              <label className="mb-1 block text-xs font-bold text-gray-600">
+                BANK NAME
+              </label>
+
+              <input
+                type="text"
+                placeholder="Enter bank name"
+                value={form.bankName}
+                onChange={(event) =>
+                  updateForm(
+                    'bankName',
+                    event.target.value
+                  )
+                }
+                className="w-full rounded-lg border p-4"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-bold text-gray-600">
+                ACCOUNT NUMBER
+              </label>
+
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Enter bank account number"
+                value={form.accountNumber}
+                onChange={(event) =>
+                  updateForm(
+                    'accountNumber',
+                    event.target.value.replace(
+                      /\D/g,
+                      ''
+                    )
+                  )
+                }
+                className="w-full rounded-lg border p-4"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-bold text-gray-600">
+                CONFIRM ACCOUNT NUMBER
+              </label>
+
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Confirm bank account number"
+                value={form.confirmAccountNumber}
+                onChange={(event) =>
+                  updateForm(
+                    'confirmAccountNumber',
+                    event.target.value.replace(
+                      /\D/g,
+                      ''
+                    )
+                  )
+                }
+                className="w-full rounded-lg border p-4"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-bold text-gray-600">
+                IFSC CODE
+              </label>
+
+              <input
+                type="text"
+                placeholder="Enter IFSC code"
+                value={form.ifsc}
+                onChange={(event) =>
+                  updateForm(
+                    'ifsc',
+                    event.target.value.toUpperCase()
+                  )
+                }
+                className="w-full rounded-lg border p-4 uppercase"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-bold text-gray-600">
+                CREATE WITHDRAWAL PASSWORD
+              </label>
+
+              <input
+                type="password"
+                placeholder="Minimum 6 characters"
+                value={form.password}
+                onChange={(event) =>
+                  updateForm(
+                    'password',
+                    event.target.value
+                  )
+                }
+                className="w-full rounded-lg border p-4"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-bold text-gray-600">
+                CONFIRM WITHDRAWAL PASSWORD
+              </label>
+
+              <input
+                type="password"
+                placeholder="Confirm password"
+                value={form.confirmPassword}
+                onChange={(event) =>
+                  updateForm(
+                    'confirmPassword',
+                    event.target.value
+                  )
+                }
+                className="w-full rounded-lg border p-4"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full rounded-lg bg-teal-800 py-4 font-black text-white"
+            >
+              SAVE ACCOUNT
+            </button>
+
+          </form>
+
         )}
 
-        {/* TRANSACTION HISTORY */}
-        <section className="rounded-xl bg-white p-4 shadow-sm">
+        {/* INFORMATION */}
 
-          <h2 className="mb-4 text-xl font-black">
-            WITHDRAWAL HISTORY
-          </h2>
+        <section className="mb-5 rounded-xl bg-white p-5 shadow-sm">
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[500px] text-sm">
-              <thead className="bg-teal-800 text-white">
-                <tr>
-                  <th className="p-3 text-left">
-                    Transaction No
-                  </th>
+          <div className="space-y-3 text-xs leading-5 text-red-600">
 
-                  <th className="p-3">
-                    Coins
-                  </th>
+            <p>
+              1. Withdrawal requests use available demo
+              coins only.
+            </p>
 
-                  <th className="p-3">
-                    Status
-                  </th>
+            <p>
+              2. The requested demo coins are held when
+              the request is submitted.
+            </p>
 
-                  <th className="p-3">
-                    Date
-                  </th>
-                </tr>
-              </thead>
+            <p>
+              3. Insufficient balance will show LOW
+              BALANCE.
+            </p>
 
-              <tbody>
-                {transactions.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="p-6 text-center text-gray-500"
-                    >
-                      No withdrawal requests yet
-                    </td>
-                  </tr>
-                ) : (
-                  transactions.map((tx) => (
-                    <tr
-                      key={tx.id}
-                      className="border-b text-center"
-                    >
-                      <td className="p-3 text-left">
-                        {tx.id}
-                      </td>
+            <p>
+              4. Pending requests can be reviewed in the
+              demo Admin Panel.
+            </p>
 
-                      <td className="p-3">
-                        {tx.amount}
-                      </td>
+            <p>
+              5. This demonstration does not transfer
+              real money.
+            </p>
 
-                      <td className="p-3">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-bold ${
-                            tx.status === 'SUCCESS'
-                              ? 'bg-green-100 text-green-700'
-                              : tx.status === 'REJECTED'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}
-                        >
-                          {tx.status}
-                        </span>
-                      </td>
-
-                      <td className="p-3">
-                        {tx.date}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
           </div>
 
         </section>
 
-        <p className="py-6 text-center text-xs text-gray-500">
-          Demo Withdrawal System — No Real Money Transfers
+        {/* SAVED ACCOUNT */}
+
+        {account ? (
+
+          <section className="mb-6 rounded-xl bg-white p-5 shadow-sm">
+
+            <div className="mb-5 flex items-start justify-between gap-3">
+
+              <div>
+                <p className="text-[10px] font-bold text-gray-500">
+                  SAVED BANK ACCOUNT
+                </p>
+
+                <h2 className="mt-1 text-lg font-black">
+                  {account.holderName.toUpperCase()}
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={deleteAccount}
+                className="rounded-lg bg-red-600 px-3 py-2 text-xs font-black text-white"
+              >
+                DELETE
+              </button>
+
+            </div>
+
+            <div className="overflow-hidden rounded-xl bg-gray-100">
+
+              <AccountRow
+                label="Bank"
+                value={account.bankName}
+              />
+
+              <AccountRow
+                label="Account No"
+                value={maskAccount(
+                  account.accountNumber
+                )}
+              />
+
+              <AccountRow
+                label="IFSC Code"
+                value={account.ifsc}
+                last
+              />
+
+            </div>
+
+            {/* WITHDRAW FORM */}
+
+            <form
+              onSubmit={handleWithdraw}
+              className="mt-5 space-y-4"
+            >
+
+              <div>
+                <label className="mb-2 block text-xs font-black text-gray-600">
+                  ENTER AMOUNT
+                </label>
+
+                <input
+                  type="number"
+                  min={MIN_WITHDRAWAL}
+                  step="1"
+                  placeholder="Enter amount"
+                  value={amount}
+                  onChange={(event) =>
+                    setAmount(
+                      event.target.value
+                    )
+                  }
+                  className="w-full rounded-lg border p-4 text-lg font-bold"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-4 gap-2">
+
+                {[500, 1000, 2000, 5000].map(
+                  (value) => (
+
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() =>
+                        setAmount(
+                          String(value)
+                        )
+                      }
+                      className="rounded-lg border border-teal-700 py-3 text-xs font-black text-teal-800"
+                    >
+                      {value.toLocaleString(
+                        'en-IN'
+                      )}
+                    </button>
+
+                  )
+                )}
+
+              </div>
+
+              <div>
+                <label className="mb-2 block text-xs font-black text-gray-600">
+                  WITHDRAWAL PASSWORD
+                </label>
+
+                <input
+                  type="password"
+                  placeholder="Enter withdrawal password"
+                  value={withdrawPassword}
+                  onChange={(event) =>
+                    setWithdrawPassword(
+                      event.target.value
+                    )
+                  }
+                  className="w-full rounded-lg border p-4"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full rounded-md bg-red-700 py-4 text-lg font-black text-white"
+              >
+                WITHDRAW
+              </button>
+
+            </form>
+
+          </section>
+
+        ) : (
+
+          <div className="mb-6 rounded-xl bg-white p-6 text-center text-sm text-gray-500 shadow-sm">
+
+            No bank account added yet.
+
+            <br />
+
+            Click ADD ACCOUNT to continue.
+
+          </div>
+
+        )}
+
+        {/* HISTORY */}
+
+        <section className="overflow-hidden rounded-xl bg-white shadow-sm">
+
+          <div className="px-4 py-4">
+
+            <h2 className="text-lg font-black">
+              WITHDRAWAL HISTORY
+            </h2>
+
+            <p className="mt-1 text-[10px] text-gray-500">
+              Latest {HISTORY_LIMIT} demo withdrawal
+              requests
+            </p>
+
+          </div>
+
+          <div className="overflow-x-auto">
+
+            <table className="w-full min-w-[560px] text-xs">
+
+              <thead className="bg-teal-800 text-white">
+
+                <tr>
+
+                  <th className="p-3 text-left">
+                    AMOUNT
+                  </th>
+
+                  <th className="p-3 text-left">
+                    STATUS
+                  </th>
+
+                  <th className="p-3 text-left">
+                    ACCOUNT
+                  </th>
+
+                  <th className="p-3 text-left">
+                    DATE
+                  </th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                {history.length === 0 ? (
+
+                  <tr>
+
+                    <td
+                      colSpan={4}
+                      className="p-8 text-center text-gray-500"
+                    >
+                      No withdrawal requests yet
+                    </td>
+
+                  </tr>
+
+                ) : (
+
+                  history.map((transaction) => (
+
+                    <tr
+                      key={transaction.id}
+                      className="border-b"
+                    >
+
+                      <td className="p-3 font-bold">
+                        {Number(
+                          transaction.amount
+                        ).toLocaleString(
+                          'en-IN'
+                        )}
+                      </td>
+
+                      <td className="p-3">
+
+                        <span
+                          className={`inline-block rounded-md px-3 py-1 text-[10px] font-black ${statusClass(
+                            transaction.status
+                          )}`}
+                        >
+                          {transaction.status}
+                        </span>
+
+                      </td>
+
+                      <td className="p-3">
+                        {transaction.accountLast4
+                          ? `XXXX-${transaction.accountLast4}`
+                          : '—'}
+                      </td>
+
+                      <td className="whitespace-nowrap p-3">
+                        {transaction.date}
+                      </td>
+
+                    </tr>
+
+                  ))
+
+                )}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </section>
+
+        <p className="py-6 text-center text-[10px] text-gray-500">
+          Demo Withdrawal System — No Real Money
+          Transfers
         </p>
 
       </main>
+
+    </div>
+  );
+}
+
+function AccountRow({
+  label,
+  value,
+  last = false,
+}) {
+  return (
+    <div
+      className={`flex items-center justify-between gap-4 px-4 py-3 ${
+        last ? '' : 'border-b'
+      }`}
+    >
+      <span className="text-xs text-gray-500">
+        {label}
+      </span>
+
+      <span className="text-right text-sm font-bold">
+        {value || '—'}
+      </span>
     </div>
   );
 }
