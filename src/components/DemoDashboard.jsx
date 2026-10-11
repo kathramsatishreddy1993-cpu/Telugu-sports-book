@@ -315,6 +315,7 @@ export default function DemoDashboard({ user, onLogout }) {
 
   return (
     <div className="min-h-screen bg-[#eeeeee] text-black">
+
       {/* TOP HEADER */}
       <header className="bg-[#9a5a00] px-3 pb-4 pt-4 text-white">
         <div className="flex items-start justify-between gap-3">
@@ -408,7 +409,7 @@ export default function DemoDashboard({ user, onLogout }) {
         </div>
       </nav>
 
-      {/* SPORTS - COMPACT SIZE */}
+      {/* SPORTS - KEEP COMPACT */}
       <section className="overflow-x-auto bg-[#075249]">
         <div className="flex min-w-max">
           {sports.map((sport) => (
@@ -434,15 +435,15 @@ export default function DemoDashboard({ user, onLogout }) {
         </div>
       </section>
 
-      {/* FILTER */}
-      <section className="flex items-center justify-between gap-2 border-b bg-white px-3 py-4">
-        <div className="flex gap-2">
+      {/* FILTER - SMALLER */}
+      <section className="flex items-center justify-between gap-2 border-b bg-white px-3 py-2">
+        <div className="flex gap-1.5">
           {['LIVE', 'VIRTUAL', 'PREMIUM'].map((filter) => (
             <button
               key={filter}
               type="button"
               onClick={() => setMatchFilter(filter)}
-              className={`rounded-full border px-3 py-2 text-[10px] font-black ${
+              className={`rounded-full border px-3 py-1.5 text-[9px] font-black ${
                 matchFilter === filter
                   ? 'border-amber-600 bg-amber-50 text-amber-900'
                   : 'border-gray-300 bg-white text-gray-600'
@@ -453,25 +454,26 @@ export default function DemoDashboard({ user, onLogout }) {
           ))}
         </div>
 
-        <span className="text-[10px] font-black">
+        <span className="text-[9px] font-black">
           DEMO MATCHES
         </span>
       </section>
 
-      {/* MATCHES */}
+      {/* COMPACT MATCHES */}
       <section>
         {matches.map((match) => (
           <article
             key={match.id}
-            className="mb-2 border-b border-gray-300 bg-white p-3 shadow-sm"
+            className="border-b-4 border-[#eeeeee] bg-white px-2 py-2"
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="border-b-2 border-teal-700 pb-1 text-base font-black">
+            {/* MATCH NAME */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h2 className="inline-block border-b-2 border-teal-700 pb-[2px] text-[13px] font-black leading-tight">
                   {match.teams}
                 </h2>
 
-                <p className="mt-1 text-xs font-semibold text-red-600">
+                <p className="mt-1 text-[10px] font-semibold leading-none text-red-600">
                   {match.date}
                 </p>
               </div>
@@ -479,25 +481,27 @@ export default function DemoDashboard({ user, onLogout }) {
               <button
                 type="button"
                 onClick={() => setSelectedMatch(match)}
-                className="rounded-md bg-[#0b766d] px-3 py-2 text-xs font-black text-white"
+                className="shrink-0 rounded-md bg-[#0b766d] px-2.5 py-1.5 text-[9px] font-black text-white"
               >
                 OPEN ›
               </button>
             </div>
 
-            <div className="mt-5 grid grid-cols-3 text-center text-xs font-black">
+            {/* 1 X 2 */}
+            <div className="mt-2 grid grid-cols-3 text-center text-[10px] font-black leading-none">
               <span>1</span>
               <span>X</span>
               <span>2</span>
             </div>
 
-            <div className="mt-3 grid grid-cols-6 gap-[3px]">
+            {/* ODDS */}
+            <div className="mt-1.5 grid grid-cols-6 gap-[2px]">
               {match.odds.map((odd, index) => (
                 <button
                   key={`${match.id}-${index}`}
                   type="button"
                   onClick={() => setSelectedMatch(match)}
-                  className={`min-h-[54px] text-xs font-black ${
+                  className={`h-[38px] text-[10px] font-black ${
                     index % 2 === 0
                       ? 'bg-sky-300'
                       : 'bg-pink-300'
@@ -508,10 +512,11 @@ export default function DemoDashboard({ user, onLogout }) {
               ))}
             </div>
 
+            {/* FANCY BUTTON */}
             <button
               type="button"
               onClick={() => setSelectedMatch(match)}
-              className="mt-3 w-full rounded-md border border-teal-700 bg-teal-50 py-3 text-xs font-black text-teal-900"
+              className="mt-1.5 w-full rounded border border-teal-700 bg-teal-50 py-1.5 text-[9px] font-black text-teal-900"
             >
               VIEW MATCH ODDS & FANCY MARKETS ›
             </button>
