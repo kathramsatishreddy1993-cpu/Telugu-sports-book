@@ -4,72 +4,79 @@ const PAYMENT_SETTINGS_KEY = 'telugu_sports_payment_settings';
 
 const defaultSettings = {
   account: {
-    accountName: 'TELUGU SPORTS BOOK DEMO',
-    bankName: 'Demo Bank',
-    accountNumber: 'XXXX XXXX 1234',
-    ifsc: 'DEMO0001234',
+    accountName: '',
+    bankName: '',
+    accountNumber: '',
+    ifsc: '',
   },
 
   phonepe: {
-    upiId: 'demo@upi',
-    qrImage: '',
+    upiId: '',
   },
 
   gpay: {
-    upiId: 'demo@upi',
-    qrImage: '',
+    upiId: '',
   },
 
   paytm: {
-    upiId: 'demo@upi',
-    qrImage: '',
+    upiId: '',
   },
 };
 
-export default function AdminPaymentSettings({ onBack }) {
-  const [settings, setSettings] = useState(defaultSettings);
+export default function AdminPaymentSettings({
+  onBack,
+}) {
   const [activeMethod, setActiveMethod] = useState('account');
+
+  const [settings, setSettings] = useState(defaultSettings);
+
   const [message, setMessage] = useState('');
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(PAYMENT_SETTINGS_KEY);
+      const saved = localStorage.getItem(
+        PAYMENT_SETTINGS_KEY
+      );
 
-      if (saved) {
-        const parsed = JSON.parse(saved);
+      if (!saved) return;
 
-        setSettings({
-          account: {
-            ...defaultSettings.account,
-            ...(parsed.account || {}),
-          },
+      const parsed = JSON.parse(saved);
 
-          phonepe: {
-            ...defaultSettings.phonepe,
-            ...(parsed.phonepe || {}),
-          },
+      setSettings({
+        account: {
+          ...defaultSettings.account,
+          ...(parsed?.account || {}),
+        },
 
-          gpay: {
-            ...defaultSettings.gpay,
-            ...(parsed.gpay || {}),
-          },
+        phonepe: {
+          ...defaultSettings.phonepe,
+          ...(parsed?.phonepe || {}),
+        },
 
-          paytm: {
-            ...defaultSettings.paytm,
-            ...(parsed.paytm || {}),
-          },
-        });
-      }
+        gpay: {
+          ...defaultSettings.gpay,
+          ...(parsed?.gpay || {}),
+        },
+
+        paytm: {
+          ...defaultSettings.paytm,
+          ...(parsed?.paytm || {}),
+        },
+      });
     } catch (error) {
-      console.error('Unable to load payment settings:', error);
+      console.error(
+        'Unable to load payment settings:',
+        error
+      );
     }
   }, []);
 
   const updateAccount = (field, value) => {
-    setSettings((current) => ({
-      ...current,
+    setSettings((previous) => ({
+      ...previous,
+
       account: {
-        ...current.account,
+        ...previous.account,
         [field]: value,
       },
     }));
@@ -77,361 +84,416 @@ export default function AdminPaymentSettings({ onBack }) {
     setMessage('');
   };
 
-  const updateUPI = (method, field, value) => {
-    setSettings((current) => ({
-      ...current,
+  const updateUpi = (method, value) => {
+    setSettings((previous) => ({
+      ...previous,
+
       [method]: {
-        ...current[method],
-        [field]: value,
+        ...previous[method],
+        upiId: value,
       },
     }));
 
     setMessage('');
   };
 
-  const handleQRUpload = (method, file) => {
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      setMessage('Please select an image file.');
-      return;
-    }
-
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      updateUPI(method, 'qrImage', reader.result);
-    };
-
-    reader.onerror = () => {
-      setMessage('Unable to read QR image.');
-    };
-
-    reader.readAsDataURL(file);
-  };
-
-  const removeQR = (method) => {
-    updateUPI(method, 'qrImage', '');
-  };
-
-  const saveSettings = () => {
+  const handleSave = () => {
     try {
       localStorage.setItem(
         PAYMENT_SETTINGS_KEY,
         JSON.stringify(settings)
       );
 
-      setMessage('Payment settings saved successfully.');
+      setMessage(
+        'Payment details saved successfully.'
+      );
     } catch (error) {
-      console.error('Unable to save payment settings:', error);
+      console.error(
+        'Unable to save payment settings:',
+        error
+      );
 
       setMessage(
-        'Unable to save settings. QR image may be too large.'
+        'Unable to save payment details.'
       );
     }
   };
 
-  const resetSettings = () => {
-    const confirmed = window.confirm(
-      'Reset all payment settings to demo defaults?'
-    );
-
-    if (!confirmed) return;
-
-    setSettings(defaultSettings);
-
-    localStorage.setItem(
-      PAYMENT_SETTINGS_KEY,
-      JSON.stringify(defaultSettings)
-    );
-
-    setMessage('Payment settings reset.');
-  };
-
-  const methodButton = (id, label) => (
-    <button
-      type="button"
-      onClick={() => {
-        setActiveMethod(id);
-        setMessage('');
-      }}
-      className={`rounded-lg border px-2 py-3 text-[11px] font-black transition ${
-        activeMethod === id
-          ? 'border-amber-400 bg-amber-500 text-black'
-          : 'border-teal-700 bg-[#0b4d43] text-white'
-      }`}
-    >
-      {label}
-    </button>
-  );
-
-  const renderUPISettings = (method, title) => {
-    const data = settings[method];
-
-    return (
-      <section className="overflow-hidden rounded-2xl border border-teal-700 bg-[#09473f]">
-        <div className="bg-[#0d7466] px-4 py-4">
-          <h2 className="text-lg font-black">
-            {title} SETTINGS
-          </h2>
-        </div>
-
-        <div className="space-y-5 p-4">
-          <div>
-            <label className="mb-2 block text-xs font-black text-gray-300">
-              {title} UPI ID
-            </label>
-
-            <input
-              type="text"
-              value={data.upiId}
-              onChange={(event) =>
-                updateUPI(
-                  method,
-                  'upiId',
-                  event.target.value
-                )
-              }
-              placeholder="Enter UPI ID"
-              className="w-full rounded-xl border border-teal-700 bg-[#063c36] px-4 py-4 text-sm font-bold text-white outline-none focus:border-amber-400"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-xs font-black text-gray-300">
-              QR / SCANNER IMAGE
-            </label>
-
-            <label className="flex min-h-[70px] cursor-pointer items-center justify-center rounded-xl border border-dashed border-teal-500 bg-[#063c36] px-4 text-center">
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(event) =>
-                  handleQRUpload(
-                    method,
-                    event.target.files?.[0]
-                  )
-                }
-              />
-
-              <span className="text-sm font-black text-amber-300">
-                + SELECT QR IMAGE
-              </span>
-            </label>
-          </div>
-
-          {data.qrImage ? (
-            <div className="rounded-xl border border-teal-700 bg-[#063c36] p-4">
-              <p className="mb-3 text-xs font-black text-gray-400">
-                QR PREVIEW
-              </p>
-
-              <div className="flex justify-center">
-                <img
-                  src={data.qrImage}
-                  alt={`${title} QR`}
-                  className="max-h-[260px] max-w-full rounded-xl bg-white object-contain p-2"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={() => removeQR(method)}
-                className="mt-4 w-full rounded-lg border border-red-500/50 bg-red-500/10 py-3 text-xs font-black text-red-300"
-              >
-                REMOVE QR IMAGE
-              </button>
-            </div>
-          ) : (
-            <div className="flex min-h-[170px] items-center justify-center rounded-xl border border-dashed border-gray-600 bg-[#063c36]">
-              <div className="text-center text-gray-400">
-                <div className="text-4xl">▦</div>
-
-                <p className="mt-2 text-xs font-black">
-                  NO QR IMAGE SELECTED
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-    );
-  };
-
   return (
-    <div className="min-h-screen bg-[#003f37] text-white">
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#a86600] px-4 py-4">
-        <div className="mx-auto flex max-w-xl items-center justify-between gap-3">
+    <div className="min-h-screen bg-[#061c1a] text-white">
+
+      {/* HEADER */}
+
+      <header className="sticky top-0 z-50 border-b border-amber-500/30 bg-[#9a5a00] px-3 py-3 shadow-xl">
+
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+
           <button
             type="button"
             onClick={onBack}
-            className="rounded-lg border border-amber-200/70 px-4 py-3 text-sm font-black"
+            className="rounded-md border border-amber-200/60 bg-black/10 px-3 py-2 text-[10px] font-black"
           >
             ‹ BACK
           </button>
 
           <div className="text-right">
-            <p className="text-[11px] font-black uppercase tracking-wider text-amber-100">
+
+            <p className="text-[9px] font-black tracking-[0.12em] text-amber-100">
               TELUGU SPORTS BOOK
             </p>
 
-            <h1 className="text-xl font-black">
-              PAYMENT SETTINGS
+            <h1 className="text-base font-black">
+              PAYMENT DETAILS
             </h1>
+
           </div>
+
         </div>
+
       </header>
 
-      <main className="mx-auto max-w-xl space-y-5 px-4 py-5">
-        <section className="rounded-2xl border border-amber-500/40 bg-[#173d2c] p-4">
-          <p className="text-sm font-black text-amber-300">
-            ADMIN PAYMENT SETTINGS
+      <main className="mx-auto max-w-3xl px-3 py-4">
+
+        {/* INFORMATION */}
+
+        <section className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+
+          <p className="text-xs font-black text-amber-300">
+            PAYMENT SETTINGS
           </p>
 
-          <p className="mt-2 text-xs leading-5 text-gray-300">
-            Manage the demo payment details displayed on the
-            customer Deposit page.
+          <p className="mt-2 text-[10px] leading-5 text-gray-300">
+            Configure the payment information displayed
+            on the customer Deposit Page.
           </p>
+
         </section>
 
-        <section>
-          <p className="mb-3 text-sm font-black">
+        {/* METHOD BUTTONS */}
+
+        <section className="mb-4">
+
+          <p className="mb-2 text-xs font-black">
             SELECT METHOD
           </p>
 
-          <div className="grid grid-cols-4 gap-2">
-            {methodButton('account', 'ACCOUNT')}
-            {methodButton('phonepe', 'PHONEPE')}
-            {methodButton('gpay', 'GPAY')}
-            {methodButton('paytm', 'PAYTM')}
+          <div className="grid grid-cols-4 gap-1.5">
+
+            <MethodButton
+              active={activeMethod === 'account'}
+              label="ACCOUNT"
+              onClick={() =>
+                setActiveMethod('account')
+              }
+            />
+
+            <MethodButton
+              active={activeMethod === 'phonepe'}
+              label="PHONEPE"
+              onClick={() =>
+                setActiveMethod('phonepe')
+              }
+            />
+
+            <MethodButton
+              active={activeMethod === 'gpay'}
+              label="GPAY"
+              onClick={() =>
+                setActiveMethod('gpay')
+              }
+            />
+
+            <MethodButton
+              active={activeMethod === 'paytm'}
+              label="PAYTM"
+              onClick={() =>
+                setActiveMethod('paytm')
+              }
+            />
+
           </div>
+
         </section>
 
+        {/* ACCOUNT */}
+
         {activeMethod === 'account' && (
-          <section className="overflow-hidden rounded-2xl border border-teal-700 bg-[#09473f]">
-            <div className="bg-[#0d7466] px-4 py-4">
-              <h2 className="text-lg font-black">
-                BANK ACCOUNT SETTINGS
-              </h2>
-            </div>
 
-            <div className="space-y-4 p-4">
-              <div>
-                <label className="mb-2 block text-xs font-black text-gray-300">
-                  ACCOUNT NAME
-                </label>
+          <PaymentCard title="BANK ACCOUNT DETAILS">
 
-                <input
-                  type="text"
-                  value={settings.account.accountName}
-                  onChange={(event) =>
-                    updateAccount(
-                      'accountName',
-                      event.target.value
-                    )
-                  }
-                  placeholder="Enter account name"
-                  className="w-full rounded-xl border border-teal-700 bg-[#063c36] px-4 py-4 text-sm font-bold text-white outline-none focus:border-amber-400"
-                />
-              </div>
+            <InputField
+              label="ACCOUNT NAME"
+              placeholder="Enter account name"
+              value={settings.account.accountName}
+              onChange={(event) =>
+                updateAccount(
+                  'accountName',
+                  event.target.value
+                )
+              }
+            />
 
-              <div>
-                <label className="mb-2 block text-xs font-black text-gray-300">
-                  BANK NAME
-                </label>
+            <InputField
+              label="BANK NAME"
+              placeholder="Enter bank name"
+              value={settings.account.bankName}
+              onChange={(event) =>
+                updateAccount(
+                  'bankName',
+                  event.target.value
+                )
+              }
+            />
 
-                <input
-                  type="text"
-                  value={settings.account.bankName}
-                  onChange={(event) =>
-                    updateAccount(
-                      'bankName',
-                      event.target.value
-                    )
-                  }
-                  placeholder="Enter bank name"
-                  className="w-full rounded-xl border border-teal-700 bg-[#063c36] px-4 py-4 text-sm font-bold text-white outline-none focus:border-amber-400"
-                />
-              </div>
+            <InputField
+              label="ACCOUNT NUMBER"
+              placeholder="Enter account number"
+              value={settings.account.accountNumber}
+              onChange={(event) =>
+                updateAccount(
+                  'accountNumber',
+                  event.target.value
+                )
+              }
+            />
 
-              <div>
-                <label className="mb-2 block text-xs font-black text-gray-300">
-                  ACCOUNT NUMBER
-                </label>
+            <InputField
+              label="IFSC CODE"
+              placeholder="Enter IFSC code"
+              value={settings.account.ifsc}
+              onChange={(event) =>
+                updateAccount(
+                  'ifsc',
+                  event.target.value.toUpperCase()
+                )
+              }
+            />
 
-                <input
-                  type="text"
-                  value={settings.account.accountNumber}
-                  onChange={(event) =>
-                    updateAccount(
-                      'accountNumber',
-                      event.target.value
-                    )
-                  }
-                  placeholder="Enter account number"
-                  className="w-full rounded-xl border border-teal-700 bg-[#063c36] px-4 py-4 text-sm font-bold text-white outline-none focus:border-amber-400"
-                />
-              </div>
+          </PaymentCard>
 
-              <div>
-                <label className="mb-2 block text-xs font-black text-gray-300">
-                  IFSC
-                </label>
-
-                <input
-                  type="text"
-                  value={settings.account.ifsc}
-                  onChange={(event) =>
-                    updateAccount(
-                      'ifsc',
-                      event.target.value.toUpperCase()
-                    )
-                  }
-                  placeholder="Enter IFSC"
-                  className="w-full rounded-xl border border-teal-700 bg-[#063c36] px-4 py-4 text-sm font-bold uppercase text-white outline-none focus:border-amber-400"
-                />
-              </div>
-            </div>
-          </section>
         )}
 
-        {activeMethod === 'phonepe' &&
-          renderUPISettings('phonepe', 'PHONEPE')}
+        {/* PHONEPE */}
 
-        {activeMethod === 'gpay' &&
-          renderUPISettings('gpay', 'GPAY')}
+        {activeMethod === 'phonepe' && (
 
-        {activeMethod === 'paytm' &&
-          renderUPISettings('paytm', 'PAYTM')}
+          <PaymentCard title="PHONEPE DETAILS">
 
-        {message && (
-          <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-center text-sm font-bold text-emerald-300">
-            {message}
-          </div>
+            <InputField
+              label="PHONEPE UPI ID"
+              placeholder="Enter PhonePe UPI ID"
+              value={settings.phonepe.upiId}
+              onChange={(event) =>
+                updateUpi(
+                  'phonepe',
+                  event.target.value
+                )
+              }
+            />
+
+            <PaymentPreview
+              title="PHONEPE"
+              value={
+                settings.phonepe.upiId ||
+                'UPI ID not added'
+              }
+            />
+
+          </PaymentCard>
+
         )}
 
-        <button
-          type="button"
-          onClick={saveSettings}
-          className="w-full rounded-xl border border-emerald-300 bg-emerald-600 py-4 text-sm font-black text-white"
-        >
-          SAVE PAYMENT SETTINGS
-        </button>
+        {/* GPAY */}
 
-        <button
-          type="button"
-          onClick={resetSettings}
-          className="w-full rounded-xl border border-gray-600 bg-[#0a302c] py-3 text-xs font-black text-gray-300"
-        >
-          RESET DEMO SETTINGS
-        </button>
+        {activeMethod === 'gpay' && (
 
-        <p className="pb-8 pt-2 text-center text-[11px] leading-5 text-gray-400">
-          Demo management settings only. No real-money
-          transaction is processed by this page.
+          <PaymentCard title="GOOGLE PAY DETAILS">
+
+            <InputField
+              label="GOOGLE PAY UPI ID"
+              placeholder="Enter Google Pay UPI ID"
+              value={settings.gpay.upiId}
+              onChange={(event) =>
+                updateUpi(
+                  'gpay',
+                  event.target.value
+                )
+              }
+            />
+
+            <PaymentPreview
+              title="GOOGLE PAY"
+              value={
+                settings.gpay.upiId ||
+                'UPI ID not added'
+              }
+            />
+
+          </PaymentCard>
+
+        )}
+
+        {/* PAYTM */}
+
+        {activeMethod === 'paytm' && (
+
+          <PaymentCard title="PAYTM DETAILS">
+
+            <InputField
+              label="PAYTM UPI ID"
+              placeholder="Enter Paytm UPI ID"
+              value={settings.paytm.upiId}
+              onChange={(event) =>
+                updateUpi(
+                  'paytm',
+                  event.target.value
+                )
+              }
+            />
+
+            <PaymentPreview
+              title="PAYTM"
+              value={
+                settings.paytm.upiId ||
+                'UPI ID not added'
+              }
+            />
+
+          </PaymentCard>
+
+        )}
+
+        {/* SAVE */}
+
+        <section className="mt-5 rounded-xl border border-[#28655f] bg-[#083d37] p-4">
+
+          <p className="text-[10px] leading-5 text-gray-300">
+            Save the details after completing your
+            payment information.
+          </p>
+
+          <button
+            type="button"
+            onClick={handleSave}
+            className="mt-4 h-[48px] w-full rounded-md border border-green-300 bg-green-700 text-xs font-black text-white"
+          >
+            SAVE PAYMENT DETAILS
+          </button>
+
+          {message && (
+
+            <div className="mt-3 rounded-md border border-green-500/30 bg-green-500/10 px-3 py-3">
+
+              <p className="text-center text-[10px] font-black text-green-300">
+                {message}
+              </p>
+
+            </div>
+
+          )}
+
+        </section>
+
+        {/* IMPORTANT:
+            CUSTOMER UTR / SCREENSHOT / AMOUNT
+            ARE NOT PART OF THIS PAGE.
+        */}
+
+        <p className="px-4 py-6 text-center text-[8px] leading-4 text-gray-500">
+          Demo payment configuration.
+          No payment is processed on this page.
         </p>
+
       </main>
+
+    </div>
+  );
+}
+
+function MethodButton({
+  active,
+  label,
+  onClick,
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`h-[48px] rounded-md border text-[8px] font-black ${
+        active
+          ? 'border-amber-300 bg-amber-500 text-black'
+          : 'border-[#28655f] bg-[#0b554d] text-white'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function PaymentCard({
+  title,
+  children,
+}) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-[#28655f] bg-[#083d37]">
+
+      <div className="bg-[#0d7468] px-4 py-3">
+
+        <h2 className="text-sm font-black">
+          {title}
+        </h2>
+
+      </div>
+
+      <div className="space-y-4 p-4">
+        {children}
+      </div>
+
+    </section>
+  );
+}
+
+function InputField({
+  label,
+  value,
+  placeholder,
+  onChange,
+}) {
+  return (
+    <div>
+
+      <label className="mb-2 block text-[9px] font-black text-gray-300">
+        {label}
+      </label>
+
+      <input
+        type="text"
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        autoComplete="off"
+        className="h-[50px] w-full rounded-md border border-[#397d75] bg-[#063b36] px-3 text-xs font-bold text-white outline-none placeholder:text-gray-500 focus:border-amber-400"
+      />
+
+    </div>
+  );
+}
+
+function PaymentPreview({
+  title,
+  value,
+}) {
+  return (
+    <div className="rounded-lg border border-[#397d75] bg-black/10 p-4">
+
+      <p className="text-[8px] font-black text-gray-400">
+        CURRENT {title} DETAILS
+      </p>
+
+      <p className="mt-2 break-all text-xs font-black text-amber-300">
+        {value}
+      </p>
+
     </div>
   );
 }
