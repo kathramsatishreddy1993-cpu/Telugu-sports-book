@@ -289,3 +289,431 @@ export const rulesData = [
       }
     ]
   },
+    {
+    id: 'fancy-market',
+    title: 'Fancy Market',
+    intro:
+      "Due to Weather If Match Reduced Less than 80% Over in Limited Over Matches (T20I, ODI, 100 Balls & T10) Means All Advance Bets will be Deleted. (This Rule Applicable from IST 00:00 Hours on 27th August 2026)\n\nIf 80% Over Match Played Means All Advance Player Partnership and Advance Summary Events are Valid. Session and Innings Runs All Deleted.\n\nBoth Innings 80% Over Must be Complete for Summary Events. 80% Over in T20-16 Over, ODI-40 Over, 100 Balls-80 Balls & T10-8 Overs.",
+    groups: [
+      {
+        heading: 'General Fancy Rules',
+        rules: [
+          "All fancy bets will be validated when match has been tied.",
+          "All advance fancy will be suspended before toss or weather condition. All advance fancy will be voided if over reduced before match start.",
+          "In case technical error or any circumstances any fancy is suspended and does not resume result will be given. All previous bets will be valid based on haar/jeet.",
+          "If any case wrong rate has been given in fancy that particular bets will be cancelled.",
+          "In any circumstances management decision will be final related to all exchange items. Our scorecard will be considered as valid if there is any mismatch in online portal.",
+          "In case customer makes bets in wrong fancy we are not liable to delete. No changes will be made and bets will be considered as confirmed bets.",
+          "Due to any technical error market is open and result has come, all bets after result will be deleted.",
+          "Manual bets are not accepted in our exchange.",
+          "Our exchange will provide 5 second delay in our TV.",
+          "Company reserves the right to suspend/void any id/bets if the same is found to be illegitimate. For example VPN/robot-use/multiple entry from same IP/multiple bets at same time (Punching) and others. Note: only winning bets will be voided.",
+          "Company reserves the right to void any bets (only winning bets) of any event at any point of the match if the company believes there is any cheating/wrong doing in that particular event by the players.",
+          "Once our exchange gives username and password it is your responsibility to change the password.",
+          "Warning: Live scores and other data may be sourced from third party feeds and may be subject to time delays and/or inaccuracies.",
+          "Traders may block the user ID if any misinterpret activities are found.",
+          "Our exchange is not responsible for misuse of client ID.",
+          "If Ground bets, Group betting, Punching bets, Multiple entries with same IP or any fraud or unusual activities are detected, Company may void winning bets."
+        ]
+      },
+
+      {
+        heading: 'Test — Session',
+        rules: [
+          "Complete Session Valid in Test.",
+          "Each Day's Play is divided into three Sessions: Session 1 from start of Day until Lunch (Day/Night Test Dinner) with at least 25 Overs required; Session 2 from Lunch until Tea with at least 25 Overs required; Session 3 from Tea until close of Play.",
+          "1st Day Total Run: Minimum 80 Overs must be played, otherwise 1st Day Total Run will be deleted. If a team gets all out before Day Stumps, the other team's 1st Day score will be added.",
+          "If Team wise Session and Total Runs putting time mentioned team gets all out before Session finish or Day Stumps, other team's score will be added for that Session and Total Run.",
+          "1st Day Events Session and Total Run Team wise means 1st Batting Team's Session and Total Runs only considered valid. 2nd Batting Team Events will be deleted.",
+          "All Bets of One Over Session will be deleted in Test if Session is incomplete, for example innings declared, match suspended due to bad light or other conditions.",
+          "Middle Session not completed due to innings declared: that particular over is considered completed and remaining overs are counted in next team's innings. All out means innings finish score will be the result. This rule is applicable from IST 00:00 Hours on 23rd August 2026.",
+          "One Over Session not completed due to innings declared: that particular Over Session bets will be deleted. All out is considered valid."
+        ]
+      },
+
+      {
+        heading: 'Test — Lambi / Innings Run',
+        rules: [
+          "Mandatory 70 overs must be played in Test Lambi Paari/Innings Run. If any team is all-out or declares, Lambi Paari/Innings Run is valid.",
+          "In case due to weather situation match has been stopped, all Lambi trades will be deleted.",
+          "In Test both Lambi Paari/Innings Run are valid in advance fancy."
+        ]
+      },
+
+      {
+        heading: 'Test — Batsman',
+        rules: [
+          "In case batsman is injured after making 34 runs, result will be given as 34 runs.",
+          "Batsman 50/100 run: if batsman is injured or declaration occurs, result will be given on the particular run.",
+          "In next man out fancy, if player is injured, that particular fancy will be deleted.",
+          "In advance fancy opening batsman is valid only if the same batsman opens. If one batsman is changed, that particular player fancy will be deleted.",
+          "Test match advance fancy batsman Run is valid only in 1st innings."
+        ]
+      },
+
+      {
+        heading: 'Test — Partnership',
+        rules: [
+          "Partnership and player runs due to weather condition or match abandoned: result will be given as per score.",
+          "Advance partnership is valid in case both players are different or same.",
+          "Test Match advance fancy partnership is valid only in 1st innings."
+        ]
+      },
+
+      {
+        heading: 'Test — Other Advance Fancy',
+        rules: [
+          "Four, sixes, wide, wicket, extra run, total run, highest over and top batsman are valid only if 300 overs have been played or the match has been won by any team. Otherwise all these fancy will be deleted.",
+          "All such events are valid only for 1st innings. This is applicable to individual team events also."
+        ]
+      },
+
+      {
+        heading: 'ODI — Session & Innings',
+        rules: [
+          "Match 1st over run advance fancy: only 1st innings run will be counted.",
+          "Complete session is valid. In case due to rain or match abandoned, particular incomplete session will be deleted.",
+          "Example: 35 over run Team A is playing and Team A is all-out in 33 overs with 150 runs, session result is validated on that particular run.",
+          "Advance session is valid only in 1st innings.",
+          "In case 50 overs are not completed, all bets will be deleted due to weather or any condition.",
+          "Advance 50 over runs are valid only in 1st innings."
+        ]
+      },
+
+      {
+        heading: 'ODI — Batsman & Partnership',
+        rules: [
+          "In case batsman is injured after making 34 runs, result will be given as 34 runs.",
+          "In next man out fancy if player is injured, particular fancy will be deleted.",
+          "In advance fancy opening batsman is valid only if the same batsman opens. If one batsman is changed, that particular player fancy will be deleted.",
+          "Advance partnership is valid in case both players are different or same.",
+          "Only 1st innings partnerships are valid in particular match."
+        ]
+      },
+
+      {
+        heading: 'ODI — Other Fancy',
+        rules: [
+          "Four, sixes, wide, wicket, extra run, total run, highest over, top batsman, maiden over, caught-out, no-ball, run-out, fifty and century are valid only if match has been completed. In case overs are reduced due to rain, applicable other fancy will be deleted."
+        ]
+      },
+
+      {
+        heading: 'T20 — Session',
+        rules: [
+          "Match 1st over run advance fancy: only 1st innings run will be counted.",
+          "Complete session is valid. In case due to rain or match abandoned, particular incomplete session will be deleted.",
+          "Example: 15 over run Team A is playing and Team A is all-out in 13 overs with 100 runs, session result is validated on that particular run.",
+          "Advance session is valid only in 1st innings.",
+          "Advance 20 over run is valid only in 1st innings.",
+          "20 over run will not be considered valid if 20 overs are not completed due to any situation."
+        ]
+      },
+
+      {
+        heading: 'T20 — Batsman & Partnership',
+        rules: [
+          "In case batsman is injured after making 34 runs, result will be given as 34 runs.",
+          "In next man out fancy if player is injured, particular fancy will be deleted.",
+          "In advance fancy opening batsman is valid only if the same batsman opens. If one batsman is changed, that particular player fancy will be deleted.",
+          "Advance partnership is valid in case both players are different or same.",
+          "Only 1st innings partnerships are valid in particular match."
+        ]
+      },
+
+      {
+        heading: '1st 2 & 3 Wickets Runs — T20 / ODI',
+        rules: [
+          "Advance event is valid only in 1st Innings.",
+          "If overs are reduced due to rain/weather condition or match is abandoned, result will be given as per score."
+        ]
+      },
+
+      {
+        heading: 'Limited Overs — 80% Rule',
+        rules: [
+          "Due to Weather If Match Reduced Less than 80% Over in Limited Over Matches (T20I, ODI, 100 Balls & T10), all Advance Bets will be Deleted. Applicable from IST 00:00 Hours on 27th August 2026.",
+          "If 80% Over Match Played, all Advance Player Partnership and Advance Summary Events are Valid. Session and Innings Runs are Deleted.",
+          "Both Innings 80% Over must be complete for Summary Events.",
+          "80% requirement: T20 = 16 Overs, ODI = 40 Overs, 100 Balls = 80 Balls, T10 = 8 Overs.",
+          "T20, ODI and Test: if current innings player and partnership are running and match is called off/abandoned, current player and partnership results are valid."
+        ]
+      },
+
+      {
+        heading: 'Other Fancy Events',
+        rules: [
+          "1st 6 over dot ball and 20 over dot ball fancy are valid only in 1st innings.",
+          "1st wicket lost to any team balls: at least one ball has to be played, otherwise bets will be deleted.",
+          "1st wicket lost to any team fancy is valid for both innings.",
+          "How many balls for 50 runs: at least one ball has to be played, otherwise that fancy will be deleted.",
+          "1st 6 innings boundaries runs fancy counts only runs scored through fours and sixes and at least 6 overs must be played.",
+          "Wide, no-ball, leg-byes, byes and overthrow runs are not counted in 1st innings 6-over boundary runs.",
+          "How many balls faced by any batsman: at least one ball has to be played, otherwise that fancy will be deleted.",
+          "How many balls faced by any batsman is valid in both innings.",
+          "Lowest scoring over is valid only if the over is fully completed with all six deliveries.",
+          "Total Match 30s: Number of batsmen scoring 30 to 49 runs. A player reaching 50 is not considered.",
+          "Total Boundaries in 1st Power Play: Number of boundaries scored in 1st Power Play. 1st innings only in T20/ODI.",
+          "Total Dot Balls in 1st Power Play: Number of dot balls in 1st Power Play. 1st innings only in T20/ODI.",
+          "Total Match Wicketkeeper's Dismissals: Wicketkeeper catches and stumpings only.",
+          "1st Inn Death Over Runs: Runs scored in last over only. 1st innings only.",
+          "High Partnership Boundaries in Match: Maximum number of boundaries scored during any partnership.",
+          "Total Wickets: Retired hurt batsman will not be counted as a wicket.",
+          "Most 4s in Single Over: Maximum number of fours hit in a single over. No-ball fours count; byes and leg-byes fours do not.",
+          "Most 6s in Single Over: Maximum number of sixes hit in a single over. No-ball sixes count.",
+          "Total No Boundaries Overs: Number of overs where no fours or sixes are scored.",
+          "Total Impact Overs: Number of overs scoring 10 runs or above.",
+          "Total Reviews Taken in Full Match: Wicket, Wide and No-ball reviews are considered.",
+          "Total Match Successful Reviews: Original decision must be changed.",
+          "Total Match Unsuccessful Reviews: Original decision remains the same after DRS.",
+          "Total Reviews Resulted Umpire's Call: Number of wicket reviews resulting in Umpire's Call.",
+          "Total Reviews Taken by Batting Team: Both innings considered.",
+          "Total Reviews Taken by Bowling Team: Both innings considered.",
+          "Total Reviews Taken by Team: Reviews taken by particular team during batting and bowling."
+        ]
+      },
+
+      {
+        heading: 'Concussion — Test',
+        rules: [
+          "All bets of one over session will be deleted in Test if session is incomplete, for example innings declared or match suspended due to bad light or other conditions.",
+          "All bets will be considered valid if a player has been replaced under concussion substitute. Result will be given for runs scored by the mentioned player.",
+          "Bets of both players will be valid under concussion substitute."
+        ]
+      },
+
+      {
+        heading: 'Player Match Runs & Boundaries — Test',
+        rules: [
+          "For a completed match, player must bat in both innings and face at least one legal delivery to be considered valid.",
+          "If a player bats as opener in 1st innings and is injured or bats in middle order in 2nd innings, Match Run will be deleted.",
+          "For an innings win match, winner team's player's single innings score is considered as completed match score.",
+          "For a drawn match, player must bat in both innings and face at least one legal delivery.",
+          "For an innings drawn match (follow-on), team's player's single innings score is considered as completed match score.",
+          "In a Test match drawn, all Player Match Runs and Boundaries bets are valid if minimum 300 overs are completed."
+        ]
+      },
+
+      {
+        heading: 'Limited Over Events — Test',
+        rules: [
+          "Event is valid only if the number of overs defined on the event has been bowled.",
+          "If team gets all out before defined overs, balance overs will be counted in next innings.",
+          "Example: if team gets all out in 23.1 overs it is considered 24 overs and balance overs are counted from next innings."
+        ]
+      },
+
+      {
+        heading: 'Bowler & Player Events — Test',
+        rules: [
+          "Bowler Wicket Event: Minimum one legal complete over must be bowled by the mentioned bowler.",
+          "Bowler Over Event: Bowler must complete the defined number of overs; otherwise related event will be void.",
+          "Player Ball Event: Valid only if the defined number of runs is made by the mentioned player; otherwise result is considered 0 balls."
+        ]
+      },
+
+      {
+        heading: 'Limited Over Events — ODI',
+        rules: [
+          "0-50 over event is valid only if 50 overs are completed. If first batting team is all out earlier, balance overs can be counted from second innings as defined.",
+          "Events remaining incomplete will be voided if overs are reduced due to rain/bad light or another situation.",
+          "Completed event ranges before interruption remain valid.",
+          "Bowler event: mentioned bowler must complete the defined number of overs, otherwise related event will be void.",
+          "Bowler events can be valid for both innings where specified."
+        ]
+      },
+
+      {
+        heading: 'Other Events — T20',
+        rules: [
+          "1-10 over and 11-20 over events are valid only if the mentioned number of overs are completed.",
+          "If first batting team gets all out before 20 overs, balance overs may be counted from second innings according to the defined event rule.",
+          "If overs are reduced during a running event, the running event may be considered valid and remaining events voided as defined.",
+          "Bowler Session advance events are valid only for 1st innings.",
+          "Bowler session is valid only if bowler completes maximum quota of overs, except where match result occurs after bowler starts final over.",
+          "In case of DLS reduction, bowler who already completed maximum quota can have result considered valid; remaining applicable events are void."
+        ]
+      },
+
+      {
+        heading: 'Dot Ball & Boundary Events',
+        rules: [
+          "Dot Ball Event: Only no-run delivery counts as a dot ball.",
+          "A wicket delivery will not count as a dot ball for this event.",
+          "Most Dot Balls by a Bowler: Leg-bye run and wickets are considered as dot ball in bowler event.",
+          "Boundary on Match 1st Free Hit: Both innings are valid.",
+          "Only a boundary hit on Free Hit is considered valid.",
+          "Bets will be deleted if there is no Free Hit in the mentioned match.",
+          "Boundary by bat will be considered valid.",
+          "Boundaries by Player: Both Four and Six are valid.",
+          "No Boundaries Event: Both Four and Six are considered boundaries.",
+          "Batsman bat boundaries only are considered.",
+          "Free Hit boundaries are also valid.",
+          "Bets will be voided if that particular ball is not completed."
+        ]
+      },
+
+      {
+        heading: 'Virtual Cricket',
+        rules: [
+          "Scorecard available on the video will be considered valid.",
+          "If there is a difference between website scorecard and video scorecard, scorecard available on video will be valid.",
+          "If technical issues interrupt/stop the video and it cannot continue, existing unfinished markets will be voided.",
+          "Markets already finished/settled will remain valid."
+        ]
+      },
+
+      {
+        heading: 'CPL',
+        rules: [
+          "If CPL fixture of 33 matches gets reduced due to any reason, all special fancies will be voided. Match abandoned due to rain/bad light will not be considered in this.",
+          "Fancy based on individual teams is valid only for league stage.",
+          "Total 1st Over Runs: Average 6.",
+          "Total Fours: Average 22.",
+          "Total Sixes: Average 13.",
+          "Total Wickets: Average 13.",
+          "Total Wides: Average 10.",
+          "Total Extras: Average 18.",
+          "Total No Ball: Average 1.",
+          "Total Fifties: Average 1.",
+          "Total Caught Outs: Average 9.",
+          "Management decision will be final.",
+          "Highest Innings Run: Only first innings valid.",
+          "Lowest Innings Run: Only first innings valid.",
+          "Highest Over Run: Both innings valid.",
+          "Highest 1st Over Run in Individual Match: For CPL fancy, 1st innings only.",
+          "Highest Fours, Sixes, Extras and Wickets in Individual Match: Both innings valid.",
+          "Super Over will not be included."
+        ]
+      },
+
+      {
+        heading: 'CPL Team Averages',
+        rules: [
+          "Barbados Tridents: Opening Partnership average 24 runs; First 6 Over Run average 45.",
+          "St Kitts and Nevis Patriots: Opening Partnership average 25 runs; First 6 Over Run average 45.",
+          "Trinbago Knight Riders: Opening Partnership average 22 runs; First 6 Over Run average 46.",
+          "Guyana Amazon Warriors: Opening Partnership average 23 runs; First 6 Over Run average 44.",
+          "St Lucia Zouks: Opening Partnership average 22 runs; First 6 Over Run average 43.",
+          "Jamaica Tallawahs: Opening Partnership average 24 runs; First 6 Over Run average 46."
+        ]
+      },
+
+      {
+        heading: 'Tour Special Events',
+        rules: [
+          "Australia tour of Sri Lanka, 2022.",
+          "If first match of tour (T20 or ODI) is cancelled or overs reduced in first match, all special fancy events will be deleted.",
+          "If first match is played completely and next match is reduced/cancelled, applicable bets for that match will be deleted and first match bets remain valid with averages used as defined.",
+          "T20 Total Matches 1st Over Runs: Average 6, only 1st innings.",
+          "T20 Total Matches 1st 6 Over Runs: Average 45, only 1st innings.",
+          "Total Fours: Average 24.",
+          "Total Sixes: Average 9.",
+          "Total Boundaries: Average 33.",
+          "Total Fifties: Average 2.",
+          "Total Wickets: Average 12.",
+          "Total Wides: Average 8.",
+          "Total Extras: Average 15.",
+          "Total Caught Outs: Average 8.",
+          "Total Bowled: Average 2.",
+          "Total LBW: Average 2.",
+          "Total Run Out: Average 1.",
+          "Highest Innings Run: Only first innings valid.",
+          "Highest Partnership: Both innings valid.",
+          "Highest 1st Over Run: Only first innings valid.",
+          "Highest Fours, Sixes, Extras and Highest Over Run: Both innings valid.",
+          "Player Total Runs, 4s, 6s and Boundaries are totals for the full ODI/T20I format of the tour.",
+          "If a player is not in Playing XI for a match, applicable player-event average may be used according to the rule."
+        ]
+      },
+
+      {
+        heading: 'Tour Player Averages',
+        rules: [
+          "A Finch: Total Runs 26, Boundaries 4, Fours 3, Sixes 1.",
+          "D Warner: Total Runs 28, Boundaries 5, Fours 4, Sixes 1.",
+          "P Nissanka: Total Runs 22, Boundaries 3, Fours 2, Sixes 1.",
+          "D Gunathilaka: Total Runs 23, Boundaries 3, Fours 2, Sixes 1.",
+          "J Hazlewood, M Starc, D Chameera & M Theekshana: 2 wickets average if player is not in Playing XI."
+        ]
+      }
+    ]
+  },
+
+  {
+    id: 'ashes-special',
+    title: 'Ashes Special',
+    intro:
+      "If Ashes fixture of 5 Matches gets Reduced Due to Any Reason, Then all the Special Fancies will be Voided (Match abandoned due to rain/bad light will not be considered in this).\n\nManagement decision will be final.",
+    groups: [
+      {
+        heading: 'Ashes Special Rules',
+        rules: [
+          "Total 1st Over Runs of Ashes: Total of all five Match 1st Over Runs. Match 1st Innings only valid. In case match abandoned, 3 Runs Average will be given.",
+          "Total 1st 5 Over Runs of Ashes: Total of all five Match 1st 5 Over Runs. Match 1st Innings only valid. In case match abandoned, 17 Runs Average will be given.",
+          "Total 1st 10 Over Runs of Ashes: Total of all five Match 1st 10 Over Runs. Match 1st Innings only valid. In case match abandoned, 35 Runs Average will be given.",
+          "Highest Single Innings Score of Ashes: Maximum Runs Scored by any Team in any Single Innings.",
+          "Highest Total Runs of Ashes: Maximum Runs Scored in any Single Match of Series. All Innings Counted.",
+          "High Partnership Runs of Ashes: Highest Partnership Runs Scored by Players in any Innings.",
+          "High Partnership Balls of Ashes: Highest Partnership Balls Faced by Players in any Innings.",
+          "Top Batsman Runs in an Inn of Ashes: Maximum Runs Scored by a Batsman in Single Innings.",
+          "Highest Run Scorer Runs of Ashes: Maximum Runs Scored by any Individual Batsman in Full Tournament.",
+          "Highest Wicket Taker Wickets of Ashes: Maximum Wickets Taken by any Individual Bowler in Full Tournament.",
+          "Events based on Total Counts of Full Match are valid only when 300 Overs have been played with a draw or match has been won by any team. Otherwise mentioned average will be given.",
+          "Total 4s of Ashes: Average 115 Fours if match abandoned or drawn below 300 Overs.",
+          "Total Wickets of Ashes: Average 34 Wickets if match abandoned or drawn below 300 Overs.",
+          "Total Wides of Ashes: Average 9 Wides if match abandoned or drawn below 300 Overs.",
+          "Total No Balls of Ashes: Average 14 No Balls if match abandoned or drawn below 300 Overs.",
+          "Total Extras of Ashes: Average 55 Extras if match abandoned or drawn below 300 Overs.",
+          "Total Caught Outs of Ashes: Average 22 Caught Outs if match abandoned or drawn below 300 Overs.",
+          "Total Bowled of Ashes: Average 6 Bowled if match abandoned or drawn below 300 Overs.",
+          "Total LBW of Ashes: Average 4 LBW if match abandoned or drawn below 300 Overs.",
+          "Total Runout of Ashes: Average 1 Runout if match abandoned or drawn below 300 Overs.",
+          "Total 30s of Ashes: Average 5.",
+          "Total 50s of Ashes: Average 5.",
+          "Total 100s of Ashes: Average 2. Scores of 100 and above count.",
+          "Total 150s of Ashes: Scores of 150 and above count.",
+          "Total Maidens of Ashes: Average 55.",
+          "Total Duckouts of Ashes: Average 4.",
+          "Total Single Digit Scorers of Ashes: Average 12.",
+          "Total Double Digit Scorers of Ashes: Average 20.",
+          "Total Wicketkeeper's Dismissal in Ashes: Average 8.",
+          "Total Players facing 50plus Balls in Ashes: Average 13.",
+          "Total Four Hitters of Ashes: Average 28.",
+          "Total Wicket Takers of Ashes: Average 16.",
+          "Total Bowlers Giving 100 Plus Runs of Ashes: Average 2.",
+          "Highest Match 1st Over in a Match of Ashes: Match 1st Innings only valid.",
+          "Highest Match 1st 5 Over in a Match of Ashes: Match 1st Innings only valid.",
+          "Highest Match 1st 10 Over in a Match of Ashes: Match 1st Innings only valid.",
+          "Highest 4s in Individual Match of Ashes: All innings Fours counted.",
+          "Highest Wides in Individual Match of Ashes: All innings Wides counted.",
+          "Highest No Balls in Individual Match of Ashes: All innings No Balls counted.",
+          "Highest Extras in Individual Match of Ashes: All innings Extras counted.",
+          "Highest Caught Outs in Individual Match of Ashes: All innings Caught Outs counted.",
+          "Highest Bowled in Individual Match of Ashes: All innings Bowled dismissals counted.",
+          "Highest LBW in Individual Match of Ashes: All innings LBWs counted.",
+          "Highest Runout in Individual Match of Ashes: All innings Runouts counted.",
+          "Highest 30s in Individual Match of Ashes: All innings 30s counted.",
+          "Highest 50s in Individual Match of Ashes: All innings 50s counted.",
+          "Highest 100s in Individual Match of Ashes: All innings 100s counted.",
+          "Highest Maidens in Individual Match of Ashes: All innings Maidens counted.",
+          "Highest Duckouts in Individual Match of Ashes: All innings Duckouts counted.",
+          "Highest Single Digit Scorers in Individual Match of Ashes: All innings counted.",
+          "Highest Double Digit Scorers in Individual Match of Ashes: All innings counted.",
+          "Highest Wicketkeeper's Dismissal in Ashes: Caught Outs and Stumpings only are considered.",
+          "Highest Players facing 50plus Balls in Ashes: Maximum players facing 50+ balls in any full Test match.",
+          "Highest Four Hitters in Individual Match of Ashes: All innings Four Hitters counted.",
+          "Highest Wicket Takers in Individual Match of Ashes: All innings Wicket Takers counted.",
+          "Highest Bowlers Giving 100 Plus Runs in Individual Match of Ashes: All innings counted.",
+          "Highest Scoring Over Runs in Ashes: Maximum Runs Scored in a Single Over of any Match.",
+          "Most Balls faced by a Batsman in an Inn of Ashes: Maximum Balls Faced by a Batsman in a Single Innings.",
+          "Most 4s Hit by a Batsman in Ashes: Maximum 4s Hit by any Individual Batsman in Full Tournament.",
+          "Most 50s Scored by a Batsman in Ashes: Maximum 50s Scored by any Individual Batsman in Full Tournament.",
+          "Most 4s by a Batsman in Inn of Ashes: Maximum Fours Hit by any Batsman in a Single Innings.",
+          "Most Runs given by a Bowler in an Inn of Ashes: Maximum Runs Conceded by any Bowler in a Single Innings.",
+          "Most Wickets Taken by a Bowler in an Inn of Ashes: Maximum Wickets Taken by any Bowler in a Single Innings.",
+          "Most Wickets Taken by a Bowler in a Match of Ashes: Maximum Wickets Taken by any Bowler in Full Match. Both Innings Wickets Counted."
+        ]
+      }
+    ]
+  },
