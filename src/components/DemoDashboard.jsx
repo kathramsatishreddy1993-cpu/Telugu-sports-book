@@ -7,6 +7,7 @@ import BetHistoryPage from './BetHistoryPage';
 import UnsettledBetPage from './UnsettledBetPage';
 import SetButtonValuesPage from './SetButtonValuesPage';
 import ChangePasswordPage from './ChangePasswordPage';
+import RulesPage from './RulesPage';
 
 const sports = [
   { icon: '🏏', name: 'CRICKET' },
@@ -114,16 +115,12 @@ function GameGrid({ title, games }) {
           <button
             key={`${game}-${index}`}
             type="button"
-            onClick={() =>
-              alert(`${game} — Demo Preview Only`)
-            }
+            onClick={() => alert(`${game} — Demo Preview Only`)}
             className="min-w-0 overflow-hidden bg-[#10251f] text-white"
           >
             <div
               className={`flex aspect-[1.15/1] items-center justify-center bg-gradient-to-br ${
-                demoGameColors[
-                  index % demoGameColors.length
-                ]
+                demoGameColors[index % demoGameColors.length]
               } px-1 text-center`}
             >
               <span className="break-words text-[10px] font-black uppercase leading-tight drop-shadow-lg sm:text-sm">
@@ -143,30 +140,17 @@ function GameGrid({ title, games }) {
   );
 }
 
-export default function DemoDashboard({
-  user,
-  onLogout,
-}) {
-  const [selectedSport, setSelectedSport] =
-    useState('CRICKET');
-
-  const [selectedTab, setSelectedTab] =
-    useState('INPLAY');
-
-  const [matchFilter, setMatchFilter] =
-    useState('LIVE');
+export default function DemoDashboard({ user, onLogout }) {
+  const [selectedSport, setSelectedSport] = useState('CRICKET');
+  const [selectedTab, setSelectedTab] = useState('INPLAY');
+  const [matchFilter, setMatchFilter] = useState('LIVE');
 
   // PAGE CONTROLS
-  const [showDeposit, setShowDeposit] =
-    useState(false);
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [showWithdrawal, setShowWithdrawal] = useState(false);
 
-  const [showWithdrawal, setShowWithdrawal] =
+  const [showAccountStatement, setShowAccountStatement] =
     useState(false);
-
-  const [
-    showAccountStatement,
-    setShowAccountStatement,
-  ] = useState(false);
 
   const [showBetHistory, setShowBetHistory] =
     useState(false);
@@ -174,15 +158,14 @@ export default function DemoDashboard({
   const [showUnsettledBet, setShowUnsettledBet] =
     useState(false);
 
-  const [
-    showSetButtonValues,
-    setShowSetButtonValues,
-  ] = useState(false);
+  const [showSetButtonValues, setShowSetButtonValues] =
+    useState(false);
 
-  const [
-    showChangePassword,
-    setShowChangePassword,
-  ] = useState(false);
+  const [showChangePassword, setShowChangePassword] =
+    useState(false);
+
+  const [showRules, setShowRules] =
+    useState(false);
 
   // CUSTOMER MENU
   const [showCustomerMenu, setShowCustomerMenu] =
@@ -215,7 +198,6 @@ export default function DemoDashboard({
         top: 0,
         behavior: 'smooth',
       });
-
       return;
     }
 
@@ -244,9 +226,10 @@ export default function DemoDashboard({
       return;
     }
 
-    alert(
-      `${item} — Demo page will be connected next`
-    );
+    if (item === 'Rule') {
+      setShowRules(true);
+      return;
+    }
   };
 
   // DEPOSIT PAGE
@@ -274,9 +257,7 @@ export default function DemoDashboard({
     return (
       <AccountStatementPage
         user={user}
-        onBack={() =>
-          setShowAccountStatement(false)
-        }
+        onBack={() => setShowAccountStatement(false)}
       />
     );
   }
@@ -286,9 +267,7 @@ export default function DemoDashboard({
     return (
       <BetHistoryPage
         user={user}
-        onBack={() =>
-          setShowBetHistory(false)
-        }
+        onBack={() => setShowBetHistory(false)}
       />
     );
   }
@@ -298,9 +277,7 @@ export default function DemoDashboard({
     return (
       <UnsettledBetPage
         user={user}
-        onBack={() =>
-          setShowUnsettledBet(false)
-        }
+        onBack={() => setShowUnsettledBet(false)}
       />
     );
   }
@@ -310,9 +287,7 @@ export default function DemoDashboard({
     return (
       <SetButtonValuesPage
         user={user}
-        onBack={() =>
-          setShowSetButtonValues(false)
-        }
+        onBack={() => setShowSetButtonValues(false)}
       />
     );
   }
@@ -322,9 +297,17 @@ export default function DemoDashboard({
     return (
       <ChangePasswordPage
         user={user}
-        onBack={() =>
-          setShowChangePassword(false)
-        }
+        onBack={() => setShowChangePassword(false)}
+      />
+    );
+  }
+
+  // RULES PAGE
+  if (showRules) {
+    return (
+      <RulesPage
+        user={user}
+        onBack={() => setShowRules(false)}
       />
     );
   }
@@ -338,7 +321,6 @@ export default function DemoDashboard({
         <div className="flex items-center justify-between gap-2">
 
           <div className="flex items-center gap-2">
-
             <span className="text-xl">
               🏠
             </span>
@@ -352,7 +334,6 @@ export default function DemoDashboard({
                 BOOK • DEMO
               </p>
             </div>
-
           </div>
 
           {/* USER MENU */}
