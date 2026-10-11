@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 
+import AdminPaymentSettings from './AdminPaymentSettings';
+
 export default function AdminDashboard({
   admin,
   onLogout,
@@ -122,6 +124,20 @@ export default function AdminDashboard({
         'Demo request activity',
     },
   ];
+
+  /*
+   * PAYMENT SETTINGS PAGE
+   */
+
+  if (activeSection === 'Payment Details') {
+    return (
+      <AdminPaymentSettings
+        onBack={() =>
+          setActiveSection('Dashboard')
+        }
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#061c1a] text-white">
@@ -491,33 +507,6 @@ export default function AdminDashboard({
               </div>
 
             </div>
-
-          </AdminSection>
-
-        )}
-
-        {/* PAYMENT DETAILS */}
-
-        {activeSection ===
-          'Payment Details' && (
-
-          <AdminSection
-            title="Payment Details"
-            icon="🏦"
-            onBack={() =>
-              setActiveSection(
-                'Dashboard'
-              )
-            }
-          >
-
-            <p className="text-[10px] leading-5 text-gray-300">
-              Demo bank / UPI / QR
-              information shown on the
-              customer Deposit Page can
-              be configured here in the
-              next step.
-            </p>
 
           </AdminSection>
 
