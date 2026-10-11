@@ -1,6 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import AdminPaymentSettings from './AdminPaymentSettings';
+
+const DEPOSIT_KEY = 'telugu_sports_demo_deposits';
+const WITHDRAWAL_KEY = 'telugu_sports_demo_withdrawals';
+const CUSTOMER_BALANCE_KEY = 'telugu_sports_demo_balance';
 
 export default function AdminDashboard({
   admin,
@@ -9,15 +13,33 @@ export default function AdminDashboard({
   const [activeSection, setActiveSection] =
     useState('Dashboard');
 
-  /* =========================
-     DEPOSIT REQUESTS
-     ========================= */
+  const [depositRequests, setDepositRequests] =
+    useState(() => {
+      try {
+        const saved =
+          localStorage.getItem(DEPOSIT_KEY);
 
-  const depositRequests = useMemo(() => {
+        const parsed = saved
+          ? JSON.parse(saved)
+          : [];
+
+        return Array.isArray(parsed)
+          ? parsed
+          : [];
+      } catch {
+        return [];
+      }
+    });
+
+  const [
+    withdrawalRequests,
+    setWithdrawalRequests,
+  ] = useState(() => {
     try {
-      const saved = localStorage.getItem(
-        'telugu_sports_demo_deposits'
-      );
+      const saved =
+        localStorage.getItem(
+          WITHDRAWAL_KEY
+        );
 
       const parsed = saved
         ? JSON.parse(saved)
@@ -29,49 +51,53 @@ export default function AdminDashboard({
     } catch {
       return [];
     }
-  }, []);
+  });
 
   /* =========================
-     WITHDRAWAL REQUESTS
+     SAVE WITHDRAWALS
      ========================= */
 
-  const withdrawalRequests = useMemo(() => {
+  useEffect(() => {
     try {
-      const saved = localStorage.getItem(
-        'telugu_sports_demo_withdrawals'
+      localStorage.setItem(
+        WITHDRAWAL_KEY,
+        JSON.stringify(
+          withdrawalRequests
+        )
       );
-
-      const parsed = saved
-        ? JSON.parse(saved)
-        : [];
-
-      return Array.isArray(parsed)
-        ? parsed
-        : [];
-    } catch {
-      return [];
+    } catch (error) {
+      console.error(
+        'Unable to save withdrawal requests:',
+        error
+      );
     }
-  }, []);
+  }, [withdrawalRequests]);
 
   /* =========================
-     PENDING COUNTS
+     COUNTS
      ========================= */
 
   const pendingDeposits =
-    depositRequests.filter(
-      (item) =>
-        String(
-          item?.status || ''
-        ).toUpperCase() === 'PENDING'
-    ).length;
+    useMemo(() => {
+      return depositRequests.filter(
+        (item) =>
+          String(
+            item?.status || ''
+          ).toUpperCase() ===
+          'PENDING'
+      ).length;
+    }, [depositRequests]);
 
   const pendingWithdrawals =
-    withdrawalRequests.filter(
-      (item) =>
-        String(
-          item?.status || ''
-        ).toUpperCase() === 'PENDING'
-    ).length;
+    useMemo(() => {
+      return withdrawalRequests.filter(
+        (item) =>
+          String(
+            item?.status || ''
+          ).toUpperCase() ===
+          'PENDING'
+      ).length;
+    }, [withdrawalRequests]);
 
   /* =========================
      ADMIN MANAGEMENT BOXES
@@ -91,7 +117,7 @@ export default function AdminDashboard({
       icon: '🪙',
       section: 'Coin Management',
       description:
-        'Manage customer demo coin balances',
+        'Demo coin management information',
     },
 
     {
@@ -128,14 +154,251 @@ export default function AdminDashboard({
   ];
 
   /* =========================
-     DEPOSIT ACCOUNTS PAGE
+     APPROVE WITHDRAWAL
+     DEMO STATUS ONLY
      ========================= */
 
-  if (activeSection === 'Deposit Accounts') {
+  const approveWithdrawal = (
+    requestId
+  ) => {
+    const request =
+      withdrawalRequests.find(
+        (item) =>
+          item?.id === requestId
+      );
+
+    if (!request) {
+      alert(
+        'Withdrawal request not found.'
+      );
+      return;
+    }
+
+    if (
+      String(
+        request.status
+      ).toUpperCase() !== 'PENDING'
+    ) {
+      alert(
+        'This request has already been reviewed.'
+      );
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        `Approve ${Number(
+          request.amount || 0
+        ).toLocaleString(
+          'en-IN'
+        )} demo coin withdrawal?`
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const reviewedAt =
+      new Date().toISOString();
+
+    const reviewedDate =
+      new Date().toLocaleString(
+        'en-IN'
+      );
+
+    setWithdrawalRequests(
+      (previous) =>
+        previous.map((item) => {
+          if (
+            item?.id !== requestId
+          ) {
+            return item;
+          }
+
+          return {
+            ...item,
+            status: 'APPROVED',
+            reviewedAt,
+            reviewedDate,
+          };
+        })
+    );
+
+    alert(
+      'Demo withdrawal status changed to APPROVED.'
+    );
+  };
+
+  /* =========================
+     REJECT WITHDRAWAL
+
+     Customer coins were held
+     when request was created.
+
+     In this same-browser demo,
+     rejection restores them.
+     ========================= */
+
+  const rejectWithdrawal = (
+    requestId
+  ) => {
+    const request =
+      withdrawalRequests.find(
+        (item) =>
+          item?.id === requestId
+      );
+
+    if (!request) {
+      alert(
+        'Withdrawal request not found.'
+      );
+      return;
+    }
+
+    if (
+      String(
+        request.status
+      ).toUpperCase() !== 'PENDING'
+    ) {
+      alert(
+        'This request has already been reviewed.'
+      );
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        `Reject ${Number(
+          request.amount || 0
+        ).toLocaleString(
+          'en-IN'
+        )} demo coin withdrawal and restore held demo coins?`
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const amount =
+      Number(
+        request.coinsHeld ??
+          request.amount ??
+          0
+      );
+
+    let restored = false;
+
+    /*
+      Protection:
+      restore only once.
+    */
+
+    if (
+      Number.isFinite(amount) &&
+      amount > 0 &&
+      request.coinsRestored !== true
+    ) {
+      try {
+        const currentBalance =
+          Number(
+            localStorage.getItem(
+              CUSTOMER_BALANCE_KEY
+            ) || 0
+          );
+
+        const safeBalance =
+          Number.isFinite(
+            currentBalance
+          )
+            ? currentBalance
+            : 0;
+
+        const nextBalance =
+          safeBalance + amount;
+
+        localStorage.setItem(
+          CUSTOMER_BALANCE_KEY,
+          String(nextBalance)
+        );
+
+        restored = true;
+
+        window.dispatchEvent(
+          new CustomEvent(
+            'tsb-demo-balance-updated',
+            {
+              detail: {
+                balance:
+                  nextBalance,
+              },
+            }
+          )
+        );
+      } catch (error) {
+        console.error(
+          'Unable to restore demo coins:',
+          error
+        );
+
+        alert(
+          'Unable to restore demo coins.'
+        );
+
+        return;
+      }
+    }
+
+    const reviewedAt =
+      new Date().toISOString();
+
+    const reviewedDate =
+      new Date().toLocaleString(
+        'en-IN'
+      );
+
+    setWithdrawalRequests(
+      (previous) =>
+        previous.map((item) => {
+          if (
+            item?.id !== requestId
+          ) {
+            return item;
+          }
+
+          return {
+            ...item,
+            status: 'REJECTED',
+            reviewedAt,
+            reviewedDate,
+            coinsRestored:
+              restored ||
+              item.coinsRestored ===
+                true,
+          };
+        })
+    );
+
+    alert(
+      restored
+        ? 'Withdrawal REJECTED. Held demo coins restored.'
+        : 'Withdrawal status changed to REJECTED.'
+    );
+  };
+
+  /* =========================
+     DEPOSIT ACCOUNTS
+     ========================= */
+
+  if (
+    activeSection ===
+    'Deposit Accounts'
+  ) {
     return (
       <AdminPaymentSettings
         onBack={() =>
-          setActiveSection('Dashboard')
+          setActiveSection(
+            'Dashboard'
+          )
         }
       />
     );
@@ -144,9 +407,7 @@ export default function AdminDashboard({
   return (
     <div className="min-h-screen bg-[#061c1a] text-white">
 
-      {/* =====================
-          HEADER
-          ===================== */}
+      {/* HEADER */}
 
       <header className="sticky top-0 z-50 border-b border-amber-500/30 bg-[#9a5a00] px-4 py-4 shadow-xl">
 
@@ -171,7 +432,8 @@ export default function AdminDashboard({
             </p>
 
             <p className="text-[11px] font-black">
-              {admin?.username || 'admin'}
+              {admin?.username ||
+                'admin'}
             </p>
 
           </div>
@@ -180,11 +442,10 @@ export default function AdminDashboard({
 
       </header>
 
-      {/* =====================
-          DASHBOARD
-          ===================== */}
+      {/* DASHBOARD */}
 
-      {activeSection === 'Dashboard' && (
+      {activeSection ===
+        'Dashboard' && (
 
         <main className="mx-auto max-w-5xl px-3 py-5">
 
@@ -199,20 +460,16 @@ export default function AdminDashboard({
             </h2>
 
             <p className="mt-2 text-[10px] leading-5 text-gray-400">
-              Customer management, deposit
-              accounts, demo wallet and API
-              controls.
+              Customer management,
+              deposit accounts, demo
+              requests and API controls.
             </p>
 
           </section>
 
-          {/* =====================
-              PENDING ALERTS
-              ===================== */}
+          {/* PENDING ALERTS */}
 
           <section className="mb-5 grid grid-cols-2 gap-2">
-
-            {/* PENDING DEPOSITS */}
 
             <button
               type="button"
@@ -241,8 +498,6 @@ export default function AdminDashboard({
               </p>
 
             </button>
-
-            {/* PENDING WITHDRAWALS */}
 
             <button
               type="button"
@@ -274,9 +529,7 @@ export default function AdminDashboard({
 
           </section>
 
-          {/* =====================
-              ADMIN MANAGEMENT
-              ===================== */}
+          {/* ADMIN MANAGEMENT */}
 
           <section>
 
@@ -286,46 +539,48 @@ export default function AdminDashboard({
 
             <div className="grid grid-cols-2 gap-3">
 
-              {adminBoxes.map((item) => (
+              {adminBoxes.map(
+                (item) => (
 
-                <button
-                  key={item.title}
-                  type="button"
-                  onClick={() =>
-                    setActiveSection(
-                      item.section
-                    )
-                  }
-                  className="relative min-h-[145px] rounded-xl border border-[#28655f] bg-[#083d37] p-4 text-left shadow-lg"
-                >
+                  <button
+                    key={
+                      item.title
+                    }
+                    type="button"
+                    onClick={() =>
+                      setActiveSection(
+                        item.section
+                      )
+                    }
+                    className="relative min-h-[145px] rounded-xl border border-[#28655f] bg-[#083d37] p-4 text-left shadow-lg"
+                  >
 
-                  <span className="block text-3xl">
-                    {item.icon}
-                  </span>
+                    <span className="block text-3xl">
+                      {item.icon}
+                    </span>
 
-                  <p className="mt-4 text-[11px] font-black text-white">
-                    {item.title}
-                  </p>
+                    <p className="mt-4 text-[11px] font-black text-white">
+                      {item.title}
+                    </p>
 
-                  <p className="mt-2 text-[8px] leading-4 text-gray-400">
-                    {item.description}
-                  </p>
+                    <p className="mt-2 text-[8px] leading-4 text-gray-400">
+                      {
+                        item.description
+                      }
+                    </p>
 
-                  <span className="absolute bottom-3 right-3 text-lg text-amber-300">
-                    ›
-                  </span>
+                    <span className="absolute bottom-3 right-3 text-lg text-amber-300">
+                      ›
+                    </span>
 
-                </button>
+                  </button>
 
-              ))}
+                )
+              )}
 
             </div>
 
           </section>
-
-          {/* =====================
-              LOGOUT
-              ===================== */}
 
           <button
             type="button"
@@ -336,18 +591,17 @@ export default function AdminDashboard({
           </button>
 
           <p className="px-4 py-6 text-center text-[8px] leading-4 text-gray-500">
-            Demo administration interface.
-            No real-money transactions or
-            automatic payouts.
+            Demo administration
+            interface. No real-money
+            transactions or automatic
+            payouts.
           </p>
 
         </main>
 
       )}
 
-      {/* =====================
-          PENDING DEPOSITS PAGE
-          ===================== */}
+      {/* PENDING DEPOSITS */}
 
       {activeSection ===
         'Pending Deposits' && (
@@ -356,7 +610,9 @@ export default function AdminDashboard({
           title="Pending Deposits"
           icon="📥"
           onBack={() =>
-            setActiveSection('Dashboard')
+            setActiveSection(
+              'Dashboard'
+            )
           }
         >
 
@@ -392,12 +648,16 @@ export default function AdminDashboard({
                 .filter(
                   (item) =>
                     String(
-                      item?.status || ''
+                      item?.status ||
+                        ''
                     ).toUpperCase() ===
                     'PENDING'
                 )
                 .map(
-                  (request, index) => (
+                  (
+                    request,
+                    index
+                  ) => (
 
                     <div
                       key={
@@ -407,28 +667,16 @@ export default function AdminDashboard({
                       className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
                     >
 
-                      <div className="flex items-start justify-between gap-3">
+                      <p className="text-[8px] text-gray-400">
+                        CUSTOMER
+                      </p>
 
-                        <div>
-
-                          <p className="text-[8px] text-gray-400">
-                            CUSTOMER
-                          </p>
-
-                          <p className="mt-1 text-xs font-black">
-                            {request?.customerId ||
-                              request?.userId ||
-                              request?.customer ||
-                              'Demo Customer'}
-                          </p>
-
-                        </div>
-
-                        <span className="rounded bg-amber-500/20 px-2 py-1 text-[8px] font-black text-amber-300">
-                          PENDING
-                        </span>
-
-                      </div>
+                      <p className="mt-1 text-xs font-black">
+                        {request?.customerId ||
+                          request?.userId ||
+                          request?.customer ||
+                          'Demo Customer'}
+                      </p>
 
                       <div className="mt-4 grid grid-cols-2 gap-2">
 
@@ -456,14 +704,6 @@ export default function AdminDashboard({
 
                       </div>
 
-                      <p className="mt-3 text-[8px] leading-4 text-gray-500">
-                        Accept / Reject demo
-                        controls will be
-                        connected after the
-                        customer deposit flow
-                        is finalized.
-                      </p>
-
                     </div>
 
                   )
@@ -477,9 +717,7 @@ export default function AdminDashboard({
 
       )}
 
-      {/* =====================
-          PENDING WITHDRAWALS
-          ===================== */}
+      {/* PENDING WITHDRAWALS */}
 
       {activeSection ===
         'Pending Withdrawals' && (
@@ -488,7 +726,9 @@ export default function AdminDashboard({
           title="Pending Withdrawals"
           icon="💸"
           onBack={() =>
-            setActiveSection('Dashboard')
+            setActiveSection(
+              'Dashboard'
+            )
           }
         >
 
@@ -524,12 +764,16 @@ export default function AdminDashboard({
                 .filter(
                   (item) =>
                     String(
-                      item?.status || ''
+                      item?.status ||
+                        ''
                     ).toUpperCase() ===
                     'PENDING'
                 )
                 .map(
-                  (request, index) => (
+                  (
+                    request,
+                    index
+                  ) => (
 
                     <div
                       key={
@@ -539,29 +783,130 @@ export default function AdminDashboard({
                       className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
                     >
 
-                      <p className="text-[8px] text-gray-400">
-                        CUSTOMER
-                      </p>
+                      <div className="flex items-start justify-between gap-3">
 
-                      <p className="mt-1 text-xs font-black">
-                        {request?.customerId ||
-                          request?.userId ||
-                          'Demo Customer'}
-                      </p>
+                        <div>
 
-                      <p className="mt-3 text-lg font-black text-amber-300">
-                        {request?.amount
-                          ? `${Number(
-                              request.amount
-                            ).toLocaleString(
-                              'en-IN'
-                            )} Demo Coins`
-                          : '—'}
-                      </p>
+                          <p className="text-[8px] text-gray-400">
+                            CUSTOMER
+                          </p>
 
-                      <span className="mt-2 inline-block rounded bg-red-500/10 px-2 py-1 text-[8px] font-black text-red-300">
-                        PENDING
-                      </span>
+                          <p className="mt-1 text-sm font-black">
+                            {request?.customerName ||
+                              request?.customerId ||
+                              'Demo Customer'}
+                          </p>
+
+                          {request?.customerId && (
+
+                            <p className="mt-1 text-[8px] text-gray-500">
+                              ID: {
+                                request.customerId
+                              }
+                            </p>
+
+                          )}
+
+                        </div>
+
+                        <span className="rounded bg-amber-500/20 px-2 py-1 text-[8px] font-black text-amber-300">
+                          PENDING
+                        </span>
+
+                      </div>
+
+                      <div className="mt-4">
+
+                        <InfoBox
+                          label="REQUESTED DEMO COINS"
+                          value={
+                            request?.amount
+                              ? Number(
+                                  request.amount
+                                ).toLocaleString(
+                                  'en-IN'
+                                )
+                              : '—'
+                          }
+                        />
+
+                      </div>
+
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+
+                        <InfoBox
+                          label="ACCOUNT HOLDER"
+                          value={
+                            request?.holderName ||
+                            '—'
+                          }
+                        />
+
+                        <InfoBox
+                          label="BANK NAME"
+                          value={
+                            request?.bankName ||
+                            '—'
+                          }
+                        />
+
+                        <InfoBox
+                          label="ACCOUNT NUMBER"
+                          value={
+                            request?.accountNumber ||
+                            '—'
+                          }
+                        />
+
+                        <InfoBox
+                          label="IFSC CODE"
+                          value={
+                            request?.ifsc ||
+                            '—'
+                          }
+                        />
+
+                      </div>
+
+                      <div className="mt-2">
+
+                        <InfoBox
+                          label="REQUEST DATE"
+                          value={
+                            request?.date ||
+                            '—'
+                          }
+                        />
+
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            approveWithdrawal(
+                              request.id
+                            )
+                          }
+                          className="h-[44px] rounded-lg border border-green-400/50 bg-green-700 text-[10px] font-black text-white"
+                        >
+                          ✓ APPROVE
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            rejectWithdrawal(
+                              request.id
+                            )
+                          }
+                          className="h-[44px] rounded-lg border border-red-400/50 bg-red-700 text-[10px] font-black text-white"
+                        >
+                          ✕ REJECT
+                        </button>
+
+                      </div>
 
                     </div>
 
@@ -576,9 +921,7 @@ export default function AdminDashboard({
 
       )}
 
-      {/* =====================
-          COIN MANAGEMENT
-          ===================== */}
+      {/* COIN MANAGEMENT */}
 
       {activeSection ===
         'Coin Management' && (
@@ -587,26 +930,27 @@ export default function AdminDashboard({
           title="Coin Management"
           icon="🪙"
           onBack={() =>
-            setActiveSection('Dashboard')
+            setActiveSection(
+              'Dashboard'
+            )
           }
         >
 
           <p className="text-[10px] leading-5 text-gray-300">
-            Customer demo coin management
-            will be configured here.
+            Demo coin management
+            information will appear
+            here.
           </p>
 
           <EmptyState
-            text="Coin management setup pending"
+            text="Demo coin management setup pending"
           />
 
         </AdminPage>
 
       )}
 
-      {/* =====================
-          CUSTOMERS
-          ===================== */}
+      {/* CUSTOMERS */}
 
       {activeSection ===
         'Customers' && (
@@ -615,13 +959,16 @@ export default function AdminDashboard({
           title="Customers"
           icon="👥"
           onBack={() =>
-            setActiveSection('Dashboard')
+            setActiveSection(
+              'Dashboard'
+            )
           }
         >
 
           <p className="text-[10px] leading-5 text-gray-300">
-            Customer IDs and demo account
-            information will appear here.
+            Customer IDs and demo
+            account information will
+            appear here.
           </p>
 
           <EmptyState
@@ -632,9 +979,7 @@ export default function AdminDashboard({
 
       )}
 
-      {/* =====================
-          API SETTINGS
-          ===================== */}
+      {/* API SETTINGS */}
 
       {activeSection ===
         'API Settings' && (
@@ -643,7 +988,9 @@ export default function AdminDashboard({
           title="API Settings"
           icon="🔌"
           onBack={() =>
-            setActiveSection('Dashboard')
+            setActiveSection(
+              'Dashboard'
+            )
           }
         >
 
@@ -665,9 +1012,7 @@ export default function AdminDashboard({
 
       )}
 
-      {/* =====================
-          TRANSACTION HISTORY
-          ===================== */}
+      {/* TRANSACTION HISTORY */}
 
       {activeSection ===
         'Transaction History' && (
@@ -676,7 +1021,9 @@ export default function AdminDashboard({
           title="Transaction History"
           icon="📒"
           onBack={() =>
-            setActiveSection('Dashboard')
+            setActiveSection(
+              'Dashboard'
+            )
           }
         >
 
@@ -698,13 +1045,66 @@ export default function AdminDashboard({
 
           </div>
 
+          <div className="mt-4 space-y-2">
+
+            {withdrawalRequests
+              .slice(0, 20)
+              .map(
+                (
+                  request,
+                  index
+                ) => (
+
+                  <div
+                    key={
+                      request?.id ||
+                      index
+                    }
+                    className="rounded-lg border border-[#28655f] bg-[#083d37] p-3"
+                  >
+
+                    <div className="flex items-center justify-between gap-3">
+
+                      <div>
+
+                        <p className="text-[9px] font-black">
+                          {request?.customerName ||
+                            request?.customerId ||
+                            'Demo Customer'}
+                        </p>
+
+                        <p className="mt-1 text-[8px] text-gray-400">
+                          {Number(
+                            request?.amount ||
+                              0
+                          ).toLocaleString(
+                            'en-IN'
+                          )}{' '}
+                          Demo Coins
+                        </p>
+
+                      </div>
+
+                      <StatusBadge
+                        status={
+                          request?.status
+                        }
+                      />
+
+                    </div>
+
+                  </div>
+
+                )
+              )}
+
+          </div>
+
         </AdminPage>
 
       )}
 
-      {/* =====================
-          ADMIN SETTINGS
-          ===================== */}
+      {/* ADMIN SETTINGS */}
 
       {activeSection ===
         'Admin Settings' && (
@@ -713,7 +1113,9 @@ export default function AdminDashboard({
           title="Admin Settings"
           icon="⚙️"
           onBack={() =>
-            setActiveSection('Dashboard')
+            setActiveSection(
+              'Dashboard'
+            )
           }
         >
 
@@ -810,6 +1212,45 @@ function InfoBox({
       </p>
 
     </div>
+  );
+}
+
+/* =========================
+   STATUS BADGE
+   ========================= */
+
+function StatusBadge({
+  status,
+}) {
+  const normalized =
+    String(
+      status || 'PENDING'
+    ).toUpperCase();
+
+  let className =
+    'bg-amber-500/10 text-amber-300 border-amber-500/30';
+
+  if (
+    normalized === 'APPROVED' ||
+    normalized === 'SUCCESS'
+  ) {
+    className =
+      'bg-green-500/10 text-green-300 border-green-500/30';
+  }
+
+  if (
+    normalized === 'REJECTED'
+  ) {
+    className =
+      'bg-red-500/10 text-red-300 border-red-500/30';
+  }
+
+  return (
+    <span
+      className={`rounded border px-2 py-1 text-[7px] font-black ${className}`}
+    >
+      {normalized}
+    </span>
   );
 }
 
