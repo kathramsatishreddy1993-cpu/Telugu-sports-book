@@ -140,17 +140,17 @@ export default function MatchDetailsPage({
   user,
   onBack,
 }) {
-  const [selectedMarket, setSelectedMarket] =
-    useState(null);
-
+  const [selectedMarket, setSelectedMarket] = useState(null);
   const [stake, setStake] = useState('');
   const [message, setMessage] = useState('');
 
-  const [demoBalance, setDemoBalance] =
-    useState(() => readBalance());
+  const [demoBalance, setDemoBalance] = useState(() =>
+    readBalance()
+  );
 
-  const [allBets, setAllBets] =
-    useState(() => readBets());
+  const [allBets, setAllBets] = useState(() =>
+    readBets()
+  );
 
   const [showMatchedBets, setShowMatchedBets] =
     useState(false);
@@ -195,10 +195,7 @@ export default function MatchDetailsPage({
     );
 
     return () => {
-      window.removeEventListener(
-        'focus',
-        refreshData
-      );
+      window.removeEventListener('focus', refreshData);
       window.removeEventListener(
         'demo-balance-updated',
         refreshData
@@ -264,10 +261,7 @@ export default function MatchDetailsPage({
   const addStake = (amount) => {
     const currentStake = Number(stake) || 0;
 
-    setStake(
-      String(currentStake + amount)
-    );
-
+    setStake(String(currentStake + amount));
     setMessage('');
   };
 
@@ -279,9 +273,7 @@ export default function MatchDetailsPage({
     const amount = Number(stake);
 
     if (!Number.isFinite(amount) || amount <= 0) {
-      setMessage(
-        'Please enter a valid demo stake.'
-      );
+      setMessage('Please enter a valid demo stake.');
       return;
     }
 
@@ -303,11 +295,11 @@ export default function MatchDetailsPage({
       return;
     }
 
-    const newBalance =
-      currentBalance - amount;
+    const newBalance = currentBalance - amount;
 
     const newBet = {
       id: `demo-bet-${Date.now()}`,
+
       matchId: currentMatch.id,
       matchName: currentMatch.teams,
       matchDate: currentMatch.date,
@@ -371,21 +363,25 @@ export default function MatchDetailsPage({
       )} demo coins deducted`
     );
 
+    /*
+      IMPORTANT:
+      Bet placed తర్వాత Matched Bet page
+      automaticగా open చేయము.
+      Customer స్వయంగా MATCHED BET tab
+      click చేసినప్పుడే open అవుతుంది.
+    */
     setTimeout(() => {
       setSelectedMarket(null);
       setStake('');
       setMessage('');
-      setShowMatchedBets(true);
     }, 700);
   };
 
   return (
     <div className="min-h-screen bg-[#eeeeee] text-black">
-
       {/* HEADER */}
       <header className="sticky top-0 z-40 bg-[#063f39] text-white shadow-lg">
         <div className="flex min-h-[64px] items-center justify-between gap-2 px-3">
-
           <button
             type="button"
             onClick={onBack}
@@ -407,9 +403,7 @@ export default function MatchDetailsPage({
           <div className="text-right">
             <p className="text-xs font-black text-amber-300">
               🪙{' '}
-              {demoBalance.toLocaleString(
-                'en-IN'
-              )}
+              {demoBalance.toLocaleString('en-IN')}
             </p>
 
             <p className="mt-1 max-w-[85px] truncate text-[10px] font-bold">
@@ -418,18 +412,14 @@ export default function MatchDetailsPage({
                 'Demo User'}
             </p>
           </div>
-
         </div>
       </header>
 
       {/* ODDS / MATCHED BET BAR */}
       <div className="sticky top-[64px] z-30 flex bg-[#9a5a00] text-white shadow">
-
         <button
           type="button"
-          onClick={() =>
-            setShowMatchedBets(false)
-          }
+          onClick={() => setShowMatchedBets(false)}
           className={`flex-1 border-r border-amber-200/40 px-3 py-3 text-xs font-black ${
             !showMatchedBets
               ? 'bg-[#7a4700]'
@@ -441,9 +431,7 @@ export default function MatchDetailsPage({
 
         <button
           type="button"
-          onClick={() =>
-            setShowMatchedBets(true)
-          }
+          onClick={() => setShowMatchedBets(true)}
           className={`flex-[2] px-3 py-3 text-left text-xs font-black ${
             showMatchedBets
               ? 'bg-[#7a4700]'
@@ -452,13 +440,11 @@ export default function MatchDetailsPage({
         >
           MATCHED BET ({matchBets.length})
         </button>
-
       </div>
 
       {/* MATCHED BET VIEW */}
       {showMatchedBets ? (
         <section className="bg-[#eeeeee] pb-8">
-
           <div className="bg-[#0b6259] px-3 py-3 text-white">
             <h2 className="text-sm font-black">
               MATCHED DEMO BETS
@@ -471,9 +457,7 @@ export default function MatchDetailsPage({
 
           {matchBets.length === 0 ? (
             <div className="m-3 rounded-lg bg-white p-8 text-center shadow">
-              <p className="text-4xl">
-                📋
-              </p>
+              <p className="text-4xl">📋</p>
 
               <p className="mt-3 text-base font-black text-gray-800">
                 No Matched Bets
@@ -496,13 +480,11 @@ export default function MatchDetailsPage({
             </div>
           ) : (
             <div className="space-y-3 p-3">
-
               {matchBets.map((bet) => (
                 <div
                   key={bet.id}
                   className="overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm"
                 >
-
                   <div className="flex items-center justify-between bg-[#0b6259] px-3 py-2 text-white">
                     <p className="text-xs font-black">
                       {bet.market}
@@ -514,13 +496,11 @@ export default function MatchDetailsPage({
                   </div>
 
                   <div className="p-3">
-
                     <p className="text-xs font-black text-gray-900">
                       {bet.matchName}
                     </p>
 
                     <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-
                       <div className="rounded bg-gray-100 p-2">
                         <p className="text-[9px] font-bold text-gray-500">
                           SELECTION
@@ -554,7 +534,6 @@ export default function MatchDetailsPage({
                           )}
                         </p>
                       </div>
-
                     </div>
 
                     <div className="mt-3 flex items-center justify-between border-t pt-2">
@@ -567,14 +546,12 @@ export default function MatchDetailsPage({
                       </span>
 
                       <span className="text-[10px] font-black text-amber-700">
-                        PENDING
+                        {bet.result || 'PENDING'}
                       </span>
                     </div>
-
                   </div>
                 </div>
               ))}
-
             </div>
           )}
 
@@ -587,13 +564,11 @@ export default function MatchDetailsPage({
           >
             ← BACK TO ODDS
           </button>
-
         </section>
       ) : (
         <>
           {/* MATCH TITLE */}
           <section className="bg-white px-3 py-4 shadow-sm">
-
             <p className="text-[10px] font-black uppercase tracking-wide text-red-600">
               ● DEMO MATCH
             </p>
@@ -605,18 +580,15 @@ export default function MatchDetailsPage({
             <p className="mt-1 text-xs font-semibold text-gray-500">
               {currentMatch.date}
             </p>
-
           </section>
 
           {/* BALANCE */}
           <section className="mt-2 bg-[#0b6259] px-3 py-4 text-white">
-
             <p className="text-[10px] font-bold text-teal-100">
               AVAILABLE DEMO BALANCE
             </p>
 
             <div className="mt-2 flex items-center justify-between">
-
               <p className="text-xl font-black text-amber-300">
                 🪙{' '}
                 {demoBalance.toLocaleString(
@@ -628,15 +600,12 @@ export default function MatchDetailsPage({
               <span className="rounded bg-[#06443e] px-2 py-1 text-[9px] font-black">
                 DEMO
               </span>
-
             </div>
           </section>
 
           {/* SCORE */}
           <section className="mt-2 bg-[#082f2c] px-3 py-4 text-white">
-
             <div className="flex items-center justify-between">
-
               <div>
                 <p className="text-xs font-bold text-teal-200">
                   DEMO LIVE SCORE
@@ -652,7 +621,6 @@ export default function MatchDetailsPage({
               </div>
 
               <div className="text-right">
-
                 <p className="text-xs text-teal-200">
                   Current Run Rate
                 </p>
@@ -660,22 +628,17 @@ export default function MatchDetailsPage({
                 <p className="text-xl font-black text-amber-400">
                   8.48
                 </p>
-
               </div>
-
             </div>
-
           </section>
 
           {/* BATSMEN */}
           <section className="mt-2 bg-white">
-
             <div className="bg-[#0b6259] px-3 py-2 text-sm font-black text-white">
               CURRENT BATSMEN • DEMO
             </div>
 
             <div className="grid grid-cols-2 gap-[1px] bg-gray-200">
-
               <div className="bg-white p-3">
                 <p className="text-xs font-bold text-gray-500">
                   BATSMAN
@@ -703,16 +666,12 @@ export default function MatchDetailsPage({
                   21 Runs • 16 Balls
                 </p>
               </div>
-
             </div>
-
           </section>
 
           {/* MATCH ODDS */}
           <section className="mt-2 bg-white">
-
             <div className="flex items-center justify-between bg-[#0b6259] px-3 py-2 text-white">
-
               <h2 className="text-sm font-black">
                 MATCH ODDS
               </h2>
@@ -720,7 +679,6 @@ export default function MatchDetailsPage({
               <span className="text-[10px] font-bold">
                 DEMO
               </span>
-
             </div>
 
             <div className="grid grid-cols-[1fr_72px_72px] border-b bg-gray-100 px-2 py-2 text-center text-[10px] font-black text-gray-600">
@@ -753,7 +711,6 @@ export default function MatchDetailsPage({
                 key={team.name}
                 className="grid grid-cols-[1fr_72px_72px] items-center gap-[2px] border-b p-2"
               >
-
                 <span className="text-sm font-black">
                   {team.name}
                 </span>
@@ -762,12 +719,9 @@ export default function MatchDetailsPage({
                   type="button"
                   onClick={() =>
                     openSelection({
-                      market:
-                        'Match Odds',
-                      selection:
-                        team.name,
-                      rate:
-                        team.back,
+                      market: 'Match Odds',
+                      selection: team.name,
+                      rate: team.back,
                       type: 'BACK',
                     })
                   }
@@ -784,12 +738,9 @@ export default function MatchDetailsPage({
                   type="button"
                   onClick={() =>
                     openSelection({
-                      market:
-                        'Match Odds',
-                      selection:
-                        team.name,
-                      rate:
-                        team.lay,
+                      market: 'Match Odds',
+                      selection: team.name,
+                      rate: team.lay,
                       type: 'LAY',
                     })
                   }
@@ -801,17 +752,13 @@ export default function MatchDetailsPage({
                     LAY
                   </span>
                 </button>
-
               </div>
             ))}
-
           </section>
 
-          {/* FANCY */}
+          {/* FANCY MARKET */}
           <section className="mt-2 bg-white pb-3">
-
             <div className="flex items-center justify-between bg-[#0b6259] px-3 py-3 text-white">
-
               <div>
                 <h2 className="text-base font-black">
                   FANCY MARKET
@@ -825,11 +772,9 @@ export default function MatchDetailsPage({
               <span className="rounded bg-amber-400 px-2 py-1 text-[9px] font-black text-black">
                 DEMO
               </span>
-
             </div>
 
             <div className="grid grid-cols-[1fr_78px_78px] bg-gray-100 px-2 py-2 text-center text-[10px] font-black">
-
               <span className="text-left">
                 MARKET
               </span>
@@ -841,84 +786,69 @@ export default function MatchDetailsPage({
               <span className="text-sky-700">
                 YES
               </span>
-
             </div>
 
-            {demoFancyMarkets.map(
-              (market) => (
-                <div
-                  key={market.id}
-                  className="grid grid-cols-[1fr_78px_78px] items-stretch gap-[2px] border-b border-gray-200 p-2"
-                >
+            {demoFancyMarkets.map((market) => (
+              <div
+                key={market.id}
+                className="grid grid-cols-[1fr_78px_78px] items-stretch gap-[2px] border-b border-gray-200 p-2"
+              >
+                <div className="flex min-w-0 flex-col justify-center pr-2">
+                  <p className="break-words text-[13px] font-black">
+                    {market.title}
+                  </p>
 
-                  <div className="flex min-w-0 flex-col justify-center pr-2">
-
-                    <p className="break-words text-[13px] font-black">
-                      {market.title}
-                    </p>
-
-                    <p className="mt-1 text-[9px] font-semibold text-gray-500">
-                      {market.subtitle}
-                    </p>
-
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      openSelection({
-                        market:
-                          market.title,
-                        selection:
-                          'NO',
-                        rate:
-                          market.no,
-                        type:
-                          'FANCY',
-                      })
-                    }
-                    className="min-h-[58px] bg-pink-300 px-1"
-                  >
-                    <span className="block text-base font-black">
-                      {market.no}
-                    </span>
-
-                    <span className="block text-[9px] font-bold">
-                      NO
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      openSelection({
-                        market:
-                          market.title,
-                        selection:
-                          'YES',
-                        rate:
-                          market.yes,
-                        type:
-                          'FANCY',
-                      })
-                    }
-                    className="min-h-[58px] bg-sky-300 px-1"
-                  >
-                    <span className="block text-base font-black">
-                      {market.yes}
-                    </span>
-
-                    <span className="block text-[9px] font-bold">
-                      YES
-                    </span>
-                  </button>
-
+                  <p className="mt-1 text-[9px] font-semibold text-gray-500">
+                    {market.subtitle}
+                  </p>
                 </div>
-              )
-            )}
 
+                <button
+                  type="button"
+                  onClick={() =>
+                    openSelection({
+                      market: market.title,
+                      selection: 'NO',
+                      rate: market.no,
+                      type: 'FANCY',
+                    })
+                  }
+                  className="min-h-[58px] bg-pink-300 px-1"
+                >
+                  <span className="block text-base font-black">
+                    {market.no}
+                  </span>
+
+                  <span className="block text-[9px] font-bold">
+                    NO
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    openSelection({
+                      market: market.title,
+                      selection: 'YES',
+                      rate: market.yes,
+                      type: 'FANCY',
+                    })
+                  }
+                  className="min-h-[58px] bg-sky-300 px-1"
+                >
+                  <span className="block text-base font-black">
+                    {market.yes}
+                  </span>
+
+                  <span className="block text-[9px] font-bold">
+                    YES
+                  </span>
+                </button>
+              </div>
+            ))}
           </section>
 
+          {/* DEMO NOTICE */}
           <section className="m-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
             <p className="text-[11px] font-bold leading-5 text-amber-900">
               DEMO ONLY — Scores, odds,
@@ -942,19 +872,15 @@ export default function MatchDetailsPage({
       {/* BET SLIP */}
       {selectedMarket && (
         <div className="fixed inset-0 z-[100] flex items-end bg-black/60">
-
           <div className="max-h-[88vh] w-full overflow-y-auto rounded-t-2xl bg-white shadow-2xl">
-
             <div
               className={`flex items-center justify-between px-4 py-3 ${
-                selectedMarket.selection ===
-                  'NO' ||
+                selectedMarket.selection === 'NO' ||
                 selectedMarket.type === 'LAY'
                   ? 'bg-pink-300'
                   : 'bg-sky-300'
               }`}
             >
-
               <div>
                 <p className="text-sm font-black">
                   DEMO BET SLIP
@@ -975,11 +901,9 @@ export default function MatchDetailsPage({
               >
                 ×
               </button>
-
             </div>
 
             <div className="p-4">
-
               <p className="text-xs font-bold text-gray-500">
                 {currentMatch.teams}
               </p>
@@ -989,9 +913,7 @@ export default function MatchDetailsPage({
               </h3>
 
               <div className="mt-3 grid grid-cols-2 gap-2">
-
                 <div className="rounded-md bg-gray-100 p-3">
-
                   <p className="text-[10px] font-bold text-gray-500">
                     SELECTION
                   </p>
@@ -999,11 +921,9 @@ export default function MatchDetailsPage({
                   <p className="mt-1 text-base font-black">
                     {selectedMarket.selection}
                   </p>
-
                 </div>
 
                 <div className="rounded-md bg-amber-100 p-3">
-
                   <p className="text-[10px] font-bold text-gray-500">
                     DEMO RATE
                   </p>
@@ -1011,9 +931,7 @@ export default function MatchDetailsPage({
                   <p className="mt-1 text-base font-black">
                     {selectedMarket.rate}
                   </p>
-
                 </div>
-
               </div>
 
               <label className="mt-4 block text-xs font-black text-gray-700">
@@ -1030,27 +948,21 @@ export default function MatchDetailsPage({
               />
 
               <div className="mt-3 grid grid-cols-4 gap-2">
-
-                {defaultQuickStakes.map(
-                  (amount) => (
-                    <button
-                      key={amount}
-                      type="button"
-                      onClick={() =>
-                        addStake(
-                          amount
-                        )
-                      }
-                      className="rounded-md bg-gray-200 py-2 text-[11px] font-black"
-                    >
-                      +
-                      {amount.toLocaleString(
-                        'en-IN'
-                      )}
-                    </button>
-                  )
-                )}
-
+                {defaultQuickStakes.map((amount) => (
+                  <button
+                    key={amount}
+                    type="button"
+                    onClick={() =>
+                      addStake(amount)
+                    }
+                    className="rounded-md bg-gray-200 py-2 text-[11px] font-black"
+                  >
+                    +
+                    {amount.toLocaleString(
+                      'en-IN'
+                    )}
+                  </button>
+                ))}
               </div>
 
               {message && (
@@ -1062,7 +974,6 @@ export default function MatchDetailsPage({
               )}
 
               <div className="mt-4 grid grid-cols-2 gap-3">
-
                 <button
                   type="button"
                   onClick={closeBetSlip}
@@ -1073,29 +984,21 @@ export default function MatchDetailsPage({
 
                 <button
                   type="button"
-                  onClick={
-                    placeDemoSelection
-                  }
+                  onClick={placeDemoSelection}
                   className="rounded-md bg-[#075249] py-3 text-sm font-black text-white"
                 >
                   PLACE DEMO BET
                 </button>
-
               </div>
 
               <p className="mt-4 text-center text-[10px] font-semibold leading-4 text-gray-500">
                 Simulated demo coins only.
-                No real-money betting or
-                payouts.
+                No real-money betting or payouts.
               </p>
-
             </div>
-
           </div>
-
         </div>
       )}
-
     </div>
   );
 }
