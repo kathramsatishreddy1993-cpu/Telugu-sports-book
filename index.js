@@ -1,237 +1,1111 @@
 import express from 'express';
 import path from 'path';
 import https from 'https';
+import bcrypt from 'bcryptjs';
+import pg from 'pg';
 import { fileURLToPath } from 'url';
 import { sportsService } from './sportsService.js';
 
-// Recreate __filename and __dirname equivalent for ES Modules
+const { Pool } = pg;
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// 1. Body Parser Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+/* =========================================================
+   MIDDLEWARE
+========================================================= */
 
-// Server-side In-memory OTP Store (Mobile Number -> { otp, expiresAt })
-const otpStore = new Map();
+app.use(express.json({ limit: '2mb' }));
+app.use(
+  express.urlencoded({
+    extended: true,
+    limit: '2mb',
+  })
+);
 
-// Helper Function: Send Real SMS via Fast2SMS using Native HTTPS
-function sendFast2SMS(mobile, otp) {
-  return new Promise((resolve, reject) => {
-    const apiKey = process.env.FAST2SMS_API_KEY || process.env.SMS_API_KEY;
+/* =========================================================
+   POSTGRESQL
+========================================================= */
 
-    if (!apiKey) {
-      return reject(new Error('FAST2SMS_API_KEY environment variable is not configured on Render.'));
-    }
-
-    const queryParams = new URLSearchParams({
-      authorization: apiKey,
-      variables_values: otp,
-      route: 'otp',
-      numbers: mobile
-    }).toString();
-
-    const options = {
-      hostname: 'www.fast2sms.com',
-      path: `/dev/bulkV2?${queryParams}`,
-      method: 'GET',
-      headers: {
-        'cache-control': 'no-cache'
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let data = '';
-
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-
-      res.on('end', () => {
-        try {
-          const response = JSON.parse(data);
-
-          const isSuccess = response.return === true || response.status_code === 200;
-
-          if (isSuccess) {
-            resolve(response);
-          } else {
-            const errorMsg = Array.isArray(response.message)
-              ? response.message.join(', ')
-              : (response.message || 'Fast2SMS returned a failure status.');
-            reject(new Error(errorMsg));
-          }
-        } catch (err) {
-          reject(new Error('Failed to parse response from Fast2SMS API.'));
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl:
+    process.env.NODE_ENV === 'production'
+      ? {
+          rejectUnauthorized: false,
         }
-      });
-    });
+      : false,
+});
 
-    req.on('error', (err) => {
-      reject(err);
-    });
+async function initializeDatabase() {
+  if (!process.env.DATABASE_URL) {
+    console.warn(
+      'DATABASE_URL is not configured.'
+    );
+    return;
+  }
 
-    req.end();
-  });
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS customers (
+        id SERIAL PRIMARY KEY,
+
+        name VARCHAR(120) NOT NULL,
+
+        login_id VARCHAR(60)
+          UNIQUE
+          NOT NULL,
+
+        password_hash TEXT NOT NULL,
+
+        must_change_password
+          BOOLEAN
+          NOT NULL
+          DEFAULT TRUE,
+
+        status VARCHAR(20)
+          NOT NULL
+          DEFAULT 'ACTIVE',
+
+        created_at
+          TIMESTAMPTZ
+          NOT NULL
+          DEFAULT NOW(),
+
+        updated_at
+          TIMESTAMPTZ
+          NOT NULL
+          DEFAULT NOW()
+      );
+    `);
+
+    console.log(
+      'Customers table ready.'
+    );
+  } catch (error) {
+    console.error(
+      'Database initialization error:',
+      error
+    );
+  }
 }
 
-// ==========================================
-// 2. Authentication API Routes
-// ==========================================
+/* =========================================================
+   OTP STORE
+========================================================= */
 
-// POST /api/auth/send-otp
-app.post('/api/auth/send-otp', async (req, res) => {
-  try {
-    const { mobile } = req.body;
-    const cleanMobile = mobile ? String(mobile).replace(/\D/g, '') : '';
+const otpStore = new Map();
 
-    if (!cleanMobile || cleanMobile.length !== 10) {
-      return res.status(400).json({ error: 'Please enter a valid 10-digit mobile number.' });
+/* =========================================================
+   FAST2SMS
+========================================================= */
+
+function sendFast2SMS(mobile, otp) {
+  return new Promise(
+    (resolve, reject) => {
+      const apiKey =
+        process.env.FAST2SMS_API_KEY ||
+        process.env.SMS_API_KEY;
+
+      if (!apiKey) {
+        return reject(
+          new Error(
+            'FAST2SMS_API_KEY environment variable is not configured on Render.'
+          )
+        );
+      }
+
+      const queryParams =
+        new URLSearchParams({
+          authorization: apiKey,
+          variables_values: otp,
+          route: 'otp',
+          numbers: mobile,
+        }).toString();
+
+      const options = {
+        hostname: 'www.fast2sms.com',
+
+        path:
+          `/dev/bulkV2?${queryParams}`,
+
+        method: 'GET',
+
+        headers: {
+          'cache-control': 'no-cache',
+        },
+      };
+
+      const req = https.request(
+        options,
+        (response) => {
+          let data = '';
+
+          response.on(
+            'data',
+            (chunk) => {
+              data += chunk;
+            }
+          );
+
+          response.on(
+            'end',
+            () => {
+              try {
+                const result =
+                  JSON.parse(data);
+
+                const isSuccess =
+                  result.return === true ||
+                  result.status_code ===
+                    200;
+
+                if (isSuccess) {
+                  resolve(result);
+                  return;
+                }
+
+                const errorMessage =
+                  Array.isArray(
+                    result.message
+                  )
+                    ? result.message.join(
+                        ', '
+                      )
+                    : result.message ||
+                      'Fast2SMS returned a failure status.';
+
+                reject(
+                  new Error(
+                    errorMessage
+                  )
+                );
+              } catch {
+                reject(
+                  new Error(
+                    'Failed to parse response from Fast2SMS API.'
+                  )
+                );
+              }
+            }
+          );
+        }
+      );
+
+      req.on(
+        'error',
+        (error) => {
+          reject(error);
+        }
+      );
+
+      req.end();
     }
+  );
+}
 
-    // Generate secure 6-digit numeric OTP
-    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes expiry
+/* =========================================================
+   CUSTOMER HELPERS
+========================================================= */
 
-    // Send Real SMS via Fast2SMS
-    await sendFast2SMS(cleanMobile, generatedOtp);
+function normalizeLoginId(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase();
+}
 
-    // Store OTP in memory server-side after verified dispatch
-    otpStore.set(cleanMobile, { otp: generatedOtp, expiresAt });
+function publicCustomer(customer) {
+  return {
+    id: customer.id,
+    name: customer.name,
+    loginId: customer.login_id,
+    mustChangePassword:
+      customer.must_change_password,
+    status: customer.status,
+    createdAt: customer.created_at,
+  };
+}
 
-    return res.status(200).json({
-      success: true,
-      message: 'OTP sent successfully.'
-    });
-  } catch (error) {
-    console.error('Fast2SMS Dispatch Error:', error.message);
-    return res.status(500).json({
-      error: error.message || 'Failed to send SMS OTP. Please try again.'
-    });
+/* =========================================================
+   CUSTOMER CREATE
+   Admin-side API
+
+   POST /api/admin/customers
+========================================================= */
+
+app.post(
+  '/api/admin/customers',
+  async (req, res) => {
+    try {
+      const name = String(
+        req.body.name || ''
+      ).trim();
+
+      const loginId =
+        normalizeLoginId(
+          req.body.loginId
+        );
+
+      const temporaryPassword =
+        String(
+          req.body.temporaryPassword ||
+            ''
+        );
+
+      if (!name) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Customer name is required.',
+          });
+      }
+
+      if (!loginId) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Login ID is required.',
+          });
+      }
+
+      if (
+        !/^[a-z0-9._-]{4,30}$/.test(
+          loginId
+        )
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Login ID must be 4-30 characters and can contain letters, numbers, dot, underscore or hyphen.',
+          });
+      }
+
+      if (
+        temporaryPassword.length < 6
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Temporary password must contain at least 6 characters.',
+          });
+      }
+
+      const existing =
+        await pool.query(
+          `
+          SELECT id
+          FROM customers
+          WHERE login_id = $1
+          LIMIT 1
+          `,
+          [loginId]
+        );
+
+      if (
+        existing.rows.length > 0
+      ) {
+        return res
+          .status(409)
+          .json({
+            error:
+              'This Login ID already exists. Please choose another Login ID.',
+          });
+      }
+
+      const passwordHash =
+        await bcrypt.hash(
+          temporaryPassword,
+          12
+        );
+
+      const result =
+        await pool.query(
+          `
+          INSERT INTO customers (
+            name,
+            login_id,
+            password_hash,
+            must_change_password,
+            status
+          )
+          VALUES (
+            $1,
+            $2,
+            $3,
+            TRUE,
+            'ACTIVE'
+          )
+          RETURNING
+            id,
+            name,
+            login_id,
+            must_change_password,
+            status,
+            created_at
+          `,
+          [
+            name,
+            loginId,
+            passwordHash,
+          ]
+        );
+
+      return res
+        .status(201)
+        .json({
+          success: true,
+
+          message:
+            'Customer created successfully.',
+
+          customer:
+            publicCustomer(
+              result.rows[0]
+            ),
+        });
+    } catch (error) {
+      console.error(
+        'Create Customer Error:',
+        error
+      );
+
+      if (
+        error?.code === '23505'
+      ) {
+        return res
+          .status(409)
+          .json({
+            error:
+              'This Login ID already exists.',
+          });
+      }
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Unable to create customer.',
+        });
+    }
   }
-});
+);
 
-// POST /api/auth/verify-otp
-app.post('/api/auth/verify-otp', async (req, res) => {
-  try {
-    const { mobile, otp } = req.body;
-    const cleanMobile = mobile ? String(mobile).replace(/\D/g, '') : '';
-    const cleanOtp = otp ? String(otp).trim() : '';
+/* =========================================================
+   CUSTOMER LIST
+   Admin-side API
 
-    if (!cleanMobile || cleanMobile.length !== 10) {
-      return res.status(400).json({ error: 'Please enter a valid 10-digit mobile number.' });
+   GET /api/admin/customers
+========================================================= */
+
+app.get(
+  '/api/admin/customers',
+  async (req, res) => {
+    try {
+      const result =
+        await pool.query(`
+          SELECT
+            id,
+            name,
+            login_id,
+            must_change_password,
+            status,
+            created_at
+          FROM customers
+          ORDER BY id DESC
+        `);
+
+      return res.json({
+        success: true,
+
+        customers:
+          result.rows.map(
+            publicCustomer
+          ),
+      });
+    } catch (error) {
+      console.error(
+        'Customer List Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Unable to load customers.',
+        });
     }
-
-    if (!cleanOtp || cleanOtp.length !== 6) {
-      return res.status(400).json({ error: 'Please enter a valid 6-digit OTP code.' });
-    }
-
-    const record = otpStore.get(cleanMobile);
-
-    if (!record) {
-      return res.status(400).json({ error: 'No active OTP found. Please request a new code.' });
-    }
-
-    if (Date.now() > record.expiresAt) {
-      otpStore.delete(cleanMobile);
-      return res.status(400).json({ error: 'OTP has expired. Please request a new code.' });
-    }
-
-    if (record.otp !== cleanOtp) {
-      return res.status(400).json({ error: 'Invalid OTP code. Please check and try again.' });
-    }
-
-    // Clear OTP record upon successful verification
-    otpStore.delete(cleanMobile);
-
-    return res.status(200).json({
-      success: true,
-      message: 'Mobile number verified successfully.'
-    });
-  } catch (error) {
-    console.error('Verify OTP Error:', error);
-    return res.status(500).json({ error: 'Server error during OTP verification.' });
   }
-});
+);
 
-// ==========================================
-// 3. Sports Service API Routes
-// ==========================================
+/* =========================================================
+   CUSTOMER LOGIN
 
-// GET /api/health
-app.get('/api/health', async (req, res) => {
-  try {
-    const apiConnected = typeof sportsService.isApiConnected === 'function'
-      ? await sportsService.isApiConnected()
-      : true;
+   POST /api/auth/customer-login
+========================================================= */
 
-    return res.status(200).json({
+app.post(
+  '/api/auth/customer-login',
+  async (req, res) => {
+    try {
+      const loginId =
+        normalizeLoginId(
+          req.body.loginId ||
+            req.body.identifier
+        );
+
+      const password =
+        String(
+          req.body.password || ''
+        );
+
+      if (
+        !loginId ||
+        !password
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Login ID and Password are required.',
+          });
+      }
+
+      const result =
+        await pool.query(
+          `
+          SELECT *
+          FROM customers
+          WHERE login_id = $1
+          LIMIT 1
+          `,
+          [loginId]
+        );
+
+      if (
+        result.rows.length === 0
+      ) {
+        return res
+          .status(401)
+          .json({
+            error:
+              'Invalid Login ID or Password.',
+          });
+      }
+
+      const customer =
+        result.rows[0];
+
+      if (
+        String(
+          customer.status
+        ).toUpperCase() !==
+        'ACTIVE'
+      ) {
+        return res
+          .status(403)
+          .json({
+            error:
+              'This customer account is not active.',
+          });
+      }
+
+      const passwordMatches =
+        await bcrypt.compare(
+          password,
+          customer.password_hash
+        );
+
+      if (!passwordMatches) {
+        return res
+          .status(401)
+          .json({
+            error:
+              'Invalid Login ID or Password.',
+          });
+      }
+
+      return res.json({
+        success: true,
+
+        mustChangePassword:
+          customer.must_change_password,
+
+        customer:
+          publicCustomer(
+            customer
+          ),
+      });
+    } catch (error) {
+      console.error(
+        'Customer Login Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Unable to login. Please try again.',
+        });
+    }
+  }
+);
+
+/* =========================================================
+   FIRST PASSWORD CHANGE
+
+   POST /api/auth/change-customer-password
+========================================================= */
+
+app.post(
+  '/api/auth/change-customer-password',
+  async (req, res) => {
+    try {
+      const loginId =
+        normalizeLoginId(
+          req.body.loginId
+        );
+
+      const currentPassword =
+        String(
+          req.body.currentPassword ||
+            ''
+        );
+
+      const newPassword =
+        String(
+          req.body.newPassword ||
+            ''
+        );
+
+      const confirmPassword =
+        String(
+          req.body.confirmPassword ||
+            ''
+        );
+
+      if (
+        !loginId ||
+        !currentPassword ||
+        !newPassword ||
+        !confirmPassword
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Please complete all password fields.',
+          });
+      }
+
+      if (
+        newPassword.length < 6
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'New password must contain at least 6 characters.',
+          });
+      }
+
+      if (
+        newPassword !==
+        confirmPassword
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'New Password and Confirm Password do not match.',
+          });
+      }
+
+      if (
+        currentPassword ===
+        newPassword
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'New password must be different from the temporary password.',
+          });
+      }
+
+      const result =
+        await pool.query(
+          `
+          SELECT *
+          FROM customers
+          WHERE login_id = $1
+          LIMIT 1
+          `,
+          [loginId]
+        );
+
+      if (
+        result.rows.length === 0
+      ) {
+        return res
+          .status(404)
+          .json({
+            error:
+              'Customer account not found.',
+          });
+      }
+
+      const customer =
+        result.rows[0];
+
+      const passwordMatches =
+        await bcrypt.compare(
+          currentPassword,
+          customer.password_hash
+        );
+
+      if (!passwordMatches) {
+        return res
+          .status(401)
+          .json({
+            error:
+              'Current Password is incorrect.',
+          });
+      }
+
+      const newPasswordHash =
+        await bcrypt.hash(
+          newPassword,
+          12
+        );
+
+      await pool.query(
+        `
+        UPDATE customers
+        SET
+          password_hash = $1,
+          must_change_password = FALSE,
+          updated_at = NOW()
+        WHERE id = $2
+        `,
+        [
+          newPasswordHash,
+          customer.id,
+        ]
+      );
+
+      return res.json({
+        success: true,
+
+        message:
+          'Password changed successfully.',
+
+        customer: {
+          id: customer.id,
+          name: customer.name,
+          loginId:
+            customer.login_id,
+          mustChangePassword:
+            false,
+          status:
+            customer.status,
+        },
+      });
+    } catch (error) {
+      console.error(
+        'Change Customer Password Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Unable to change password.',
+        });
+    }
+  }
+);
+
+/* =========================================================
+   OTP - EXISTING SUPPORT
+========================================================= */
+
+app.post(
+  '/api/auth/send-otp',
+  async (req, res) => {
+    try {
+      const cleanMobile =
+        req.body.mobile
+          ? String(
+              req.body.mobile
+            ).replace(/\D/g, '')
+          : '';
+
+      if (
+        cleanMobile.length !== 10
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Please enter a valid 10-digit mobile number.',
+          });
+      }
+
+      const generatedOtp =
+        Math.floor(
+          100000 +
+            Math.random() *
+              900000
+        ).toString();
+
+      const expiresAt =
+        Date.now() +
+        10 * 60 * 1000;
+
+      await sendFast2SMS(
+        cleanMobile,
+        generatedOtp
+      );
+
+      otpStore.set(
+        cleanMobile,
+        {
+          otp: generatedOtp,
+          expiresAt,
+        }
+      );
+
+      return res.json({
+        success: true,
+        message:
+          'OTP sent successfully.',
+      });
+    } catch (error) {
+      console.error(
+        'Fast2SMS Dispatch Error:',
+        error.message
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            error.message ||
+            'Failed to send SMS OTP.',
+        });
+    }
+  }
+);
+
+app.post(
+  '/api/auth/verify-otp',
+  async (req, res) => {
+    try {
+      const cleanMobile =
+        req.body.mobile
+          ? String(
+              req.body.mobile
+            ).replace(/\D/g, '')
+          : '';
+
+      const cleanOtp =
+        String(
+          req.body.otp || ''
+        ).trim();
+
+      if (
+        cleanMobile.length !== 10
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Please enter a valid 10-digit mobile number.',
+          });
+      }
+
+      if (
+        cleanOtp.length !== 6
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Please enter a valid 6-digit OTP code.',
+          });
+      }
+
+      const record =
+        otpStore.get(
+          cleanMobile
+        );
+
+      if (!record) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'No active OTP found.',
+          });
+      }
+
+      if (
+        Date.now() >
+        record.expiresAt
+      ) {
+        otpStore.delete(
+          cleanMobile
+        );
+
+        return res
+          .status(400)
+          .json({
+            error:
+              'OTP has expired.',
+          });
+      }
+
+      if (
+        record.otp !== cleanOtp
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Invalid OTP code.',
+          });
+      }
+
+      otpStore.delete(
+        cleanMobile
+      );
+
+      return res.json({
+        success: true,
+        message:
+          'Mobile number verified successfully.',
+      });
+    } catch (error) {
+      console.error(
+        'Verify OTP Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Server error during OTP verification.',
+        });
+    }
+  }
+);
+
+/* =========================================================
+   HEALTH
+========================================================= */
+
+app.get(
+  '/api/health',
+  async (req, res) => {
+    let databaseConnected =
+      false;
+
+    try {
+      if (
+        process.env.DATABASE_URL
+      ) {
+        await pool.query(
+          'SELECT 1'
+        );
+
+        databaseConnected =
+          true;
+      }
+    } catch (error) {
+      console.error(
+        'Database Health Error:',
+        error.message
+      );
+    }
+
+    let apiConnected = false;
+
+    try {
+      apiConnected =
+        typeof sportsService.isApiConnected ===
+        'function'
+          ? await sportsService.isApiConnected()
+          : true;
+    } catch (error) {
+      console.error(
+        'Sports Health Error:',
+        error.message
+      );
+    }
+
+    return res.json({
       status: 'ok',
       provider: 'odds_api',
-      apiConnected: Boolean(apiConnected)
-    });
-  } catch (error) {
-    console.error('Health Check Error:', error);
-    return res.status(500).json({
-      status: 'error',
-      provider: 'odds_api',
-      apiConnected: false
+      apiConnected:
+        Boolean(apiConnected),
+      databaseConnected,
     });
   }
-});
+);
 
-// GET /api/sports/events?sport=...
-app.get('/api/sports/events', async (req, res) => {
-  try {
-    const sport = req.query.sport || 'all';
-    const events = await sportsService.getEvents(sport);
+/* =========================================================
+   SPORTS EVENTS
+========================================================= */
 
-    return res.status(200).json({
-      data: events || []
-    });
-  } catch (error) {
-    console.error('Get Sports Events Error:', error);
-    return res.status(500).json({ error: 'Failed to retrieve sports events.' });
-  }
-});
+app.get(
+  '/api/sports/events',
+  async (req, res) => {
+    try {
+      const sport =
+        req.query.sport ||
+        'all';
 
-// GET /api/sports/stream (Server-Sent Events)
-app.get('/api/sports/stream', (req, res) => {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.flushHeaders();
+      const events =
+        await sportsService.getEvents(
+          sport
+        );
 
-  if (typeof sportsService.addClient === 'function') {
-    sportsService.addClient(res);
-  }
+      return res.json({
+        data: events || [],
+      });
+    } catch (error) {
+      console.error(
+        'Get Sports Events Error:',
+        error
+      );
 
-  req.on('close', () => {
-    if (typeof sportsService.removeClient === 'function') {
-      sportsService.removeClient(res);
+      return res
+        .status(500)
+        .json({
+          error:
+            'Failed to retrieve sports events.',
+        });
     }
-  });
-});
+  }
+);
 
-// ==========================================
-// 4. API 404 Guard
-// ==========================================
-app.all('/api/*', (req, res) => {
-  res.status(404).json({ error: `API endpoint ${req.originalUrl} not found.` });
-});
+/* =========================================================
+   SPORTS STREAM
+========================================================= */
 
-// ==========================================
-// 5. Serve Static Frontend Assets & SPA Catch-All
-// ==========================================
-app.use(express.static(path.join(__dirname, 'dist')));
+app.get(
+  '/api/sports/stream',
+  (req, res) => {
+    res.setHeader(
+      'Content-Type',
+      'text/event-stream'
+    );
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
+    res.setHeader(
+      'Cache-Control',
+      'no-cache'
+    );
 
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
+    res.setHeader(
+      'Connection',
+      'keep-alive'
+    );
+
+    res.flushHeaders();
+
+    if (
+      typeof sportsService.addClient ===
+      'function'
+    ) {
+      sportsService.addClient(
+        res
+      );
+    }
+
+    req.on(
+      'close',
+      () => {
+        if (
+          typeof sportsService.removeClient ===
+          'function'
+        ) {
+          sportsService.removeClient(
+            res
+          );
+        }
+      }
+    );
+  }
+);
+
+/* =========================================================
+   API 404
+========================================================= */
+
+app.all(
+  '/api/*',
+  (req, res) => {
+    res
+      .status(404)
+      .json({
+        error:
+          `API endpoint ${req.originalUrl} not found.`,
+      });
+  }
+);
+
+/* =========================================================
+   FRONTEND
+========================================================= */
+
+app.use(
+  express.static(
+    path.join(
+      __dirname,
+      'dist'
+    )
+  )
+);
+
+app.get(
+  '*',
+  (req, res) => {
+    res.sendFile(
+      path.join(
+        __dirname,
+        'dist',
+        'index.html'
+      )
+    );
+  }
+);
+
+/* =========================================================
+   START SERVER
+========================================================= */
+
+async function startServer() {
+  await initializeDatabase();
+
+  app.listen(
+    PORT,
+    () => {
+      console.log(
+        `Server listening on port ${PORT}`
+      );
+    }
+  );
+}
+
+startServer();
