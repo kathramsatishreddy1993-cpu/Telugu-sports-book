@@ -566,4 +566,137 @@ export default function DemoDashboard({ user, onLogout }) {
                 onClick={() =>
                   setMatchFilter(filter)
                 }
-                className={`rounded-full border px-2.
+                className={`rounded-full border px-2.5 py-1.5 text-[8px] font-black ${
+                  matchFilter === filter
+                    ? 'border-amber-600 bg-amber-50 text-amber-900'
+                    : 'border-gray-300 bg-white text-gray-600'
+                }`}
+              >
+                {filter}
+              </button>
+            )
+          )}
+
+        </div>
+
+        <span className="text-[8px] font-black">
+          DEMO MATCHES
+        </span>
+
+      </section>
+
+      {/* COMPACT MATCH LIST */}
+      <section className="bg-[#eeeeee]">
+
+        {matches.map((match) => (
+          <article
+            key={match.id}
+            className="mb-1 border-b border-gray-300 bg-white px-2 py-2"
+          >
+
+            <div className="flex items-start justify-between gap-2">
+
+              <div className="min-w-0 flex-1">
+
+                <h2 className="truncate border-b-2 border-teal-700 pb-1 text-[13px] font-black">
+                  {match.teams}
+                </h2>
+
+                <p className="mt-1 text-[9px] font-bold text-red-600">
+                  {match.date}
+                </p>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedMatch(match)
+                }
+                className="shrink-0 rounded bg-[#0b766d] px-2 py-1.5 text-[8px] font-black text-white"
+              >
+                OPEN ›
+              </button>
+
+            </div>
+
+            <div className="mt-2 grid grid-cols-3 text-center text-[9px] font-black">
+              <span>1</span>
+              <span>X</span>
+              <span>2</span>
+            </div>
+
+            <div className="mt-1 grid grid-cols-6 gap-[2px]">
+
+              {match.odds.map(
+                (odd, index) => (
+                  <button
+                    key={`${match.id}-${index}`}
+                    type="button"
+                    onClick={() =>
+                      setSelectedMatch(match)
+                    }
+                    className={`h-[38px] text-[9px] font-black ${
+                      index % 2 === 0
+                        ? 'bg-sky-300'
+                        : 'bg-pink-300'
+                    }`}
+                  >
+                    {odd}
+                  </button>
+                )
+              )}
+
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setSelectedMatch(match)
+              }
+              className="mt-1.5 h-[30px] w-full rounded border border-teal-700 bg-teal-50 text-[8px] font-black text-teal-900"
+            >
+              VIEW MATCH ODDS & FANCY MARKETS ›
+            </button>
+
+          </article>
+        ))}
+
+      </section>
+
+      {/* REAL UPLOADED IMAGES */}
+      <FeaturedGamesGrid />
+
+      {/* OTHER DEMO SECTIONS */}
+      <DemoGameGrid
+        title="NEW LAUNCH"
+        games={newLaunch}
+      />
+
+      <DemoGameGrid
+        title="MY FAVOURITES"
+        games={favourites}
+      />
+
+      <DemoGameGrid
+        title="OUR PROVIDERS"
+        games={providers}
+      />
+
+      {/* FOOTER */}
+      <footer className="bg-white px-4 py-8 text-center">
+
+        <p className="text-sm font-black text-green-700">
+          📕 DEMO WEBSITE
+        </p>
+
+        <p className="mx-auto mt-2 max-w-xl text-[10px] leading-5 text-gray-500">
+          For demonstration and informational purposes only.
+          No real-money transactions.
+        </p>
+
+      </footer>
+
+    </div>
+  );
+}
