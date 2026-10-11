@@ -6,6 +6,7 @@ import AccountStatementPage from './AccountStatementPage';
 import BetHistoryPage from './BetHistoryPage';
 import UnsettledBetPage from './UnsettledBetPage';
 import SetButtonValuesPage from './SetButtonValuesPage';
+import ChangePasswordPage from './ChangePasswordPage';
 
 const sports = [
   { icon: '🏏', name: 'CRICKET' },
@@ -178,6 +179,11 @@ export default function DemoDashboard({
     setShowSetButtonValues,
   ] = useState(false);
 
+  const [
+    showChangePassword,
+    setShowChangePassword,
+  ] = useState(false);
+
   // CUSTOMER MENU
   const [showCustomerMenu, setShowCustomerMenu] =
     useState(false);
@@ -230,6 +236,11 @@ export default function DemoDashboard({
 
     if (item === 'Set Button Values') {
       setShowSetButtonValues(true);
+      return;
+    }
+
+    if (item === 'Change Password') {
+      setShowChangePassword(true);
       return;
     }
 
@@ -301,6 +312,18 @@ export default function DemoDashboard({
         user={user}
         onBack={() =>
           setShowSetButtonValues(false)
+        }
+      />
+    );
+  }
+
+  // CHANGE PASSWORD PAGE
+  if (showChangePassword) {
+    return (
+      <ChangePasswordPage
+        user={user}
+        onBack={() =>
+          setShowChangePassword(false)
         }
       />
     );
