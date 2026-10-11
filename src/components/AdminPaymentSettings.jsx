@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
-const PAYMENT_SETTINGS_KEY = 'telugu_sports_payment_settings';
+const PAYMENT_SETTINGS_KEY =
+  'telugu_sports_payment_settings';
 
 const defaultSettings = {
   account: {
@@ -12,31 +13,42 @@ const defaultSettings = {
 
   phonepe: {
     upiId: '',
+    qrImage: '',
   },
 
   gpay: {
     upiId: '',
+    qrImage: '',
   },
 
   paytm: {
     upiId: '',
+    qrImage: '',
   },
 };
 
 export default function AdminPaymentSettings({
   onBack,
 }) {
-  const [activeMethod, setActiveMethod] = useState('account');
+  const [activeMethod, setActiveMethod] =
+    useState('account');
 
-  const [settings, setSettings] = useState(defaultSettings);
+  const [settings, setSettings] =
+    useState(defaultSettings);
 
-  const [message, setMessage] = useState('');
+  const [message, setMessage] =
+    useState('');
+
+  /* =========================
+     LOAD SAVED SETTINGS
+     ========================= */
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(
-        PAYMENT_SETTINGS_KEY
-      );
+      const saved =
+        localStorage.getItem(
+          PAYMENT_SETTINGS_KEY
+        );
 
       if (!saved) return;
 
@@ -71,7 +83,14 @@ export default function AdminPaymentSettings({
     }
   }, []);
 
-  const updateAccount = (field, value) => {
+  /* =========================
+     ACCOUNT UPDATE
+     ========================= */
+
+  const updateAccount = (
+    field,
+    value
+  ) => {
     setSettings((previous) => ({
       ...previous,
 
@@ -84,7 +103,14 @@ export default function AdminPaymentSettings({
     setMessage('');
   };
 
-  const updateUpi = (method, value) => {
+  /* =========================
+     UPI UPDATE
+     ========================= */
+
+  const updateUpi = (
+    method,
+    value
+  ) => {
     setSettings((previous) => ({
       ...previous,
 
@@ -96,6 +122,103 @@ export default function AdminPaymentSettings({
 
     setMessage('');
   };
+
+  /* =========================
+     QR IMAGE UPDATE
+     ========================= */
+
+  const updateQrImage = (
+    method,
+    image
+  ) => {
+    setSettings((previous) => ({
+      ...previous,
+
+      [method]: {
+        ...previous[method],
+        qrImage: image,
+      },
+    }));
+
+    setMessage('');
+  };
+
+  /* =========================
+     QR FILE SELECT
+     ========================= */
+
+  const handleQrUpload = (
+    method,
+    file
+  ) => {
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setMessage(
+        'Please select an image file.'
+      );
+      return;
+    }
+
+    /*
+      Keep the image reasonably small
+      because this demo currently stores
+      settings in localStorage.
+    */
+
+    const maxSize =
+      1.5 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+      setMessage(
+        'QR image is too large. Please upload an image smaller than 1.5 MB.'
+      );
+      return;
+    }
+
+    const reader =
+      new FileReader();
+
+    reader.onload = () => {
+      updateQrImage(
+        method,
+        reader.result
+      );
+
+      setMessage(
+        'QR image selected. Press SAVE PAYMENT DETAILS to save it.'
+      );
+    };
+
+    reader.onerror = () => {
+      setMessage(
+        'Unable to read QR image.'
+      );
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  /* =========================
+     REMOVE QR
+     ========================= */
+
+  const handleRemoveQr = (
+    method
+  ) => {
+    updateQrImage(
+      method,
+      ''
+    );
+
+    setMessage(
+      'QR image removed. Press SAVE PAYMENT DETAILS to save the change.'
+    );
+  };
+
+  /* =========================
+     SAVE
+     ========================= */
 
   const handleSave = () => {
     try {
@@ -114,7 +237,7 @@ export default function AdminPaymentSettings({
       );
 
       setMessage(
-        'Unable to save payment details.'
+        'Unable to save payment details. QR image may be too large.'
       );
     }
   };
@@ -143,7 +266,7 @@ export default function AdminPaymentSettings({
             </p>
 
             <h1 className="text-base font-black">
-              PAYMENT DETAILS
+              DEPOSIT ACCOUNTS
             </h1>
 
           </div>
@@ -159,12 +282,13 @@ export default function AdminPaymentSettings({
         <section className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
 
           <p className="text-xs font-black text-amber-300">
-            PAYMENT SETTINGS
+            DEPOSIT ACCOUNT SETTINGS
           </p>
 
           <p className="mt-2 text-[10px] leading-5 text-gray-300">
-            Configure the payment information displayed
-            on the customer Deposit Page.
+            Configure the bank and UPI
+            information displayed on the
+            customer Deposit Page.
           </p>
 
         </section>
@@ -180,34 +304,54 @@ export default function AdminPaymentSettings({
           <div className="grid grid-cols-4 gap-1.5">
 
             <MethodButton
-              active={activeMethod === 'account'}
+              active={
+                activeMethod ===
+                'account'
+              }
               label="ACCOUNT"
               onClick={() =>
-                setActiveMethod('account')
+                setActiveMethod(
+                  'account'
+                )
               }
             />
 
             <MethodButton
-              active={activeMethod === 'phonepe'}
+              active={
+                activeMethod ===
+                'phonepe'
+              }
               label="PHONEPE"
               onClick={() =>
-                setActiveMethod('phonepe')
+                setActiveMethod(
+                  'phonepe'
+                )
               }
             />
 
             <MethodButton
-              active={activeMethod === 'gpay'}
+              active={
+                activeMethod ===
+                'gpay'
+              }
               label="GPAY"
               onClick={() =>
-                setActiveMethod('gpay')
+                setActiveMethod(
+                  'gpay'
+                )
               }
             />
 
             <MethodButton
-              active={activeMethod === 'paytm'}
+              active={
+                activeMethod ===
+                'paytm'
+              }
               label="PAYTM"
               onClick={() =>
-                setActiveMethod('paytm')
+                setActiveMethod(
+                  'paytm'
+                )
               }
             />
 
@@ -215,16 +359,22 @@ export default function AdminPaymentSettings({
 
         </section>
 
-        {/* ACCOUNT */}
+        {/* =====================
+            BANK ACCOUNT
+            ===================== */}
 
-        {activeMethod === 'account' && (
+        {activeMethod ===
+          'account' && (
 
           <PaymentCard title="BANK ACCOUNT DETAILS">
 
             <InputField
               label="ACCOUNT NAME"
               placeholder="Enter account name"
-              value={settings.account.accountName}
+              value={
+                settings.account
+                  .accountName
+              }
               onChange={(event) =>
                 updateAccount(
                   'accountName',
@@ -236,7 +386,10 @@ export default function AdminPaymentSettings({
             <InputField
               label="BANK NAME"
               placeholder="Enter bank name"
-              value={settings.account.bankName}
+              value={
+                settings.account
+                  .bankName
+              }
               onChange={(event) =>
                 updateAccount(
                   'bankName',
@@ -248,7 +401,10 @@ export default function AdminPaymentSettings({
             <InputField
               label="ACCOUNT NUMBER"
               placeholder="Enter account number"
-              value={settings.account.accountNumber}
+              value={
+                settings.account
+                  .accountNumber
+              }
               onChange={(event) =>
                 updateAccount(
                   'accountNumber',
@@ -260,11 +416,14 @@ export default function AdminPaymentSettings({
             <InputField
               label="IFSC CODE"
               placeholder="Enter IFSC code"
-              value={settings.account.ifsc}
+              value={
+                settings.account.ifsc
+              }
               onChange={(event) =>
                 updateAccount(
                   'ifsc',
-                  event.target.value.toUpperCase()
+                  event.target.value
+                    .toUpperCase()
                 )
               }
             />
@@ -273,21 +432,41 @@ export default function AdminPaymentSettings({
 
         )}
 
-        {/* PHONEPE */}
+        {/* =====================
+            PHONEPE
+            ===================== */}
 
-        {activeMethod === 'phonepe' && (
+        {activeMethod ===
+          'phonepe' && (
 
           <PaymentCard title="PHONEPE DETAILS">
 
             <InputField
               label="PHONEPE UPI ID"
               placeholder="Enter PhonePe UPI ID"
-              value={settings.phonepe.upiId}
+              value={
+                settings.phonepe.upiId
+              }
               onChange={(event) =>
                 updateUpi(
                   'phonepe',
                   event.target.value
                 )
+              }
+            />
+
+            <QrImageManager
+              method="phonepe"
+              title="PHONEPE"
+              image={
+                settings.phonepe
+                  .qrImage
+              }
+              onUpload={
+                handleQrUpload
+              }
+              onRemove={
+                handleRemoveQr
               }
             />
 
@@ -303,21 +482,40 @@ export default function AdminPaymentSettings({
 
         )}
 
-        {/* GPAY */}
+        {/* =====================
+            GOOGLE PAY
+            ===================== */}
 
-        {activeMethod === 'gpay' && (
+        {activeMethod ===
+          'gpay' && (
 
           <PaymentCard title="GOOGLE PAY DETAILS">
 
             <InputField
               label="GOOGLE PAY UPI ID"
               placeholder="Enter Google Pay UPI ID"
-              value={settings.gpay.upiId}
+              value={
+                settings.gpay.upiId
+              }
               onChange={(event) =>
                 updateUpi(
                   'gpay',
                   event.target.value
                 )
+              }
+            />
+
+            <QrImageManager
+              method="gpay"
+              title="GOOGLE PAY"
+              image={
+                settings.gpay.qrImage
+              }
+              onUpload={
+                handleQrUpload
+              }
+              onRemove={
+                handleRemoveQr
               }
             />
 
@@ -333,21 +531,40 @@ export default function AdminPaymentSettings({
 
         )}
 
-        {/* PAYTM */}
+        {/* =====================
+            PAYTM
+            ===================== */}
 
-        {activeMethod === 'paytm' && (
+        {activeMethod ===
+          'paytm' && (
 
           <PaymentCard title="PAYTM DETAILS">
 
             <InputField
               label="PAYTM UPI ID"
               placeholder="Enter Paytm UPI ID"
-              value={settings.paytm.upiId}
+              value={
+                settings.paytm.upiId
+              }
               onChange={(event) =>
                 updateUpi(
                   'paytm',
                   event.target.value
                 )
+              }
+            />
+
+            <QrImageManager
+              method="paytm"
+              title="PAYTM"
+              image={
+                settings.paytm.qrImage
+              }
+              onUpload={
+                handleQrUpload
+              }
+              onRemove={
+                handleRemoveQr
               }
             />
 
@@ -363,13 +580,16 @@ export default function AdminPaymentSettings({
 
         )}
 
-        {/* SAVE */}
+        {/* =====================
+            SAVE
+            ===================== */}
 
         <section className="mt-5 rounded-xl border border-[#28655f] bg-[#083d37] p-4">
 
           <p className="text-[10px] leading-5 text-gray-300">
-            Save the details after completing your
-            payment information.
+            Save the details after
+            completing your deposit
+            account information.
           </p>
 
           <button
@@ -394,14 +614,10 @@ export default function AdminPaymentSettings({
 
         </section>
 
-        {/* IMPORTANT:
-            CUSTOMER UTR / SCREENSHOT / AMOUNT
-            ARE NOT PART OF THIS PAGE.
-        */}
-
         <p className="px-4 py-6 text-center text-[8px] leading-4 text-gray-500">
           Demo payment configuration.
-          No payment is processed on this page.
+          No payment is processed on
+          this page.
         </p>
 
       </main>
@@ -409,6 +625,10 @@ export default function AdminPaymentSettings({
     </div>
   );
 }
+
+/* =========================
+   METHOD BUTTON
+   ========================= */
 
 function MethodButton({
   active,
@@ -429,6 +649,10 @@ function MethodButton({
     </button>
   );
 }
+
+/* =========================
+   PAYMENT CARD
+   ========================= */
 
 function PaymentCard({
   title,
@@ -452,6 +676,10 @@ function PaymentCard({
     </section>
   );
 }
+
+/* =========================
+   INPUT FIELD
+   ========================= */
 
 function InputField({
   label,
@@ -478,6 +706,131 @@ function InputField({
     </div>
   );
 }
+
+/* =========================
+   QR IMAGE MANAGER
+   ========================= */
+
+function QrImageManager({
+  method,
+  title,
+  image,
+  onUpload,
+  onRemove,
+}) {
+  const inputRef =
+    useRef(null);
+
+  const openFilePicker = () => {
+    inputRef.current?.click();
+  };
+
+  return (
+    <div>
+
+      <p className="mb-2 text-[9px] font-black text-gray-300">
+        UPLOAD {title} QR IMAGE
+      </p>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/jpg,image/webp"
+        className="hidden"
+        onChange={(event) => {
+          const file =
+            event.target.files?.[0];
+
+          onUpload(
+            method,
+            file
+          );
+
+          event.target.value = '';
+        }}
+      />
+
+      {!image ? (
+
+        <button
+          type="button"
+          onClick={
+            openFilePicker
+          }
+          className="flex min-h-[110px] w-full flex-col items-center justify-center rounded-lg border border-dashed border-amber-400/60 bg-black/10 px-4 py-5"
+        >
+
+          <span className="text-3xl">
+            🖼️
+          </span>
+
+          <span className="mt-2 text-[10px] font-black text-amber-300">
+            UPLOAD {title} QR IMAGE
+          </span>
+
+          <span className="mt-1 text-[8px] text-gray-500">
+            PNG, JPG or WEBP
+          </span>
+
+        </button>
+
+      ) : (
+
+        <div className="rounded-xl border border-[#397d75] bg-black/10 p-4">
+
+          <p className="mb-3 text-[8px] font-black text-gray-400">
+            UPLOADED QR PREVIEW
+          </p>
+
+          <div className="flex justify-center">
+
+            <div className="rounded-xl bg-white p-3">
+
+              <img
+                src={image}
+                alt={`${title} QR`}
+                className="h-[190px] w-[190px] object-contain"
+              />
+
+            </div>
+
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+
+            <button
+              type="button"
+              onClick={
+                openFilePicker
+              }
+              className="h-[42px] rounded-md border border-amber-400/50 bg-amber-500/10 text-[9px] font-black text-amber-300"
+            >
+              CHANGE QR
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                onRemove(method)
+              }
+              className="h-[42px] rounded-md border border-red-500/50 bg-red-500/10 text-[9px] font-black text-red-300"
+            >
+              REMOVE QR
+            </button>
+
+          </div>
+
+        </div>
+
+      )}
+
+    </div>
+  );
+}
+
+/* =========================
+   PAYMENT PREVIEW
+   ========================= */
 
 function PaymentPreview({
   title,
