@@ -9,6 +9,10 @@ export default function AdminDashboard({
   const [activeSection, setActiveSection] =
     useState('Dashboard');
 
+  /*
+   * DEMO DATA
+   */
+
   const depositRequests = useMemo(() => {
     try {
       const saved = localStorage.getItem(
@@ -61,75 +65,83 @@ export default function AdminDashboard({
         ).toUpperCase() === 'PENDING'
     ).length;
 
-  const menuItems = [
-    {
-      name: 'Dashboard',
-      icon: '🏠',
-    },
-    {
-      name: 'Deposit Requests',
-      icon: '💰',
-    },
-    {
-      name: 'Withdrawal Requests',
-      icon: '💸',
-    },
-    {
-      name: 'Customers',
-      icon: '👥',
-    },
-    {
-      name: 'Demo Transactions',
-      icon: '📒',
-    },
-    {
-      name: 'Payment Details',
-      icon: '🏦',
-    },
-  ];
+  /*
+   * ADMIN MANAGEMENT BOXES
+   */
 
-  const cards = [
+  const adminBoxes = [
     {
-      title: 'Pending Deposits',
-      value: pendingDeposits,
-      icon: '💰',
+      title: 'Payment Settings',
+      icon: '🏦',
+      section: 'Payment Settings',
+      description:
+        'Bank account, PhonePe, GPay and Paytm settings',
+    },
+
+    {
+      title: 'Deposit Requests',
+      icon: '📥',
       section: 'Deposit Requests',
+      badge: pendingDeposits,
       description:
-        'Deposit requests waiting for review',
+        'View customer demo deposit requests',
     },
+
     {
-      title: 'Pending Withdrawals',
-      value: pendingWithdrawals,
+      title: 'Withdrawal Management',
       icon: '💸',
-      section: 'Withdrawal Requests',
+      section: 'Withdrawal Management',
+      badge: pendingWithdrawals,
       description:
-        'Withdrawal requests waiting for review',
+        'Manage customer demo withdrawal records',
     },
+
+    {
+      title: 'Coin Management',
+      icon: '🪙',
+      section: 'Coin Management',
+      description:
+        'Manage customer demo coin balances',
+    },
+
     {
       title: 'Customers',
-      value: '—',
       icon: '👥',
       section: 'Customers',
       description:
-        'View demo customer accounts',
+        'Customer IDs and demo account information',
     },
+
     {
-      title: 'Transactions',
-      value:
-        depositRequests.length +
-        withdrawalRequests.length,
-      icon: '📒',
-      section: 'Demo Transactions',
+      title: 'API Settings',
+      icon: '🔌',
+      section: 'API Settings',
       description:
-        'Demo request activity',
+        'Sports API and Game API configuration',
+    },
+
+    {
+      title: 'Transaction History',
+      icon: '📒',
+      section: 'Transaction History',
+      description:
+        'View demo management activity',
+    },
+
+    {
+      title: 'Admin Settings',
+      icon: '⚙️',
+      section: 'Admin Settings',
+      description:
+        'Admin account and panel settings',
     },
   ];
 
   /*
-   * PAYMENT SETTINGS PAGE
+   * PAYMENT SETTINGS
    */
 
-  if (activeSection === 'Payment Details') {
+  if (activeSection === 'Payment Settings') {
     return (
       <AdminPaymentSettings
         onBack={() =>
@@ -144,435 +156,662 @@ export default function AdminDashboard({
 
       {/* HEADER */}
 
-      <header className="sticky top-0 z-50 border-b border-amber-500/30 bg-[#9a5a00] px-3 py-3 shadow-xl">
+      <header className="sticky top-0 z-50 border-b border-amber-500/30 bg-[#9a5a00] px-4 py-4 shadow-xl">
 
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
 
           <div>
-
             <p className="text-[9px] font-black tracking-[0.16em] text-amber-200">
               TELUGU SPORTS BOOK
             </p>
 
-            <h1 className="mt-0.5 text-base font-black">
-              🛡️ ADMIN PANEL
+            <h1 className="mt-1 text-lg font-black">
+              🛡️ ADMIN CONTROL PANEL
             </h1>
-
           </div>
 
           <div className="text-right">
-
-            <p className="text-[9px] text-amber-100">
-              Logged in as
+            <p className="text-[8px] text-amber-100">
+              ADMIN ID
             </p>
 
             <p className="text-[11px] font-black">
               {admin?.username ||
-                'Admin'}
+                'admin'}
             </p>
-
           </div>
 
         </div>
 
       </header>
 
-      {/* NAVIGATION */}
+      {/* DASHBOARD */}
 
-      <nav
-        className="overflow-x-auto border-b border-[#28655f] bg-[#083d37]"
-        style={{
-          WebkitOverflowScrolling:
-            'touch',
-        }}
-      >
+      {activeSection === 'Dashboard' && (
+        <main className="mx-auto max-w-5xl px-3 py-5">
 
-        <div className="flex w-max min-w-full">
+          {/* WELCOME */}
 
-          {menuItems.map((item) => (
+          <section className="mb-5">
+
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-400">
+              MANAGEMENT
+            </p>
+
+            <h2 className="mt-1 text-xl font-black">
+              Admin Dashboard
+            </h2>
+
+            <p className="mt-2 text-[10px] leading-5 text-gray-400">
+              Customer management, payment
+              settings, demo wallet and API
+              controls.
+            </p>
+
+          </section>
+
+          {/* ALERT SUMMARY */}
+
+          <section className="mb-5 grid grid-cols-2 gap-2">
 
             <button
-              key={item.name}
               type="button"
               onClick={() =>
                 setActiveSection(
-                  item.name
+                  'Deposit Requests'
                 )
               }
-              className={`shrink-0 border-r border-[#28655f] px-4 py-3 text-[9px] font-black ${
-                activeSection ===
-                item.name
-                  ? 'bg-[#0b6259] text-amber-300'
-                  : 'text-gray-200'
-              }`}
+              className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 text-left"
             >
+              <div className="flex items-center justify-between">
 
-              <span className="mr-1">
-                {item.icon}
-              </span>
+                <span className="text-2xl">
+                  📥
+                </span>
 
-              {item.name}
+                <span className="text-2xl font-black text-green-300">
+                  {pendingDeposits}
+                </span>
 
+              </div>
+
+              <p className="mt-3 text-[10px] font-black">
+                PENDING DEPOSITS
+              </p>
             </button>
 
-          ))}
-
-        </div>
-
-      </nav>
-
-      <main className="mx-auto max-w-6xl px-3 py-4">
-
-        {/* DASHBOARD */}
-
-        {activeSection ===
-          'Dashboard' && (
-          <>
-
-            <section className="mb-4">
-
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-400">
-                Administration
-              </p>
-
-              <h2 className="mt-1 text-xl font-black">
-                Dashboard
-              </h2>
-
-              <p className="mt-1 text-[10px] leading-5 text-gray-400">
-                Demo customer requests and
-                account activity overview.
-              </p>
-
-            </section>
-
-            {/* STATUS CARDS */}
-
-            <section className="grid grid-cols-2 gap-2">
-
-              {cards.map(
-                (card) => (
-
-                  <button
-                    key={card.title}
-                    type="button"
-                    onClick={() =>
-                      setActiveSection(
-                        card.section
-                      )
-                    }
-                    className="rounded-xl border border-[#28655f] bg-[#083d37] p-3 text-left shadow-lg"
-                  >
-
-                    <div className="flex items-start justify-between gap-2">
-
-                      <span className="text-2xl">
-                        {card.icon}
-                      </span>
-
-                      <span className="text-2xl font-black text-amber-300">
-                        {card.value}
-                      </span>
-
-                    </div>
-
-                    <p className="mt-3 text-[11px] font-black">
-                      {card.title}
-                    </p>
-
-                    <p className="mt-1 text-[8px] leading-4 text-gray-400">
-                      {
-                        card.description
-                      }
-                    </p>
-
-                  </button>
-
+            <button
+              type="button"
+              onClick={() =>
+                setActiveSection(
+                  'Withdrawal Management'
                 )
-              )}
+              }
+              className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-left"
+            >
+              <div className="flex items-center justify-between">
 
-            </section>
+                <span className="text-2xl">
+                  💸
+                </span>
 
-            {/* QUICK MANAGEMENT */}
-
-            <section className="mt-5">
-
-              <h2 className="mb-2 text-xs font-black text-amber-300">
-                QUICK MANAGEMENT
-              </h2>
-
-              <div className="overflow-hidden rounded-xl border border-[#28655f] bg-[#083d37]">
-
-                {menuItems
-                  .filter(
-                    (item) =>
-                      item.name !==
-                      'Dashboard'
-                  )
-                  .map((item) => (
-
-                    <button
-                      key={item.name}
-                      type="button"
-                      onClick={() =>
-                        setActiveSection(
-                          item.name
-                        )
-                      }
-                      className="flex w-full items-center justify-between border-b border-[#28655f] px-4 py-4 text-left last:border-b-0"
-                    >
-
-                      <div className="flex items-center gap-3">
-
-                        <span className="text-xl">
-                          {item.icon}
-                        </span>
-
-                        <span className="text-[11px] font-black">
-                          {item.name}
-                        </span>
-
-                      </div>
-
-                      <span className="text-lg text-amber-300">
-                        ›
-                      </span>
-
-                    </button>
-
-                  ))}
+                <span className="text-2xl font-black text-red-300">
+                  {pendingWithdrawals}
+                </span>
 
               </div>
 
-            </section>
-
-          </>
-        )}
-
-        {/* DEPOSIT REQUESTS */}
-
-        {activeSection ===
-          'Deposit Requests' && (
-
-          <AdminSection
-            title="Deposit Requests"
-            icon="💰"
-            onBack={() =>
-              setActiveSection(
-                'Dashboard'
-              )
-            }
-          >
-
-            <p className="text-[10px] leading-5 text-gray-300">
-              Pending demo deposit
-              requests will be managed
-              here.
-            </p>
-
-            <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
-
-              <p className="text-[10px] font-black text-amber-300">
-                Pending Requests
+              <p className="mt-3 text-[10px] font-black">
+                PENDING WITHDRAWALS
               </p>
+            </button>
 
-              <p className="mt-1 text-2xl font-black">
-                {pendingDeposits}
-              </p>
+          </section>
 
-            </div>
+          {/* MANAGEMENT BOXES */}
 
-            <p className="mt-3 text-[9px] text-gray-500">
-              Amount, reference/UTR,
-              uploaded proof and review
-              controls will be added in
-              the next step.
-            </p>
+          <section>
 
-          </AdminSection>
+            <h3 className="mb-3 text-xs font-black text-amber-300">
+              ADMIN MANAGEMENT
+            </h3>
 
-        )}
+            <div className="grid grid-cols-2 gap-3">
 
-        {/* WITHDRAWALS */}
+              {adminBoxes.map((item) => (
 
-        {activeSection ===
-          'Withdrawal Requests' && (
-
-          <AdminSection
-            title="Withdrawal Requests"
-            icon="💸"
-            onBack={() =>
-              setActiveSection(
-                'Dashboard'
-              )
-            }
-          >
-
-            <p className="text-[10px] leading-5 text-gray-300">
-              Pending demo withdrawal
-              requests will be managed
-              here.
-            </p>
-
-            <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
-
-              <p className="text-[10px] font-black text-red-300">
-                Pending Requests
-              </p>
-
-              <p className="mt-1 text-2xl font-black">
-                {pendingWithdrawals}
-              </p>
-
-            </div>
-
-            <p className="mt-3 text-[9px] text-gray-500">
-              Customer details, demo
-              balance and review controls
-              will be added next.
-            </p>
-
-          </AdminSection>
-
-        )}
-
-        {/* CUSTOMERS */}
-
-        {activeSection ===
-          'Customers' && (
-
-          <AdminSection
-            title="Customers"
-            icon="👥"
-            onBack={() =>
-              setActiveSection(
-                'Dashboard'
-              )
-            }
-          >
-
-            <p className="text-[10px] leading-5 text-gray-300">
-              Customer list and demo
-              account information will
-              appear here.
-            </p>
-
-          </AdminSection>
-
-        )}
-
-        {/* TRANSACTIONS */}
-
-        {activeSection ===
-          'Demo Transactions' && (
-
-          <AdminSection
-            title="Demo Transactions"
-            icon="📒"
-            onBack={() =>
-              setActiveSection(
-                'Dashboard'
-              )
-            }
-          >
-
-            <div className="grid grid-cols-2 gap-2">
-
-              <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3">
-
-                <p className="text-[9px] text-gray-400">
-                  Deposit Requests
-                </p>
-
-                <p className="mt-1 text-xl font-black text-green-300">
-                  {
-                    depositRequests.length
+                <button
+                  key={item.title}
+                  type="button"
+                  onClick={() =>
+                    setActiveSection(
+                      item.section
+                    )
                   }
-                </p>
+                  className="relative min-h-[145px] rounded-xl border border-[#28655f] bg-[#083d37] p-4 text-left shadow-lg"
+                >
 
-              </div>
+                  {typeof item.badge ===
+                    'number' && (
+                    <span className="absolute right-3 top-3 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-600 px-1.5 text-[9px] font-black text-white">
+                      {item.badge}
+                    </span>
+                  )}
 
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
+                  <span className="block text-3xl">
+                    {item.icon}
+                  </span>
 
-                <p className="text-[9px] text-gray-400">
-                  Withdrawal Requests
-                </p>
+                  <p className="mt-4 text-[11px] font-black text-white">
+                    {item.title}
+                  </p>
 
-                <p className="mt-1 text-xl font-black text-red-300">
-                  {
-                    withdrawalRequests.length
-                  }
-                </p>
+                  <p className="mt-2 text-[8px] leading-4 text-gray-400">
+                    {item.description}
+                  </p>
 
-              </div>
+                  <span className="absolute bottom-3 right-3 text-lg text-amber-300">
+                    ›
+                  </span>
+
+                </button>
+
+              ))}
 
             </div>
 
-          </AdminSection>
+          </section>
 
-        )}
-
-        {/* LOGOUT */}
-
-        <section className="mt-6">
+          {/* LOGOUT */}
 
           <button
             type="button"
             onClick={onLogout}
-            className="h-[44px] w-full rounded-md border border-red-500/40 bg-red-700 text-xs font-black text-white"
+            className="mt-6 h-[46px] w-full rounded-lg border border-red-500/50 bg-red-700 text-xs font-black text-white"
           >
             ADMIN LOGOUT
           </button>
 
-        </section>
+          <p className="px-4 py-6 text-center text-[8px] leading-4 text-gray-500">
+            Demo administration interface.
+            No real-money transactions or
+            automatic payouts.
+          </p>
 
-        <p className="px-3 py-6 text-center text-[8px] leading-4 text-gray-500">
-          Demo administration interface.
-          No real-money transactions or
-          automatic payouts.
-        </p>
+        </main>
+      )}
 
-      </main>
+      {/* DEPOSIT REQUESTS */}
+
+      {activeSection ===
+        'Deposit Requests' && (
+
+        <AdminPage
+          title="Deposit Requests"
+          icon="📥"
+          onBack={() =>
+            setActiveSection('Dashboard')
+          }
+        >
+
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+
+            <p className="text-[9px] font-black text-amber-300">
+              PENDING REQUESTS
+            </p>
+
+            <p className="mt-1 text-3xl font-black">
+              {pendingDeposits}
+            </p>
+
+          </div>
+
+          <p className="mt-4 text-[10px] leading-5 text-gray-300">
+            Customer ID, demo amount,
+            reference/UTR and uploaded
+            proof will appear in this
+            section.
+          </p>
+
+          {depositRequests.length === 0 ? (
+
+            <EmptyState
+              text="No deposit requests"
+            />
+
+          ) : (
+
+            <div className="mt-4 space-y-3">
+
+              {depositRequests.map(
+                (request, index) => (
+
+                  <div
+                    key={
+                      request?.id ||
+                      index
+                    }
+                    className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
+                  >
+
+                    <div className="flex items-start justify-between gap-3">
+
+                      <div>
+                        <p className="text-[8px] text-gray-400">
+                          CUSTOMER
+                        </p>
+
+                        <p className="mt-1 text-xs font-black">
+                          {request?.customerId ||
+                            request?.userId ||
+                            request?.customer ||
+                            'Demo Customer'}
+                        </p>
+                      </div>
+
+                      <span className="rounded bg-amber-500/20 px-2 py-1 text-[8px] font-black text-amber-300">
+                        {request?.status ||
+                          'PENDING'}
+                      </span>
+
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+
+                      <InfoBox
+                        label="AMOUNT"
+                        value={
+                          request?.amount
+                            ? `₹${Number(
+                                request.amount
+                              ).toLocaleString(
+                                'en-IN'
+                              )}`
+                            : '—'
+                        }
+                      />
+
+                      <InfoBox
+                        label="REFERENCE / UTR"
+                        value={
+                          request?.reference ||
+                          request?.utr ||
+                          '—'
+                        }
+                      />
+
+                    </div>
+
+                  </div>
+
+                )
+              )}
+
+            </div>
+
+          )}
+
+        </AdminPage>
+
+      )}
+
+      {/* WITHDRAWAL MANAGEMENT */}
+
+      {activeSection ===
+        'Withdrawal Management' && (
+
+        <AdminPage
+          title="Withdrawal Management"
+          icon="💸"
+          onBack={() =>
+            setActiveSection('Dashboard')
+          }
+        >
+
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4">
+
+            <p className="text-[9px] font-black text-red-300">
+              PENDING REQUESTS
+            </p>
+
+            <p className="mt-1 text-3xl font-black">
+              {pendingWithdrawals}
+            </p>
+
+          </div>
+
+          <p className="mt-4 text-[10px] leading-5 text-gray-300">
+            Customer-specific demo
+            withdrawal requests and status
+            records will appear here.
+          </p>
+
+          {withdrawalRequests.length === 0 ? (
+            <EmptyState
+              text="No withdrawal requests"
+            />
+          ) : (
+            <div className="mt-4 space-y-3">
+
+              {withdrawalRequests.map(
+                (request, index) => (
+
+                  <div
+                    key={
+                      request?.id ||
+                      index
+                    }
+                    className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
+                  >
+
+                    <p className="text-xs font-black">
+                      {request?.customerId ||
+                        request?.userId ||
+                        'Demo Customer'}
+                    </p>
+
+                    <p className="mt-2 text-lg font-black text-amber-300">
+                      {request?.amount
+                        ? `${Number(
+                            request.amount
+                          ).toLocaleString(
+                            'en-IN'
+                          )} Demo Coins`
+                        : '—'}
+                    </p>
+
+                    <p className="mt-2 text-[8px] font-black text-gray-400">
+                      {request?.status ||
+                        'PENDING'}
+                    </p>
+
+                  </div>
+
+                )
+              )}
+
+            </div>
+          )}
+
+        </AdminPage>
+
+      )}
+
+      {/* COIN MANAGEMENT */}
+
+      {activeSection ===
+        'Coin Management' && (
+
+        <AdminPage
+          title="Coin Management"
+          icon="🪙"
+          onBack={() =>
+            setActiveSection('Dashboard')
+          }
+        >
+
+          <p className="text-[10px] leading-5 text-gray-300">
+            Customer demo coin management
+            will be configured in this
+            section.
+          </p>
+
+          <EmptyState
+            text="Coin management setup pending"
+          />
+
+        </AdminPage>
+
+      )}
+
+      {/* CUSTOMERS */}
+
+      {activeSection ===
+        'Customers' && (
+
+        <AdminPage
+          title="Customers"
+          icon="👥"
+          onBack={() =>
+            setActiveSection('Dashboard')
+          }
+        >
+
+          <p className="text-[10px] leading-5 text-gray-300">
+            Customer IDs and demo account
+            information will appear here.
+          </p>
+
+          <EmptyState
+            text="Customer database connection pending"
+          />
+
+        </AdminPage>
+
+      )}
+
+      {/* API SETTINGS */}
+
+      {activeSection ===
+        'API Settings' && (
+
+        <AdminPage
+          title="API Settings"
+          icon="🔌"
+          onBack={() =>
+            setActiveSection('Dashboard')
+          }
+        >
+
+          <div className="space-y-3">
+
+            <ApiBox
+              title="SPORTS API"
+              description="Sports data provider configuration"
+            />
+
+            <ApiBox
+              title="GAME API"
+              description="Game provider configuration"
+            />
+
+          </div>
+
+        </AdminPage>
+
+      )}
+
+      {/* TRANSACTION HISTORY */}
+
+      {activeSection ===
+        'Transaction History' && (
+
+        <AdminPage
+          title="Transaction History"
+          icon="📒"
+          onBack={() =>
+            setActiveSection('Dashboard')
+          }
+        >
+
+          <div className="grid grid-cols-2 gap-2">
+
+            <InfoBox
+              label="DEPOSIT REQUESTS"
+              value={
+                depositRequests.length
+              }
+            />
+
+            <InfoBox
+              label="WITHDRAWAL REQUESTS"
+              value={
+                withdrawalRequests.length
+              }
+            />
+
+          </div>
+
+        </AdminPage>
+
+      )}
+
+      {/* ADMIN SETTINGS */}
+
+      {activeSection ===
+        'Admin Settings' && (
+
+        <AdminPage
+          title="Admin Settings"
+          icon="⚙️"
+          onBack={() =>
+            setActiveSection('Dashboard')
+          }
+        >
+
+          <InfoBox
+            label="ADMIN ID"
+            value={
+              admin?.username ||
+              'admin'
+            }
+          />
+
+          <p className="mt-4 text-[9px] leading-4 text-gray-500">
+            Additional admin security
+            settings can be connected
+            separately.
+          </p>
+
+        </AdminPage>
+
+      )}
 
     </div>
   );
 }
 
-function AdminSection({
+/* =========================
+   ADMIN PAGE
+   ========================= */
+
+function AdminPage({
   title,
   icon,
   onBack,
   children,
 }) {
   return (
-    <section>
+    <main className="mx-auto max-w-5xl px-3 py-4">
 
       <button
         type="button"
         onClick={onBack}
-        className="mb-3 rounded border border-amber-500/40 bg-black/20 px-3 py-2 text-[9px] font-black text-amber-300"
+        className="mb-4 rounded-md border border-amber-500/40 bg-black/20 px-3 py-2 text-[9px] font-black text-amber-300"
       >
-        ‹ DASHBOARD
+        ‹ ADMIN DASHBOARD
       </button>
 
-      <div className="rounded-xl border border-[#28655f] bg-[#083d37] p-4">
+      <section className="rounded-xl border border-[#28655f] bg-[#072d29] p-4">
 
-        <div className="mb-4 flex items-center gap-3">
+        <div className="mb-5 flex items-center gap-3">
 
-          <span className="text-2xl">
+          <span className="text-3xl">
             {icon}
           </span>
 
-          <h2 className="text-base font-black text-amber-300">
-            {title}
-          </h2>
+          <div>
+            <p className="text-[8px] font-black text-gray-500">
+              ADMIN MANAGEMENT
+            </p>
+
+            <h2 className="text-lg font-black text-amber-300">
+              {title}
+            </h2>
+          </div>
 
         </div>
 
         {children}
 
+      </section>
+
+    </main>
+  );
+}
+
+/* =========================
+   INFO BOX
+   ========================= */
+
+function InfoBox({
+  label,
+  value,
+}) {
+  return (
+    <div className="rounded-lg border border-[#28655f] bg-black/10 p-3">
+
+      <p className="text-[7px] font-black text-gray-500">
+        {label}
+      </p>
+
+      <p className="mt-1 break-all text-[10px] font-black text-white">
+        {value}
+      </p>
+
+    </div>
+  );
+}
+
+/* =========================
+   EMPTY STATE
+   ========================= */
+
+function EmptyState({
+  text,
+}) {
+  return (
+    <div className="mt-4 rounded-xl border border-dashed border-[#28655f] bg-black/10 px-4 py-8 text-center">
+
+      <p className="text-[10px] font-bold text-gray-500">
+        {text}
+      </p>
+
+    </div>
+  );
+}
+
+/* =========================
+   API BOX
+   ========================= */
+
+function ApiBox({
+  title,
+  description,
+}) {
+  return (
+    <div className="rounded-xl border border-[#28655f] bg-[#083d37] p-4">
+
+      <div className="flex items-center justify-between gap-3">
+
+        <div>
+
+          <p className="text-xs font-black text-white">
+            {title}
+          </p>
+
+          <p className="mt-1 text-[8px] text-gray-400">
+            {description}
+          </p>
+
+        </div>
+
+        <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[7px] font-black text-amber-300">
+          SETUP
+        </span>
+
       </div>
 
-    </section>
+    </div>
   );
 }
