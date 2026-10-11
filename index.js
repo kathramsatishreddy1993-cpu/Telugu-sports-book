@@ -8,17 +8,29 @@ import { sportsService } from './sportsService.js';
 
 const { Pool } = pg;
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = fileURLToPath(
+  import.meta.url
+);
+
+const __dirname = path.dirname(
+  __filename
+);
 
 const app = express();
-const PORT = process.env.PORT || 10000;
+
+const PORT =
+  process.env.PORT || 10000;
 
 /* =========================================================
    MIDDLEWARE
 ========================================================= */
 
-app.use(express.json({ limit: '2mb' }));
+app.use(
+  express.json({
+    limit: '2mb',
+  })
+);
+
 app.use(
   express.urlencoded({
     extended: true,
@@ -31,37 +43,60 @@ app.use(
 ========================================================= */
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString:
+    process.env.DATABASE_URL,
+
   ssl:
-    process.env.NODE_ENV === 'production'
+    process.env.NODE_ENV ===
+    'production'
       ? {
           rejectUnauthorized: false,
         }
       : false,
 });
 
+/* =========================================================
+   DATABASE INITIALIZATION
+========================================================= */
+
 async function initializeDatabase() {
   if (!process.env.DATABASE_URL) {
     console.warn(
       'DATABASE_URL is not configured.'
     );
+
     return;
   }
 
   try {
+    /*
+      Create table for fresh
+      installations.
+    */
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS customers (
         id SERIAL PRIMARY KEY,
 
-        name VARCHAR(120) NOT NULL,
+        name VARCHAR(120)
+          NOT NULL,
 
         login_id VARCHAR(60)
           UNIQUE
           NOT NULL,
 
-        password_hash TEXT NOT NULL,
+        password_hash TEXT
+          NOT NULL,
 
         must_change_password
+          BOOLEAN
+          NOT NULL
+          DEFAULT TRUE,
+
+        withdrawal_password_hash
+          TEXT,
+
+        must_change_withdrawal_password
           BOOLEAN
           NOT NULL
           DEFAULT TRUE,
@@ -82,8 +117,35 @@ async function initializeDatabase() {
       );
     `);
 
+    /*
+      Safe migration for the
+      existing customers table.
+
+      Existing customer records
+      are preserved.
+    */
+
+    await pool.query(`
+      ALTER TABLE customers
+      ADD COLUMN IF NOT EXISTS
+        withdrawal_password_hash TEXT;
+    `);
+
+    await pool.query(`
+      ALTER TABLE customers
+      ADD COLUMN IF NOT EXISTS
+        must_change_withdrawal_password
+        BOOLEAN
+        NOT NULL
+        DEFAULT TRUE;
+    `);
+
     console.log(
       'Customers table ready.'
+    );
+
+    console.log(
+      'Withdrawal password support ready.'
     );
   } catch (error) {
     console.error(
@@ -103,11 +165,15 @@ const otpStore = new Map();
    FAST2SMS
 ========================================================= */
 
-function sendFast2SMS(mobile, otp) {
+function sendFast2SMS(
+  mobile,
+  otp
+) {
   return new Promise(
     (resolve, reject) => {
       const apiKey =
-        process.env.FAST2SMS_API_KEY ||
+        process.env
+          .FAST2SMS_API_KEY ||
         process.env.SMS_API_KEY;
 
       if (!apiKey) {
@@ -127,7 +193,8 @@ function sendFast2SMS(mobile, otp) {
         }).toString();
 
       const options = {
-        hostname: 'www.fast2sms.com',
+        hostname:
+          'www.fast2sms.com',
 
         path:
           `/dev/bulkV2?${queryParams}`,
@@ -135,65 +202,73 @@ function sendFast2SMS(mobile, otp) {
         method: 'GET',
 
         headers: {
-          'cache-control': 'no-cache',
+          'cache-control':
+            'no-cache',
         },
       };
 
-      const req = https.request(
-        options,
-        (response) => {
-          let data = '';
+      const req =
+        https.request(
+          options,
+          (response) => {
+            let data = '';
 
-          response.on(
-            'data',
-            (chunk) => {
-              data += chunk;
-            }
-          );
-
-          response.on(
-            'end',
-            () => {
-              try {
-                const result =
-                  JSON.parse(data);
-
-                const isSuccess =
-                  result.return === true ||
-                  result.status_code ===
-                    200;
-
-                if (isSuccess) {
-                  resolve(result);
-                  return;
-                }
-
-                const errorMessage =
-                  Array.isArray(
-                    result.message
-                  )
-                    ? result.message.join(
-                        ', '
-                      )
-                    : result.message ||
-                      'Fast2SMS returned a failure status.';
-
-                reject(
-                  new Error(
-                    errorMessage
-                  )
-                );
-              } catch {
-                reject(
-                  new Error(
-                    'Failed to parse response from Fast2SMS API.'
-                  )
-                );
+            response.on(
+              'data',
+              (chunk) => {
+                data += chunk;
               }
-            }
-          );
-        }
-      );
+            );
+
+            response.on(
+              'end',
+              () => {
+                try {
+                  const result =
+                    JSON.parse(
+                      data
+                    );
+
+                  const isSuccess =
+                    result.return ===
+                      true ||
+                    result.status_code ===
+                      200;
+
+                  if (isSuccess) {
+                    resolve(
+                      result
+                    );
+
+                    return;
+                  }
+
+                  const errorMessage =
+                    Array.isArray(
+                      result.message
+                    )
+                      ? result.message.join(
+                          ', '
+                        )
+                      : result.message ||
+                        'Fast2SMS returned a failure status.';
+
+                  reject(
+                    new Error(
+                      errorMessage
+                    )
+                  );
+                } catch {
+                  reject(
+                    new Error(
+                      'Failed to parse response from Fast2SMS API.'
+                    )
+                  );
+                }
+              }
+            );
+          }
+        );
 
       req.on(
         'error',
@@ -211,38 +286,69 @@ function sendFast2SMS(mobile, otp) {
    CUSTOMER HELPERS
 ========================================================= */
 
-function normalizeLoginId(value) {
-  return String(value || '')
+function normalizeLoginId(
+  value
+) {
+  return String(
+    value || ''
+  )
     .trim()
     .toLowerCase();
 }
 
-function publicCustomer(customer) {
+function publicCustomer(
+  customer
+) {
   return {
     id: customer.id,
-    name: customer.name,
-    loginId: customer.login_id,
+
+    name:
+      customer.name,
+
+    loginId:
+      customer.login_id,
+
     mustChangePassword:
-      customer.must_change_password,
-    status: customer.status,
-    createdAt: customer.created_at,
+      Boolean(
+        customer.must_change_password
+      ),
+
+    mustChangeWithdrawalPassword:
+      Boolean(
+        customer
+          .must_change_withdrawal_password
+      ),
+
+    withdrawalPasswordConfigured:
+      Boolean(
+        customer
+          .withdrawal_password_hash
+      ),
+
+    status:
+      customer.status,
+
+    createdAt:
+      customer.created_at,
   };
 }
 
 /* =========================================================
-   CUSTOMER CREATE
-   Admin-side API
+   CREATE CUSTOMER
+   ADMIN SIDE
 
    POST /api/admin/customers
 ========================================================= */
 
 app.post(
   '/api/admin/customers',
+
   async (req, res) => {
     try {
-      const name = String(
-        req.body.name || ''
-      ).trim();
+      const name =
+        String(
+          req.body.name || ''
+        ).trim();
 
       const loginId =
         normalizeLoginId(
@@ -251,9 +357,21 @@ app.post(
 
       const temporaryPassword =
         String(
-          req.body.temporaryPassword ||
+          req.body
+            .temporaryPassword ||
             ''
         );
+
+      const temporaryWithdrawalPassword =
+        String(
+          req.body
+            .temporaryWithdrawalPassword ||
+            ''
+        );
+
+      /* -------------------------
+         VALIDATION
+      ------------------------- */
 
       if (!name) {
         return res
@@ -287,15 +405,50 @@ app.post(
       }
 
       if (
-        temporaryPassword.length < 6
+        temporaryPassword.length <
+        6
       ) {
         return res
           .status(400)
           .json({
             error:
-              'Temporary password must contain at least 6 characters.',
+              'Temporary Login Password must contain at least 6 characters.',
           });
       }
+
+      if (
+        temporaryWithdrawalPassword
+          .length < 6
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Temporary Withdrawal Password must contain at least 6 characters.',
+          });
+      }
+
+      /*
+        Login password and
+        withdrawal password
+        should be different.
+      */
+
+      if (
+        temporaryPassword ===
+        temporaryWithdrawalPassword
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Login Password and Withdrawal Password must be different.',
+          });
+      }
+
+      /* -------------------------
+         UNIQUE LOGIN ID
+      ------------------------- */
 
       const existing =
         await pool.query(
@@ -309,7 +462,8 @@ app.post(
         );
 
       if (
-        existing.rows.length > 0
+        existing.rows.length >
+        0
       ) {
         return res
           .status(409)
@@ -319,11 +473,29 @@ app.post(
           });
       }
 
-      const passwordHash =
-        await bcrypt.hash(
-          temporaryPassword,
-          12
-        );
+      /* -------------------------
+         HASH PASSWORDS
+      ------------------------- */
+
+      const [
+        passwordHash,
+        withdrawalPasswordHash,
+      ] =
+        await Promise.all([
+          bcrypt.hash(
+            temporaryPassword,
+            12
+          ),
+
+          bcrypt.hash(
+            temporaryWithdrawalPassword,
+            12
+          ),
+        ]);
+
+      /* -------------------------
+         INSERT CUSTOMER
+      ------------------------- */
 
       const result =
         await pool.query(
@@ -333,12 +505,16 @@ app.post(
             login_id,
             password_hash,
             must_change_password,
+            withdrawal_password_hash,
+            must_change_withdrawal_password,
             status
           )
           VALUES (
             $1,
             $2,
             $3,
+            TRUE,
+            $4,
             TRUE,
             'ACTIVE'
           )
@@ -347,6 +523,8 @@ app.post(
             name,
             login_id,
             must_change_password,
+            withdrawal_password_hash,
+            must_change_withdrawal_password,
             status,
             created_at
           `,
@@ -354,6 +532,7 @@ app.post(
             name,
             loginId,
             passwordHash,
+            withdrawalPasswordHash,
           ]
         );
 
@@ -377,7 +556,8 @@ app.post(
       );
 
       if (
-        error?.code === '23505'
+        error?.code ===
+        '23505'
       ) {
         return res
           .status(409)
@@ -399,13 +579,14 @@ app.post(
 
 /* =========================================================
    CUSTOMER LIST
-   Admin-side API
+   ADMIN SIDE
 
    GET /api/admin/customers
 ========================================================= */
 
 app.get(
   '/api/admin/customers',
+
   async (req, res) => {
     try {
       const result =
@@ -415,6 +596,8 @@ app.get(
             name,
             login_id,
             must_change_password,
+            withdrawal_password_hash,
+            must_change_withdrawal_password,
             status,
             created_at
           FROM customers
@@ -453,6 +636,7 @@ app.get(
 
 app.post(
   '/api/auth/customer-login',
+
   async (req, res) => {
     try {
       const loginId =
@@ -463,7 +647,8 @@ app.post(
 
       const password =
         String(
-          req.body.password || ''
+          req.body.password ||
+            ''
         );
 
       if (
@@ -490,7 +675,8 @@ app.post(
         );
 
       if (
-        result.rows.length === 0
+        result.rows.length ===
+        0
       ) {
         return res
           .status(401)
@@ -523,7 +709,9 @@ app.post(
           customer.password_hash
         );
 
-      if (!passwordMatches) {
+      if (
+        !passwordMatches
+      ) {
         return res
           .status(401)
           .json({
@@ -536,7 +724,22 @@ app.post(
         success: true,
 
         mustChangePassword:
-          customer.must_change_password,
+          Boolean(
+            customer
+              .must_change_password
+          ),
+
+        mustChangeWithdrawalPassword:
+          Boolean(
+            customer
+              .must_change_withdrawal_password
+          ),
+
+        withdrawalPasswordConfigured:
+          Boolean(
+            customer
+              .withdrawal_password_hash
+          ),
 
         customer:
           publicCustomer(
@@ -560,13 +763,14 @@ app.post(
 );
 
 /* =========================================================
-   FIRST PASSWORD CHANGE
+   CHANGE CUSTOMER LOGIN PASSWORD
 
    POST /api/auth/change-customer-password
 ========================================================= */
 
 app.post(
   '/api/auth/change-customer-password',
+
   async (req, res) => {
     try {
       const loginId =
@@ -576,7 +780,8 @@ app.post(
 
       const currentPassword =
         String(
-          req.body.currentPassword ||
+          req.body
+            .currentPassword ||
             ''
         );
 
@@ -588,7 +793,8 @@ app.post(
 
       const confirmPassword =
         String(
-          req.body.confirmPassword ||
+          req.body
+            .confirmPassword ||
             ''
         );
 
@@ -602,7 +808,7 @@ app.post(
           .status(400)
           .json({
             error:
-              'Please complete all password fields.',
+              'Please complete all Login Password fields.',
           });
       }
 
@@ -613,7 +819,7 @@ app.post(
           .status(400)
           .json({
             error:
-              'New password must contain at least 6 characters.',
+              'New Login Password must contain at least 6 characters.',
           });
       }
 
@@ -625,7 +831,7 @@ app.post(
           .status(400)
           .json({
             error:
-              'New Password and Confirm Password do not match.',
+              'New Login Password and Confirm Login Password do not match.',
           });
       }
 
@@ -637,7 +843,7 @@ app.post(
           .status(400)
           .json({
             error:
-              'New password must be different from the temporary password.',
+              'New Login Password must be different from the current password.',
           });
       }
 
@@ -653,7 +859,8 @@ app.post(
         );
 
       if (
-        result.rows.length === 0
+        result.rows.length ===
+        0
       ) {
         return res
           .status(404)
@@ -672,12 +879,14 @@ app.post(
           customer.password_hash
         );
 
-      if (!passwordMatches) {
+      if (
+        !passwordMatches
+      ) {
         return res
           .status(401)
           .json({
             error:
-              'Current Password is incorrect.',
+              'Current Login Password is incorrect.',
           });
       }
 
@@ -706,22 +915,28 @@ app.post(
         success: true,
 
         message:
-          'Password changed successfully.',
+          'Login Password changed successfully.',
 
         customer: {
-          id: customer.id,
-          name: customer.name,
+          id:
+            customer.id,
+
+          name:
+            customer.name,
+
           loginId:
             customer.login_id,
+
           mustChangePassword:
             false,
+
           status:
             customer.status,
         },
       });
     } catch (error) {
       console.error(
-        'Change Customer Password Error:',
+        'Change Customer Login Password Error:',
         error
       );
 
@@ -729,7 +944,194 @@ app.post(
         .status(500)
         .json({
           error:
-            'Unable to change password.',
+            'Unable to change Login Password.',
+        });
+    }
+  }
+);
+
+/* =========================================================
+   CHANGE WITHDRAWAL PASSWORD
+
+   POST /api/auth/change-withdrawal-password
+========================================================= */
+
+app.post(
+  '/api/auth/change-withdrawal-password',
+
+  async (req, res) => {
+    try {
+      const loginId =
+        normalizeLoginId(
+          req.body.loginId
+        );
+
+      const currentPassword =
+        String(
+          req.body
+            .currentPassword ||
+            ''
+        );
+
+      const newPassword =
+        String(
+          req.body.newPassword ||
+            ''
+        );
+
+      const confirmPassword =
+        String(
+          req.body
+            .confirmPassword ||
+            ''
+        );
+
+      if (
+        !loginId ||
+        !currentPassword ||
+        !newPassword ||
+        !confirmPassword
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Please complete all Withdrawal Password fields.',
+          });
+      }
+
+      if (
+        newPassword.length < 6
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'New Withdrawal Password must contain at least 6 characters.',
+          });
+      }
+
+      if (
+        newPassword !==
+        confirmPassword
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'New Withdrawal Password and Confirm Withdrawal Password do not match.',
+          });
+      }
+
+      if (
+        currentPassword ===
+        newPassword
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'New Withdrawal Password must be different from the current password.',
+          });
+      }
+
+      const result =
+        await pool.query(
+          `
+          SELECT *
+          FROM customers
+          WHERE login_id = $1
+          LIMIT 1
+          `,
+          [loginId]
+        );
+
+      if (
+        result.rows.length ===
+        0
+      ) {
+        return res
+          .status(404)
+          .json({
+            error:
+              'Customer account not found.',
+          });
+      }
+
+      const customer =
+        result.rows[0];
+
+      if (
+        !customer
+          .withdrawal_password_hash
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Withdrawal Password has not been configured for this customer. Please contact Admin.',
+          });
+      }
+
+      const passwordMatches =
+        await bcrypt.compare(
+          currentPassword,
+          customer
+            .withdrawal_password_hash
+        );
+
+      if (
+        !passwordMatches
+      ) {
+        return res
+          .status(401)
+          .json({
+            error:
+              'Current Withdrawal Password is incorrect.',
+          });
+      }
+
+      const newPasswordHash =
+        await bcrypt.hash(
+          newPassword,
+          12
+        );
+
+      await pool.query(
+        `
+        UPDATE customers
+        SET
+          withdrawal_password_hash = $1,
+          must_change_withdrawal_password = FALSE,
+          updated_at = NOW()
+        WHERE id = $2
+        `,
+        [
+          newPasswordHash,
+          customer.id,
+        ]
+      );
+
+      return res.json({
+        success: true,
+
+        message:
+          'Withdrawal Password changed successfully.',
+
+        mustChangeWithdrawalPassword:
+          false,
+      });
+    } catch (error) {
+      console.error(
+        'Change Withdrawal Password Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Unable to change Withdrawal Password.',
         });
     }
   }
@@ -741,17 +1143,22 @@ app.post(
 
 app.post(
   '/api/auth/send-otp',
+
   async (req, res) => {
     try {
       const cleanMobile =
         req.body.mobile
           ? String(
               req.body.mobile
-            ).replace(/\D/g, '')
+            ).replace(
+              /\D/g,
+              ''
+            )
           : '';
 
       if (
-        cleanMobile.length !== 10
+        cleanMobile.length !==
+        10
       ) {
         return res
           .status(400)
@@ -780,13 +1187,16 @@ app.post(
       otpStore.set(
         cleanMobile,
         {
-          otp: generatedOtp,
+          otp:
+            generatedOtp,
+
           expiresAt,
         }
       );
 
       return res.json({
         success: true,
+
         message:
           'OTP sent successfully.',
       });
@@ -809,13 +1219,17 @@ app.post(
 
 app.post(
   '/api/auth/verify-otp',
+
   async (req, res) => {
     try {
       const cleanMobile =
         req.body.mobile
           ? String(
               req.body.mobile
-            ).replace(/\D/g, '')
+            ).replace(
+              /\D/g,
+              ''
+            )
           : '';
 
       const cleanOtp =
@@ -824,7 +1238,8 @@ app.post(
         ).trim();
 
       if (
-        cleanMobile.length !== 10
+        cleanMobile.length !==
+        10
       ) {
         return res
           .status(400)
@@ -876,7 +1291,8 @@ app.post(
       }
 
       if (
-        record.otp !== cleanOtp
+        record.otp !==
+        cleanOtp
       ) {
         return res
           .status(400)
@@ -892,6 +1308,7 @@ app.post(
 
       return res.json({
         success: true,
+
         message:
           'Mobile number verified successfully.',
       });
@@ -917,13 +1334,15 @@ app.post(
 
 app.get(
   '/api/health',
+
   async (req, res) => {
     let databaseConnected =
       false;
 
     try {
       if (
-        process.env.DATABASE_URL
+        process.env
+          .DATABASE_URL
       ) {
         await pool.query(
           'SELECT 1'
@@ -939,13 +1358,16 @@ app.get(
       );
     }
 
-    let apiConnected = false;
+    let apiConnected =
+      false;
 
     try {
       apiConnected =
-        typeof sportsService.isApiConnected ===
+        typeof sportsService
+          .isApiConnected ===
         'function'
-          ? await sportsService.isApiConnected()
+          ? await sportsService
+              .isApiConnected()
           : true;
     } catch (error) {
       console.error(
@@ -956,9 +1378,15 @@ app.get(
 
     return res.json({
       status: 'ok',
-      provider: 'odds_api',
+
+      provider:
+        'odds_api',
+
       apiConnected:
-        Boolean(apiConnected),
+        Boolean(
+          apiConnected
+        ),
+
       databaseConnected,
     });
   }
@@ -970,6 +1398,7 @@ app.get(
 
 app.get(
   '/api/sports/events',
+
   async (req, res) => {
     try {
       const sport =
@@ -977,12 +1406,14 @@ app.get(
         'all';
 
       const events =
-        await sportsService.getEvents(
-          sport
-        );
+        await sportsService
+          .getEvents(
+            sport
+          );
 
       return res.json({
-        data: events || [],
+        data:
+          events || [],
       });
     } catch (error) {
       console.error(
@@ -1006,6 +1437,7 @@ app.get(
 
 app.get(
   '/api/sports/stream',
+
   (req, res) => {
     res.setHeader(
       'Content-Type',
@@ -1025,7 +1457,8 @@ app.get(
     res.flushHeaders();
 
     if (
-      typeof sportsService.addClient ===
+      typeof sportsService
+        .addClient ===
       'function'
     ) {
       sportsService.addClient(
@@ -1037,12 +1470,14 @@ app.get(
       'close',
       () => {
         if (
-          typeof sportsService.removeClient ===
+          typeof sportsService
+            .removeClient ===
           'function'
         ) {
-          sportsService.removeClient(
-            res
-          );
+          sportsService
+            .removeClient(
+              res
+            );
         }
       }
     );
@@ -1055,6 +1490,7 @@ app.get(
 
 app.all(
   '/api/*',
+
   (req, res) => {
     res
       .status(404)
@@ -1080,6 +1516,7 @@ app.use(
 
 app.get(
   '*',
+
   (req, res) => {
     res.sendFile(
       path.join(
