@@ -125,7 +125,33 @@ const placeholderBackgrounds = [
   'from-[#431407] via-[#9a3412] to-[#dc2626]',
 ];
 
-function FeaturedGamesGrid() {
+/* =========================================================
+   CHANGE 1:
+   MULTI-COLOR NEON SCROLLING LINE
+   ========================================================= */
+
+function NeonScrollingLine() {
+  return (
+    <div className="neon-scroll-area">
+      <div className="neon-scroll-track">
+        <span className="neon-scroll-text">
+          ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS & ENTERTAINMENT DEMO ✦
+        </span>
+
+        <span className="neon-scroll-text">
+          ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS & ENTERTAINMENT DEMO ✦
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   CHANGE 3:
+   FEATURED GAME CLICK -> COMING SOON SCREEN
+   ========================================================= */
+
+function FeaturedGamesGrid({ onGameClick }) {
   return (
     <section className="border-t-4 border-[#073c37] bg-[#062f2b]">
       <div className="grid grid-cols-4 gap-[2px]">
@@ -133,6 +159,7 @@ function FeaturedGamesGrid() {
           <button
             key={game.name}
             type="button"
+            onClick={() => onGameClick(game)}
             className="min-w-0 overflow-hidden bg-[#10251f] text-white"
           >
             <div className="relative aspect-square w-full overflow-hidden bg-black">
@@ -208,20 +235,31 @@ export default function DemoDashboard({ user, onLogout }) {
 
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdrawal, setShowWithdrawal] = useState(false);
+
   const [showAccountStatement, setShowAccountStatement] =
     useState(false);
-  const [showBetHistory, setShowBetHistory] = useState(false);
+
+  const [showBetHistory, setShowBetHistory] =
+    useState(false);
+
   const [showUnsettledBet, setShowUnsettledBet] =
     useState(false);
+
   const [showSetButtonValues, setShowSetButtonValues] =
     useState(false);
+
   const [showChangePassword, setShowChangePassword] =
     useState(false);
 
   const [showCustomerMenu, setShowCustomerMenu] =
     useState(false);
 
-  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [selectedMatch, setSelectedMatch] =
+    useState(null);
+
+  /* NEW - SELECTED FEATURED GAME */
+  const [selectedGame, setSelectedGame] =
+    useState(null);
 
   const [demoBalance] = useState(() => {
     try {
@@ -234,6 +272,7 @@ export default function DemoDashboard({ user, onLogout }) {
           'telugu_sports_demo_balance',
           '10000'
         );
+
         return 10000;
       }
 
@@ -274,6 +313,7 @@ export default function DemoDashboard({ user, onLogout }) {
         top: 0,
         behavior: 'smooth',
       });
+
       return;
     }
 
@@ -340,7 +380,9 @@ export default function DemoDashboard({ user, onLogout }) {
     return (
       <BetHistoryPage
         user={user}
-        onBack={() => setShowBetHistory(false)}
+        onBack={() =>
+          setShowBetHistory(false)
+        }
       />
     );
   }
@@ -383,19 +425,149 @@ export default function DemoDashboard({ user, onLogout }) {
       <MatchDetailsPage
         match={selectedMatch}
         user={user}
-        onBack={() => setSelectedMatch(null)}
+        onBack={() =>
+          setSelectedMatch(null)
+        }
       />
+    );
+  }
+
+  /* =======================================================
+     FEATURED GAME COMING SOON PAGE
+     ======================================================= */
+
+  if (selectedGame) {
+    return (
+      <div className="min-h-screen bg-[#062f2b] text-white">
+
+        <header className="flex items-center bg-[#9a5a00] px-3 py-3">
+
+          <button
+            type="button"
+            onClick={() => setSelectedGame(null)}
+            className="mr-3 rounded border border-amber-300 px-3 py-1.5 text-xs font-black"
+          >
+            ‹ BACK
+          </button>
+
+          <h1 className="text-sm font-black text-amber-200">
+            {selectedGame.name}
+          </h1>
+
+        </header>
+
+        <div className="flex min-h-[70vh] flex-col items-center justify-center px-5 text-center">
+
+          <img
+            src={selectedGame.image}
+            alt={selectedGame.name}
+            className="mb-5 w-full max-w-[300px] rounded-lg shadow-2xl"
+          />
+
+          <h2 className="text-2xl font-black text-amber-300">
+            {selectedGame.name}
+          </h2>
+
+          <div className="mt-4 rounded-full border border-amber-400 bg-black/30 px-6 py-2">
+            <span className="text-sm font-black">
+              🚀 COMING SOON
+            </span>
+          </div>
+
+          <p className="mt-4 text-xs text-gray-300">
+            Demo preview only
+          </p>
+
+        </div>
+
+      </div>
     );
   }
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#eeeeee] text-black">
 
+      {/* NEON SCROLL ANIMATION */}
+      <style>
+        {`
+          .neon-scroll-area {
+            width: 100%;
+            height: 18px;
+            overflow: hidden;
+            position: relative;
+            margin-top: 4px;
+            margin-bottom: 2px;
+            white-space: nowrap;
+          }
+
+          .neon-scroll-track {
+            position: absolute;
+            display: flex;
+            width: max-content;
+            align-items: center;
+            animation: teluguSportsScroll 13s linear infinite;
+          }
+
+          .neon-scroll-text {
+            display: inline-block;
+            padding-right: 70px;
+            font-size: 9px;
+            line-height: 18px;
+            font-weight: 900;
+            letter-spacing: 1px;
+
+            background: linear-gradient(
+              90deg,
+              #ff1744,
+              #ffea00,
+              #00e5ff,
+              #76ff03,
+              #ff00ff,
+              #ffffff,
+              #ff1744
+            );
+
+            background-size: 300% 100%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+
+            animation: neonColorMove 2s linear infinite;
+
+            filter:
+              drop-shadow(0 0 2px #ffffff)
+              drop-shadow(0 0 4px #00e5ff);
+          }
+
+          @keyframes teluguSportsScroll {
+            0% {
+              transform: translateX(100vw);
+            }
+
+            100% {
+              transform: translateX(-100%);
+            }
+          }
+
+          @keyframes neonColorMove {
+            0% {
+              background-position: 0% 50%;
+            }
+
+            100% {
+              background-position: 300% 50%;
+            }
+          }
+        `}
+      </style>
+
       {/* HEADER */}
       <header className="bg-[#9a5a00] px-3 pb-2 pt-3 text-white">
+
         <div className="flex items-start justify-between gap-2">
 
           <div>
+
             <h1 className="text-lg font-black text-amber-300">
               🏠 TELUGU SPORTS
             </h1>
@@ -403,6 +575,7 @@ export default function DemoDashboard({ user, onLogout }) {
             <p className="ml-7 mt-0.5 text-[10px] font-black tracking-[0.15em]">
               BOOK • DEMO
             </p>
+
           </div>
 
           <div className="relative text-right">
@@ -454,15 +627,22 @@ export default function DemoDashboard({ user, onLogout }) {
 
               </div>
             )}
+
           </div>
+
         </div>
 
-        {/* COMPACT DEPOSIT / WITHDRAWAL */}
+        {/* CHANGE 1 - SCROLLING LINE */}
+        <NeonScrollingLine />
+
+        {/* DEPOSIT / WITHDRAWAL - SIZE UNCHANGED */}
         <div className="mt-3 grid grid-cols-2 gap-2">
 
           <button
             type="button"
-            onClick={() => setShowDeposit(true)}
+            onClick={() =>
+              setShowDeposit(true)
+            }
             className="h-[46px] rounded-md border border-white bg-green-700 px-2 text-xs font-black text-white shadow"
           >
             💰 DEPOSIT
@@ -483,9 +663,10 @@ export default function DemoDashboard({ user, onLogout }) {
         <p className="mt-2 text-center text-[9px] font-black text-amber-100">
           🏆 OUR EXCHANGE • DREAM BIG WIN BIG 🏆
         </p>
+
       </header>
 
-      {/* MAIN NAV - HORIZONTAL SCROLL */}
+      {/* MAIN NAV */}
       <nav
         className="w-full overflow-x-auto bg-[#945500] text-white"
         style={{
@@ -493,6 +674,7 @@ export default function DemoDashboard({ user, onLogout }) {
           touchAction: 'pan-x',
         }}
       >
+
         <div className="flex w-max min-w-full">
 
           {tabs.map((tab) => (
@@ -513,9 +695,10 @@ export default function DemoDashboard({ user, onLogout }) {
           ))}
 
         </div>
+
       </nav>
 
-      {/* SPORTS - COMPACT + HORIZONTAL SCROLL */}
+      {/* SPORTS */}
       <section
         className="w-full overflow-x-auto bg-[#075249]"
         style={{
@@ -523,6 +706,7 @@ export default function DemoDashboard({ user, onLogout }) {
           touchAction: 'pan-x',
         }}
       >
+
         <div className="flex w-max">
 
           {sports.map((sport) => (
@@ -551,6 +735,7 @@ export default function DemoDashboard({ user, onLogout }) {
           ))}
 
         </div>
+
       </section>
 
       {/* FILTER */}
@@ -585,7 +770,7 @@ export default function DemoDashboard({ user, onLogout }) {
 
       </section>
 
-      {/* COMPACT MATCH LIST */}
+      {/* MATCH LIST */}
       <section className="bg-[#eeeeee]">
 
         {matches.map((match) => (
@@ -598,9 +783,18 @@ export default function DemoDashboard({ user, onLogout }) {
 
               <div className="min-w-0 flex-1">
 
-                <h2 className="truncate border-b-2 border-teal-700 pb-1 text-[13px] font-black">
-                  {match.teams}
-                </h2>
+                {/* CHANGE 2 - MATCH NAME CLICKABLE */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedMatch(match)
+                  }
+                  className="block w-full text-left"
+                >
+                  <h2 className="truncate border-b-2 border-teal-700 pb-1 text-[13px] font-black">
+                    {match.teams}
+                  </h2>
+                </button>
 
                 <p className="mt-1 text-[9px] font-bold text-red-600">
                   {match.date}
@@ -664,10 +858,12 @@ export default function DemoDashboard({ user, onLogout }) {
 
       </section>
 
-      {/* REAL UPLOADED IMAGES */}
-      <FeaturedGamesGrid />
+      {/* 8 FEATURED GAMES */}
+      <FeaturedGamesGrid
+        onGameClick={setSelectedGame}
+      />
 
-      {/* OTHER DEMO SECTIONS */}
+      {/* OTHER SECTIONS */}
       <DemoGameGrid
         title="NEW LAUNCH"
         games={newLaunch}
