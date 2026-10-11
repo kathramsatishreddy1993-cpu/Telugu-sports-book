@@ -127,25 +127,45 @@ const favourites = [
   },
 ];
 
-/* PROVIDERS */
+/* OUR PROVIDERS — 9 REAL IMAGES */
 
 const providers = [
-  'MAC88',
-  'EZUGI',
-  'SMARTSOFT',
-  'SPRIBE',
-  'EVOLUTION',
-  'JILI',
-  'TURBO GAMES',
-  'GAMZIX',
-  'KING MIDAS',
-];
-
-const placeholderBackgrounds = [
-  'from-[#111827] via-[#312e81] to-[#7e22ce]',
-  'from-[#172554] via-[#4c1d95] to-[#be185d]',
-  'from-[#1e1b4b] via-[#581c87] to-[#4338ca]',
-  'from-[#431407] via-[#9a3412] to-[#dc2626]',
+  {
+    name: 'MAC88',
+    image: '/games/mac88.png',
+  },
+  {
+    name: 'EZUGI',
+    image: '/games/ezugi-provider.png',
+  },
+  {
+    name: 'SMARTSOFT',
+    image: '/games/smartsoft.png',
+  },
+  {
+    name: 'SPRIBE',
+    image: '/games/spribe.png',
+  },
+  {
+    name: 'EVOLUTION',
+    image: '/games/evolution.png',
+  },
+  {
+    name: 'JILI',
+    image: '/games/jili-provider.png',
+  },
+  {
+    name: 'TURBO GAMES',
+    image: '/games/turbo-games.png',
+  },
+  {
+    name: 'GAMZIX',
+    image: '/games/gamzix.png',
+  },
+  {
+    name: 'KING MIDAS',
+    image: '/games/king-midas.png',
+  },
 ];
 
 /* NEON SCROLLING TEXT */
@@ -211,50 +231,6 @@ function RealGameGrid({
             <div className="flex h-[25px] items-center justify-center bg-gradient-to-b from-[#7c4b0b] to-[#063c34] px-1">
               <span className="line-clamp-2 text-center text-[7px] font-black uppercase leading-tight">
                 {game.name}
-              </span>
-            </div>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/* PROVIDERS PLACEHOLDER GRID */
-
-function DemoGameGrid({ title, games }) {
-  return (
-    <section className="border-t border-[#164c46] bg-[#062f2b]">
-      <h2 className="px-3 py-2 text-sm font-black text-white">
-        {title}
-      </h2>
-
-      <div className="grid grid-cols-4 gap-[2px]">
-        {games.map((game, index) => (
-          <button
-            key={`${game}-${index}`}
-            type="button"
-            className="min-w-0 overflow-hidden bg-[#10251f] text-white"
-          >
-            <div
-              className={`relative flex aspect-square items-center justify-center bg-gradient-to-br ${
-                placeholderBackgrounds[
-                  index % placeholderBackgrounds.length
-                ]
-              } px-1`}
-            >
-              <span className="break-words text-center text-[8px] font-black uppercase leading-tight">
-                {game}
-              </span>
-
-              <span className="absolute right-1 top-1 rounded bg-black/40 px-1 text-[6px]">
-                DEMO
-              </span>
-            </div>
-
-            <div className="flex h-[25px] items-center justify-center bg-gradient-to-b from-[#7c4b0b] to-[#063c34] px-1">
-              <span className="line-clamp-2 text-center text-[7px] font-black uppercase leading-tight">
-                {game}
               </span>
             </div>
           </button>
@@ -542,8 +518,6 @@ export default function DemoDashboard({
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#eeeeee] text-black">
-
-      {/* NEON CSS */}
 
       <style>
         {`
@@ -934,7 +908,7 @@ export default function DemoDashboard({
         topBorder
       />
 
-      {/* NEW LAUNCH REAL IMAGES */}
+      {/* NEW LAUNCH */}
 
       <RealGameGrid
         title="NEW LAUNCH"
@@ -942,7 +916,7 @@ export default function DemoDashboard({
         onGameClick={setSelectedGame}
       />
 
-      {/* MY FAVOURITES REAL IMAGES */}
+      {/* MY FAVOURITES */}
 
       <RealGameGrid
         title="MY FAVOURITES"
@@ -950,11 +924,12 @@ export default function DemoDashboard({
         onGameClick={setSelectedGame}
       />
 
-      {/* PROVIDERS */}
+      {/* OUR PROVIDERS */}
 
-      <DemoGameGrid
+      <RealGameGrid
         title="OUR PROVIDERS"
         games={providers}
+        onGameClick={setSelectedGame}
       />
 
       {/* FOOTER */}
