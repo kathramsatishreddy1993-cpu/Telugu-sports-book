@@ -315,7 +315,6 @@ export default function DemoDashboard({ user, onLogout }) {
 
   return (
     <div className="min-h-screen bg-[#eeeeee] text-black">
-
       {/* TOP HEADER */}
       <header className="bg-[#9a5a00] px-3 pb-4 pt-4 text-white">
         <div className="flex items-start justify-between gap-3">
@@ -417,17 +416,17 @@ export default function DemoDashboard({ user, onLogout }) {
               key={sport.name}
               type="button"
               onClick={() => setSelectedSport(sport.name)}
-              className={`min-w-[105px] px-2 py-2.5 text-center text-white ${
+              className={`min-w-[105px] px-2 py-2 text-center text-white ${
                 selectedSport === sport.name
                   ? 'bg-[#043d38]'
                   : 'bg-[#0b6259]'
               }`}
             >
-              <span className="block text-2xl">
+              <span className="block text-xl leading-none">
                 {sport.icon}
               </span>
 
-              <span className="mt-1 block text-[10px] font-black">
+              <span className="mt-1 block whitespace-nowrap text-[9px] font-black leading-none">
                 {sport.name}
               </span>
             </button>
@@ -520,12 +519,16 @@ export default function DemoDashboard({ user, onLogout }) {
         ))}
       </section>
 
+      {/* FEATURED */}
       <GameGrid title="" games={featuredGames} />
 
+      {/* NEW LAUNCH */}
       <GameGrid title="NEW LAUNCH" games={newLaunch} />
 
+      {/* FAVOURITES */}
       <GameGrid title="MY FAVOURITES" games={favourites} />
 
+      {/* PROVIDERS */}
       <GameGrid title="OUR PROVIDERS" games={providers} />
 
       {/* FOOTER */}
