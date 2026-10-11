@@ -19,7 +19,9 @@ export default function App() {
   const [view, setView] = useState('home');
   const [authMode, setAuthMode] = useState(null);
 
-  /* CUSTOMER LOGIN */
+  /* =========================
+     CUSTOMER LOGIN
+     ========================= */
 
   const [user, setUser] = useState(() => {
     try {
@@ -46,7 +48,9 @@ export default function App() {
     }
   });
 
-  /* ADMIN LOGIN */
+  /* =========================
+     ADMIN LOGIN
+     ========================= */
 
   const [admin, setAdmin] = useState(() => {
     try {
@@ -75,19 +79,29 @@ export default function App() {
     }
   });
 
-  /*
-    ADMIN MODE
+  /* =========================
+     ROUTE CHECK
+     ========================= */
 
-    Open:
-    https://your-site.com/?admin=1
+  const cleanPath =
+    window.location.pathname
+      .replace(/\/+$/, '')
+      .toLowerCase();
+
+  /*
+    CUSTOMER:
+    /
+
+    ADMIN:
+    /admin
   */
 
   const isAdminMode =
-    new URLSearchParams(
-      window.location.search
-    ).get('admin') === '1';
+    cleanPath === '/admin';
 
-  /* CUSTOMER LOGIN SUCCESS */
+  /* =========================
+     CUSTOMER LOGIN SUCCESS
+     ========================= */
 
   const handleLoginSuccess = (
     loggedInUser
@@ -97,7 +111,9 @@ export default function App() {
     setView('home');
   };
 
-  /* CUSTOMER LOGOUT */
+  /* =========================
+     CUSTOMER LOGOUT
+     ========================= */
 
   const handleLogout = () => {
     try {
@@ -116,7 +132,9 @@ export default function App() {
     setView('home');
   };
 
-  /* ADMIN LOGIN SUCCESS */
+  /* =========================
+     ADMIN LOGIN SUCCESS
+     ========================= */
 
   const handleAdminLogin = (
     loggedInAdmin
@@ -124,7 +142,9 @@ export default function App() {
     setAdmin(loggedInAdmin);
   };
 
-  /* ADMIN LOGOUT */
+  /* =========================
+     ADMIN LOGOUT
+     ========================= */
 
   const handleAdminLogout = () => {
     try {
@@ -141,11 +161,12 @@ export default function App() {
     setAdmin(null);
   };
 
-  /* EXIT ADMIN */
+  /* =========================
+     EXIT ADMIN
+     ========================= */
 
   const handleExitAdmin = () => {
-    window.location.href =
-      window.location.pathname;
+    window.location.href = '/';
   };
 
   /* =========================
@@ -184,7 +205,7 @@ export default function App() {
   }
 
   /* =========================
-     PUBLIC HOME PAGE
+     PUBLIC CUSTOMER HOME
      ========================= */
 
   return (
