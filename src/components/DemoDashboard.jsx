@@ -4,6 +4,7 @@ import DepositPage from './DepositPage';
 import WithdrawalPage from './WithdrawalPage';
 import AccountStatementPage from './AccountStatementPage';
 import BetHistoryPage from './BetHistoryPage';
+import UnsettledBetPage from './UnsettledBetPage';
 
 const sports = [
   { icon: '🏏', name: 'CRICKET' },
@@ -168,6 +169,9 @@ export default function DemoDashboard({
   const [showBetHistory, setShowBetHistory] =
     useState(false);
 
+  const [showUnsettledBet, setShowUnsettledBet] =
+    useState(false);
+
   // CUSTOMER MENU
   const [showCustomerMenu, setShowCustomerMenu] =
     useState(false);
@@ -213,6 +217,11 @@ export default function DemoDashboard({
       return;
     }
 
+    if (item === 'Unsettled Bet') {
+      setShowUnsettledBet(true);
+      return;
+    }
+
     alert(
       `${item} — Demo page will be connected next`
     );
@@ -238,7 +247,7 @@ export default function DemoDashboard({
     );
   }
 
-  // ACCOUNT STATEMENT PAGE
+  // ACCOUNT STATEMENT
   if (showAccountStatement) {
     return (
       <AccountStatementPage
@@ -250,12 +259,22 @@ export default function DemoDashboard({
     );
   }
 
-  // BET HISTORY PAGE
+  // BET HISTORY
   if (showBetHistory) {
     return (
       <BetHistoryPage
         user={user}
         onBack={() => setShowBetHistory(false)}
+      />
+    );
+  }
+
+  // UNSETTLED BET
+  if (showUnsettledBet) {
+    return (
+      <UnsettledBetPage
+        user={user}
+        onBack={() => setShowUnsettledBet(false)}
       />
     );
   }
@@ -369,9 +388,7 @@ export default function DemoDashboard({
 
           <button
             type="button"
-            onClick={() =>
-              setShowDeposit(true)
-            }
+            onClick={() => setShowDeposit(true)}
             className="rounded-md border border-white bg-green-700 py-3 text-sm font-extrabold text-white"
           >
             💰 DEPOSIT
@@ -402,9 +419,7 @@ export default function DemoDashboard({
           <button
             key={tab}
             type="button"
-            onClick={() =>
-              setSelectedTab(tab)
-            }
+            onClick={() => setSelectedTab(tab)}
             className={`shrink-0 border-r border-amber-200/50 px-4 py-3 text-xs font-extrabold ${
               selectedTab === tab
                 ? 'bg-amber-700 text-white'
@@ -498,7 +513,6 @@ export default function DemoDashboard({
               <div className="flex items-start justify-between gap-2">
 
                 <div>
-
                   <h3 className="text-sm font-extrabold text-black">
                     {match.teams}
                   </h3>
@@ -506,7 +520,6 @@ export default function DemoDashboard({
                   <p className="mt-1 text-xs text-red-600">
                     {match.date}
                   </p>
-
                 </div>
 
                 <span className="text-xs text-green-600">
@@ -556,9 +569,7 @@ export default function DemoDashboard({
       {/* GAMES */}
       <div className="bg-white">
 
-        <GameGrid
-          games={featuredGames}
-        />
+        <GameGrid games={featuredGames} />
 
         <GameGrid
           title="NEW LAUNCH"
@@ -586,7 +597,8 @@ export default function DemoDashboard({
 
         <p className="mt-2 text-xs text-gray-500">
           For demonstration and informational
-          purposes only. No real-money transactions.
+          purposes only. No real-money
+          transactions.
         </p>
 
       </footer>
