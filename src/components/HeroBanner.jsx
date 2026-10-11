@@ -1,118 +1,78 @@
 import React from 'react';
 
-export default function HeroBonusCard({ onOpenBonus }) {
+export default function HeroBanner() {
   return (
-    <section className="bg-[#080d16] px-4 pb-5 pt-3 text-white">
-      {/* TITLE ROW */}
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="text-3xl">🎁</span>
+    <section className="relative overflow-hidden bg-[#080d16] px-4 py-8 text-white">
+      {/* BACKGROUND GLOW */}
+      <div className="pointer-events-none absolute -left-16 top-0 h-44 w-44 rounded-full bg-teal-500/10 blur-3xl" />
 
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-400">
-              Exclusive Member
-            </p>
+      <div className="pointer-events-none absolute -right-16 bottom-0 h-44 w-44 rounded-full bg-amber-500/10 blur-3xl" />
 
-            <h2 className="text-xl font-black uppercase leading-tight">
-              BONUS
-            </h2>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={onOpenBonus}
-          className="shrink-0 text-xs font-black text-amber-400 underline underline-offset-4"
-        >
-          View Details →
-        </button>
-      </div>
-
-      {/* SINGLE BONUS CARD */}
-      <button
-        type="button"
-        onClick={onOpenBonus}
-        className="group relative w-full overflow-hidden rounded-[24px] border-2 border-amber-500 bg-[#111a2d] p-[2px] text-left"
-      >
-        {/* MULTI COLOR BORDER EFFECT */}
-        <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 opacity-40" />
-
-        <div className="relative rounded-[21px] bg-[#10192b] px-5 py-5">
-          {/* TOP */}
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <span className="inline-flex rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-400">
-                MEMBER OFFERS
-              </span>
-
-              <h3 className="mt-3 text-xl font-black text-white">
-                Exclusive Member Bonuses
-              </h3>
-
-              <p className="mt-2 text-[12px] leading-5 text-gray-400">
-                Welcome Bonus • Promo Code Bonus • Losing Bonus
-              </p>
-            </div>
-
-            <div className="text-right">
-              <span className="text-3xl">🎁</span>
-            </div>
-          </div>
-
-          {/* BONUS MINI ITEMS */}
-          <div className="mt-5 grid grid-cols-3 gap-2">
-            {/* WELCOME */}
-            <div className="rounded-xl border border-emerald-500/30 bg-black/20 px-2 py-3 text-center">
-              <p className="text-lg font-black text-emerald-400">
-                20%
-              </p>
-
-              <p className="mt-1 text-[8px] font-black uppercase leading-tight text-white">
-                Welcome
-              </p>
-            </div>
-
-            {/* PROMO */}
-            <div className="rounded-xl border border-blue-500/30 bg-black/20 px-2 py-3 text-center">
-              <p className="text-lg font-black text-blue-400">
-                10%
-              </p>
-
-              <p className="mt-1 text-[8px] font-black uppercase leading-tight text-white">
-                Promo Code
-              </p>
-            </div>
-
-            {/* LOSING */}
-            <div className="rounded-xl border border-red-500/30 bg-black/20 px-2 py-3 text-center">
-              <p className="text-lg font-black text-orange-400">
-                10%
-              </p>
-
-              <p className="mt-1 text-[8px] font-black uppercase leading-tight text-white">
-                Losing
-              </p>
-            </div>
-          </div>
-
-          {/* BOTTOM */}
-          <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">
-                TAP TO VIEW ALL BONUS DETAILS
-              </p>
-
-              <p className="mt-1 text-[9px] text-gray-500">
-                Limited period demo offers
-              </p>
-            </div>
-
-            <span className="text-2xl font-black text-amber-400">
-              →
+      {/* CONTENT */}
+      <div className="relative mx-auto max-w-5xl">
+        <div className="rounded-2xl border border-white/10 bg-[#0d1524] px-5 py-7">
+          
+          <div className="inline-flex rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1">
+            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-teal-300">
+              SPORTS • GAMES • ENTERTAINMENT
             </span>
           </div>
+
+          <h1 className="mt-4 text-3xl font-black leading-tight">
+            INDIA&apos;S PREMIER
+            <span className="block text-amber-400">
+              SPORTS &amp; GAMING HUB
+            </span>
+          </h1>
+
+          <p className="mt-3 max-w-xl text-[12px] leading-5 text-gray-400">
+            Premium Sports &amp; Entertainment Demo
+          </p>
+
+          {/* INFO BOXES */}
+          <div className="mt-6 grid grid-cols-3 gap-2">
+            
+            <div className="rounded-xl border border-white/10 bg-black/20 px-2 py-3 text-center">
+              <span className="block text-xl">
+                🏏
+              </span>
+
+              <span className="mt-1 block text-[8px] font-black uppercase text-white">
+                SPORTS
+              </span>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-black/20 px-2 py-3 text-center">
+              <span className="block text-xl">
+                🎮
+              </span>
+
+              <span className="mt-1 block text-[8px] font-black uppercase text-white">
+                GAMES
+              </span>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-black/20 px-2 py-3 text-center">
+              <span className="block text-xl">
+                ⚡
+              </span>
+
+              <span className="mt-1 block text-[8px] font-black uppercase text-white">
+                LIVE
+              </span>
+            </div>
+
+          </div>
+
+          {/* DEMO NOTICE */}
+          <div className="mt-5 border-t border-white/10 pt-4">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">
+              DEMONSTRATION &amp; INFORMATIONAL EXPERIENCE
+            </p>
+          </div>
+
         </div>
-      </button>
+      </div>
     </section>
   );
 }
