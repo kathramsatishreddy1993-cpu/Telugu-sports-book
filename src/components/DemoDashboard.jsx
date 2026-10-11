@@ -45,7 +45,6 @@ const matches = [
   },
 ];
 
-/* REAL IMAGES FROM public/games */
 const featuredGames = [
   {
     name: 'CREED ROOMZ',
@@ -119,41 +118,37 @@ const providers = [
   'KING MIDAS',
 ];
 
-const gameBackgrounds = [
+const placeholderBackgrounds = [
   'from-[#111827] via-[#312e81] to-[#7e22ce]',
   'from-[#172554] via-[#4c1d95] to-[#be185d]',
   'from-[#1e1b4b] via-[#581c87] to-[#4338ca]',
   'from-[#431407] via-[#9a3412] to-[#dc2626]',
 ];
 
-/* REAL IMAGE GRID */
-function FeaturedGameGrid() {
+function FeaturedGamesGrid() {
   return (
-    <section className="mb-1 bg-white">
-      <div className="grid grid-cols-4 gap-[3px] bg-white">
+    <section className="border-t-4 border-[#073c37] bg-[#062f2b]">
+      <div className="grid grid-cols-4 gap-[2px]">
         {featuredGames.map((game) => (
           <button
             key={game.name}
             type="button"
-            onClick={() =>
-              alert(`${game.name} — Demo Preview Only`)
-            }
-            className="min-w-0 overflow-hidden bg-[#064e3b] text-white"
+            className="min-w-0 overflow-hidden bg-[#10251f] text-white"
           >
-            <div className="relative aspect-[1.15/1] w-full overflow-hidden bg-black">
+            <div className="relative aspect-square w-full overflow-hidden bg-black">
               <img
                 src={game.image}
                 alt={game.name}
                 className="h-full w-full object-cover"
               />
 
-              <span className="absolute right-1 top-1 rounded bg-black/60 px-1 py-[2px] text-[6px] font-bold text-white">
+              <span className="absolute right-1 top-1 rounded bg-black/60 px-1 py-[1px] text-[6px] font-bold">
                 DEMO
               </span>
             </div>
 
-            <div className="flex min-h-[29px] items-center justify-center bg-gradient-to-b from-[#8a5105] to-[#07594d] px-1 py-1">
-              <span className="line-clamp-2 text-center text-[8px] font-black uppercase leading-tight sm:text-xs">
+            <div className="flex h-[25px] items-center justify-center bg-gradient-to-b from-[#7c4b0b] to-[#063c34] px-1">
+              <span className="line-clamp-2 text-center text-[7px] font-black uppercase leading-tight">
                 {game.name}
               </span>
             </div>
@@ -164,46 +159,38 @@ function FeaturedGameGrid() {
   );
 }
 
-/* PLACEHOLDER GRID FOR OTHER SECTIONS */
-function GameGrid({ title, games }) {
+function DemoGameGrid({ title, games }) {
   return (
-    <section className="mb-1 bg-white">
-      {title && (
-        <h2 className="bg-[#0b6259] px-4 py-3 text-xl font-black text-white">
-          {title}
-        </h2>
-      )}
+    <section className="border-t border-[#164c46] bg-[#062f2b]">
+      <h2 className="px-3 py-2 text-sm font-black text-white">
+        {title}
+      </h2>
 
-      <div className="grid grid-cols-4 gap-[4px] bg-white">
+      <div className="grid grid-cols-4 gap-[2px]">
         {games.map((game, index) => (
           <button
             key={`${game}-${index}`}
             type="button"
-            onClick={() =>
-              alert(`${game} — Demo Preview Only`)
-            }
-            className="group min-w-0 overflow-hidden bg-[#10251f] text-white"
+            className="min-w-0 overflow-hidden bg-[#10251f] text-white"
           >
             <div
-              className={`relative flex aspect-[0.95/1] items-center justify-center overflow-hidden bg-gradient-to-br ${
-                gameBackgrounds[index % gameBackgrounds.length]
+              className={`relative flex aspect-square items-center justify-center bg-gradient-to-br ${
+                placeholderBackgrounds[
+                  index % placeholderBackgrounds.length
+                ]
               } px-1`}
             >
-              <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-white/5" />
-
-              <div className="absolute -right-6 -top-6 h-16 w-16 rounded-full bg-white/10 blur-xl" />
-
-              <span className="relative z-10 break-words px-1 text-center text-[10px] font-black uppercase leading-tight sm:text-sm">
+              <span className="break-words text-center text-[8px] font-black uppercase leading-tight">
                 {game}
               </span>
 
-              <span className="absolute right-1.5 top-1.5 rounded bg-black/30 px-1 py-[2px] text-[6px] font-bold text-white/80">
+              <span className="absolute right-1 top-1 rounded bg-black/40 px-1 text-[6px]">
                 DEMO
               </span>
             </div>
 
-            <div className="flex min-h-[31px] items-center justify-center bg-gradient-to-b from-[#854d0e] to-[#064e3b] px-1 py-1">
-              <span className="line-clamp-2 break-words text-center text-[8px] font-black uppercase leading-tight sm:text-xs">
+            <div className="flex h-[25px] items-center justify-center bg-gradient-to-b from-[#7c4b0b] to-[#063c34] px-1">
+              <span className="line-clamp-2 text-center text-[7px] font-black uppercase leading-tight">
                 {game}
               </span>
             </div>
@@ -215,47 +202,26 @@ function GameGrid({ title, games }) {
 }
 
 export default function DemoDashboard({ user, onLogout }) {
-  const [selectedSport, setSelectedSport] =
-    useState('CRICKET');
+  const [selectedSport, setSelectedSport] = useState('CRICKET');
+  const [selectedTab, setSelectedTab] = useState('INPLAY');
+  const [matchFilter, setMatchFilter] = useState('LIVE');
 
-  const [selectedTab, setSelectedTab] =
-    useState('INPLAY');
-
-  const [matchFilter, setMatchFilter] =
-    useState('LIVE');
-
-  const [showDeposit, setShowDeposit] =
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [showWithdrawal, setShowWithdrawal] = useState(false);
+  const [showAccountStatement, setShowAccountStatement] =
     useState(false);
-
-  const [showWithdrawal, setShowWithdrawal] =
-    useState(false);
-
-  const [
-    showAccountStatement,
-    setShowAccountStatement,
-  ] = useState(false);
-
-  const [showBetHistory, setShowBetHistory] =
-    useState(false);
-
+  const [showBetHistory, setShowBetHistory] = useState(false);
   const [showUnsettledBet, setShowUnsettledBet] =
     useState(false);
-
-  const [
-    showSetButtonValues,
-    setShowSetButtonValues,
-  ] = useState(false);
-
-  const [
-    showChangePassword,
-    setShowChangePassword,
-  ] = useState(false);
+  const [showSetButtonValues, setShowSetButtonValues] =
+    useState(false);
+  const [showChangePassword, setShowChangePassword] =
+    useState(false);
 
   const [showCustomerMenu, setShowCustomerMenu] =
     useState(false);
 
-  const [selectedMatch, setSelectedMatch] =
-    useState(null);
+  const [selectedMatch, setSelectedMatch] = useState(null);
 
   const [demoBalance] = useState(() => {
     try {
@@ -268,7 +234,6 @@ export default function DemoDashboard({ user, onLogout }) {
           'telugu_sports_demo_balance',
           '10000'
         );
-
         return 10000;
       }
 
@@ -309,7 +274,6 @@ export default function DemoDashboard({ user, onLogout }) {
         top: 0,
         behavior: 'smooth',
       });
-
       return;
     }
 
@@ -339,9 +303,7 @@ export default function DemoDashboard({ user, onLogout }) {
     }
 
     if (item === 'Rule') {
-      alert(
-        'Rule — Demo page will be connected next'
-      );
+      alert('Rule — Demo page will be connected next');
     }
   };
 
@@ -387,7 +349,9 @@ export default function DemoDashboard({ user, onLogout }) {
     return (
       <UnsettledBetPage
         user={user}
-        onBack={() => setShowUnsettledBet(false)}
+        onBack={() =>
+          setShowUnsettledBet(false)
+        }
       />
     );
   }
@@ -425,25 +389,26 @@ export default function DemoDashboard({ user, onLogout }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#eeeeee] text-black">
-      {/* TOP HEADER */}
-      <header className="bg-[#9a5a00] px-3 pb-4 pt-4 text-white">
-        <div className="flex items-start justify-between gap-3">
+    <div className="min-h-screen overflow-x-hidden bg-[#eeeeee] text-black">
+
+      {/* HEADER */}
+      <header className="bg-[#9a5a00] px-3 pb-2 pt-3 text-white">
+        <div className="flex items-start justify-between gap-2">
+
           <div>
-            <h1 className="text-xl font-black text-amber-300">
+            <h1 className="text-lg font-black text-amber-300">
               🏠 TELUGU SPORTS
             </h1>
 
-            <p className="ml-8 mt-1 text-xs font-black tracking-[0.15em]">
+            <p className="ml-7 mt-0.5 text-[10px] font-black tracking-[0.15em]">
               BOOK • DEMO
             </p>
           </div>
 
           <div className="relative text-right">
-            <p className="text-sm font-black text-amber-200">
-              🪙{' '}
-              {demoBalance.toLocaleString('en-IN')}{' '}
-              Demo Coins
+
+            <p className="text-xs font-black text-amber-200">
+              🪙 {demoBalance.toLocaleString('en-IN')} Demo Coins
             </p>
 
             <button
@@ -453,7 +418,7 @@ export default function DemoDashboard({ user, onLogout }) {
                   (value) => !value
                 )
               }
-              className="mt-2 rounded-md border border-amber-300/50 bg-[#7c4800] px-3 py-2 text-sm font-black"
+              className="mt-1 rounded border border-amber-300/50 bg-[#7c4800] px-2 py-1.5 text-xs font-black"
             >
               {user?.name ||
                 user?.identifier ||
@@ -462,38 +427,43 @@ export default function DemoDashboard({ user, onLogout }) {
             </button>
 
             {showCustomerMenu && (
-              <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-lg border border-gray-200 bg-white text-left text-gray-900 shadow-2xl">
-                {customerMenuItems.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() =>
-                      handleCustomerMenu(item)
-                    }
-                    className="block w-full border-b border-gray-100 px-4 py-3 text-left text-xs font-bold hover:bg-gray-100"
-                  >
-                    {item}
-                  </button>
-                ))}
+              <div className="absolute right-0 top-full z-50 mt-1 w-52 overflow-hidden rounded-md border bg-white text-left text-gray-900 shadow-2xl">
+
+                {customerMenuItems.map(
+                  (item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() =>
+                        handleCustomerMenu(item)
+                      }
+                      className="block w-full border-b px-3 py-2 text-left text-[11px] font-bold"
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
 
                 <button
                   type="button"
                   onClick={onLogout}
-                  className="block w-full bg-red-50 px-4 py-3 text-left text-xs font-black text-red-700"
+                  className="block w-full bg-red-50 px-3 py-2 text-left text-[11px] font-black text-red-700"
                 >
                   Logout
                 </button>
+
               </div>
             )}
           </div>
         </div>
 
-        {/* DEPOSIT / WITHDRAWAL */}
-        <div className="mt-5 grid grid-cols-2 gap-3">
+        {/* COMPACT DEPOSIT / WITHDRAWAL */}
+        <div className="mt-3 grid grid-cols-2 gap-2">
+
           <button
             type="button"
             onClick={() => setShowDeposit(true)}
-            className="rounded-lg border border-white bg-green-700 px-2 py-4 text-base font-black text-white shadow"
+            className="h-[46px] rounded-md border border-white bg-green-700 px-2 text-xs font-black text-white shadow"
           >
             💰 DEPOSIT
           </button>
@@ -503,26 +473,36 @@ export default function DemoDashboard({ user, onLogout }) {
             onClick={() =>
               setShowWithdrawal(true)
             }
-            className="rounded-lg border border-white bg-red-700 px-2 py-4 text-base font-black text-white shadow"
+            className="h-[46px] rounded-md border border-white bg-red-700 px-2 text-xs font-black text-white shadow"
           >
             💸 WITHDRAWAL
           </button>
+
         </div>
 
-        <p className="mt-4 text-center text-xs font-black text-amber-100">
+        <p className="mt-2 text-center text-[9px] font-black text-amber-100">
           🏆 OUR EXCHANGE • DREAM BIG WIN BIG 🏆
         </p>
       </header>
 
-      {/* MAIN TABS */}
-      <nav className="overflow-x-auto bg-[#945500] text-white">
-        <div className="flex min-w-max">
+      {/* MAIN NAV - HORIZONTAL SCROLL */}
+      <nav
+        className="w-full overflow-x-auto bg-[#945500] text-white"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-x',
+        }}
+      >
+        <div className="flex w-max min-w-full">
+
           {tabs.map((tab) => (
             <button
               key={tab}
               type="button"
-              onClick={() => setSelectedTab(tab)}
-              className={`border-r border-amber-300/40 px-6 py-4 text-xs font-black ${
+              onClick={() =>
+                setSelectedTab(tab)
+              }
+              className={`shrink-0 border-r border-amber-300/40 px-5 py-2.5 text-[10px] font-black ${
                 selectedTab === tab
                   ? 'bg-[#c35b08]'
                   : ''
@@ -531,12 +511,20 @@ export default function DemoDashboard({ user, onLogout }) {
               {tab}
             </button>
           ))}
+
         </div>
       </nav>
 
-      {/* SPORTS */}
-      <section className="overflow-x-auto bg-[#075249]">
-        <div className="flex min-w-max">
+      {/* SPORTS - COMPACT + HORIZONTAL SCROLL */}
+      <section
+        className="w-full overflow-x-auto bg-[#075249]"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-x',
+        }}
+      >
+        <div className="flex w-max">
+
           {sports.map((sport) => (
             <button
               key={sport.name}
@@ -544,153 +532,38 @@ export default function DemoDashboard({ user, onLogout }) {
               onClick={() =>
                 setSelectedSport(sport.name)
               }
-              className={`min-w-[105px] px-2 py-2 text-center text-white ${
+              className={`w-[88px] shrink-0 px-1 py-1.5 text-center text-white ${
                 selectedSport === sport.name
                   ? 'bg-[#043d38]'
                   : 'bg-[#0b6259]'
               }`}
             >
-              <span className="block text-xl leading-none">
+
+              <span className="block text-lg leading-none">
                 {sport.icon}
               </span>
 
-              <span className="mt-1 block whitespace-nowrap text-[9px] font-black leading-none">
+              <span className="mt-1 block whitespace-nowrap text-[7px] font-black leading-none">
                 {sport.name}
               </span>
+
             </button>
           ))}
+
         </div>
       </section>
 
       {/* FILTER */}
-      <section className="flex items-center justify-between gap-2 border-b bg-white px-3 py-4">
-        <div className="flex gap-2">
-          {[
-            'LIVE',
-            'VIRTUAL',
-            'PREMIUM',
-          ].map((filter) => (
-            <button
-              key={filter}
-              type="button"
-              onClick={() =>
-                setMatchFilter(filter)
-              }
-              className={`rounded-full border px-3 py-2 text-[10px] font-black ${
-                matchFilter === filter
-                  ? 'border-amber-600 bg-amber-50 text-amber-900'
-                  : 'border-gray-300 bg-white text-gray-600'
-              }`}
-            >
-              {filter}
-            </button>
-          ))}
-        </div>
+      <section className="flex items-center justify-between gap-1 border-b bg-white px-2 py-2">
 
-        <span className="text-[10px] font-black">
-          DEMO MATCHES
-        </span>
-      </section>
+        <div className="flex gap-1">
 
-      {/* MATCHES */}
-      <section>
-        {matches.map((match) => (
-          <article
-            key={match.id}
-            className="mb-2 border-b border-gray-300 bg-white p-3 shadow-sm"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="border-b-2 border-teal-700 pb-1 text-base font-black">
-                  {match.teams}
-                </h2>
-
-                <p className="mt-1 text-xs font-semibold text-red-600">
-                  {match.date}
-                </p>
-              </div>
-
+          {['LIVE', 'VIRTUAL', 'PREMIUM'].map(
+            (filter) => (
               <button
+                key={filter}
                 type="button"
                 onClick={() =>
-                  setSelectedMatch(match)
+                  setMatchFilter(filter)
                 }
-                className="rounded-md bg-[#0b766d] px-3 py-2 text-xs font-black text-white"
-              >
-                OPEN ›
-              </button>
-            </div>
-
-            <div className="mt-5 grid grid-cols-3 text-center text-xs font-black">
-              <span>1</span>
-              <span>X</span>
-              <span>2</span>
-            </div>
-
-            <div className="mt-3 grid grid-cols-6 gap-[3px]">
-              {match.odds.map((odd, index) => (
-                <button
-                  key={`${match.id}-${index}`}
-                  type="button"
-                  onClick={() =>
-                    setSelectedMatch(match)
-                  }
-                  className={`min-h-[54px] text-xs font-black ${
-                    index % 2 === 0
-                      ? 'bg-sky-300'
-                      : 'bg-pink-300'
-                  }`}
-                >
-                  {odd}
-                </button>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                setSelectedMatch(match)
-              }
-              className="mt-3 w-full rounded-md border border-teal-700 bg-teal-50 py-3 text-xs font-black text-teal-900"
-            >
-              VIEW MATCH ODDS & FANCY MARKETS ›
-            </button>
-          </article>
-        ))}
-      </section>
-
-      {/* 8 REAL GAME IMAGES */}
-      <FeaturedGameGrid />
-
-      {/* NEW LAUNCH */}
-      <GameGrid
-        title="NEW LAUNCH"
-        games={newLaunch}
-      />
-
-      {/* FAVOURITES */}
-      <GameGrid
-        title="MY FAVOURITES"
-        games={favourites}
-      />
-
-      {/* PROVIDERS */}
-      <GameGrid
-        title="OUR PROVIDERS"
-        games={providers}
-      />
-
-      {/* FOOTER */}
-      <footer className="bg-white px-4 py-14 text-center">
-        <p className="text-lg font-black text-green-700">
-          📕 DEMO WEBSITE
-        </p>
-
-        <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-gray-500">
-          For demonstration and informational
-          purposes only. No real-money transactions.
-        </p>
-      </footer>
-    </div>
-  );
-}
+                className={`rounded-full border px-2.
