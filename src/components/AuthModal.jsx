@@ -3,62 +3,38 @@ import { useState } from 'react';
 const AUTH_KEY = 'telugu_sports_auth_user';
 
 /*
-  IMPORTANT:
-  Replace this with the Admin WhatsApp number.
-
-  Format:
-  Country code + mobile number
-  Do NOT use +, spaces or hyphens.
-
-  Example format only:
-  919876543210
+  Admin WhatsApp Number
+  +91 93468 24432
 */
-const ADMIN_WHATSAPP_NUMBER = '91XXXXXXXXXX';
+const ADMIN_WHATSAPP_NUMBER = '919346824432';
 
 function AuthModal({
   isOpen,
   onClose,
   onLoginSuccess,
 }) {
-  const [isLogin, setIsLogin] =
-    useState(true);
+  const [isLogin, setIsLogin] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const [loading, setLoading] =
-    useState(false);
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
 
-  const [
-    showPassword,
-    setShowPassword,
-  ] = useState(false);
+  const [signupName, setSignupName] = useState('');
+  const [preferredId, setPreferredId] = useState('');
 
-  const [
-    identifier,
-    setIdentifier,
-  ] = useState('');
-
-  const [
-    password,
-    setPassword,
-  ] = useState('');
-
-  const [error, setError] =
-    useState('');
-
-  const [message, setMessage] =
-    useState('');
+  const [error, setError] = useState('');
 
   if (!isOpen) {
     return null;
   }
 
   /* =========================
-     CLOSE MODAL
+     CLOSE
      ========================= */
 
   const closeModal = () => {
     setError('');
-    setMessage('');
-
     onClose?.();
   };
 
@@ -68,7 +44,6 @@ function AuthModal({
 
   const handleDemoLogin = () => {
     setError('');
-    setMessage('');
 
     const demoUser = {
       name: 'Demo User',
@@ -91,52 +66,38 @@ function AuthModal({
 
   /* =========================
      CUSTOMER LOGIN
-
-     Temporary frontend flow.
-
-     Server authentication will
-     be connected later.
      ========================= */
 
   const handleLogin = (event) => {
     event.preventDefault();
 
     setError('');
-    setMessage('');
 
     if (!identifier.trim()) {
-      setError(
-        'Please enter your User ID.'
-      );
+      setError('Please enter your User ID.');
       return;
     }
 
     if (!password) {
-      setError(
-        'Please enter your password.'
-      );
+      setError('Please enter your Password.');
       return;
     }
 
     setLoading(true);
 
     /*
-      IMPORTANT:
+      Temporary demo login.
 
-      At present this keeps the
-      existing demo behaviour.
-
-      Later this section will call
-      the server login API and
-      verify the Admin-created
-      Customer ID + password.
+      Later:
+      Admin-created Customer ID +
+      Password will be verified
+      through the server/database.
     */
 
     setTimeout(() => {
       const user = {
         name: identifier.trim(),
-        identifier:
-          identifier.trim(),
+        identifier: identifier.trim(),
         isAuthenticated: true,
         isDemo: true,
       };
@@ -156,45 +117,96 @@ function AuthModal({
   };
 
   /* =========================
-     WHATSAPP NEW ID REQUEST
+     OPEN ADMIN WHATSAPP
      ========================= */
 
-  const handleWhatsAppSignup = () => {
+  const openAdminWhatsApp = ({
+    requireDetails = false,
+  } = {}) => {
     setError('');
-    setMessage('');
 
-    if (
-      !ADMIN_WHATSAPP_NUMBER ||
-      ADMIN_WHATSAPP_NUMBER.includes(
-        'X'
-      )
-    ) {
+    const cleanName = signupName.trim();
+    const cleanId = preferredId.trim();
+
+    if (requireDetails && !cleanName) {
+      setError('Please enter your Name.');
+      return;
+    }
+
+    if (requireDetails && !cleanId) {
       setError(
-        'Admin WhatsApp number has not been configured yet.'
+        'Please enter your Preferred User ID.'
       );
       return;
     }
 
-    const text =
-      'Hello, I want a new ID. Please create my Telugu Sports Book demo account.';
+    let message = 'Hello, I want a new TSB ID.';
 
-    const whatsappUrl =
+    if (cleanName) {
+      message += `\nName: ${cleanName}`;
+    }
+
+    if (cleanId) {
+      message += `\nPreferred User ID: ${cleanId}`;
+    }
+
+    message +=
+      '\nPlease create my TSB ID and temporary password.';
+
+    const encodedMessage =
+      encodeURIComponent(message);
+
+    /*
+      Try opening WhatsApp app directly.
+    */
+
+    const appLink =
+      `whatsapp://send?phone=${ADMIN_WHATSAPP_NUMBER}` +
+      `&text=${encodedMessage}`;
+
+    /*
+      Browser fallback.
+    */
+
+    const webLink =
       `https://wa.me/${ADMIN_WHATSAPP_NUMBER}` +
-      `?text=${encodeURIComponent(
-        text
-      )}`;
+      `?text=${encodedMessage}`;
 
-    window.open(
-      whatsappUrl,
-      '_blank',
-      'noopener,noreferrer'
-    );
+    /*
+      On Android, WhatsApp should normally
+      open when installed.
+
+      If the direct app link cannot open,
+      browser fallback is attempted.
+    */
+
+    window.location.href = appLink;
+
+    setTimeout(() => {
+      if (
+        document.visibilityState === 'visible'
+      ) {
+        window.location.href = webLink;
+      }
+    }, 1200);
+  };
+
+  /* =========================
+     SIGN UP
+     ========================= */
+
+  const handleSignup = (event) => {
+    event.preventDefault();
+
+    openAdminWhatsApp({
+      requireDetails: true,
+    });
   };
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 px-4">
 
-      <div className="relative w-full max-w-md rounded-2xl border border-teal-900/50 bg-[#060913] p-6 shadow-2xl">
+      <div className="relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-2xl border border-teal-900/50 bg-[#060913] p-6 shadow-2xl">
 
         {/* CLOSE */}
 
@@ -211,25 +223,25 @@ function AuthModal({
 
         <div className="mb-6 text-center">
 
-          <div className="mb-2 text-2xl font-extrabold tracking-wide text-amber-400">
+          <div className="mb-2 text-3xl font-extrabold tracking-wide text-amber-400">
             TSB
           </div>
 
-          <h2 className="text-xl font-bold text-white">
+          <h2 className="text-xl font-black text-white">
             {isLogin
               ? 'Welcome Back'
-              : 'Create New ID'}
+              : 'Sign Up'}
           </h2>
 
-          <p className="mt-1 text-sm text-gray-400">
+          <p className="mt-2 text-sm text-gray-400">
             {isLogin
               ? 'Login with your User ID and Password'
-              : 'Contact Admin on WhatsApp to request your new ID'}
+              : 'Request your new TSB ID'}
           </p>
 
         </div>
 
-        {/* LOGIN / SIGN UP TABS */}
+        {/* TABS */}
 
         <div className="mb-5 flex rounded-lg bg-[#0d111c] p-1">
 
@@ -238,12 +250,11 @@ function AuthModal({
             onClick={() => {
               setIsLogin(true);
               setError('');
-              setMessage('');
             }}
-            className={`flex-1 rounded-md py-2 text-sm font-bold transition ${
+            className={`flex-1 rounded-md py-2.5 text-sm font-bold transition ${
               isLogin
                 ? 'bg-teal-600 text-white'
-                : 'text-gray-400 hover:text-white'
+                : 'text-gray-400'
             }`}
           >
             Log In
@@ -254,12 +265,11 @@ function AuthModal({
             onClick={() => {
               setIsLogin(false);
               setError('');
-              setMessage('');
             }}
-            className={`flex-1 rounded-md py-2 text-sm font-bold transition ${
+            className={`flex-1 rounded-md py-2.5 text-sm font-bold transition ${
               !isLogin
                 ? 'bg-teal-600 text-white'
-                : 'text-gray-400 hover:text-white'
+                : 'text-gray-400'
             }`}
           >
             Sign Up
@@ -268,7 +278,7 @@ function AuthModal({
         </div>
 
         {/* =====================
-            LOGIN
+            LOGIN FORM
             ===================== */}
 
         {isLogin && (
@@ -278,11 +288,9 @@ function AuthModal({
             className="space-y-4"
           >
 
-            {/* USER ID */}
-
             <div>
 
-              <label className="mb-1 block text-xs font-semibold text-gray-300">
+              <label className="mb-2 block text-xs font-bold text-gray-300">
                 User ID
               </label>
 
@@ -296,16 +304,14 @@ function AuthModal({
                 }
                 placeholder="Enter User ID"
                 autoComplete="username"
-                className="w-full rounded-lg border border-gray-800 bg-[#0d111c] px-3 py-2.5 text-sm text-white outline-none focus:border-teal-500"
+                className="h-[52px] w-full rounded-lg border border-gray-800 bg-[#0d111c] px-4 text-sm text-white outline-none focus:border-teal-500"
               />
 
             </div>
 
-            {/* PASSWORD */}
-
             <div>
 
-              <label className="mb-1 block text-xs font-semibold text-gray-300">
+              <label className="mb-2 block text-xs font-bold text-gray-300">
                 Password
               </label>
 
@@ -325,7 +331,7 @@ function AuthModal({
                   }
                   placeholder="Enter Password"
                   autoComplete="current-password"
-                  className="w-full rounded-lg border border-gray-800 bg-[#0d111c] px-3 py-2.5 pr-20 text-sm text-white outline-none focus:border-teal-500"
+                  className="h-[52px] w-full rounded-lg border border-gray-800 bg-[#0d111c] px-4 pr-20 text-sm text-white outline-none focus:border-teal-500"
                 />
 
                 <button
@@ -335,7 +341,7 @@ function AuthModal({
                       (value) => !value
                     )
                   }
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-400 hover:text-white"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400"
                 >
                   {showPassword
                     ? 'Hide'
@@ -346,45 +352,25 @@ function AuthModal({
 
             </div>
 
-            {/* ERROR */}
-
             {error && (
-
-              <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-3 py-2 text-sm text-red-400">
-                {error}
-              </div>
-
+              <ErrorBox text={error} />
             )}
-
-            {/* MESSAGE */}
-
-            {message && (
-
-              <div className="rounded-lg border border-emerald-900/50 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-400">
-                {message}
-              </div>
-
-            )}
-
-            {/* LOGIN */}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 py-2.5 text-sm font-bold uppercase tracking-wider text-black shadow-md transition disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-[52px] w-full rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 text-sm font-black uppercase tracking-wider text-black disabled:opacity-50"
             >
               {loading
                 ? 'Logging In...'
                 : 'Log In'}
             </button>
 
-            {/* DIVIDER */}
-
-            <div className="my-2 flex items-center gap-3">
+            <div className="flex items-center gap-3 py-1">
 
               <div className="h-px flex-1 bg-gray-800" />
 
-              <span className="text-[11px] font-semibold text-gray-500">
+              <span className="text-[11px] font-bold text-gray-500">
                 OR
               </span>
 
@@ -392,15 +378,11 @@ function AuthModal({
 
             </div>
 
-            {/* DEMO LOGIN */}
-
             <button
               type="button"
-              onClick={
-                handleDemoLogin
-              }
+              onClick={handleDemoLogin}
               disabled={loading}
-              className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-bold uppercase tracking-wider text-white shadow-md transition hover:bg-emerald-500 disabled:opacity-50"
+              className="h-[52px] w-full rounded-lg bg-emerald-600 text-sm font-black uppercase tracking-wider text-white disabled:opacity-50"
             >
               Login with Demo ID
             </button>
@@ -410,73 +392,130 @@ function AuthModal({
         )}
 
         {/* =====================
-            SIGN UP / WHATSAPP
+            SIGN UP FORM
             ===================== */}
 
         {!isLogin && (
 
-          <div>
+          <form
+            onSubmit={handleSignup}
+            className="space-y-4"
+          >
 
-            <div className="rounded-xl border border-[#174d48] bg-[#0d111c] p-5 text-center">
+            {/* NAME */}
 
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-600 text-3xl">
-                💬
-              </div>
+            <div>
 
-              <h3 className="mt-4 text-lg font-black text-white">
-                Request New ID
-              </h3>
+              <label className="mb-2 block text-xs font-bold text-gray-300">
+                Name
+              </label>
 
-              <p className="mt-2 text-xs leading-5 text-gray-400">
-                Click the WhatsApp
-                button below and send
-                your new ID request to
-                Admin.
-              </p>
-
-              <div className="mt-4 rounded-lg border border-gray-800 bg-black/20 p-3 text-left">
-
-                <p className="text-[10px] font-bold text-gray-500">
-                  MESSAGE
-                </p>
-
-                <p className="mt-1 text-xs font-semibold text-gray-300">
-                  I want a new ID.
-                </p>
-
-              </div>
-
-              <button
-                type="button"
-                onClick={
-                  handleWhatsAppSignup
+              <input
+                type="text"
+                value={signupName}
+                onChange={(event) =>
+                  setSignupName(
+                    event.target.value
+                  )
                 }
-                className="mt-5 w-full rounded-lg bg-green-600 py-3 text-sm font-black uppercase tracking-wide text-white shadow-lg transition hover:bg-green-500"
-              >
-                💬 Continue with WhatsApp
-              </button>
+                placeholder="Enter your Name"
+                autoComplete="name"
+                className="h-[52px] w-full rounded-lg border border-gray-800 bg-[#0d111c] px-4 text-sm text-white outline-none focus:border-teal-500"
+              />
+
+            </div>
+
+            {/* PREFERRED USER ID */}
+
+            <div>
+
+              <label className="mb-2 block text-xs font-bold text-gray-300">
+                Preferred User ID
+              </label>
+
+              <input
+                type="text"
+                value={preferredId}
+                onChange={(event) =>
+                  setPreferredId(
+                    event.target.value
+                  )
+                }
+                placeholder="Example: satish123"
+                autoComplete="off"
+                className="h-[52px] w-full rounded-lg border border-gray-800 bg-[#0d111c] px-4 text-sm text-white outline-none focus:border-teal-500"
+              />
+
+            </div>
+
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+
+              <p className="text-[10px] leading-5 text-gray-400">
+                Admin will confirm your
+                User ID and provide a
+                temporary password through
+                WhatsApp.
+              </p>
 
             </div>
 
             {error && (
-
-              <div className="mt-4 rounded-lg border border-red-900/50 bg-red-950/30 px-3 py-2 text-sm text-red-400">
-                {error}
-              </div>
-
+              <ErrorBox text={error} />
             )}
 
-            <p className="mt-4 text-center text-[10px] leading-4 text-gray-500">
-              Admin will create your
-              User ID and temporary
-              password.
+            {/* SIGN UP */}
+
+            <button
+              type="submit"
+              className="h-[52px] w-full rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 text-sm font-black uppercase tracking-wider text-black"
+            >
+              SIGN UP
+            </button>
+
+            {/* OR */}
+
+            <div className="flex items-center gap-3 py-1">
+
+              <div className="h-px flex-1 bg-gray-800" />
+
+              <span className="text-[11px] font-bold text-gray-500">
+                OR
+              </span>
+
+              <div className="h-px flex-1 bg-gray-800" />
+
+            </div>
+
+            {/* WHATSAPP CTA */}
+
+            <button
+              type="button"
+              onClick={() =>
+                openAdminWhatsApp({
+                  requireDetails: false,
+                })
+              }
+              className="flex h-[56px] w-full items-center justify-center gap-3 rounded-full bg-[#20c968] px-4 text-sm font-black text-white shadow-lg"
+            >
+
+              <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-lg">
+                ☎
+              </span>
+
+              <span>
+                GET TSB ID NOW
+              </span>
+
+            </button>
+
+            <p className="text-center text-[10px] leading-4 text-gray-500">
+              WhatsApp Admin to request
+              your new TSB ID.
             </p>
 
-          </div>
+          </form>
 
         )}
-
-        {/* FOOTER */}
 
         <p className="mt-5 text-center text-[11px] text-gray-500">
           Demo / informational website only
@@ -484,6 +523,16 @@ function AuthModal({
 
       </div>
 
+    </div>
+  );
+}
+
+function ErrorBox({
+  text,
+}) {
+  return (
+    <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-3 py-2 text-sm text-red-400">
+      {text}
     </div>
   );
 }
