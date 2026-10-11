@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 const BALANCE_KEY = 'telugu_sports_demo_balance';
 const BETS_KEY = 'telugu_sports_demo_bets';
 
-const DEFAULT_BALANCE = 10000;
-
-const quickStakes = [
+const defaultQuickStakes = [
   100,
   200,
   500,
@@ -103,40 +101,39 @@ const demoFancyMarkets = [
   },
 ];
 
-const getSavedBalance = () => {
+function readBalance() {
   try {
-    const savedBalance = localStorage.getItem(
-      BALANCE_KEY
+    const saved = localStorage.getItem(BALANCE_KEY);
+
+    if (saved === null) {
+      localStorage.setItem(BALANCE_KEY, '10000');
+      return 10000;
+    }
+
+    const value = Number(saved);
+
+    if (!Number.isFinite(value)) {
+      localStorage.setItem(BALANCE_KEY, '10000');
+      return 10000;
+    }
+
+    return value;
+  } catch {
+    return 10000;
+  }
+}
+
+function readBets() {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem(BETS_KEY) || '[]'
     );
 
-    if (savedBalance === null) {
-      localStorage.setItem(
-        BALANCE_KEY,
-        String(DEFAULT_BALANCE)
-      );
-
-      return DEFAULT_BALANCE;
-    }
-
-    const numberBalance = Number(savedBalance);
-
-    if (
-      Number.isNaN(numberBalance) ||
-      numberBalance < 0
-    ) {
-      localStorage.setItem(
-        BALANCE_KEY,
-        String(DEFAULT_BALANCE)
-      );
-
-      return DEFAULT_BALANCE;
-    }
-
-    return numberBalance;
-  } catch (error) {
-    return DEFAULT_BALANCE;
+    return Array.isArray(saved) ? saved : [];
+  } catch {
+    return [];
   }
-};
+}
 
 export default function MatchDetailsPage({
   match,
@@ -147,13 +144,16 @@ export default function MatchDetailsPage({
     useState(null);
 
   const [stake, setStake] = useState('');
-
   const [message, setMessage] = useState('');
 
-  const [placed, setPlaced] = useState(false);
-
   const [demoBalance, setDemoBalance] =
-    useState(() => getSavedBalance());
+    useState(() => readBalance());
+
+  const [allBets, setAllBets] =
+    useState(() => readBets());
+
+  const [showMatchedBets, setShowMatchedBets] =
+    useState(false);
 
   const currentMatch = match || {
     id: 1,
@@ -178,6 +178,57 @@ export default function MatchDetailsPage({
     '2.15',
   ];
 
+  useEffect(() => {
+    const refreshData = () => {
+      setDemoBalance(readBalance());
+      setAllBets(readBets());
+    };
+
+    window.addEventListener('focus', refreshData);
+    window.addEventListener(
+      'demo-balance-updated',
+      refreshData
+    );
+    window.addEventListener(
+      'demo-bets-updated',
+      refreshData
+    );
+
+    return () => {
+      window.removeEventListener(
+        'focus',
+        refreshData
+      );
+      window.removeEventListener(
+        'demo-balance-updated',
+        refreshData
+      );
+      window.removeEventListener(
+        'demo-bets-updated',
+        refreshData
+      );
+    };
+  }, []);
+
+  const matchBets = useMemo(() => {
+    return allBets
+      .filter(
+        (bet) =>
+          String(bet.matchId) ===
+          String(currentMatch.id)
+      )
+      .filter(
+        (bet) =>
+          bet.status === 'MATCHED' ||
+          bet.status === 'UNMATCHED'
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() -
+          new Date(a.createdAt).getTime()
+      );
+  }, [allBets, currentMatch.id]);
+
   const openSelection = ({
     market,
     selection,
@@ -193,14 +244,12 @@ export default function MatchDetailsPage({
 
     setStake('');
     setMessage('');
-    setPlaced(false);
   };
 
   const closeBetSlip = () => {
     setSelectedMarket(null);
     setStake('');
     setMessage('');
-    setPlaced(false);
   };
 
   const handleStakeChange = (event) => {
@@ -209,15 +258,10 @@ export default function MatchDetailsPage({
     if (value === '' || /^\d+$/.test(value)) {
       setStake(value);
       setMessage('');
-      setPlaced(false);
     }
   };
 
   const addStake = (amount) => {
-    if (placed) {
-      return;
-    }
-
     const currentStake = Number(stake) || 0;
 
     setStake(
@@ -228,22 +272,31 @@ export default function MatchDetailsPage({
   };
 
   const placeDemoSelection = () => {
-    if (!selectedMarket || placed) {
+    if (!selectedMarket) {
       return;
     }
 
     const amount = Number(stake);
 
-    if (!amount || amount <= 0) {
+    if (!Number.isFinite(amount) || amount <= 0) {
       setMessage(
         'Please enter a valid demo stake.'
       );
       return;
     }
 
-    if (amount > demoBalance) {
+    if (amount > 25000) {
       setMessage(
-        `Insufficient demo coins. Available balance: ${demoBalance.toLocaleString(
+        'Maximum demo stake is 25,000 demo coins.'
+      );
+      return;
+    }
+
+    const currentBalance = readBalance();
+
+    if (amount > currentBalance) {
+      setMessage(
+        `Insufficient demo coins. Available balance: ${currentBalance.toLocaleString(
           'en-IN'
         )}`
       );
@@ -251,71 +304,79 @@ export default function MatchDetailsPage({
     }
 
     const newBalance =
-      demoBalance - amount;
+      currentBalance - amount;
 
-    const demoBet = {
-      id: Date.now(),
+    const newBet = {
+      id: `demo-bet-${Date.now()}`,
       matchId: currentMatch.id,
-      match: currentMatch.teams,
+      matchName: currentMatch.teams,
+      matchDate: currentMatch.date,
+
       sport: 'CRICKET',
+
       market: selectedMarket.market,
       selection: selectedMarket.selection,
-      rate: selectedMarket.rate,
       type: selectedMarket.type,
+      rate: selectedMarket.rate,
+
       stake: amount,
+
       status: 'MATCHED',
       result: 'PENDING',
+
       profitLoss: 0,
-      balanceAfterBet: newBalance,
+
+      balanceBefore: currentBalance,
+      balanceAfter: newBalance,
+
+      userName:
+        user?.name ||
+        user?.identifier ||
+        'Demo User',
+
       createdAt: new Date().toISOString(),
     };
 
-    try {
-      let oldBets = [];
+    const previousBets = readBets();
 
-      const savedBets =
-        localStorage.getItem(BETS_KEY);
+    const updatedBets = [
+      newBet,
+      ...previousBets,
+    ];
 
-      if (savedBets) {
-        const parsedBets =
-          JSON.parse(savedBets);
+    localStorage.setItem(
+      BALANCE_KEY,
+      String(newBalance)
+    );
 
-        if (Array.isArray(parsedBets)) {
-          oldBets = parsedBets;
-        }
-      }
+    localStorage.setItem(
+      BETS_KEY,
+      JSON.stringify(updatedBets)
+    );
 
-      const updatedBets = [
-        demoBet,
-        ...oldBets,
-      ];
+    setDemoBalance(newBalance);
+    setAllBets(updatedBets);
 
-      localStorage.setItem(
-        BETS_KEY,
-        JSON.stringify(updatedBets)
-      );
+    window.dispatchEvent(
+      new Event('demo-balance-updated')
+    );
 
-      localStorage.setItem(
-        BALANCE_KEY,
-        String(newBalance)
-      );
+    window.dispatchEvent(
+      new Event('demo-bets-updated')
+    );
 
-      setDemoBalance(newBalance);
+    setMessage(
+      `Demo bet placed successfully • ${amount.toLocaleString(
+        'en-IN'
+      )} demo coins deducted`
+    );
 
-      setPlaced(true);
-
-      setMessage(
-        `✓ Demo bet placed successfully. ${amount.toLocaleString(
-          'en-IN'
-        )} demo coins deducted. Balance: ${newBalance.toLocaleString(
-          'en-IN'
-        )}`
-      );
-    } catch (error) {
-      setMessage(
-        'Demo bet could not be saved. Please try again.'
-      );
-    }
+    setTimeout(() => {
+      setSelectedMarket(null);
+      setStake('');
+      setMessage('');
+      setShowMatchedBets(true);
+    }, 700);
   };
 
   return (
@@ -323,7 +384,6 @@ export default function MatchDetailsPage({
 
       {/* HEADER */}
       <header className="sticky top-0 z-40 bg-[#063f39] text-white shadow-lg">
-
         <div className="flex min-h-[64px] items-center justify-between gap-2 px-3">
 
           <button
@@ -335,7 +395,6 @@ export default function MatchDetailsPage({
           </button>
 
           <div className="min-w-0 flex-1 text-center">
-
             <p className="truncate text-sm font-black text-amber-400">
               TELUGU SPORTS BOOK
             </p>
@@ -343,457 +402,542 @@ export default function MatchDetailsPage({
             <p className="text-[9px] font-bold tracking-[0.25em] text-teal-100">
               • DEMO •
             </p>
-
           </div>
 
           <div className="text-right">
-
-            <p className="whitespace-nowrap text-[11px] font-black text-amber-300">
+            <p className="text-xs font-black text-amber-300">
               🪙{' '}
               {demoBalance.toLocaleString(
                 'en-IN'
               )}
             </p>
 
-            <p className="max-w-[90px] truncate text-[10px] font-bold text-white">
+            <p className="mt-1 max-w-[85px] truncate text-[10px] font-bold">
               {user?.name ||
                 user?.identifier ||
                 'Demo User'}
             </p>
-
           </div>
 
         </div>
-
       </header>
 
-      {/* MATCH TITLE */}
-      <section className="bg-white px-3 py-4 shadow-sm">
-
-        <p className="text-[10px] font-black uppercase tracking-wide text-red-600">
-          ● DEMO MATCH
-        </p>
-
-        <h1 className="mt-1 text-xl font-black text-gray-900">
-          {currentMatch.teams}
-        </h1>
-
-        <p className="mt-1 text-xs font-semibold text-gray-500">
-          {currentMatch.date}
-        </p>
-
-      </section>
-
-      {/* DEMO BALANCE */}
-      <section className="border-t border-teal-700 bg-[#075249] px-3 py-3 text-white">
-
-        <div className="flex items-center justify-between">
-
-          <div>
-            <p className="text-[10px] font-bold uppercase text-teal-100">
-              Available Demo Balance
-            </p>
-
-            <p className="mt-1 text-xl font-black text-amber-300">
-              🪙{' '}
-              {demoBalance.toLocaleString(
-                'en-IN'
-              )}{' '}
-              Demo Coins
-            </p>
-          </div>
-
-          <span className="rounded bg-black/20 px-2 py-1 text-[9px] font-black">
-            DEMO
-          </span>
-
-        </div>
-
-      </section>
-
-      {/* DEMO SCORE */}
-      <section className="mt-2 bg-[#082f2c] px-3 py-4 text-white">
-
-        <div className="flex items-center justify-between">
-
-          <div>
-
-            <p className="text-xs font-bold text-teal-200">
-              DEMO LIVE SCORE
-            </p>
-
-            <p className="mt-1 text-lg font-black">
-              India 82/2
-            </p>
-
-            <p className="text-xs text-gray-300">
-              9.4 Overs
-            </p>
-
-          </div>
-
-          <div className="text-right">
-
-            <p className="text-xs text-teal-200">
-              Current Run Rate
-            </p>
-
-            <p className="text-xl font-black text-amber-400">
-              8.48
-            </p>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* CURRENT BATSMEN */}
-      <section className="mt-2 bg-white">
-
-        <div className="bg-[#0b6259] px-3 py-2 text-sm font-black text-white">
-          CURRENT BATSMEN • DEMO
-        </div>
-
-        <div className="grid grid-cols-2 gap-[1px] bg-gray-200">
-
-          <div className="bg-white p-3">
-
-            <p className="text-xs font-bold text-gray-500">
-              BATSMAN
-            </p>
-
-            <p className="mt-1 text-sm font-black">
-              R. Sharma *
-            </p>
-
-            <p className="mt-1 text-xs">
-              34 Runs • 21 Balls
-            </p>
-
-          </div>
-
-          <div className="bg-white p-3">
-
-            <p className="text-xs font-bold text-gray-500">
-              BATSMAN
-            </p>
-
-            <p className="mt-1 text-sm font-black">
-              V. Kohli
-            </p>
-
-            <p className="mt-1 text-xs">
-              21 Runs • 16 Balls
-            </p>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* MATCH ODDS */}
-      <section className="mt-2 bg-white">
-
-        <div className="flex items-center justify-between bg-[#0b6259] px-3 py-2 text-white">
-
-          <h2 className="text-sm font-black">
-            MATCH ODDS
-          </h2>
-
-          <span className="text-[10px] font-bold">
-            DEMO
-          </span>
-
-        </div>
-
-        <div className="grid grid-cols-[1fr_72px_72px] border-b bg-gray-100 px-2 py-2 text-center text-[10px] font-black text-gray-600">
-
-          <span className="text-left">
-            SELECTION
-          </span>
-
-          <span>BACK</span>
-          <span>LAY</span>
-
-        </div>
-
-        {/* INDIA */}
-        <div className="grid grid-cols-[1fr_72px_72px] items-center gap-[2px] border-b p-2">
-
-          <span className="text-sm font-black">
-            India
-          </span>
-
-          <button
-            type="button"
-            onClick={() =>
-              openSelection({
-                market: 'Match Odds',
-                selection: 'India',
-                rate: odds[0],
-                type: 'BACK',
-              })
-            }
-            className="min-h-12 bg-sky-300 text-sm font-black"
-          >
-            {odds[0]}
-
-            <span className="block text-[8px]">
-              BACK
-            </span>
-
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              openSelection({
-                market: 'Match Odds',
-                selection: 'India',
-                rate: odds[1],
-                type: 'LAY',
-              })
-            }
-            className="min-h-12 bg-pink-300 text-sm font-black"
-          >
-            {odds[1]}
-
-            <span className="block text-[8px]">
-              LAY
-            </span>
-
-          </button>
-
-        </div>
-
-        {/* DRAW */}
-        <div className="grid grid-cols-[1fr_72px_72px] items-center gap-[2px] border-b p-2">
-
-          <span className="text-sm font-black">
-            Draw
-          </span>
-
-          <button
-            type="button"
-            onClick={() =>
-              openSelection({
-                market: 'Match Odds',
-                selection: 'Draw',
-                rate: odds[2],
-                type: 'BACK',
-              })
-            }
-            className="min-h-12 bg-sky-300 text-sm font-black"
-          >
-            {odds[2]}
-
-            <span className="block text-[8px]">
-              BACK
-            </span>
-
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              openSelection({
-                market: 'Match Odds',
-                selection: 'Draw',
-                rate: odds[3],
-                type: 'LAY',
-              })
-            }
-            className="min-h-12 bg-pink-300 text-sm font-black"
-          >
-            {odds[3]}
-
-            <span className="block text-[8px]">
-              LAY
-            </span>
-
-          </button>
-
-        </div>
-
-        {/* AUSTRALIA */}
-        <div className="grid grid-cols-[1fr_72px_72px] items-center gap-[2px] p-2">
-
-          <span className="text-sm font-black">
-            Australia
-          </span>
-
-          <button
-            type="button"
-            onClick={() =>
-              openSelection({
-                market: 'Match Odds',
-                selection: 'Australia',
-                rate: odds[4],
-                type: 'BACK',
-              })
-            }
-            className="min-h-12 bg-sky-300 text-sm font-black"
-          >
-            {odds[4]}
-
-            <span className="block text-[8px]">
-              BACK
-            </span>
-
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              openSelection({
-                market: 'Match Odds',
-                selection: 'Australia',
-                rate: odds[5],
-                type: 'LAY',
-              })
-            }
-            className="min-h-12 bg-pink-300 text-sm font-black"
-          >
-            {odds[5]}
-
-            <span className="block text-[8px]">
-              LAY
-            </span>
-
-          </button>
-
-        </div>
-
-      </section>
-
-      {/* FANCY MARKET */}
-      <section className="mt-2 bg-white pb-3">
-
-        <div className="flex items-center justify-between bg-[#0b6259] px-3 py-3 text-white">
-
-          <div>
-
-            <h2 className="text-base font-black">
-              FANCY MARKET
+      {/* ODDS / MATCHED BET BAR */}
+      <div className="sticky top-[64px] z-30 flex bg-[#9a5a00] text-white shadow">
+
+        <button
+          type="button"
+          onClick={() =>
+            setShowMatchedBets(false)
+          }
+          className={`flex-1 border-r border-amber-200/40 px-3 py-3 text-xs font-black ${
+            !showMatchedBets
+              ? 'bg-[#7a4700]'
+              : ''
+          }`}
+        >
+          ODDS
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
+            setShowMatchedBets(true)
+          }
+          className={`flex-[2] px-3 py-3 text-left text-xs font-black ${
+            showMatchedBets
+              ? 'bg-[#7a4700]'
+              : ''
+          }`}
+        >
+          MATCHED BET ({matchBets.length})
+        </button>
+
+      </div>
+
+      {/* MATCHED BET VIEW */}
+      {showMatchedBets ? (
+        <section className="bg-[#eeeeee] pb-8">
+
+          <div className="bg-[#0b6259] px-3 py-3 text-white">
+            <h2 className="text-sm font-black">
+              MATCHED DEMO BETS
             </h2>
 
-            <p className="text-[9px] text-teal-100">
-              Demo Sessions
+            <p className="mt-1 text-[10px] text-teal-100">
+              {currentMatch.teams}
             </p>
-
           </div>
 
-          <span className="rounded bg-amber-400 px-2 py-1 text-[9px] font-black text-black">
-            DEMO
-          </span>
+          {matchBets.length === 0 ? (
+            <div className="m-3 rounded-lg bg-white p-8 text-center shadow">
+              <p className="text-4xl">
+                📋
+              </p>
 
-        </div>
+              <p className="mt-3 text-base font-black text-gray-800">
+                No Matched Bets
+              </p>
 
-        <div className="grid grid-cols-[1fr_78px_78px] bg-gray-100 px-2 py-2 text-center text-[10px] font-black">
+              <p className="mt-2 text-xs leading-5 text-gray-500">
+                Place a demo selection from the
+                Odds or Fancy Market.
+              </p>
 
-          <span className="text-left">
-            MARKET
-          </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setShowMatchedBets(false)
+                }
+                className="mt-5 rounded-md bg-[#075249] px-6 py-3 text-xs font-black text-white"
+              >
+                VIEW ODDS
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3 p-3">
 
-          <span className="text-pink-700">
-            NO
-          </span>
+              {matchBets.map((bet) => (
+                <div
+                  key={bet.id}
+                  className="overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm"
+                >
 
-          <span className="text-sky-700">
-            YES
-          </span>
+                  <div className="flex items-center justify-between bg-[#0b6259] px-3 py-2 text-white">
+                    <p className="text-xs font-black">
+                      {bet.market}
+                    </p>
 
-        </div>
+                    <span className="rounded bg-green-100 px-2 py-1 text-[9px] font-black text-green-800">
+                      {bet.status}
+                    </span>
+                  </div>
 
-        {demoFancyMarkets.map((market) => (
-          <div
-            key={market.id}
-            className="grid grid-cols-[1fr_78px_78px] items-stretch gap-[2px] border-b border-gray-200 p-2"
+                  <div className="p-3">
+
+                    <p className="text-xs font-black text-gray-900">
+                      {bet.matchName}
+                    </p>
+
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+
+                      <div className="rounded bg-gray-100 p-2">
+                        <p className="text-[9px] font-bold text-gray-500">
+                          SELECTION
+                        </p>
+
+                        <p className="mt-1 text-sm font-black">
+                          {bet.selection}
+                        </p>
+                      </div>
+
+                      <div className="rounded bg-sky-100 p-2">
+                        <p className="text-[9px] font-bold text-gray-500">
+                          RATE
+                        </p>
+
+                        <p className="mt-1 text-sm font-black">
+                          {bet.rate}
+                        </p>
+                      </div>
+
+                      <div className="rounded bg-amber-100 p-2">
+                        <p className="text-[9px] font-bold text-gray-500">
+                          STAKE
+                        </p>
+
+                        <p className="mt-1 text-sm font-black">
+                          {Number(
+                            bet.stake
+                          ).toLocaleString(
+                            'en-IN'
+                          )}
+                        </p>
+                      </div>
+
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between border-t pt-2">
+                      <span className="text-[10px] font-semibold text-gray-500">
+                        {new Date(
+                          bet.createdAt
+                        ).toLocaleString(
+                          'en-IN'
+                        )}
+                      </span>
+
+                      <span className="text-[10px] font-black text-amber-700">
+                        PENDING
+                      </span>
+                    </div>
+
+                  </div>
+                </div>
+              ))}
+
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() =>
+              setShowMatchedBets(false)
+            }
+            className="mx-3 w-[calc(100%-24px)] rounded-md bg-[#075249] py-3 text-sm font-black text-white"
           >
+            ← BACK TO ODDS
+          </button>
 
-            <div className="flex min-w-0 flex-col justify-center pr-2">
+        </section>
+      ) : (
+        <>
+          {/* MATCH TITLE */}
+          <section className="bg-white px-3 py-4 shadow-sm">
 
-              <p className="break-words text-[13px] font-black text-gray-900">
-                {market.title}
+            <p className="text-[10px] font-black uppercase tracking-wide text-red-600">
+              ● DEMO MATCH
+            </p>
+
+            <h1 className="mt-1 text-xl font-black text-gray-900">
+              {currentMatch.teams}
+            </h1>
+
+            <p className="mt-1 text-xs font-semibold text-gray-500">
+              {currentMatch.date}
+            </p>
+
+          </section>
+
+          {/* BALANCE */}
+          <section className="mt-2 bg-[#0b6259] px-3 py-4 text-white">
+
+            <p className="text-[10px] font-bold text-teal-100">
+              AVAILABLE DEMO BALANCE
+            </p>
+
+            <div className="mt-2 flex items-center justify-between">
+
+              <p className="text-xl font-black text-amber-300">
+                🪙{' '}
+                {demoBalance.toLocaleString(
+                  'en-IN'
+                )}{' '}
+                Demo Coins
               </p>
 
-              <p className="mt-1 text-[9px] font-semibold text-gray-500">
-                {market.subtitle}
-              </p>
+              <span className="rounded bg-[#06443e] px-2 py-1 text-[9px] font-black">
+                DEMO
+              </span>
+
+            </div>
+          </section>
+
+          {/* SCORE */}
+          <section className="mt-2 bg-[#082f2c] px-3 py-4 text-white">
+
+            <div className="flex items-center justify-between">
+
+              <div>
+                <p className="text-xs font-bold text-teal-200">
+                  DEMO LIVE SCORE
+                </p>
+
+                <p className="mt-1 text-lg font-black">
+                  India 82/2
+                </p>
+
+                <p className="text-xs text-gray-300">
+                  9.4 Overs
+                </p>
+              </div>
+
+              <div className="text-right">
+
+                <p className="text-xs text-teal-200">
+                  Current Run Rate
+                </p>
+
+                <p className="text-xl font-black text-amber-400">
+                  8.48
+                </p>
+
+              </div>
 
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                openSelection({
-                  market: market.title,
-                  selection: 'NO',
-                  rate: market.no,
-                  type: 'FANCY',
-                })
-              }
-              className="min-h-[58px] rounded-sm bg-pink-300 px-1 text-center text-black"
-            >
+          </section>
 
-              <span className="block text-base font-black">
-                {market.no}
+          {/* BATSMEN */}
+          <section className="mt-2 bg-white">
+
+            <div className="bg-[#0b6259] px-3 py-2 text-sm font-black text-white">
+              CURRENT BATSMEN • DEMO
+            </div>
+
+            <div className="grid grid-cols-2 gap-[1px] bg-gray-200">
+
+              <div className="bg-white p-3">
+                <p className="text-xs font-bold text-gray-500">
+                  BATSMAN
+                </p>
+
+                <p className="mt-1 text-sm font-black">
+                  R. Sharma *
+                </p>
+
+                <p className="mt-1 text-xs">
+                  34 Runs • 21 Balls
+                </p>
+              </div>
+
+              <div className="bg-white p-3">
+                <p className="text-xs font-bold text-gray-500">
+                  BATSMAN
+                </p>
+
+                <p className="mt-1 text-sm font-black">
+                  V. Kohli
+                </p>
+
+                <p className="mt-1 text-xs">
+                  21 Runs • 16 Balls
+                </p>
+              </div>
+
+            </div>
+
+          </section>
+
+          {/* MATCH ODDS */}
+          <section className="mt-2 bg-white">
+
+            <div className="flex items-center justify-between bg-[#0b6259] px-3 py-2 text-white">
+
+              <h2 className="text-sm font-black">
+                MATCH ODDS
+              </h2>
+
+              <span className="text-[10px] font-bold">
+                DEMO
               </span>
 
-              <span className="block text-[9px] font-bold">
+            </div>
+
+            <div className="grid grid-cols-[1fr_72px_72px] border-b bg-gray-100 px-2 py-2 text-center text-[10px] font-black text-gray-600">
+              <span className="text-left">
+                SELECTION
+              </span>
+
+              <span>BACK</span>
+              <span>LAY</span>
+            </div>
+
+            {[
+              {
+                name: 'India',
+                back: odds[0],
+                lay: odds[1],
+              },
+              {
+                name: 'Draw',
+                back: odds[2],
+                lay: odds[3],
+              },
+              {
+                name: 'Australia',
+                back: odds[4],
+                lay: odds[5],
+              },
+            ].map((team) => (
+              <div
+                key={team.name}
+                className="grid grid-cols-[1fr_72px_72px] items-center gap-[2px] border-b p-2"
+              >
+
+                <span className="text-sm font-black">
+                  {team.name}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    openSelection({
+                      market:
+                        'Match Odds',
+                      selection:
+                        team.name,
+                      rate:
+                        team.back,
+                      type: 'BACK',
+                    })
+                  }
+                  className="min-h-12 bg-sky-300 text-sm font-black"
+                >
+                  {team.back}
+
+                  <span className="block text-[8px]">
+                    BACK
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    openSelection({
+                      market:
+                        'Match Odds',
+                      selection:
+                        team.name,
+                      rate:
+                        team.lay,
+                      type: 'LAY',
+                    })
+                  }
+                  className="min-h-12 bg-pink-300 text-sm font-black"
+                >
+                  {team.lay}
+
+                  <span className="block text-[8px]">
+                    LAY
+                  </span>
+                </button>
+
+              </div>
+            ))}
+
+          </section>
+
+          {/* FANCY */}
+          <section className="mt-2 bg-white pb-3">
+
+            <div className="flex items-center justify-between bg-[#0b6259] px-3 py-3 text-white">
+
+              <div>
+                <h2 className="text-base font-black">
+                  FANCY MARKET
+                </h2>
+
+                <p className="text-[9px] text-teal-100">
+                  Demo Sessions
+                </p>
+              </div>
+
+              <span className="rounded bg-amber-400 px-2 py-1 text-[9px] font-black text-black">
+                DEMO
+              </span>
+
+            </div>
+
+            <div className="grid grid-cols-[1fr_78px_78px] bg-gray-100 px-2 py-2 text-center text-[10px] font-black">
+
+              <span className="text-left">
+                MARKET
+              </span>
+
+              <span className="text-pink-700">
                 NO
               </span>
 
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                openSelection({
-                  market: market.title,
-                  selection: 'YES',
-                  rate: market.yes,
-                  type: 'FANCY',
-                })
-              }
-              className="min-h-[58px] rounded-sm bg-sky-300 px-1 text-center text-black"
-            >
-
-              <span className="block text-base font-black">
-                {market.yes}
-              </span>
-
-              <span className="block text-[9px] font-bold">
+              <span className="text-sky-700">
                 YES
               </span>
 
-            </button>
+            </div>
 
-          </div>
-        ))}
+            {demoFancyMarkets.map(
+              (market) => (
+                <div
+                  key={market.id}
+                  className="grid grid-cols-[1fr_78px_78px] items-stretch gap-[2px] border-b border-gray-200 p-2"
+                >
 
-      </section>
+                  <div className="flex min-w-0 flex-col justify-center pr-2">
 
-      {/* DEMO NOTICE */}
-      <section className="m-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                    <p className="break-words text-[13px] font-black">
+                      {market.title}
+                    </p>
 
-        <p className="text-[11px] font-bold leading-5 text-amber-900">
-          DEMO ONLY — Score, players, odds and fancy
-          values are simulated examples for interface
-          testing. No real-money transactions.
-        </p>
+                    <p className="mt-1 text-[9px] font-semibold text-gray-500">
+                      {market.subtitle}
+                    </p>
 
-      </section>
+                  </div>
 
-      <button
-        type="button"
-        onClick={onBack}
-        className="mx-3 mb-8 w-[calc(100%-24px)] rounded-md bg-[#064c45] py-3 text-sm font-black text-white"
-      >
-        ← BACK TO MATCHES
-      </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openSelection({
+                        market:
+                          market.title,
+                        selection:
+                          'NO',
+                        rate:
+                          market.no,
+                        type:
+                          'FANCY',
+                      })
+                    }
+                    className="min-h-[58px] bg-pink-300 px-1"
+                  >
+                    <span className="block text-base font-black">
+                      {market.no}
+                    </span>
+
+                    <span className="block text-[9px] font-bold">
+                      NO
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openSelection({
+                        market:
+                          market.title,
+                        selection:
+                          'YES',
+                        rate:
+                          market.yes,
+                        type:
+                          'FANCY',
+                      })
+                    }
+                    className="min-h-[58px] bg-sky-300 px-1"
+                  >
+                    <span className="block text-base font-black">
+                      {market.yes}
+                    </span>
+
+                    <span className="block text-[9px] font-bold">
+                      YES
+                    </span>
+                  </button>
+
+                </div>
+              )
+            )}
+
+          </section>
+
+          <section className="m-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
+            <p className="text-[11px] font-bold leading-5 text-amber-900">
+              DEMO ONLY — Scores, odds,
+              selections and demo coins are
+              simulated for interface testing.
+              No real-money transactions or
+              payouts.
+            </p>
+          </section>
+
+          <button
+            type="button"
+            onClick={onBack}
+            className="mx-3 mb-8 w-[calc(100%-24px)] rounded-md bg-[#064c45] py-3 text-sm font-black text-white"
+          >
+            ← BACK TO MATCHES
+          </button>
+        </>
+      )}
 
       {/* BET SLIP */}
       {selectedMarket && (
@@ -803,7 +947,8 @@ export default function MatchDetailsPage({
 
             <div
               className={`flex items-center justify-between px-4 py-3 ${
-                selectedMarket.selection === 'NO' ||
+                selectedMarket.selection ===
+                  'NO' ||
                 selectedMarket.type === 'LAY'
                   ? 'bg-pink-300'
                   : 'bg-sky-300'
@@ -811,24 +956,22 @@ export default function MatchDetailsPage({
             >
 
               <div>
-
                 <p className="text-sm font-black">
                   DEMO BET SLIP
                 </p>
 
                 <p className="text-[10px] font-bold">
-                  Available 🪙{' '}
+                  Available: 🪙{' '}
                   {demoBalance.toLocaleString(
                     'en-IN'
                   )}
                 </p>
-
               </div>
 
               <button
                 type="button"
                 onClick={closeBetSlip}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-black/20 text-xl font-black"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-black/20 text-xl font-black"
               >
                 ×
               </button>
@@ -882,51 +1025,39 @@ export default function MatchDetailsPage({
                 inputMode="numeric"
                 value={stake}
                 onChange={handleStakeChange}
-                disabled={placed}
                 placeholder="Enter demo coins"
-                className="mt-2 w-full rounded-md border-2 border-gray-300 px-3 py-3 text-lg font-black outline-none focus:border-teal-700 disabled:bg-gray-100"
+                className="mt-2 w-full rounded-md border-2 border-gray-300 px-3 py-3 text-lg font-black outline-none focus:border-teal-700"
               />
 
               <div className="mt-3 grid grid-cols-4 gap-2">
 
-                {quickStakes.map((amount) => (
-                  <button
-                    key={amount}
-                    type="button"
-                    disabled={placed}
-                    onClick={() =>
-                      addStake(amount)
-                    }
-                    className="rounded-md bg-gray-200 py-2 text-[11px] font-black disabled:opacity-50"
-                  >
-                    +
-                    {amount.toLocaleString(
-                      'en-IN'
-                    )}
-                  </button>
-                ))}
+                {defaultQuickStakes.map(
+                  (amount) => (
+                    <button
+                      key={amount}
+                      type="button"
+                      onClick={() =>
+                        addStake(
+                          amount
+                        )
+                      }
+                      className="rounded-md bg-gray-200 py-2 text-[11px] font-black"
+                    >
+                      +
+                      {amount.toLocaleString(
+                        'en-IN'
+                      )}
+                    </button>
+                  )
+                )}
 
               </div>
 
               {message && (
-                <div
-                  className={`mt-4 rounded-md border p-3 ${
-                    placed
-                      ? 'border-green-300 bg-green-50'
-                      : 'border-amber-300 bg-amber-50'
-                  }`}
-                >
-
-                  <p
-                    className={`text-xs font-bold leading-5 ${
-                      placed
-                        ? 'text-green-800'
-                        : 'text-amber-900'
-                    }`}
-                  >
+                <div className="mt-4 rounded-md border border-teal-200 bg-teal-50 p-3">
+                  <p className="text-xs font-bold leading-5 text-teal-900">
                     {message}
                   </p>
-
                 </div>
               )}
 
@@ -937,31 +1068,25 @@ export default function MatchDetailsPage({
                   onClick={closeBetSlip}
                   className="rounded-md border border-gray-400 py-3 text-sm font-black"
                 >
-                  {placed
-                    ? 'CLOSE'
-                    : 'CANCEL'}
+                  CANCEL
                 </button>
 
                 <button
                   type="button"
-                  onClick={placeDemoSelection}
-                  disabled={placed}
-                  className={`rounded-md py-3 text-sm font-black text-white ${
-                    placed
-                      ? 'bg-green-600'
-                      : 'bg-[#075249]'
-                  }`}
+                  onClick={
+                    placeDemoSelection
+                  }
+                  className="rounded-md bg-[#075249] py-3 text-sm font-black text-white"
                 >
-                  {placed
-                    ? '✓ DEMO BET PLACED'
-                    : 'PLACE DEMO BET'}
+                  PLACE DEMO BET
                 </button>
 
               </div>
 
               <p className="mt-4 text-center text-[10px] font-semibold leading-4 text-gray-500">
                 Simulated demo coins only.
-                No real-money betting or payouts.
+                No real-money betting or
+                payouts.
               </p>
 
             </div>
