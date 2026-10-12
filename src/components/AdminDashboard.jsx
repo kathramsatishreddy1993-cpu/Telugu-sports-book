@@ -1,10 +1,19 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 import AdminPaymentSettings from './AdminPaymentSettings';
 
-const DEPOSIT_KEY = 'telugu_sports_demo_deposits';
-const WITHDRAWAL_KEY = 'telugu_sports_demo_withdrawals';
-const CUSTOMER_BALANCE_KEY = 'telugu_sports_demo_balance';
+const DEPOSIT_KEY =
+  'telugu_sports_demo_deposits';
+
+const WITHDRAWAL_KEY =
+  'telugu_sports_demo_withdrawals';
+
+const CUSTOMER_BALANCE_KEY =
+  'telugu_sports_demo_balance';
 
 export default function AdminDashboard({
   admin,
@@ -15,9 +24,16 @@ export default function AdminDashboard({
 
   const [depositRequests] = useState(() => {
     try {
-      const saved = localStorage.getItem(DEPOSIT_KEY);
-      const parsed = saved ? JSON.parse(saved) : [];
-      return Array.isArray(parsed) ? parsed : [];
+      const saved =
+        localStorage.getItem(DEPOSIT_KEY);
+
+      const parsed = saved
+        ? JSON.parse(saved)
+        : [];
+
+      return Array.isArray(parsed)
+        ? parsed
+        : [];
     } catch {
       return [];
     }
@@ -29,7 +45,9 @@ export default function AdminDashboard({
   ] = useState(() => {
     try {
       const saved =
-        localStorage.getItem(WITHDRAWAL_KEY);
+        localStorage.getItem(
+          WITHDRAWAL_KEY
+        );
 
       const parsed = saved
         ? JSON.parse(saved)
@@ -44,7 +62,7 @@ export default function AdminDashboard({
   });
 
   /* =====================================================
-     CUSTOMER STATE
+     CUSTOMER DATABASE STATE
   ===================================================== */
 
   const [customers, setCustomers] =
@@ -83,26 +101,6 @@ export default function AdminDashboard({
     setCustomerError,
   ] = useState('');
 
-  const [
-    resetCustomerId,
-    setResetCustomerId,
-  ] = useState(null);
-
-  const [
-    resetType,
-    setResetType,
-  ] = useState('');
-
-  const [
-    resetPassword,
-    setResetPassword,
-  ] = useState('');
-
-  const [
-    resetLoading,
-    setResetLoading,
-  ] = useState(false);
-
   /* =====================================================
      SAVE WITHDRAWALS
   ===================================================== */
@@ -111,7 +109,9 @@ export default function AdminDashboard({
     try {
       localStorage.setItem(
         WITHDRAWAL_KEY,
-        JSON.stringify(withdrawalRequests)
+        JSON.stringify(
+          withdrawalRequests
+        )
       );
     } catch (error) {
       console.error(
@@ -134,7 +134,8 @@ export default function AdminDashboard({
         '/api/admin/customers'
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -164,7 +165,9 @@ export default function AdminDashboard({
   };
 
   useEffect(() => {
-    if (activeSection === 'Customers') {
+    if (
+      activeSection === 'Customers'
+    ) {
       loadCustomers();
     }
   }, [activeSection]);
@@ -173,7 +176,9 @@ export default function AdminDashboard({
      CREATE CUSTOMER
   ===================================================== */
 
-  const createCustomer = async (event) => {
+  const createCustomer = async (
+    event
+  ) => {
     event.preventDefault();
 
     setCustomerError('');
@@ -212,7 +217,9 @@ export default function AdminDashboard({
       return;
     }
 
-    if (loginPassword.length < 6) {
+    if (
+      loginPassword.length < 6
+    ) {
       setCustomerError(
         'Login Password must contain at least 6 characters.'
       );
@@ -254,13 +261,18 @@ export default function AdminDashboard({
           body: JSON.stringify({
             name: cleanName,
             loginId: cleanLoginId,
-            loginPassword,
-            withdrawalPassword,
+
+            temporaryPassword:
+              loginPassword,
+
+            temporaryWithdrawalPassword:
+              withdrawalPassword,
           }),
         }
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -291,113 +303,6 @@ export default function AdminDashboard({
       );
     } finally {
       setCustomerLoading(false);
-    }
-  };
-
-  /* =====================================================
-     OPEN RESET PASSWORD
-  ===================================================== */
-
-  const openPasswordReset = (
-    customerId,
-    type
-  ) => {
-    setCustomerError('');
-    setCustomerMessage('');
-    setResetPassword('');
-    setResetCustomerId(customerId);
-    setResetType(type);
-  };
-
-  const closePasswordReset = () => {
-    setResetCustomerId(null);
-    setResetType('');
-    setResetPassword('');
-  };
-
-  /* =====================================================
-     RESET PASSWORD
-  ===================================================== */
-
-  const submitPasswordReset = async (
-    event
-  ) => {
-    event.preventDefault();
-
-    setCustomerError('');
-    setCustomerMessage('');
-
-    if (!resetCustomerId) {
-      setCustomerError(
-        'Customer not selected.'
-      );
-      return;
-    }
-
-    if (resetPassword.length < 6) {
-      setCustomerError(
-        'Password must contain at least 6 characters.'
-      );
-      return;
-    }
-
-    const isLogin =
-      resetType === 'login';
-
-    const endpoint = isLogin
-      ? `/api/admin/customers/${resetCustomerId}/reset-login-password`
-      : `/api/admin/customers/${resetCustomerId}/reset-withdrawal-password`;
-
-    try {
-      setResetLoading(true);
-
-      const response = await fetch(
-        endpoint,
-        {
-          method: 'POST',
-
-          headers: {
-            'Content-Type':
-              'application/json',
-          },
-
-          body: JSON.stringify({
-            newPassword:
-              resetPassword,
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data?.error ||
-            'Unable to reset password.'
-        );
-      }
-
-      setCustomerMessage(
-        isLogin
-          ? 'Login Password reset successfully.'
-          : 'Withdrawal Password reset successfully.'
-      );
-
-      closePasswordReset();
-
-      await loadCustomers();
-    } catch (error) {
-      console.error(
-        'Password Reset Error:',
-        error
-      );
-
-      setCustomerError(
-        error.message ||
-          'Unable to reset password.'
-      );
-    } finally {
-      setResetLoading(false);
     }
   };
 
@@ -890,9 +795,10 @@ export default function AdminDashboard({
           </button>
 
           <p className="px-4 py-6 text-center text-[8px] leading-4 text-gray-500">
-            Demo administration interface.
-            No real-money transactions or
-            automatic payouts.
+            Demo administration
+            interface. No real-money
+            transactions or automatic
+            payouts.
           </p>
 
         </main>
@@ -925,9 +831,11 @@ export default function AdminDashboard({
 
             <p className="mt-2 text-[9px] leading-4 text-gray-400">
               Create a unique Login ID,
-              Login Password and Withdrawal
-              Password. Customer changes both
-              passwords after first login.
+              Login Password and
+              Withdrawal Password.
+              Customer changes both
+              passwords after first
+              login.
             </p>
 
             <div className="mt-4 space-y-3">
@@ -969,7 +877,9 @@ export default function AdminDashboard({
               <CustomerInput
                 label="WITHDRAWAL PASSWORD"
                 type="password"
-                value={withdrawalPassword}
+                value={
+                  withdrawalPassword
+                }
                 onChange={(e) =>
                   setWithdrawalPassword(
                     e.target.value
@@ -1030,7 +940,8 @@ export default function AdminDashboard({
                 text="Loading customers..."
               />
 
-            ) : customers.length === 0 ? (
+            ) : customers.length ===
+              0 ? (
 
               <EmptyState
                 text="No customers created yet"
@@ -1080,119 +991,43 @@ export default function AdminDashboard({
 
                       </div>
 
-                      <div className="mt-3 grid gap-2">
+                      <div className="mt-3 space-y-2">
 
-                        <PasswordStatus
-                          label="LOGIN PASSWORD"
-                          changeRequired={
-                            customer.mustChangePassword
-                          }
-                          configured
-                        />
+                        {customer.mustChangePassword ? (
 
-                        <PasswordStatus
-                          label="WITHDRAWAL PASSWORD"
-                          changeRequired={
-                            customer.mustChangeWithdrawalPassword
-                          }
-                          configured={
-                            customer.withdrawalPasswordConfigured
-                          }
-                        />
-
-                      </div>
-
-                      <div className="mt-3 grid grid-cols-2 gap-2">
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            openPasswordReset(
-                              customer.id,
-                              'login'
-                            )
-                          }
-                          className="min-h-[44px] rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-2 text-[8px] font-black text-amber-300"
-                        >
-                          RESET LOGIN PASSWORD
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            openPasswordReset(
-                              customer.id,
-                              'withdrawal'
-                            )
-                          }
-                          className="min-h-[44px] rounded-lg border border-teal-500/40 bg-teal-500/10 px-2 py-2 text-[8px] font-black text-teal-300"
-                        >
-                          RESET WITHDRAWAL PASSWORD
-                        </button>
-
-                      </div>
-
-                      {resetCustomerId ===
-                        customer.id && (
-
-                        <form
-                          onSubmit={
-                            submitPasswordReset
-                          }
-                          className="mt-3 rounded-lg border border-[#39756f] bg-[#061c1a] p-3"
-                        >
-
-                          <p className="text-[9px] font-black text-white">
-                            {resetType ===
-                            'login'
-                              ? 'RESET LOGIN PASSWORD'
-                              : 'RESET WITHDRAWAL PASSWORD'}
-                          </p>
-
-                          <input
-                            type="password"
-                            value={
-                              resetPassword
-                            }
-                            onChange={(e) =>
-                              setResetPassword(
-                                e.target.value
-                              )
-                            }
-                            placeholder="Enter new password"
-                            autoComplete="new-password"
-                            className="mt-3 h-[44px] w-full rounded-lg border border-[#28655f] bg-[#041f1c] px-3 text-xs text-white outline-none focus:border-amber-400"
-                          />
-
-                          <div className="mt-3 grid grid-cols-2 gap-2">
-
-                            <button
-                              type="button"
-                              onClick={
-                                closePasswordReset
-                              }
-                              className="h-[42px] rounded-lg border border-gray-600 text-[8px] font-black text-gray-300"
-                            >
-                              CANCEL
-                            </button>
-
-                            <button
-                              type="submit"
-                              disabled={
-                                resetLoading
-                              }
-                              className="h-[42px] rounded-lg bg-amber-500 text-[8px] font-black text-black disabled:opacity-50"
-                            >
-                              {resetLoading
-                                ? 'PLEASE WAIT...'
-                                : 'RESET PASSWORD'}
-                            </button>
-
+                          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-[8px] font-black text-amber-300">
+                            LOGIN PASSWORD CHANGE REQUIRED
                           </div>
 
-                        </form>
+                        ) : (
 
-                      )}
+                          <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3 text-[8px] font-black text-green-300">
+                            LOGIN PASSWORD SET
+                          </div>
+
+                        )}
+
+                        {!customer.withdrawalPasswordConfigured ? (
+
+                          <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-[8px] font-black text-red-300">
+                            WITHDRAWAL PASSWORD NOT CONFIGURED
+                          </div>
+
+                        ) : customer.mustChangeWithdrawalPassword ? (
+
+                          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-[8px] font-black text-amber-300">
+                            WITHDRAWAL PASSWORD CHANGE REQUIRED
+                          </div>
+
+                        ) : (
+
+                          <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3 text-[8px] font-black text-green-300">
+                            WITHDRAWAL PASSWORD SET
+                          </div>
+
+                        )}
+
+                      </div>
 
                     </div>
 
@@ -1241,12 +1076,16 @@ export default function AdminDashboard({
               .filter(
                 (item) =>
                   String(
-                    item?.status || ''
+                    item?.status ||
+                      ''
                   ).toUpperCase() ===
                   'PENDING'
               )
               .map(
-                (request, index) => (
+                (
+                  request,
+                  index
+                ) => (
 
                   <div
                     key={
@@ -1317,7 +1156,9 @@ export default function AdminDashboard({
 
           <InfoBox
             label="TOTAL PENDING"
-            value={pendingWithdrawals}
+            value={
+              pendingWithdrawals
+            }
           />
 
           {pendingWithdrawals ===
@@ -1335,12 +1176,16 @@ export default function AdminDashboard({
               .filter(
                 (item) =>
                   String(
-                    item?.status || ''
+                    item?.status ||
+                      ''
                   ).toUpperCase() ===
                   'PENDING'
               )
               .map(
-                (request, index) => (
+                (
+                  request,
+                  index
+                ) => (
 
                   <div
                     key={
@@ -1539,7 +1384,10 @@ export default function AdminDashboard({
             {withdrawalRequests
               .slice(0, 20)
               .map(
-                (request, index) => (
+                (
+                  request,
+                  index
+                ) => (
 
                   <div
                     key={
@@ -1694,54 +1542,6 @@ function CustomerInput({
         autoComplete="off"
         className="h-[46px] w-full rounded-lg border border-[#28655f] bg-[#061c1a] px-3 text-xs text-white outline-none focus:border-amber-400"
       />
-
-    </div>
-  );
-}
-
-function PasswordStatus({
-  label,
-  changeRequired,
-  configured = true,
-}) {
-  if (!configured) {
-    return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
-        <p className="text-[7px] font-black text-gray-400">
-          {label}
-        </p>
-
-        <p className="mt-1 text-[8px] font-black text-red-300">
-          PASSWORD NOT SET
-        </p>
-      </div>
-    );
-  }
-
-  if (changeRequired) {
-    return (
-      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
-        <p className="text-[7px] font-black text-gray-400">
-          {label}
-        </p>
-
-        <p className="mt-1 text-[8px] font-black text-amber-300">
-          PASSWORD CHANGE REQUIRED
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3">
-
-      <p className="text-[7px] font-black text-gray-400">
-        {label}
-      </p>
-
-      <p className="mt-1 text-[8px] font-black text-green-300">
-        PASSWORD SET BY CUSTOMER
-      </p>
 
     </div>
   );
