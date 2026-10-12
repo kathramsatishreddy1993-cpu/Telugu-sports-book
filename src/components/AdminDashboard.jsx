@@ -101,6 +101,11 @@ export default function AdminDashboard({
     setCustomerError,
   ] = useState('');
 
+  const [
+    resetLoadingId,
+    setResetLoadingId,
+  ] = useState(null);
+
   /* =====================================================
      SAVE WITHDRAWALS
   ===================================================== */
@@ -305,6 +310,195 @@ export default function AdminDashboard({
       setCustomerLoading(false);
     }
   };
+
+  /* =====================================================
+     RESET LOGIN PASSWORD
+  ===================================================== */
+
+  const resetLoginPassword = async (
+    customer
+  ) => {
+    setCustomerError('');
+    setCustomerMessage('');
+
+    const temporaryPassword =
+      window.prompt(
+        `Enter a NEW temporary Login Password for ${customer.loginId}.\n\nMinimum 6 characters.`
+      );
+
+    if (
+      temporaryPassword === null
+    ) {
+      return;
+    }
+
+    if (
+      temporaryPassword.length < 6
+    ) {
+      setCustomerError(
+        'Temporary Login Password must contain at least 6 characters.'
+      );
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        `Reset Login Password for ${customer.loginId}?`
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setResetLoadingId(
+        `login-${customer.id}`
+      );
+
+      const response = await fetch(
+        `/api/admin/customers/${customer.id}/reset-login-password`,
+        {
+          method: 'POST',
+
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
+
+          body: JSON.stringify({
+            temporaryPassword,
+          }),
+        }
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            'Unable to reset Login Password.'
+        );
+      }
+
+      setCustomerMessage(
+        `Login Password reset successfully for ${customer.loginId}. Customer must change the temporary password after login.`
+      );
+
+      await loadCustomers();
+    } catch (error) {
+      console.error(
+        'Reset Login Password Error:',
+        error
+      );
+
+      setCustomerError(
+        error.message ||
+          'Unable to reset Login Password.'
+      );
+    } finally {
+      setResetLoadingId(null);
+    }
+  };
+
+  /* =====================================================
+     RESET WITHDRAWAL PASSWORD
+  ===================================================== */
+
+  const resetWithdrawalPassword =
+    async (customer) => {
+      setCustomerError('');
+      setCustomerMessage('');
+
+      const temporaryPassword =
+        window.prompt(
+          `Enter a NEW temporary Withdrawal Password for ${customer.loginId}.\n\nMinimum 6 characters.`
+        );
+
+      if (
+        temporaryPassword === null
+      ) {
+        return;
+      }
+
+      if (
+        temporaryPassword.length < 6
+      ) {
+        setCustomerError(
+          'Temporary Withdrawal Password must contain at least 6 characters.'
+        );
+        return;
+      }
+
+      const confirmed =
+        window.confirm(
+          `${
+            customer.withdrawalPasswordConfigured
+              ? 'Reset'
+              : 'Configure'
+          } Withdrawal Password for ${customer.loginId}?`
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        setResetLoadingId(
+          `withdrawal-${customer.id}`
+        );
+
+        const response =
+          await fetch(
+            `/api/admin/customers/${customer.id}/reset-withdrawal-password`,
+            {
+              method: 'POST',
+
+              headers: {
+                'Content-Type':
+                  'application/json',
+              },
+
+              body: JSON.stringify({
+                temporaryWithdrawalPassword:
+                  temporaryPassword,
+              }),
+            }
+          );
+
+        const data =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data?.error ||
+              'Unable to reset Withdrawal Password.'
+          );
+        }
+
+        setCustomerMessage(
+          `Withdrawal Password ${
+            customer.withdrawalPasswordConfigured
+              ? 'reset'
+              : 'configured'
+          } successfully for ${customer.loginId}. Customer must change the temporary password.`
+        );
+
+        await loadCustomers();
+      } catch (error) {
+        console.error(
+          'Reset Withdrawal Password Error:',
+          error
+        );
+
+        setCustomerError(
+          error.message ||
+            'Unable to reset Withdrawal Password.'
+        );
+      } finally {
+        setResetLoadingId(null);
+      }
+    };
 
   /* =====================================================
      COUNTS
@@ -1026,6 +1220,50 @@ export default function AdminDashboard({
                           </div>
 
                         )}
+
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+
+                        <button
+                          type="button"
+                          disabled={
+                            resetLoadingId !==
+                            null
+                          }
+                          onClick={() =>
+                            resetLoginPassword(
+                              customer
+                            )
+                          }
+                          className="min-h-[44px] rounded-lg border border-amber-500/50 bg-amber-500/10 px-2 text-[8px] font-black text-amber-300 disabled:opacity-50"
+                        >
+                          {resetLoadingId ===
+                          `login-${customer.id}`
+                            ? 'RESETTING...'
+                            : '🔑 RESET LOGIN PASSWORD'}
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={
+                            resetLoadingId !==
+                            null
+                          }
+                          onClick={() =>
+                            resetWithdrawalPassword(
+                              customer
+                            )
+                          }
+                          className="min-h-[44px] rounded-lg border border-cyan-500/50 bg-cyan-500/10 px-2 text-[8px] font-black text-cyan-300 disabled:opacity-50"
+                        >
+                          {resetLoadingId ===
+                          `withdrawal-${customer.id}`
+                            ? 'RESETTING...'
+                            : customer.withdrawalPasswordConfigured
+                            ? '🔐 RESET WITHDRAWAL PASSWORD'
+                            : '🔐 SET WITHDRAWAL PASSWORD'}
+                        </button>
 
                       </div>
 
