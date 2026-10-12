@@ -8,18 +8,12 @@ import { sportsService } from './sportsService.js';
 
 const { Pool } = pg;
 
-const __filename = fileURLToPath(
-  import.meta.url
-);
-
-const __dirname = path.dirname(
-  __filename
-);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
-const PORT =
-  process.env.PORT || 10000;
+const PORT = process.env.PORT || 10000;
 
 /* =========================================================
    MIDDLEWARE
@@ -43,12 +37,10 @@ app.use(
 ========================================================= */
 
 const pool = new Pool({
-  connectionString:
-    process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL,
 
   ssl:
-    process.env.NODE_ENV ===
-    'production'
+    process.env.NODE_ENV === 'production'
       ? {
           rejectUnauthorized: false,
         }
@@ -69,11 +61,6 @@ async function initializeDatabase() {
   }
 
   try {
-    /*
-      Create table for fresh
-      installations.
-    */
-
     await pool.query(`
       CREATE TABLE IF NOT EXISTS customers (
         id SERIAL PRIMARY KEY,
@@ -117,14 +104,6 @@ async function initializeDatabase() {
       );
     `);
 
-    /*
-      Safe migration for the
-      existing customers table.
-
-      Existing customer records
-      are preserved.
-    */
-
     await pool.query(`
       ALTER TABLE customers
       ADD COLUMN IF NOT EXISTS
@@ -146,6 +125,10 @@ async function initializeDatabase() {
 
     console.log(
       'Withdrawal password support ready.'
+    );
+
+    console.log(
+      'Admin password reset support ready.'
     );
   } catch (error) {
     console.error(
@@ -172,8 +155,7 @@ function sendFast2SMS(
   return new Promise(
     (resolve, reject) => {
       const apiKey =
-        process.env
-          .FAST2SMS_API_KEY ||
+        process.env.FAST2SMS_API_KEY ||
         process.env.SMS_API_KEY;
 
       if (!apiKey) {
@@ -193,8 +175,7 @@ function sendFast2SMS(
         }).toString();
 
       const options = {
-        hostname:
-          'www.fast2sms.com',
+        hostname: 'www.fast2sms.com',
 
         path:
           `/dev/bulkV2?${queryParams}`,
@@ -202,73 +183,64 @@ function sendFast2SMS(
         method: 'GET',
 
         headers: {
-          'cache-control':
-            'no-cache',
+          'cache-control': 'no-cache',
         },
       };
 
-      const req =
-        https.request(
-          options,
-          (response) => {
-            let data = '';
+      const req = https.request(
+        options,
+        (response) => {
+          let data = '';
 
-            response.on(
-              'data',
-              (chunk) => {
-                data += chunk;
-              }
-            );
+          response.on(
+            'data',
+            (chunk) => {
+              data += chunk;
+            }
+          );
 
-            response.on(
-              'end',
-              () => {
-                try {
-                  const result =
-                    JSON.parse(
-                      data
-                    );
+          response.on(
+            'end',
+            () => {
+              try {
+                const result =
+                  JSON.parse(data);
 
-                  const isSuccess =
-                    result.return ===
-                      true ||
-                    result.status_code ===
-                      200;
+                const isSuccess =
+                  result.return === true ||
+                  result.status_code === 200;
 
-                  if (isSuccess) {
-                    resolve(
-                      result
-                    );
-
-                    return;
-                  }
-
-                  const errorMessage =
-                    Array.isArray(
-                      result.message
-                    )
-                      ? result.message.join(
-                          ', '
-                        )
-                      : result.message ||
-                        'Fast2SMS returned a failure status.';
-
-                  reject(
-                    new Error(
-                      errorMessage
-                    )
-                  );
-                } catch {
-                  reject(
-                    new Error(
-                      'Failed to parse response from Fast2SMS API.'
-                    )
-                  );
+                if (isSuccess) {
+                  resolve(result);
+                  return;
                 }
+
+                const errorMessage =
+                  Array.isArray(
+                    result.message
+                  )
+                    ? result.message.join(
+                        ', '
+                      )
+                    : result.message ||
+                      'Fast2SMS returned a failure status.';
+
+                reject(
+                  new Error(
+                    errorMessage
+                  )
+                );
+              } catch {
+                reject(
+                  new Error(
+                    'Failed to parse response from Fast2SMS API.'
+                  )
+                );
               }
-            );
-          }
-        );
+            }
+          );
+        }
+      );
 
       req.on(
         'error',
@@ -289,9 +261,7 @@ function sendFast2SMS(
 function normalizeLoginId(
   value
 ) {
-  return String(
-    value || ''
-  )
+  return String(value || '')
     .trim()
     .toLowerCase();
 }
@@ -302,11 +272,9 @@ function publicCustomer(
   return {
     id: customer.id,
 
-    name:
-      customer.name,
+    name: customer.name,
 
-    loginId:
-      customer.login_id,
+    loginId: customer.login_id,
 
     mustChangePassword:
       Boolean(
@@ -325,8 +293,7 @@ function publicCustomer(
           .withdrawal_password_hash
       ),
 
-    status:
-      customer.status,
+    status: customer.status,
 
     createdAt:
       customer.created_at,
@@ -369,10 +336,6 @@ app.post(
             ''
         );
 
-      /* -------------------------
-         VALIDATION
-      ------------------------- */
-
       if (!name) {
         return res
           .status(400)
@@ -405,8 +368,7 @@ app.post(
       }
 
       if (
-        temporaryPassword.length <
-        6
+        temporaryPassword.length < 6
       ) {
         return res
           .status(400)
@@ -428,12 +390,6 @@ app.post(
           });
       }
 
-      /*
-        Login password and
-        withdrawal password
-        should be different.
-      */
-
       if (
         temporaryPassword ===
         temporaryWithdrawalPassword
@@ -445,10 +401,6 @@ app.post(
               'Login Password and Withdrawal Password must be different.',
           });
       }
-
-      /* -------------------------
-         UNIQUE LOGIN ID
-      ------------------------- */
 
       const existing =
         await pool.query(
@@ -462,8 +414,7 @@ app.post(
         );
 
       if (
-        existing.rows.length >
-        0
+        existing.rows.length > 0
       ) {
         return res
           .status(409)
@@ -473,29 +424,20 @@ app.post(
           });
       }
 
-      /* -------------------------
-         HASH PASSWORDS
-      ------------------------- */
-
       const [
         passwordHash,
         withdrawalPasswordHash,
-      ] =
-        await Promise.all([
-          bcrypt.hash(
-            temporaryPassword,
-            12
-          ),
+      ] = await Promise.all([
+        bcrypt.hash(
+          temporaryPassword,
+          12
+        ),
 
-          bcrypt.hash(
-            temporaryWithdrawalPassword,
-            12
-          ),
-        ]);
-
-      /* -------------------------
-         INSERT CUSTOMER
-      ------------------------- */
+        bcrypt.hash(
+          temporaryWithdrawalPassword,
+          12
+        ),
+      ]);
 
       const result =
         await pool.query(
@@ -556,8 +498,7 @@ app.post(
       );
 
       if (
-        error?.code ===
-        '23505'
+        error?.code === '23505'
       ) {
         return res
           .status(409)
@@ -629,6 +570,318 @@ app.get(
 );
 
 /* =========================================================
+   ADMIN RESET LOGIN PASSWORD
+
+   POST /api/admin/customers/:id/reset-login-password
+========================================================= */
+
+app.post(
+  '/api/admin/customers/:id/reset-login-password',
+
+  async (req, res) => {
+    try {
+      const customerId =
+        Number(req.params.id);
+
+      const newPassword =
+        String(
+          req.body.password ||
+          req.body.newPassword ||
+          req.body.temporaryPassword ||
+          ''
+        );
+
+      if (
+        !Number.isInteger(
+          customerId
+        ) ||
+        customerId <= 0
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Invalid customer ID.',
+          });
+      }
+
+      if (
+        newPassword.length < 6
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'New Login Password must contain at least 6 characters.',
+          });
+      }
+
+      const customerResult =
+        await pool.query(
+          `
+          SELECT
+            id,
+            name,
+            login_id,
+            withdrawal_password_hash
+          FROM customers
+          WHERE id = $1
+          LIMIT 1
+          `,
+          [customerId]
+        );
+
+      if (
+        customerResult.rows
+          .length === 0
+      ) {
+        return res
+          .status(404)
+          .json({
+            error:
+              'Customer account not found.',
+          });
+      }
+
+      const customer =
+        customerResult.rows[0];
+
+      if (
+        customer
+          .withdrawal_password_hash
+      ) {
+        const sameAsWithdrawal =
+          await bcrypt.compare(
+            newPassword,
+            customer
+              .withdrawal_password_hash
+          );
+
+        if (
+          sameAsWithdrawal
+        ) {
+          return res
+            .status(400)
+            .json({
+              error:
+                'Login Password and Withdrawal Password must be different.',
+            });
+        }
+      }
+
+      const passwordHash =
+        await bcrypt.hash(
+          newPassword,
+          12
+        );
+
+      const result =
+        await pool.query(
+          `
+          UPDATE customers
+          SET
+            password_hash = $1,
+            must_change_password = TRUE,
+            updated_at = NOW()
+          WHERE id = $2
+          RETURNING
+            id,
+            name,
+            login_id,
+            must_change_password,
+            withdrawal_password_hash,
+            must_change_withdrawal_password,
+            status,
+            created_at
+          `,
+          [
+            passwordHash,
+            customerId,
+          ]
+        );
+
+      return res.json({
+        success: true,
+
+        message:
+          'Login Password reset successfully. Customer must change it after login.',
+
+        customer:
+          publicCustomer(
+            result.rows[0]
+          ),
+      });
+    } catch (error) {
+      console.error(
+        'Admin Reset Login Password Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Unable to reset Login Password.',
+        });
+    }
+  }
+);
+
+/* =========================================================
+   ADMIN RESET WITHDRAWAL PASSWORD
+
+   POST /api/admin/customers/:id/reset-withdrawal-password
+
+   This also configures the withdrawal password
+   for older customers where it is currently NULL.
+========================================================= */
+
+app.post(
+  '/api/admin/customers/:id/reset-withdrawal-password',
+
+  async (req, res) => {
+    try {
+      const customerId =
+        Number(req.params.id);
+
+      const newPassword =
+        String(
+          req.body.password ||
+          req.body.newPassword ||
+          req.body.temporaryPassword ||
+          req.body.temporaryWithdrawalPassword ||
+          ''
+        );
+
+      if (
+        !Number.isInteger(
+          customerId
+        ) ||
+        customerId <= 0
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Invalid customer ID.',
+          });
+      }
+
+      if (
+        newPassword.length < 6
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'New Withdrawal Password must contain at least 6 characters.',
+          });
+      }
+
+      const customerResult =
+        await pool.query(
+          `
+          SELECT
+            id,
+            name,
+            login_id,
+            password_hash
+          FROM customers
+          WHERE id = $1
+          LIMIT 1
+          `,
+          [customerId]
+        );
+
+      if (
+        customerResult.rows
+          .length === 0
+      ) {
+        return res
+          .status(404)
+          .json({
+            error:
+              'Customer account not found.',
+          });
+      }
+
+      const customer =
+        customerResult.rows[0];
+
+      const sameAsLogin =
+        await bcrypt.compare(
+          newPassword,
+          customer.password_hash
+        );
+
+      if (sameAsLogin) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Login Password and Withdrawal Password must be different.',
+          });
+      }
+
+      const passwordHash =
+        await bcrypt.hash(
+          newPassword,
+          12
+        );
+
+      const result =
+        await pool.query(
+          `
+          UPDATE customers
+          SET
+            withdrawal_password_hash = $1,
+            must_change_withdrawal_password = TRUE,
+            updated_at = NOW()
+          WHERE id = $2
+          RETURNING
+            id,
+            name,
+            login_id,
+            must_change_password,
+            withdrawal_password_hash,
+            must_change_withdrawal_password,
+            status,
+            created_at
+          `,
+          [
+            passwordHash,
+            customerId,
+          ]
+        );
+
+      return res.json({
+        success: true,
+
+        message:
+          'Withdrawal Password reset successfully. Customer must change it before use.',
+
+        customer:
+          publicCustomer(
+            result.rows[0]
+          ),
+      });
+    } catch (error) {
+      console.error(
+        'Admin Reset Withdrawal Password Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Unable to reset Withdrawal Password.',
+        });
+    }
+  }
+);
+
+/* =========================================================
    CUSTOMER LOGIN
 
    POST /api/auth/customer-login
@@ -642,13 +895,13 @@ app.post(
       const loginId =
         normalizeLoginId(
           req.body.loginId ||
-            req.body.identifier
+          req.body.identifier
         );
 
       const password =
         String(
           req.body.password ||
-            ''
+          ''
         );
 
       if (
@@ -675,8 +928,7 @@ app.post(
         );
 
       if (
-        result.rows.length ===
-        0
+        result.rows.length === 0
       ) {
         return res
           .status(401)
@@ -709,9 +961,7 @@ app.post(
           customer.password_hash
         );
 
-      if (
-        !passwordMatches
-      ) {
+      if (!passwordMatches) {
         return res
           .status(401)
           .json({
@@ -859,8 +1109,7 @@ app.post(
         );
 
       if (
-        result.rows.length ===
-        0
+        result.rows.length === 0
       ) {
         return res
           .status(404)
@@ -879,15 +1128,36 @@ app.post(
           customer.password_hash
         );
 
-      if (
-        !passwordMatches
-      ) {
+      if (!passwordMatches) {
         return res
           .status(401)
           .json({
             error:
               'Current Login Password is incorrect.',
           });
+      }
+
+      if (
+        customer
+          .withdrawal_password_hash
+      ) {
+        const sameAsWithdrawal =
+          await bcrypt.compare(
+            newPassword,
+            customer
+              .withdrawal_password_hash
+          );
+
+        if (
+          sameAsWithdrawal
+        ) {
+          return res
+            .status(400)
+            .json({
+              error:
+                'Login Password and Withdrawal Password must be different.',
+            });
+        }
       }
 
       const newPasswordHash =
@@ -918,17 +1188,27 @@ app.post(
           'Login Password changed successfully.',
 
         customer: {
-          id:
-            customer.id,
+          id: customer.id,
 
-          name:
-            customer.name,
+          name: customer.name,
 
           loginId:
             customer.login_id,
 
           mustChangePassword:
             false,
+
+          mustChangeWithdrawalPassword:
+            Boolean(
+              customer
+                .must_change_withdrawal_password
+            ),
+
+          withdrawalPasswordConfigured:
+            Boolean(
+              customer
+                .withdrawal_password_hash
+            ),
 
           status:
             customer.status,
@@ -1047,8 +1327,7 @@ app.post(
         );
 
       if (
-        result.rows.length ===
-        0
+        result.rows.length === 0
       ) {
         return res
           .status(404)
@@ -1080,14 +1359,27 @@ app.post(
             .withdrawal_password_hash
         );
 
-      if (
-        !passwordMatches
-      ) {
+      if (!passwordMatches) {
         return res
           .status(401)
           .json({
             error:
               'Current Withdrawal Password is incorrect.',
+          });
+      }
+
+      const sameAsLogin =
+        await bcrypt.compare(
+          newPassword,
+          customer.password_hash
+        );
+
+      if (sameAsLogin) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Login Password and Withdrawal Password must be different.',
           });
       }
 
@@ -1157,8 +1449,7 @@ app.post(
           : '';
 
       if (
-        cleanMobile.length !==
-        10
+        cleanMobile.length !== 10
       ) {
         return res
           .status(400)
@@ -1187,9 +1478,7 @@ app.post(
       otpStore.set(
         cleanMobile,
         {
-          otp:
-            generatedOtp,
-
+          otp: generatedOtp,
           expiresAt,
         }
       );
@@ -1238,8 +1527,7 @@ app.post(
         ).trim();
 
       if (
-        cleanMobile.length !==
-        10
+        cleanMobile.length !== 10
       ) {
         return res
           .status(400)
@@ -1291,8 +1579,7 @@ app.post(
       }
 
       if (
-        record.otp !==
-        cleanOtp
+        record.otp !== cleanOtp
       ) {
         return res
           .status(400)
@@ -1341,8 +1628,7 @@ app.get(
 
     try {
       if (
-        process.env
-          .DATABASE_URL
+        process.env.DATABASE_URL
       ) {
         await pool.query(
           'SELECT 1'
@@ -1358,8 +1644,7 @@ app.get(
       );
     }
 
-    let apiConnected =
-      false;
+    let apiConnected = false;
 
     try {
       apiConnected =
@@ -1379,13 +1664,10 @@ app.get(
     return res.json({
       status: 'ok',
 
-      provider:
-        'odds_api',
+      provider: 'odds_api',
 
       apiConnected:
-        Boolean(
-          apiConnected
-        ),
+        Boolean(apiConnected),
 
       databaseConnected,
     });
@@ -1407,13 +1689,10 @@ app.get(
 
       const events =
         await sportsService
-          .getEvents(
-            sport
-          );
+          .getEvents(sport);
 
       return res.json({
-        data:
-          events || [],
+        data: events || [],
       });
     } catch (error) {
       console.error(
@@ -1475,9 +1754,7 @@ app.get(
           'function'
         ) {
           sportsService
-            .removeClient(
-              res
-            );
+            .removeClient(res);
         }
       }
     );
