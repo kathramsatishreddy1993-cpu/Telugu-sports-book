@@ -1,1846 +1,219 @@
-import express from 'express';
-import path from 'path';
-import https from 'https';
-import bcrypt from 'bcryptjs';
-import pg from 'pg';
-import { fileURLToPath } from 'url';
-import { sportsService } from './sportsService.js';
+import React, { useState } from 'react';
 
-const { Pool } = pg;
+export default function AdminLoginPage({
+  onLogin,
+  onBack,
+}) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
-const __filename = fileURLToPath(
-  import.meta.url
-);
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    setError('');
 
-const __dirname = path.dirname(
-  __filename
-);
-
-const app = express();
-
-const PORT =
-  process.env.PORT || 10000;
-
-/* =========================================================
-   MIDDLEWARE
-========================================================= */
-
-app.use(
-  express.json({
-    limit: '2mb',
-  })
-);
-
-app.use(
-  express.urlencoded({
-    extended: true,
-    limit: '2mb',
-  })
-);
-
-/* =========================================================
-   POSTGRESQL
-========================================================= */
-
-const pool = new Pool({
-  connectionString:
-    process.env.DATABASE_URL,
-
-  ssl:
-    process.env.NODE_ENV ===
-    'production'
-      ? {
-          rejectUnauthorized: false,
-        }
-      : false,
-});
-
-/* =========================================================
-   DATABASE INITIALIZATION
-========================================================= */
-
-async function initializeDatabase() {
-  if (!process.env.DATABASE_URL) {
-    console.warn(
-      'DATABASE_URL is not configured.'
-    );
-
-    return;
-  }
-
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS customers (
-        id SERIAL PRIMARY KEY,
-
-        name VARCHAR(120)
-          NOT NULL,
-
-        login_id VARCHAR(60)
-          UNIQUE
-          NOT NULL,
-
-        password_hash TEXT
-          NOT NULL,
-
-        must_change_password
-          BOOLEAN
-          NOT NULL
-          DEFAULT TRUE,
-
-        withdrawal_password_hash
-          TEXT,
-
-        must_change_withdrawal_password
-          BOOLEAN
-          NOT NULL
-          DEFAULT TRUE,
-
-        status VARCHAR(20)
-          NOT NULL
-          DEFAULT 'ACTIVE',
-
-        created_at
-          TIMESTAMPTZ
-          NOT NULL
-          DEFAULT NOW(),
-
-        updated_at
-          TIMESTAMPTZ
-          NOT NULL
-          DEFAULT NOW()
-      );
-    `);
-
-    /*
-      Safe migration.
-      Existing customers are preserved.
-    */
-
-    await pool.query(`
-      ALTER TABLE customers
-      ADD COLUMN IF NOT EXISTS
-        withdrawal_password_hash TEXT;
-    `);
-
-    await pool.query(`
-      ALTER TABLE customers
-      ADD COLUMN IF NOT EXISTS
-        must_change_withdrawal_password
-        BOOLEAN
-        NOT NULL
-        DEFAULT TRUE;
-    `);
-
-    console.log(
-      'Customers table ready.'
-    );
-
-    console.log(
-      'Withdrawal password support ready.'
-    );
-  } catch (error) {
-    console.error(
-      'Database initialization error:',
-      error
-    );
-  }
-}
-
-/* =========================================================
-   OTP STORE
-========================================================= */
-
-const otpStore = new Map();
-
-/* =========================================================
-   FAST2SMS
-========================================================= */
-
-function sendFast2SMS(
-  mobile,
-  otp
-) {
-  return new Promise(
-    (resolve, reject) => {
-      const apiKey =
-        process.env
-          .FAST2SMS_API_KEY ||
-        process.env.SMS_API_KEY;
-
-      if (!apiKey) {
-        return reject(
-          new Error(
-            'FAST2SMS_API_KEY environment variable is not configured on Render.'
-          )
-        );
-      }
-
-      const queryParams =
-        new URLSearchParams({
-          authorization: apiKey,
-          variables_values: otp,
-          route: 'otp',
-          numbers: mobile,
-        }).toString();
-
-      const options = {
-        hostname:
-          'www.fast2sms.com',
-
-        path:
-          `/dev/bulkV2?${queryParams}`,
-
-        method: 'GET',
-
-        headers: {
-          'cache-control':
-            'no-cache',
-        },
+    // DEMO ADMIN LOGIN ONLY
+    if (
+      username.trim() === 'admin' &&
+      password === 'admin123'
+    ) {
+      const admin = {
+        username: 'admin',
+        role: 'DEMO_ADMIN',
+        isAuthenticated: true,
       };
 
-      const req =
-        https.request(
-          options,
-          (response) => {
-            let data = '';
-
-            response.on(
-              'data',
-              (chunk) => {
-                data += chunk;
-              }
-            );
-
-            response.on(
-              'end',
-              () => {
-                try {
-                  const result =
-                    JSON.parse(
-                      data
-                    );
-
-                  const isSuccess =
-                    result.return ===
-                      true ||
-                    result.status_code ===
-                      200;
-
-                  if (isSuccess) {
-                    resolve(
-                      result
-                    );
-
-                    return;
-                  }
-
-                  const errorMessage =
-                    Array.isArray(
-                      result.message
-                    )
-                      ? result.message.join(
-                          ', '
-                        )
-                      : result.message ||
-                        'Fast2SMS returned a failure status.';
-
-                  reject(
-                    new Error(
-                      errorMessage
-                    )
-                  );
-                } catch {
-                  reject(
-                    new Error(
-                      'Failed to parse response from Fast2SMS API.'
-                    )
-                  );
-                }
-              }
-            );
-          }
+      try {
+        localStorage.setItem(
+          'telugu_sports_demo_admin',
+          JSON.stringify(admin)
         );
+      } catch {
+        // localStorage unavailable
+      }
 
-      req.on(
-        'error',
-        (error) => {
-          reject(error);
-        }
-      );
+      if (onLogin) {
+        onLogin(admin);
+      }
 
-      req.end();
+      return;
     }
-  );
-}
 
-/* =========================================================
-   CUSTOMER HELPERS
-========================================================= */
-
-function normalizeLoginId(
-  value
-) {
-  return String(
-    value || ''
-  )
-    .trim()
-    .toLowerCase();
-}
-
-function publicCustomer(
-  customer
-) {
-  return {
-    id: customer.id,
-
-    name:
-      customer.name,
-
-    loginId:
-      customer.login_id,
-
-    mustChangePassword:
-      Boolean(
-        customer.must_change_password
-      ),
-
-    mustChangeWithdrawalPassword:
-      Boolean(
-        customer
-          .must_change_withdrawal_password
-      ),
-
-    withdrawalPasswordConfigured:
-      Boolean(
-        customer
-          .withdrawal_password_hash
-      ),
-
-    status:
-      customer.status,
-
-    createdAt:
-      customer.created_at,
+    setError(
+      'Invalid demo admin username or password.'
+    );
   };
-}
-
-/* =========================================================
-   CREATE CUSTOMER
-   ADMIN SIDE
-
-   POST /api/admin/customers
-========================================================= */
-
-app.post(
-  '/api/admin/customers',
-
-  async (req, res) => {
-    try {
-      const name =
-        String(
-          req.body.name || ''
-        ).trim();
-
-      const loginId =
-        normalizeLoginId(
-          req.body.loginId
-        );
-
-      const loginPassword =
-        String(
-          req.body.loginPassword ||
-          req.body.temporaryPassword ||
-          ''
-        );
-
-      const withdrawalPassword =
-        String(
-          req.body.withdrawalPassword ||
-          req.body
-            .temporaryWithdrawalPassword ||
-          ''
-        );
-
-      if (!name) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Customer name is required.',
-          });
-      }
-
-      if (!loginId) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Login ID is required.',
-          });
-      }
-
-      if (
-        !/^[a-z0-9._-]{4,30}$/.test(
-          loginId
-        )
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Login ID must be 4-30 characters and can contain letters, numbers, dot, underscore or hyphen.',
-          });
-      }
-
-      if (
-        loginPassword.length < 6
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Login Password must contain at least 6 characters.',
-          });
-      }
-
-      if (
-        withdrawalPassword.length < 6
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Withdrawal Password must contain at least 6 characters.',
-          });
-      }
-
-      if (
-        loginPassword ===
-        withdrawalPassword
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Login Password and Withdrawal Password must be different.',
-          });
-      }
-
-      const existing =
-        await pool.query(
-          `
-          SELECT id
-          FROM customers
-          WHERE login_id = $1
-          LIMIT 1
-          `,
-          [loginId]
-        );
-
-      if (
-        existing.rows.length >
-        0
-      ) {
-        return res
-          .status(409)
-          .json({
-            error:
-              'This Login ID already exists. Please choose another Login ID.',
-          });
-      }
-
-      const [
-        passwordHash,
-        withdrawalPasswordHash,
-      ] =
-        await Promise.all([
-          bcrypt.hash(
-            loginPassword,
-            12
-          ),
-
-          bcrypt.hash(
-            withdrawalPassword,
-            12
-          ),
-        ]);
-
-      const result =
-        await pool.query(
-          `
-          INSERT INTO customers (
-            name,
-            login_id,
-            password_hash,
-            must_change_password,
-            withdrawal_password_hash,
-            must_change_withdrawal_password,
-            status
-          )
-          VALUES (
-            $1,
-            $2,
-            $3,
-            TRUE,
-            $4,
-            TRUE,
-            'ACTIVE'
-          )
-          RETURNING
-            id,
-            name,
-            login_id,
-            must_change_password,
-            withdrawal_password_hash,
-            must_change_withdrawal_password,
-            status,
-            created_at
-          `,
-          [
-            name,
-            loginId,
-            passwordHash,
-            withdrawalPasswordHash,
-          ]
-        );
-
-      return res
-        .status(201)
-        .json({
-          success: true,
-
-          message:
-            'Customer created successfully.',
-
-          customer:
-            publicCustomer(
-              result.rows[0]
-            ),
-        });
-    } catch (error) {
-      console.error(
-        'Create Customer Error:',
-        error
-      );
-
-      if (
-        error?.code ===
-        '23505'
-      ) {
-        return res
-          .status(409)
-          .json({
-            error:
-              'This Login ID already exists.',
-          });
-      }
-
-      return res
-        .status(500)
-        .json({
-          error:
-            'Unable to create customer.',
-        });
-    }
-  }
-);
-
-/* =========================================================
-   CUSTOMER LIST
-   ADMIN SIDE
-
-   GET /api/admin/customers
-========================================================= */
-
-app.get(
-  '/api/admin/customers',
-
-  async (req, res) => {
-    try {
-      const result =
-        await pool.query(`
-          SELECT
-            id,
-            name,
-            login_id,
-            must_change_password,
-            withdrawal_password_hash,
-            must_change_withdrawal_password,
-            status,
-            created_at
-          FROM customers
-          ORDER BY id DESC
-        `);
-
-      return res.json({
-        success: true,
-
-        customers:
-          result.rows.map(
-            publicCustomer
-          ),
-      });
-    } catch (error) {
-      console.error(
-        'Customer List Error:',
-        error
-      );
-
-      return res
-        .status(500)
-        .json({
-          error:
-            'Unable to load customers.',
-        });
-    }
-  }
-);
-
-/* =========================================================
-   RESET LOGIN PASSWORD
-   ADMIN SIDE
-
-   POST /api/admin/customers/:id/reset-login-password
-========================================================= */
-
-app.post(
-  '/api/admin/customers/:id/reset-login-password',
-
-  async (req, res) => {
-    try {
-      const customerId =
-        Number(req.params.id);
-
-      const newPassword =
-        String(
-          req.body.newPassword ||
-          req.body.loginPassword ||
-          ''
-        );
-
-      if (
-        !Number.isInteger(
-          customerId
-        ) ||
-        customerId <= 0
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Invalid customer ID.',
-          });
-      }
-
-      if (
-        newPassword.length < 6
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Login Password must contain at least 6 characters.',
-          });
-      }
-
-      const result =
-        await pool.query(
-          `
-          SELECT
-            id,
-            withdrawal_password_hash
-          FROM customers
-          WHERE id = $1
-          LIMIT 1
-          `,
-          [customerId]
-        );
-
-      if (
-        result.rows.length ===
-        0
-      ) {
-        return res
-          .status(404)
-          .json({
-            error:
-              'Customer not found.',
-          });
-      }
-
-      /*
-        Prevent same login and
-        withdrawal password when
-        withdrawal password exists.
-      */
-
-      const customer =
-        result.rows[0];
-
-      if (
-        customer
-          .withdrawal_password_hash
-      ) {
-        const sameAsWithdrawal =
-          await bcrypt.compare(
-            newPassword,
-            customer
-              .withdrawal_password_hash
-          );
-
-        if (
-          sameAsWithdrawal
-        ) {
-          return res
-            .status(400)
-            .json({
-              error:
-                'Login Password and Withdrawal Password must be different.',
-            });
-        }
-      }
-
-      const passwordHash =
-        await bcrypt.hash(
-          newPassword,
-          12
-        );
-
-      await pool.query(
-        `
-        UPDATE customers
-        SET
-          password_hash = $1,
-          must_change_password = TRUE,
-          updated_at = NOW()
-        WHERE id = $2
-        `,
-        [
-          passwordHash,
-          customerId,
-        ]
-      );
-
-      return res.json({
-        success: true,
-
-        message:
-          'Login Password reset successfully.',
-
-        mustChangePassword:
-          true,
-      });
-    } catch (error) {
-      console.error(
-        'Reset Login Password Error:',
-        error
-      );
-
-      return res
-        .status(500)
-        .json({
-          error:
-            'Unable to reset Login Password.',
-        });
-    }
-  }
-);
-
-/* =========================================================
-   RESET WITHDRAWAL PASSWORD
-   ADMIN SIDE
-
-   POST /api/admin/customers/:id/reset-withdrawal-password
-========================================================= */
-
-app.post(
-  '/api/admin/customers/:id/reset-withdrawal-password',
-
-  async (req, res) => {
-    try {
-      const customerId =
-        Number(req.params.id);
-
-      const newPassword =
-        String(
-          req.body.newPassword ||
-          req.body.withdrawalPassword ||
-          ''
-        );
-
-      if (
-        !Number.isInteger(
-          customerId
-        ) ||
-        customerId <= 0
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Invalid customer ID.',
-          });
-      }
-
-      if (
-        newPassword.length < 6
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Withdrawal Password must contain at least 6 characters.',
-          });
-      }
-
-      const result =
-        await pool.query(
-          `
-          SELECT
-            id,
-            password_hash
-          FROM customers
-          WHERE id = $1
-          LIMIT 1
-          `,
-          [customerId]
-        );
-
-      if (
-        result.rows.length ===
-        0
-      ) {
-        return res
-          .status(404)
-          .json({
-            error:
-              'Customer not found.',
-          });
-      }
-
-      const customer =
-        result.rows[0];
-
-      const sameAsLogin =
-        await bcrypt.compare(
-          newPassword,
-          customer.password_hash
-        );
-
-      if (sameAsLogin) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Login Password and Withdrawal Password must be different.',
-          });
-      }
-
-      const passwordHash =
-        await bcrypt.hash(
-          newPassword,
-          12
-        );
-
-      await pool.query(
-        `
-        UPDATE customers
-        SET
-          withdrawal_password_hash = $1,
-          must_change_withdrawal_password = TRUE,
-          updated_at = NOW()
-        WHERE id = $2
-        `,
-        [
-          passwordHash,
-          customerId,
-        ]
-      );
-
-      return res.json({
-        success: true,
-
-        message:
-          'Withdrawal Password reset successfully.',
-
-        mustChangeWithdrawalPassword:
-          true,
-
-        withdrawalPasswordConfigured:
-          true,
-      });
-    } catch (error) {
-      console.error(
-        'Reset Withdrawal Password Error:',
-        error
-      );
-
-      return res
-        .status(500)
-        .json({
-          error:
-            'Unable to reset Withdrawal Password.',
-        });
-    }
-  }
-);
-
-/* =========================================================
-   CUSTOMER LOGIN
-
-   POST /api/auth/customer-login
-========================================================= */
-
-app.post(
-  '/api/auth/customer-login',
-
-  async (req, res) => {
-    try {
-      const loginId =
-        normalizeLoginId(
-          req.body.loginId ||
-          req.body.identifier
-        );
-
-      const password =
-        String(
-          req.body.password ||
-          ''
-        );
-
-      if (
-        !loginId ||
-        !password
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Login ID and Password are required.',
-          });
-      }
-
-      const result =
-        await pool.query(
-          `
-          SELECT *
-          FROM customers
-          WHERE login_id = $1
-          LIMIT 1
-          `,
-          [loginId]
-        );
-
-      if (
-        result.rows.length ===
-        0
-      ) {
-        return res
-          .status(401)
-          .json({
-            error:
-              'Invalid Login ID or Password.',
-          });
-      }
-
-      const customer =
-        result.rows[0];
-
-      if (
-        String(
-          customer.status
-        ).toUpperCase() !==
-        'ACTIVE'
-      ) {
-        return res
-          .status(403)
-          .json({
-            error:
-              'This customer account is not active.',
-          });
-      }
-
-      const passwordMatches =
-        await bcrypt.compare(
-          password,
-          customer.password_hash
-        );
-
-      if (
-        !passwordMatches
-      ) {
-        return res
-          .status(401)
-          .json({
-            error:
-              'Invalid Login ID or Password.',
-          });
-      }
-
-      return res.json({
-        success: true,
-
-        mustChangePassword:
-          Boolean(
-            customer
-              .must_change_password
-          ),
-
-        mustChangeWithdrawalPassword:
-          Boolean(
-            customer
-              .must_change_withdrawal_password
-          ),
-
-        withdrawalPasswordConfigured:
-          Boolean(
-            customer
-              .withdrawal_password_hash
-          ),
-
-        customer:
-          publicCustomer(
-            customer
-          ),
-      });
-    } catch (error) {
-      console.error(
-        'Customer Login Error:',
-        error
-      );
-
-      return res
-        .status(500)
-        .json({
-          error:
-            'Unable to login. Please try again.',
-        });
-    }
-  }
-);
-
-/* =========================================================
-   CHANGE CUSTOMER LOGIN PASSWORD
-
-   POST /api/auth/change-customer-password
-========================================================= */
-
-app.post(
-  '/api/auth/change-customer-password',
-
-  async (req, res) => {
-    try {
-      const loginId =
-        normalizeLoginId(
-          req.body.loginId
-        );
-
-      const currentPassword =
-        String(
-          req.body.currentPassword ||
-          ''
-        );
-
-      const newPassword =
-        String(
-          req.body.newPassword ||
-          ''
-        );
-
-      const confirmPassword =
-        String(
-          req.body.confirmPassword ||
-          ''
-        );
-
-      if (
-        !loginId ||
-        !currentPassword ||
-        !newPassword ||
-        !confirmPassword
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Please complete all Login Password fields.',
-          });
-      }
-
-      if (
-        newPassword.length < 6
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'New Login Password must contain at least 6 characters.',
-          });
-      }
-
-      if (
-        newPassword !==
-        confirmPassword
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'New Login Password and Confirm Login Password do not match.',
-          });
-      }
-
-      if (
-        currentPassword ===
-        newPassword
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'New Login Password must be different from the current password.',
-          });
-      }
-
-      const result =
-        await pool.query(
-          `
-          SELECT *
-          FROM customers
-          WHERE login_id = $1
-          LIMIT 1
-          `,
-          [loginId]
-        );
-
-      if (
-        result.rows.length ===
-        0
-      ) {
-        return res
-          .status(404)
-          .json({
-            error:
-              'Customer account not found.',
-          });
-      }
-
-      const customer =
-        result.rows[0];
-
-      const passwordMatches =
-        await bcrypt.compare(
-          currentPassword,
-          customer.password_hash
-        );
-
-      if (
-        !passwordMatches
-      ) {
-        return res
-          .status(401)
-          .json({
-            error:
-              'Current Login Password is incorrect.',
-          });
-      }
-
-      if (
-        customer
-          .withdrawal_password_hash
-      ) {
-        const sameAsWithdrawal =
-          await bcrypt.compare(
-            newPassword,
-            customer
-              .withdrawal_password_hash
-          );
-
-        if (
-          sameAsWithdrawal
-        ) {
-          return res
-            .status(400)
-            .json({
-              error:
-                'Login Password and Withdrawal Password must be different.',
-            });
-        }
-      }
-
-      const newPasswordHash =
-        await bcrypt.hash(
-          newPassword,
-          12
-        );
-
-      await pool.query(
-        `
-        UPDATE customers
-        SET
-          password_hash = $1,
-          must_change_password = FALSE,
-          updated_at = NOW()
-        WHERE id = $2
-        `,
-        [
-          newPasswordHash,
-          customer.id,
-        ]
-      );
-
-      return res.json({
-        success: true,
-
-        message:
-          'Login Password changed successfully.',
-
-        customer: {
-          id:
-            customer.id,
-
-          name:
-            customer.name,
-
-          loginId:
-            customer.login_id,
-
-          mustChangePassword:
-            false,
-
-          mustChangeWithdrawalPassword:
-            Boolean(
-              customer
-                .must_change_withdrawal_password
-            ),
-
-          status:
-            customer.status,
-        },
-      });
-    } catch (error) {
-      console.error(
-        'Change Customer Login Password Error:',
-        error
-      );
-
-      return res
-        .status(500)
-        .json({
-          error:
-            'Unable to change Login Password.',
-        });
-    }
-  }
-);
-
-/* =========================================================
-   CHANGE WITHDRAWAL PASSWORD
-
-   POST /api/auth/change-withdrawal-password
-========================================================= */
-
-app.post(
-  '/api/auth/change-withdrawal-password',
-
-  async (req, res) => {
-    try {
-      const loginId =
-        normalizeLoginId(
-          req.body.loginId
-        );
-
-      const currentPassword =
-        String(
-          req.body.currentPassword ||
-          ''
-        );
-
-      const newPassword =
-        String(
-          req.body.newPassword ||
-          ''
-        );
-
-      const confirmPassword =
-        String(
-          req.body.confirmPassword ||
-          ''
-        );
-
-      if (
-        !loginId ||
-        !currentPassword ||
-        !newPassword ||
-        !confirmPassword
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Please complete all Withdrawal Password fields.',
-          });
-      }
-
-      if (
-        newPassword.length < 6
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'New Withdrawal Password must contain at least 6 characters.',
-          });
-      }
-
-      if (
-        newPassword !==
-        confirmPassword
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'New Withdrawal Password and Confirm Withdrawal Password do not match.',
-          });
-      }
-
-      if (
-        currentPassword ===
-        newPassword
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'New Withdrawal Password must be different from the current password.',
-          });
-      }
-
-      const result =
-        await pool.query(
-          `
-          SELECT *
-          FROM customers
-          WHERE login_id = $1
-          LIMIT 1
-          `,
-          [loginId]
-        );
-
-      if (
-        result.rows.length ===
-        0
-      ) {
-        return res
-          .status(404)
-          .json({
-            error:
-              'Customer account not found.',
-          });
-      }
-
-      const customer =
-        result.rows[0];
-
-      if (
-        !customer
-          .withdrawal_password_hash
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Withdrawal Password has not been configured for this customer. Please contact Admin.',
-          });
-      }
-
-      const passwordMatches =
-        await bcrypt.compare(
-          currentPassword,
-          customer
-            .withdrawal_password_hash
-        );
-
-      if (
-        !passwordMatches
-      ) {
-        return res
-          .status(401)
-          .json({
-            error:
-              'Current Withdrawal Password is incorrect.',
-          });
-      }
-
-      const sameAsLogin =
-        await bcrypt.compare(
-          newPassword,
-          customer.password_hash
-        );
-
-      if (sameAsLogin) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Login Password and Withdrawal Password must be different.',
-          });
-      }
-
-      const newPasswordHash =
-        await bcrypt.hash(
-          newPassword,
-          12
-        );
-
-      await pool.query(
-        `
-        UPDATE customers
-        SET
-          withdrawal_password_hash = $1,
-          must_change_withdrawal_password = FALSE,
-          updated_at = NOW()
-        WHERE id = $2
-        `,
-        [
-          newPasswordHash,
-          customer.id,
-        ]
-      );
-
-      return res.json({
-        success: true,
-
-        message:
-          'Withdrawal Password changed successfully.',
-
-        mustChangeWithdrawalPassword:
-          false,
-      });
-    } catch (error) {
-      console.error(
-        'Change Withdrawal Password Error:',
-        error
-      );
-
-      return res
-        .status(500)
-        .json({
-          error:
-            'Unable to change Withdrawal Password.',
-        });
-    }
-  }
-);
-
-/* =========================================================
-   OTP - EXISTING SUPPORT
-========================================================= */
-
-app.post(
-  '/api/auth/send-otp',
-
-  async (req, res) => {
-    try {
-      const cleanMobile =
-        req.body.mobile
-          ? String(
-              req.body.mobile
-            ).replace(
-              /\D/g,
-              ''
-            )
-          : '';
-
-      if (
-        cleanMobile.length !==
-        10
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Please enter a valid 10-digit mobile number.',
-          });
-      }
-
-      const generatedOtp =
-        Math.floor(
-          100000 +
-            Math.random() *
-              900000
-        ).toString();
-
-      const expiresAt =
-        Date.now() +
-        10 * 60 * 1000;
-
-      await sendFast2SMS(
-        cleanMobile,
-        generatedOtp
-      );
-
-      otpStore.set(
-        cleanMobile,
-        {
-          otp:
-            generatedOtp,
-
-          expiresAt,
-        }
-      );
-
-      return res.json({
-        success: true,
-
-        message:
-          'OTP sent successfully.',
-      });
-    } catch (error) {
-      console.error(
-        'Fast2SMS Dispatch Error:',
-        error.message
-      );
-
-      return res
-        .status(500)
-        .json({
-          error:
-            error.message ||
-            'Failed to send SMS OTP.',
-        });
-    }
-  }
-);
-
-app.post(
-  '/api/auth/verify-otp',
-
-  async (req, res) => {
-    try {
-      const cleanMobile =
-        req.body.mobile
-          ? String(
-              req.body.mobile
-            ).replace(
-              /\D/g,
-              ''
-            )
-          : '';
-
-      const cleanOtp =
-        String(
-          req.body.otp || ''
-        ).trim();
-
-      if (
-        cleanMobile.length !==
-        10
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Please enter a valid 10-digit mobile number.',
-          });
-      }
-
-      if (
-        cleanOtp.length !== 6
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Please enter a valid 6-digit OTP code.',
-          });
-      }
-
-      const record =
-        otpStore.get(
-          cleanMobile
-        );
-
-      if (!record) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'No active OTP found.',
-          });
-      }
-
-      if (
-        Date.now() >
-        record.expiresAt
-      ) {
-        otpStore.delete(
-          cleanMobile
-        );
-
-        return res
-          .status(400)
-          .json({
-            error:
-              'OTP has expired.',
-          });
-      }
-
-      if (
-        record.otp !==
-        cleanOtp
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Invalid OTP code.',
-          });
-      }
-
-      otpStore.delete(
-        cleanMobile
-      );
-
-      return res.json({
-        success: true,
-
-        message:
-          'Mobile number verified successfully.',
-      });
-    } catch (error) {
-      console.error(
-        'Verify OTP Error:',
-        error
-      );
-
-      return res
-        .status(500)
-        .json({
-          error:
-            'Server error during OTP verification.',
-        });
-    }
-  }
-);
-
-/* =========================================================
-   HEALTH
-========================================================= */
-
-app.get(
-  '/api/health',
-
-  async (req, res) => {
-    let databaseConnected =
-      false;
-
-    try {
-      if (
-        process.env
-          .DATABASE_URL
-      ) {
-        await pool.query(
-          'SELECT 1'
-        );
-
-        databaseConnected =
-          true;
-      }
-    } catch (error) {
-      console.error(
-        'Database Health Error:',
-        error.message
-      );
-    }
-
-    let apiConnected =
-      false;
-
-    try {
-      apiConnected =
-        typeof sportsService
-          .isApiConnected ===
-        'function'
-          ? await sportsService
-              .isApiConnected()
-          : true;
-    } catch (error) {
-      console.error(
-        'Sports Health Error:',
-        error.message
-      );
-    }
-
-    return res.json({
-      status: 'ok',
-
-      provider:
-        'odds_api',
-
-      apiConnected:
-        Boolean(
-          apiConnected
-        ),
-
-      databaseConnected,
-    });
-  }
-);
-
-/* =========================================================
-   SPORTS EVENTS
-========================================================= */
-
-app.get(
-  '/api/sports/events',
-
-  async (req, res) => {
-    try {
-      const sport =
-        req.query.sport ||
-        'all';
-
-      const events =
-        await sportsService
-          .getEvents(
-            sport
-          );
-
-      return res.json({
-        data:
-          events || [],
-      });
-    } catch (error) {
-      console.error(
-        'Get Sports Events Error:',
-        error
-      );
-
-      return res
-        .status(500)
-        .json({
-          error:
-            'Failed to retrieve sports events.',
-        });
-    }
-  }
-);
-
-/* =========================================================
-   SPORTS STREAM
-========================================================= */
-
-app.get(
-  '/api/sports/stream',
-
-  (req, res) => {
-    res.setHeader(
-      'Content-Type',
-      'text/event-stream'
-    );
-
-    res.setHeader(
-      'Cache-Control',
-      'no-cache'
-    );
-
-    res.setHeader(
-      'Connection',
-      'keep-alive'
-    );
-
-    res.flushHeaders();
-
-    if (
-      typeof sportsService
-        .addClient ===
-      'function'
-    ) {
-      sportsService.addClient(
-        res
-      );
-    }
-
-    req.on(
-      'close',
-      () => {
-        if (
-          typeof sportsService
-            .removeClient ===
-          'function'
-        ) {
-          sportsService
-            .removeClient(
-              res
-            );
-        }
-      }
-    );
-  }
-);
-
-/* =========================================================
-   API 404
-========================================================= */
-
-app.all(
-  '/api/*',
-
-  (req, res) => {
-    res
-      .status(404)
-      .json({
-        error:
-          `API endpoint ${req.originalUrl} not found.`,
-      });
-  }
-);
-
-/* =========================================================
-   FRONTEND
-========================================================= */
-
-app.use(
-  express.static(
-    path.join(
-      __dirname,
-      'dist'
-    )
-  )
-);
-
-app.get(
-  '*',
-
-  (req, res) => {
-    res.sendFile(
-      path.join(
-        __dirname,
-        'dist',
-        'index.html'
-      )
-    );
-  }
-);
-
-/* =========================================================
-   START SERVER
-========================================================= */
-
-async function startServer() {
-  await initializeDatabase();
-
-  app.listen(
-    PORT,
-    () => {
-      console.log(
-        `Server listening on port ${PORT}`
-      );
-    }
+
+  return (
+    <div className="min-h-screen bg-[#061c1a] text-white">
+
+      {/* TOP BAR */}
+
+      <header className="border-b border-amber-500/30 bg-[#9a5a00] px-4 py-4">
+        <div className="mx-auto flex max-w-md items-center justify-between">
+
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-md border border-amber-300 px-3 py-2 text-xs font-black"
+          >
+            ‹ BACK
+          </button>
+
+          <div className="text-right">
+            <p className="text-[9px] font-black tracking-[0.15em] text-amber-200">
+              TELUGU SPORTS BOOK
+            </p>
+
+            <h1 className="text-sm font-black">
+              ADMIN
+            </h1>
+          </div>
+
+        </div>
+      </header>
+
+      {/* LOGIN AREA */}
+
+      <main className="flex min-h-[80vh] items-center justify-center px-4 py-8">
+
+        <div className="w-full max-w-sm">
+
+          {/* TITLE */}
+
+          <div className="mb-6 text-center">
+
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-amber-400 bg-[#9a5a00] text-3xl shadow-lg">
+              🛡️
+            </div>
+
+            <h2 className="mt-4 text-2xl font-black text-amber-300">
+              ADMIN LOGIN
+            </h2>
+
+            <p className="mt-2 text-[11px] text-gray-400">
+              Demo Management Panel
+            </p>
+
+          </div>
+
+          {/* LOGIN CARD */}
+
+          <form
+            onSubmit={handleSubmit}
+            className="rounded-2xl border border-[#27645d] bg-[#083d37] p-5 shadow-2xl"
+          >
+
+            {/* USERNAME */}
+
+            <label className="block">
+
+              <span className="text-[10px] font-black text-gray-300">
+                ADMIN USERNAME
+              </span>
+
+              <input
+                type="text"
+                value={username}
+                onChange={(event) =>
+                  setUsername(
+                    event.target.value
+                  )
+                }
+                placeholder="Enter username"
+                autoComplete="username"
+                className="mt-2 h-[46px] w-full rounded-md border border-[#39756f] bg-[#062f2b] px-3 text-sm font-bold text-white outline-none focus:border-amber-400"
+              />
+
+            </label>
+
+            {/* PASSWORD */}
+
+            <label className="mt-4 block">
+
+              <span className="text-[10px] font-black text-gray-300">
+                PASSWORD
+              </span>
+
+              <input
+                type="password"
+                value={password}
+                onChange={(event) =>
+                  setPassword(
+                    event.target.value
+                  )
+                }
+                placeholder="Enter password"
+                autoComplete="current-password"
+                className="mt-2 h-[46px] w-full rounded-md border border-[#39756f] bg-[#062f2b] px-3 text-sm font-bold text-white outline-none focus:border-amber-400"
+              />
+
+            </label>
+
+            {/* ERROR */}
+
+            {error && (
+              <div className="mt-4 rounded-md border border-red-500/40 bg-red-500/10 p-3">
+                <p className="text-[10px] font-bold text-red-300">
+                  {error}
+                </p>
+              </div>
+            )}
+
+            {/* LOGIN BUTTON */}
+
+            <button
+              type="submit"
+              className="mt-5 h-[46px] w-full rounded-md border border-amber-300 bg-gradient-to-r from-amber-500 to-orange-600 text-sm font-black text-black shadow-lg"
+            >
+              LOGIN TO ADMIN
+            </button>
+
+          </form>
+
+          {/* DEMO CREDENTIALS */}
+
+          <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+
+            <p className="text-[9px] font-black text-amber-300">
+              DEMO ADMIN ACCESS
+            </p>
+
+            <div className="mt-2 flex items-center justify-between text-[10px]">
+
+              <span className="text-gray-400">
+                Username
+              </span>
+
+              <span className="font-black">
+                admin
+              </span>
+
+            </div>
+
+            <div className="mt-2 flex items-center justify-between text-[10px]">
+
+              <span className="text-gray-400">
+                Password
+              </span>
+
+              <span className="font-black">
+                admin123
+              </span>
+
+            </div>
+
+          </div>
+
+          <p className="mt-5 text-center text-[9px] leading-4 text-gray-500">
+            Demo administration interface only.
+            No real-money transactions.
+          </p>
+
+        </div>
+
+      </main>
+
+    </div>
   );
 }
-
-startServer();
