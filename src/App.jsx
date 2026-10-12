@@ -7,81 +7,94 @@ import BonusPage from './components/BonusPage';
 import AuthModal from './components/AuthModal';
 import SportsSections from './components/SportsSections';
 import DemoDashboard from './components/DemoDashboard';
+import ChangePasswordPage from './components/ChangePasswordPage';
 
 /* ADMIN */
 import AdminLoginPage from './components/AdminLoginPage';
 import AdminDashboard from './components/AdminDashboard';
 
-const AUTH_KEY = 'telugu_sports_auth_user';
-const ADMIN_AUTH_KEY = 'telugu_sports_demo_admin';
+const AUTH_KEY =
+  'telugu_sports_auth_user';
+
+const ADMIN_AUTH_KEY =
+  'telugu_sports_demo_admin';
 
 export default function App() {
-  const [view, setView] = useState('home');
-  const [authMode, setAuthMode] = useState(null);
+  const [view, setView] =
+    useState('home');
 
-  /* =========================
+  const [authMode, setAuthMode] =
+    useState(null);
+
+  /* =========================================
      CUSTOMER LOGIN
-     ========================= */
+  ========================================= */
 
-  const [user, setUser] = useState(() => {
-    try {
-      const savedUser =
-        localStorage.getItem(AUTH_KEY);
+  const [user, setUser] =
+    useState(() => {
+      try {
+        const savedUser =
+          localStorage.getItem(
+            AUTH_KEY
+          );
 
-      if (!savedUser) {
-        return null;
-      }
+        if (!savedUser) {
+          return null;
+        }
 
-      const parsedUser =
-        JSON.parse(savedUser);
+        const parsedUser =
+          JSON.parse(savedUser);
 
-      return parsedUser?.isAuthenticated
-        ? parsedUser
-        : null;
-    } catch (error) {
-      console.error(
-        'Unable to restore login:',
-        error
-      );
-
-      return null;
-    }
-  });
-
-  /* =========================
-     ADMIN LOGIN
-     ========================= */
-
-  const [admin, setAdmin] = useState(() => {
-    try {
-      const savedAdmin =
-        localStorage.getItem(
-          ADMIN_AUTH_KEY
+        return parsedUser
+          ?.isAuthenticated
+          ? parsedUser
+          : null;
+      } catch (error) {
+        console.error(
+          'Unable to restore login:',
+          error
         );
 
-      if (!savedAdmin) {
         return null;
       }
+    });
 
-      const parsedAdmin =
-        JSON.parse(savedAdmin);
+  /* =========================================
+     ADMIN LOGIN
+  ========================================= */
 
-      return parsedAdmin?.isAuthenticated
-        ? parsedAdmin
-        : null;
-    } catch (error) {
-      console.error(
-        'Unable to restore admin login:',
-        error
-      );
+  const [admin, setAdmin] =
+    useState(() => {
+      try {
+        const savedAdmin =
+          localStorage.getItem(
+            ADMIN_AUTH_KEY
+          );
 
-      return null;
-    }
-  });
+        if (!savedAdmin) {
+          return null;
+        }
 
-  /* =========================
+        const parsedAdmin =
+          JSON.parse(savedAdmin);
+
+        return parsedAdmin
+          ?.isAuthenticated
+          ? parsedAdmin
+          : null;
+      } catch (error) {
+        console.error(
+          'Unable to restore admin login:',
+          error
+        );
+
+        return null;
+      }
+    });
+
+  /* =========================================
      ROUTE CHECK
-     ========================= */
+  ========================================= */
 
   const cleanPath =
     window.location.pathname
@@ -99,21 +112,102 @@ export default function App() {
   const isAdminMode =
     cleanPath === '/admin';
 
-  /* =========================
+  /* =========================================
+     SAVE CUSTOMER SESSION
+  ========================================= */
+
+  const saveCustomerSession = (
+    customer
+  ) => {
+    try {
+      localStorage.setItem(
+        AUTH_KEY,
+        JSON.stringify(customer)
+      );
+    } catch (error) {
+      console.error(
+        'Unable to save customer session:',
+        error
+      );
+    }
+  };
+
+  /* =========================================
      CUSTOMER LOGIN SUCCESS
-     ========================= */
+  ========================================= */
 
   const handleLoginSuccess = (
     loggedInUser
   ) => {
-    setUser(loggedInUser);
+    /*
+      AuthModal should return the
+      database login result.
+
+      These flags decide whether
+      Security Setup must appear.
+    */
+
+    const normalizedUser = {
+      ...loggedInUser,
+
+      isAuthenticated: true,
+
+      loginId:
+        loggedInUser?.loginId ||
+        loggedInUser?.identifier ||
+        '',
+
+      identifier:
+        loggedInUser?.identifier ||
+        loggedInUser?.loginId ||
+        '',
+    };
+
+    saveCustomerSession(
+      normalizedUser
+    );
+
+    setUser(normalizedUser);
+
     setAuthMode(null);
+
     setView('home');
   };
 
-  /* =========================
+  /* =========================================
+     SECURITY SETUP COMPLETE
+  ========================================= */
+
+  const handleSecurityComplete = (
+    updatedUser
+  ) => {
+    const completedUser = {
+      ...updatedUser,
+
+      isAuthenticated: true,
+
+      mustChangePassword:
+        false,
+
+      mustChangeWithdrawalPassword:
+        false,
+
+      withdrawalPasswordConfigured:
+        true,
+    };
+
+    saveCustomerSession(
+      completedUser
+    );
+
+    setUser(completedUser);
+
+    setView('home');
+  };
+
+  /* =========================================
      CUSTOMER LOGOUT
-     ========================= */
+  ========================================= */
 
   const handleLogout = () => {
     try {
@@ -128,23 +222,27 @@ export default function App() {
     }
 
     setUser(null);
+
     setAuthMode(null);
+
     setView('home');
   };
 
-  /* =========================
+  /* =========================================
      ADMIN LOGIN SUCCESS
-     ========================= */
+  ========================================= */
 
   const handleAdminLogin = (
     loggedInAdmin
   ) => {
-    setAdmin(loggedInAdmin);
+    setAdmin(
+      loggedInAdmin
+    );
   };
 
-  /* =========================
+  /* =========================================
      ADMIN LOGOUT
-     ========================= */
+  ========================================= */
 
   const handleAdminLogout = () => {
     try {
@@ -161,52 +259,102 @@ export default function App() {
     setAdmin(null);
   };
 
-  /* =========================
+  /* =========================================
      EXIT ADMIN
-     ========================= */
+  ========================================= */
 
   const handleExitAdmin = () => {
     window.location.href = '/';
   };
 
-  /* =========================
+  /* =========================================
      ADMIN BLOCK
-     ========================= */
+  ========================================= */
 
   if (isAdminMode) {
-    if (admin?.isAuthenticated) {
+    if (
+      admin?.isAuthenticated
+    ) {
       return (
         <AdminDashboard
           admin={admin}
-          onLogout={handleAdminLogout}
+          onLogout={
+            handleAdminLogout
+          }
         />
       );
     }
 
     return (
       <AdminLoginPage
-        onLogin={handleAdminLogin}
-        onBack={handleExitAdmin}
+        onLogin={
+          handleAdminLogin
+        }
+        onBack={
+          handleExitAdmin
+        }
       />
     );
   }
 
-  /* =========================
-     CUSTOMER DASHBOARD
-     ========================= */
+  /* =========================================
+     CUSTOMER SECURITY CHECK
+  ========================================= */
 
-  if (user?.isAuthenticated) {
+  const requiresSecuritySetup =
+    Boolean(
+      user?.isAuthenticated &&
+        (
+          user?.mustChangePassword ===
+            true ||
+          user
+            ?.mustChangeWithdrawalPassword ===
+            true
+        )
+    );
+
+  /*
+    IMPORTANT:
+
+    If either temporary password
+    still needs to be changed,
+    customer cannot enter Dashboard.
+  */
+
+  if (requiresSecuritySetup) {
+    return (
+      <ChangePasswordPage
+        user={user}
+        onComplete={
+          handleSecurityComplete
+        }
+        onLogout={
+          handleLogout
+        }
+      />
+    );
+  }
+
+  /* =========================================
+     CUSTOMER DASHBOARD
+  ========================================= */
+
+  if (
+    user?.isAuthenticated
+  ) {
     return (
       <DemoDashboard
         user={user}
-        onLogout={handleLogout}
+        onLogout={
+          handleLogout
+        }
       />
     );
   }
 
-  /* =========================
+  /* =========================================
      PUBLIC CUSTOMER HOME
-     ========================= */
+  ========================================= */
 
   return (
     <div className="min-h-screen bg-[#080d16] text-white flex flex-col font-sans">
@@ -216,8 +364,12 @@ export default function App() {
           setAuthMode(mode)
         }
         user={user}
-        isAuthenticated={!!user}
-        onLogout={handleLogout}
+        isAuthenticated={
+          !!user
+        }
+        onLogout={
+          handleLogout
+        }
       />
 
       {view === 'home' ? (
@@ -229,7 +381,9 @@ export default function App() {
 
             <HeroBonusCard
               onOpenBonus={() =>
-                setView('bonus')
+                setView(
+                  'bonus'
+                )
               }
             />
 
@@ -247,7 +401,9 @@ export default function App() {
       )}
 
       <AuthModal
-        isOpen={!!authMode}
+        isOpen={
+          !!authMode
+        }
         onClose={() =>
           setAuthMode(null)
         }
