@@ -12,8 +12,11 @@ const DEPOSIT_KEY =
 const WITHDRAWAL_KEY =
   'telugu_sports_demo_withdrawals';
 
-const CUSTOMER_BALANCE_KEY =
+const BALANCE_KEY =
   'telugu_sports_demo_balance';
+
+const COIN_HISTORY_KEY =
+  'telugu_sports_demo_coin_history';
 
 export default function AdminDashboard({
   admin,
@@ -23,7 +26,7 @@ export default function AdminDashboard({
     useState('Dashboard');
 
   /* =====================================================
-     DEPOSIT REQUESTS
+     DEPOSITS
   ===================================================== */
 
   const [
@@ -32,9 +35,7 @@ export default function AdminDashboard({
   ] = useState(() => {
     try {
       const saved =
-        localStorage.getItem(
-          DEPOSIT_KEY
-        );
+        localStorage.getItem(DEPOSIT_KEY);
 
       const parsed = saved
         ? JSON.parse(saved)
@@ -49,7 +50,7 @@ export default function AdminDashboard({
   });
 
   /* =====================================================
-     WITHDRAWAL REQUESTS
+     WITHDRAWALS
   ===================================================== */
 
   const [
@@ -75,7 +76,7 @@ export default function AdminDashboard({
   });
 
   /* =====================================================
-     CUSTOMER DATABASE STATE
+     CUSTOMERS
   ===================================================== */
 
   const [customers, setCustomers] =
@@ -115,7 +116,48 @@ export default function AdminDashboard({
   ] = useState('');
 
   /* =====================================================
-     SAVE DEPOSITS
+     DEMO COIN MANAGEMENT
+  ===================================================== */
+
+  const [
+    coinCustomerId,
+    setCoinCustomerId,
+  ] = useState('');
+
+  const [
+    coinAmount,
+    setCoinAmount,
+  ] = useState('');
+
+  const [
+    coinMessage,
+    setCoinMessage,
+  ] = useState('');
+
+  const [
+    coinHistory,
+    setCoinHistory,
+  ] = useState(() => {
+    try {
+      const saved =
+        localStorage.getItem(
+          COIN_HISTORY_KEY
+        );
+
+      const parsed = saved
+        ? JSON.parse(saved)
+        : [];
+
+      return Array.isArray(parsed)
+        ? parsed
+        : [];
+    } catch {
+      return [];
+    }
+  });
+
+  /* =====================================================
+     SAVE LOCAL DEMO DATA
   ===================================================== */
 
   useEffect(() => {
@@ -127,16 +169,9 @@ export default function AdminDashboard({
         )
       );
     } catch (error) {
-      console.error(
-        'Unable to save deposit requests:',
-        error
-      );
+      console.error(error);
     }
   }, [depositRequests]);
-
-  /* =====================================================
-     SAVE WITHDRAWALS
-  ===================================================== */
 
   useEffect(() => {
     try {
@@ -147,12 +182,22 @@ export default function AdminDashboard({
         )
       );
     } catch (error) {
-      console.error(
-        'Unable to save withdrawal requests:',
-        error
-      );
+      console.error(error);
     }
   }, [withdrawalRequests]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        COIN_HISTORY_KEY,
+        JSON.stringify(
+          coinHistory
+        )
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  }, [coinHistory]);
 
   /* =====================================================
      LOAD CUSTOMERS
@@ -183,10 +228,7 @@ export default function AdminDashboard({
           : []
       );
     } catch (error) {
-      console.error(
-        'Load Customers Error:',
-        error
-      );
+      console.error(error);
 
       setCustomerError(
         error.message ||
@@ -199,7 +241,9 @@ export default function AdminDashboard({
 
   useEffect(() => {
     if (
-      activeSection === 'Customers'
+      activeSection === 'Customers' ||
+      activeSection ===
+        'Coin Management'
     ) {
       loadCustomers();
     }
@@ -245,14 +289,12 @@ export default function AdminDashboard({
       )
     ) {
       setCustomerError(
-        'Login ID must be 4-30 characters. Use letters, numbers, dot, underscore or hyphen only.'
+        'Login ID must be 4-30 characters.'
       );
       return;
     }
 
-    if (
-      loginPassword.length < 6
-    ) {
+    if (loginPassword.length < 6) {
       setCustomerError(
         'Login Password must contain at least 6 characters.'
       );
@@ -325,11 +367,6 @@ export default function AdminDashboard({
 
       await loadCustomers();
     } catch (error) {
-      console.error(
-        'Create Customer Error:',
-        error
-      );
-
       setCustomerError(
         error.message ||
           'Unable to create customer.'
@@ -338,6 +375,138 @@ export default function AdminDashboard({
       setCustomerLoading(false);
     }
   };
+
+  /* =====================================================
+     RESET LOGIN PASSWORD
+  ===================================================== */
+
+  const resetLoginPassword = async (
+    customer
+  ) => {
+    const temporaryPassword =
+      window.prompt(
+        `Enter NEW temporary Login Password for ${customer.loginId}`
+      );
+
+    if (!temporaryPassword) {
+      return;
+    }
+
+    if (
+      temporaryPassword.length < 6
+    ) {
+      alert(
+        'Temporary Login Password must contain at least 6 characters.'
+      );
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/admin/customers/${customer.id}/reset-login-password`,
+        {
+          method: 'POST',
+
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
+
+          body: JSON.stringify({
+            temporaryPassword,
+          }),
+        }
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            'Unable to reset Login Password.'
+        );
+      }
+
+      alert(
+        'Temporary Login Password reset successfully.'
+      );
+
+      await loadCustomers();
+    } catch (error) {
+      alert(
+        error.message ||
+          'Unable to reset Login Password.'
+      );
+    }
+  };
+
+  /* =====================================================
+     RESET WITHDRAWAL PASSWORD
+  ===================================================== */
+
+  const resetWithdrawalPassword =
+    async (customer) => {
+      const temporaryWithdrawalPassword =
+        window.prompt(
+          `Enter NEW temporary Withdrawal Password for ${customer.loginId}`
+        );
+
+      if (
+        !temporaryWithdrawalPassword
+      ) {
+        return;
+      }
+
+      if (
+        temporaryWithdrawalPassword.length <
+        6
+      ) {
+        alert(
+          'Temporary Withdrawal Password must contain at least 6 characters.'
+        );
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/admin/customers/${customer.id}/reset-withdrawal-password`,
+          {
+            method: 'POST',
+
+            headers: {
+              'Content-Type':
+                'application/json',
+            },
+
+            body: JSON.stringify({
+              temporaryWithdrawalPassword,
+            }),
+          }
+        );
+
+        const data =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data?.error ||
+              'Unable to reset Withdrawal Password.'
+          );
+        }
+
+        alert(
+          'Temporary Withdrawal Password reset successfully.'
+        );
+
+        await loadCustomers();
+      } catch (error) {
+        alert(
+          error.message ||
+            'Unable to reset Withdrawal Password.'
+        );
+      }
+    };
 
   /* =====================================================
      COUNTS
@@ -366,62 +535,7 @@ export default function AdminDashboard({
     }, [withdrawalRequests]);
 
   /* =====================================================
-     ADMIN BOXES
-  ===================================================== */
-
-  const adminBoxes = [
-    {
-      title: 'Deposit Accounts',
-      icon: '🏦',
-      section: 'Deposit Accounts',
-      description:
-        'Bank, PhonePe, GPay and Paytm deposit details',
-    },
-
-    {
-      title: 'Coin Management',
-      icon: '🪙',
-      section: 'Coin Management',
-      description:
-        'Demo coin management information',
-    },
-
-    {
-      title: 'Customers',
-      icon: '👥',
-      section: 'Customers',
-      description:
-        'Create and manage customer login IDs',
-    },
-
-    {
-      title: 'API Settings',
-      icon: '🔌',
-      section: 'API Settings',
-      description:
-        'Sports API and Game API configuration',
-    },
-
-    {
-      title: 'Transaction History',
-      icon: '📒',
-      section: 'Transaction History',
-      description:
-        'View demo transaction activity',
-    },
-
-    {
-      title: 'Admin Settings',
-      icon: '⚙️',
-      section: 'Admin Settings',
-      description:
-        'Admin account and panel settings',
-    },
-  ];
-
-  /* =====================================================
-     APPROVE DEPOSIT
-     DEMO STATUS ONLY
+     APPROVE / REJECT DEPOSIT
   ===================================================== */
 
   const approveDeposit = (
@@ -447,7 +561,7 @@ export default function AdminDashboard({
       'PENDING'
     ) {
       alert(
-        'This deposit request has already been reviewed.'
+        'This request has already been reviewed.'
       );
       return;
     }
@@ -461,45 +575,31 @@ export default function AdminDashboard({
         )} demo deposit request?`
       );
 
-    if (!confirmed) {
-      return;
-    }
-
-    const reviewedAt =
-      new Date().toISOString();
-
-    const reviewedDate =
-      new Date().toLocaleString(
-        'en-IN'
-      );
+    if (!confirmed) return;
 
     setDepositRequests(
       (previous) =>
-        previous.map((item) => {
-          if (
-            item?.id !== requestId
-          ) {
-            return item;
-          }
-
-          return {
-            ...item,
-            status: 'APPROVED',
-            reviewedAt,
-            reviewedDate,
-          };
-        })
+        previous.map((item) =>
+          item?.id === requestId
+            ? {
+                ...item,
+                status:
+                  'APPROVED',
+                reviewedAt:
+                  new Date().toISOString(),
+                reviewedDate:
+                  new Date().toLocaleString(
+                    'en-IN'
+                  ),
+              }
+            : item
+        )
     );
 
     alert(
-      'Demo deposit request changed to APPROVED.'
+      'Deposit request changed to APPROVED.'
     );
   };
-
-  /* =====================================================
-     REJECT DEPOSIT
-     DEMO STATUS ONLY
-  ===================================================== */
 
   const rejectDeposit = (
     requestId
@@ -510,71 +610,41 @@ export default function AdminDashboard({
           item?.id === requestId
       );
 
-    if (!request) {
-      alert(
-        'Deposit request not found.'
-      );
-      return;
-    }
-
-    if (
-      String(
-        request.status
-      ).toUpperCase() !==
-      'PENDING'
-    ) {
-      alert(
-        'This deposit request has already been reviewed.'
-      );
-      return;
-    }
+    if (!request) return;
 
     const confirmed =
       window.confirm(
-        `Reject ₹${Number(
-          request.amount || 0
-        ).toLocaleString(
-          'en-IN'
-        )} demo deposit request?`
+        'Reject this demo deposit request?'
       );
 
-    if (!confirmed) {
-      return;
-    }
-
-    const reviewedAt =
-      new Date().toISOString();
-
-    const reviewedDate =
-      new Date().toLocaleString(
-        'en-IN'
-      );
+    if (!confirmed) return;
 
     setDepositRequests(
       (previous) =>
-        previous.map((item) => {
-          if (
-            item?.id !== requestId
-          ) {
-            return item;
-          }
-
-          return {
-            ...item,
-            status: 'REJECTED',
-            reviewedAt,
-            reviewedDate,
-          };
-        })
+        previous.map((item) =>
+          item?.id === requestId
+            ? {
+                ...item,
+                status:
+                  'REJECTED',
+                reviewedAt:
+                  new Date().toISOString(),
+                reviewedDate:
+                  new Date().toLocaleString(
+                    'en-IN'
+                  ),
+              }
+            : item
+        )
     );
 
     alert(
-      'Demo deposit request changed to REJECTED.'
+      'Deposit request changed to REJECTED.'
     );
   };
 
   /* =====================================================
-     APPROVE WITHDRAWAL
+     WITHDRAWALS
   ===================================================== */
 
   const approveWithdrawal = (
@@ -586,72 +656,30 @@ export default function AdminDashboard({
           item?.id === requestId
       );
 
-    if (!request) {
-      alert(
-        'Withdrawal request not found.'
-      );
-      return;
-    }
-
-    if (
-      String(
-        request.status
-      ).toUpperCase() !==
-      'PENDING'
-    ) {
-      alert(
-        'This request has already been reviewed.'
-      );
-      return;
-    }
+    if (!request) return;
 
     const confirmed =
       window.confirm(
-        `Approve ${Number(
-          request.amount || 0
-        ).toLocaleString(
-          'en-IN'
-        )} demo coin withdrawal?`
+        'Approve this demo withdrawal request?'
       );
 
-    if (!confirmed) {
-      return;
-    }
-
-    const reviewedAt =
-      new Date().toISOString();
-
-    const reviewedDate =
-      new Date().toLocaleString(
-        'en-IN'
-      );
+    if (!confirmed) return;
 
     setWithdrawalRequests(
       (previous) =>
-        previous.map((item) => {
-          if (
-            item?.id !== requestId
-          ) {
-            return item;
-          }
-
-          return {
-            ...item,
-            status: 'APPROVED',
-            reviewedAt,
-            reviewedDate,
-          };
-        })
-    );
-
-    alert(
-      'Demo withdrawal status changed to APPROVED.'
+        previous.map((item) =>
+          item?.id === requestId
+            ? {
+                ...item,
+                status:
+                  'APPROVED',
+                reviewedAt:
+                  new Date().toISOString(),
+              }
+            : item
+        )
     );
   };
-
-  /* =====================================================
-     REJECT WITHDRAWAL
-  ===================================================== */
 
   const rejectWithdrawal = (
     requestId
@@ -662,139 +690,197 @@ export default function AdminDashboard({
           item?.id === requestId
       );
 
-    if (!request) {
-      alert(
-        'Withdrawal request not found.'
-      );
-      return;
-    }
-
-    if (
-      String(
-        request.status
-      ).toUpperCase() !==
-      'PENDING'
-    ) {
-      alert(
-        'This request has already been reviewed.'
-      );
-      return;
-    }
+    if (!request) return;
 
     const confirmed =
       window.confirm(
-        `Reject ${Number(
-          request.amount || 0
-        ).toLocaleString(
-          'en-IN'
-        )} demo coin withdrawal and restore held demo coins?`
+        'Reject this demo withdrawal request?'
       );
 
-    if (!confirmed) {
-      return;
-    }
-
-    const amount =
-      Number(
-        request.coinsHeld ??
-          request.amount ??
-          0
-      );
-
-    let restored = false;
-
-    if (
-      Number.isFinite(amount) &&
-      amount > 0 &&
-      request.coinsRestored !== true
-    ) {
-      try {
-        const currentBalance =
-          Number(
-            localStorage.getItem(
-              CUSTOMER_BALANCE_KEY
-            ) || 0
-          );
-
-        const safeBalance =
-          Number.isFinite(
-            currentBalance
-          )
-            ? currentBalance
-            : 0;
-
-        const nextBalance =
-          safeBalance + amount;
-
-        localStorage.setItem(
-          CUSTOMER_BALANCE_KEY,
-          String(nextBalance)
-        );
-
-        restored = true;
-
-        window.dispatchEvent(
-          new CustomEvent(
-            'tsb-demo-balance-updated',
-            {
-              detail: {
-                balance:
-                  nextBalance,
-              },
-            }
-          )
-        );
-      } catch (error) {
-        console.error(error);
-
-        alert(
-          'Unable to restore demo coins.'
-        );
-
-        return;
-      }
-    }
-
-    const reviewedAt =
-      new Date().toISOString();
-
-    const reviewedDate =
-      new Date().toLocaleString(
-        'en-IN'
-      );
+    if (!confirmed) return;
 
     setWithdrawalRequests(
       (previous) =>
-        previous.map((item) => {
-          if (
-            item?.id !== requestId
-          ) {
-            return item;
-          }
-
-          return {
-            ...item,
-            status: 'REJECTED',
-            reviewedAt,
-            reviewedDate,
-            coinsRestored:
-              restored ||
-              item.coinsRestored ===
-                true,
-          };
-        })
-    );
-
-    alert(
-      restored
-        ? 'Withdrawal REJECTED. Held demo coins restored.'
-        : 'Withdrawal status changed to REJECTED.'
+        previous.map((item) =>
+          item?.id === requestId
+            ? {
+                ...item,
+                status:
+                  'REJECTED',
+                reviewedAt:
+                  new Date().toISOString(),
+              }
+            : item
+        )
     );
   };
 
   /* =====================================================
-     DEPOSIT ACCOUNTS
+     DEMO COINS
   ===================================================== */
+
+  const changeDemoCoins = (
+    mode
+  ) => {
+    setCoinMessage('');
+
+    if (!coinCustomerId) {
+      setCoinMessage(
+        'Select customer first.'
+      );
+      return;
+    }
+
+    const amount =
+      Number(coinAmount);
+
+    if (
+      !Number.isFinite(amount) ||
+      amount <= 0
+    ) {
+      setCoinMessage(
+        'Enter valid demo coin amount.'
+      );
+      return;
+    }
+
+    const customer =
+      customers.find(
+        (item) =>
+          String(item.loginId) ===
+          String(coinCustomerId)
+      );
+
+    try {
+      const current =
+        Number(
+          localStorage.getItem(
+            BALANCE_KEY
+          ) || 10000
+        );
+
+      const safeCurrent =
+        Number.isFinite(current)
+          ? current
+          : 10000;
+
+      let nextBalance =
+        safeCurrent;
+
+      if (mode === 'ADD') {
+        nextBalance =
+          safeCurrent + amount;
+      } else {
+        nextBalance =
+          Math.max(
+            0,
+            safeCurrent - amount
+          );
+      }
+
+      localStorage.setItem(
+        BALANCE_KEY,
+        String(nextBalance)
+      );
+
+      const record = {
+        id: Date.now(),
+        customerId:
+          coinCustomerId,
+        customerName:
+          customer?.name ||
+          coinCustomerId,
+        type: mode,
+        amount,
+        balance:
+          nextBalance,
+        date:
+          new Date().toLocaleString(
+            'en-IN'
+          ),
+      };
+
+      setCoinHistory(
+        (previous) => [
+          record,
+          ...previous,
+        ]
+      );
+
+      window.dispatchEvent(
+        new CustomEvent(
+          'tsb-demo-balance-updated',
+          {
+            detail: {
+              balance:
+                nextBalance,
+            },
+          }
+        )
+      );
+
+      setCoinAmount('');
+
+      setCoinMessage(
+        mode === 'ADD'
+          ? `${amount.toLocaleString(
+              'en-IN'
+            )} demo coins added.`
+          : `${amount.toLocaleString(
+              'en-IN'
+            )} demo coins removed.`
+      );
+    } catch {
+      setCoinMessage(
+        'Unable to update demo coins.'
+      );
+    }
+  };
+
+  /* =====================================================
+     ADMIN BOXES
+  ===================================================== */
+
+  const adminBoxes = [
+    {
+      title:
+        'Deposit Accounts',
+      icon: '🏦',
+      section:
+        'Deposit Accounts',
+    },
+    {
+      title:
+        'Coin Management',
+      icon: '🪙',
+      section:
+        'Coin Management',
+    },
+    {
+      title: 'Customers',
+      icon: '👥',
+      section: 'Customers',
+    },
+    {
+      title: 'API Settings',
+      icon: '🔌',
+      section: 'API Settings',
+    },
+    {
+      title:
+        'Transaction History',
+      icon: '📒',
+      section:
+        'Transaction History',
+    },
+    {
+      title:
+        'Admin Settings',
+      icon: '⚙️',
+      section:
+        'Admin Settings',
+    },
+  ];
 
   if (
     activeSection ===
@@ -814,26 +900,20 @@ export default function AdminDashboard({
   return (
     <div className="min-h-screen bg-[#061c1a] text-white">
 
-      {/* HEADER */}
-
-      <header className="sticky top-0 z-50 border-b border-amber-500/30 bg-[#9a5a00] px-4 py-4 shadow-xl">
-
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
+      <header className="sticky top-0 z-50 bg-[#9a5a00] px-4 py-4 shadow-xl">
+        <div className="mx-auto flex max-w-5xl items-center justify-between">
 
           <div>
-
-            <p className="text-[9px] font-black tracking-[0.16em] text-amber-200">
+            <p className="text-[9px] font-black tracking-widest text-amber-200">
               TELUGU SPORTS BOOK
             </p>
 
             <h1 className="mt-1 text-lg font-black">
               🛡️ ADMIN CONTROL PANEL
             </h1>
-
           </div>
 
           <div className="text-right">
-
             <p className="text-[8px] text-amber-100">
               ADMIN ID
             </p>
@@ -842,42 +922,24 @@ export default function AdminDashboard({
               {admin?.username ||
                 'admin'}
             </p>
-
           </div>
 
         </div>
-
       </header>
 
       {/* DASHBOARD */}
 
       {activeSection ===
         'Dashboard' && (
-
         <main className="mx-auto max-w-5xl px-3 py-5">
 
-          <section className="mb-5">
+          <h2 className="text-xl font-black">
+            Admin Dashboard
+          </h2>
 
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-400">
-              MANAGEMENT
-            </p>
-
-            <h2 className="mt-1 text-xl font-black">
-              Admin Dashboard
-            </h2>
-
-            <p className="mt-2 text-[10px] leading-5 text-gray-400">
-              Customer management,
-              deposit accounts, demo
-              requests and API controls.
-            </p>
-
-          </section>
-
-          <section className="mb-5 grid grid-cols-2 gap-2">
+          <div className="mt-5 grid grid-cols-2 gap-2">
 
             <button
-              type="button"
               onClick={() =>
                 setActiveSection(
                   'Pending Deposits'
@@ -885,27 +947,20 @@ export default function AdminDashboard({
               }
               className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 text-left"
             >
+              <span className="text-2xl">
+                📥
+              </span>
 
-              <div className="flex items-center justify-between">
-
-                <span className="text-2xl">
-                  📥
-                </span>
-
-                <span className="text-2xl font-black text-green-300">
-                  {pendingDeposits}
-                </span>
-
-              </div>
-
-              <p className="mt-3 text-[10px] font-black">
-                PENDING DEPOSITS
+              <p className="mt-2 text-2xl font-black text-green-300">
+                {pendingDeposits}
               </p>
 
+              <p className="text-[9px] font-black">
+                PENDING DEPOSITS
+              </p>
             </button>
 
             <button
-              type="button"
               onClick={() =>
                 setActiveSection(
                   'Pending Withdrawals'
@@ -913,98 +968,297 @@ export default function AdminDashboard({
               }
               className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-left"
             >
+              <span className="text-2xl">
+                💸
+              </span>
 
-              <div className="flex items-center justify-between">
-
-                <span className="text-2xl">
-                  💸
-                </span>
-
-                <span className="text-2xl font-black text-red-300">
-                  {pendingWithdrawals}
-                </span>
-
-              </div>
-
-              <p className="mt-3 text-[10px] font-black">
-                PENDING WITHDRAWALS
+              <p className="mt-2 text-2xl font-black text-red-300">
+                {pendingWithdrawals}
               </p>
 
+              <p className="text-[9px] font-black">
+                PENDING WITHDRAWALS
+              </p>
             </button>
 
-          </section>
+          </div>
 
-          <section>
+          <p className="mb-3 mt-6 text-xs font-black text-amber-300">
+            ADMIN MANAGEMENT
+          </p>
 
-            <h3 className="mb-3 text-xs font-black text-amber-300">
-              ADMIN MANAGEMENT
-            </h3>
+          <div className="grid grid-cols-2 gap-3">
 
-            <div className="grid grid-cols-2 gap-3">
+            {adminBoxes.map(
+              (item) => (
+                <button
+                  key={item.title}
+                  onClick={() =>
+                    setActiveSection(
+                      item.section
+                    )
+                  }
+                  className="min-h-[130px] rounded-xl border border-[#28655f] bg-[#083d37] p-4 text-left"
+                >
+                  <span className="text-3xl">
+                    {item.icon}
+                  </span>
 
-              {adminBoxes.map(
-                (item) => (
+                  <p className="mt-4 text-[11px] font-black">
+                    {item.title}
+                  </p>
+                </button>
+              )
+            )}
 
-                  <button
-                    key={item.title}
-                    type="button"
-                    onClick={() =>
-                      setActiveSection(
-                        item.section
-                      )
-                    }
-                    className="relative min-h-[145px] rounded-xl border border-[#28655f] bg-[#083d37] p-4 text-left shadow-lg"
-                  >
-
-                    <span className="block text-3xl">
-                      {item.icon}
-                    </span>
-
-                    <p className="mt-4 text-[11px] font-black">
-                      {item.title}
-                    </p>
-
-                    <p className="mt-2 text-[8px] leading-4 text-gray-400">
-                      {item.description}
-                    </p>
-
-                    <span className="absolute bottom-3 right-3 text-lg text-amber-300">
-                      ›
-                    </span>
-
-                  </button>
-
-                )
-              )}
-
-            </div>
-
-          </section>
+          </div>
 
           <button
-            type="button"
             onClick={onLogout}
-            className="mt-6 h-[46px] w-full rounded-lg border border-red-500/50 bg-red-700 text-xs font-black"
+            className="mt-6 h-[46px] w-full rounded-lg bg-red-700 text-xs font-black"
           >
             ADMIN LOGOUT
           </button>
 
-          <p className="px-4 py-6 text-center text-[8px] leading-4 text-gray-500">
-            Demo administration
-            interface. No real-money
-            transactions or automatic
-            payouts.
-          </p>
-
         </main>
+      )}
 
+      {/* PENDING DEPOSITS */}
+
+      {activeSection ===
+        'Pending Deposits' && (
+        <AdminPage
+          title="Pending Deposits"
+          icon="📥"
+          onBack={() =>
+            setActiveSection(
+              'Dashboard'
+            )
+          }
+        >
+          <InfoBox
+            label="TOTAL PENDING"
+            value={pendingDeposits}
+          />
+
+          {pendingDeposits ===
+            0 && (
+            <EmptyState text="No pending deposits" />
+          )}
+
+          <div className="mt-4 space-y-3">
+
+            {depositRequests
+              .filter(
+                (item) =>
+                  String(
+                    item.status
+                  ).toUpperCase() ===
+                  'PENDING'
+              )
+              .map((request) => (
+                <div
+                  key={request.id}
+                  className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
+                >
+                  <p className="text-sm font-black">
+                    {request.customerId ||
+                      request.userId ||
+                      request.customer ||
+                      'Demo Customer'}
+                  </p>
+
+                  {request.customerName && (
+                    <p className="mt-1 text-[9px] text-gray-400">
+                      {
+                        request.customerName
+                      }
+                    </p>
+                  )}
+
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+
+                    <InfoBox
+                      label="AMOUNT"
+                      value={`₹${Number(
+                        request.amount ||
+                          0
+                      ).toLocaleString(
+                        'en-IN'
+                      )}`}
+                    />
+
+                    <InfoBox
+                      label="REFERENCE / UTR"
+                      value={
+                        request.reference ||
+                        request.utr ||
+                        '—'
+                      }
+                    />
+
+                    <InfoBox
+                      label="METHOD"
+                      value={
+                        request.method ||
+                        '—'
+                      }
+                    />
+
+                    <InfoBox
+                      label="PAYMENT PROOF"
+                      value={
+                        request.proof ||
+                        '—'
+                      }
+                    />
+
+                  </div>
+
+                  {request.proofData && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newWindow =
+                          window.open();
+
+                        if (
+                          newWindow
+                        ) {
+                          newWindow.document.write(
+                            `<img src="${request.proofData}" style="max-width:100%;height:auto;" />`
+                          );
+                        }
+                      }}
+                      className="mt-3 h-[40px] w-full rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-[9px] font-black text-cyan-300"
+                    >
+                      🖼️ VIEW PAYMENT PROOF
+                    </button>
+                  )}
+
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+
+                    <button
+                      onClick={() =>
+                        approveDeposit(
+                          request.id
+                        )
+                      }
+                      className="h-[44px] rounded-lg bg-green-700 text-[10px] font-black"
+                    >
+                      ✓ APPROVE
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        rejectDeposit(
+                          request.id
+                        )
+                      }
+                      className="h-[44px] rounded-lg bg-red-700 text-[10px] font-black"
+                    >
+                      ✕ REJECT
+                    </button>
+
+                  </div>
+
+                  <p className="mt-3 text-center text-[7px] text-gray-500">
+                    Demo review only.
+                    Approval does not verify
+                    or process a real payment.
+                  </p>
+
+                </div>
+              ))}
+
+          </div>
+        </AdminPage>
+      )}
+
+      {/* WITHDRAWALS */}
+
+      {activeSection ===
+        'Pending Withdrawals' && (
+        <AdminPage
+          title="Pending Withdrawals"
+          icon="💸"
+          onBack={() =>
+            setActiveSection(
+              'Dashboard'
+            )
+          }
+        >
+          <InfoBox
+            label="TOTAL PENDING"
+            value={pendingWithdrawals}
+          />
+
+          {pendingWithdrawals ===
+            0 && (
+            <EmptyState text="No pending withdrawals" />
+          )}
+
+          <div className="mt-4 space-y-3">
+
+            {withdrawalRequests
+              .filter(
+                (item) =>
+                  String(
+                    item.status
+                  ).toUpperCase() ===
+                  'PENDING'
+              )
+              .map((request) => (
+                <div
+                  key={request.id}
+                  className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
+                >
+                  <InfoBox
+                    label="REQUESTED DEMO COINS"
+                    value={Number(
+                      request.amount ||
+                        0
+                    ).toLocaleString(
+                      'en-IN'
+                    )}
+                  />
+
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+
+                    <button
+                      onClick={() =>
+                        approveWithdrawal(
+                          request.id
+                        )
+                      }
+                      className="h-[44px] rounded-lg bg-green-700 text-[10px] font-black"
+                    >
+                      ✓ APPROVE
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        rejectWithdrawal(
+                          request.id
+                        )
+                      }
+                      className="h-[44px] rounded-lg bg-red-700 text-[10px] font-black"
+                    >
+                      ✕ REJECT
+                    </button>
+
+                  </div>
+                </div>
+              ))}
+
+          </div>
+        </AdminPage>
       )}
 
       {/* CUSTOMERS */}
 
       {activeSection ===
         'Customers' && (
-
         <AdminPage
           title="Customers"
           icon="👥"
@@ -1014,23 +1268,12 @@ export default function AdminDashboard({
             )
           }
         >
-
           <form
             onSubmit={createCustomer}
             className="rounded-xl border border-amber-500/30 bg-black/10 p-4"
           >
-
             <p className="text-xs font-black text-amber-300">
               CREATE CUSTOMER ID
-            </p>
-
-            <p className="mt-2 text-[9px] leading-4 text-gray-400">
-              Create a unique Login ID,
-              Login Password and
-              Withdrawal Password.
-              Customer changes both
-              passwords after first
-              login.
             </p>
 
             <div className="mt-4 space-y-3">
@@ -1043,18 +1286,18 @@ export default function AdminDashboard({
                     e.target.value
                   )
                 }
-                placeholder="Enter customer name"
               />
 
               <CustomerInput
                 label="LOGIN ID"
-                value={customerLoginId}
+                value={
+                  customerLoginId
+                }
                 onChange={(e) =>
                   setCustomerLoginId(
                     e.target.value
                   )
                 }
-                placeholder="Example: satish123"
               />
 
               <CustomerInput
@@ -1066,7 +1309,6 @@ export default function AdminDashboard({
                     e.target.value
                   )
                 }
-                placeholder="Minimum 6 characters"
               />
 
               <CustomerInput
@@ -1080,478 +1322,130 @@ export default function AdminDashboard({
                     e.target.value
                   )
                 }
-                placeholder="Minimum 6 characters"
               />
 
             </div>
 
             {customerError && (
-              <div className="mt-3 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-[9px] font-bold text-red-300">
-                {customerError}
-              </div>
+              <MessageBox
+                text={customerError}
+                error
+              />
             )}
 
             {customerMessage && (
-              <div className="mt-3 rounded-lg border border-green-500/40 bg-green-500/10 p-3 text-[9px] font-bold text-green-300">
-                {customerMessage}
-              </div>
+              <MessageBox
+                text={
+                  customerMessage
+                }
+              />
             )}
 
             <button
               type="submit"
-              disabled={customerLoading}
-              className="mt-4 h-[46px] w-full rounded-lg bg-amber-500 text-[10px] font-black text-black disabled:opacity-50"
+              disabled={
+                customerLoading
+              }
+              className="mt-4 h-[46px] w-full rounded-lg bg-amber-500 text-[10px] font-black text-black"
             >
-              {customerLoading
-                ? 'PLEASE WAIT...'
-                : 'CREATE CUSTOMER'}
+              CREATE CUSTOMER
             </button>
-
           </form>
 
-          <div className="mt-5">
+          <div className="mt-5 space-y-3">
 
-            <div className="flex items-center justify-between">
+            {customers.map(
+              (customer) => (
+                <div
+                  key={customer.id}
+                  className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
+                >
+                  <div className="flex justify-between">
 
-              <p className="text-xs font-black text-white">
-                CUSTOMER LIST
-              </p>
+                    <div>
+                      <p className="text-sm font-black">
+                        {customer.name}
+                      </p>
 
-              <button
-                type="button"
-                onClick={loadCustomers}
-                disabled={customerLoading}
-                className="rounded-md border border-teal-500/40 px-3 py-2 text-[8px] font-black text-teal-300"
-              >
-                REFRESH
-              </button>
-
-            </div>
-
-            {customerLoading &&
-            customers.length === 0 ? (
-
-              <EmptyState
-                text="Loading customers..."
-              />
-
-            ) : customers.length ===
-              0 ? (
-
-              <EmptyState
-                text="No customers created yet"
-              />
-
-            ) : (
-
-              <div className="mt-3 space-y-3">
-
-                {customers.map(
-                  (customer) => (
-
-                    <div
-                      key={customer.id}
-                      className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
-                    >
-
-                      <div className="flex items-start justify-between gap-3">
-
-                        <div>
-
-                          <p className="text-sm font-black">
-                            {customer.name}
-                          </p>
-
-                          <p className="mt-1 text-[9px] text-gray-400">
-                            Login ID:{' '}
-                            <span className="font-black text-amber-300">
-                              {customer.loginId}
-                            </span>
-                          </p>
-
-                        </div>
-
-                        <span
-                          className={`rounded-full border px-2 py-1 text-[7px] font-black ${
-                            String(
-                              customer.status
-                            ).toUpperCase() ===
-                            'ACTIVE'
-                              ? 'border-green-500/40 bg-green-500/10 text-green-300'
-                              : 'border-red-500/40 bg-red-500/10 text-red-300'
-                          }`}
-                        >
-                          {customer.status}
-                        </span>
-
-                      </div>
-
-                      <div className="mt-3 space-y-2">
-
-                        {customer.mustChangePassword ? (
-
-                          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-[8px] font-black text-amber-300">
-                            LOGIN PASSWORD CHANGE REQUIRED
-                          </div>
-
-                        ) : (
-
-                          <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3 text-[8px] font-black text-green-300">
-                            LOGIN PASSWORD SET
-                          </div>
-
-                        )}
-
-                        {!customer.withdrawalPasswordConfigured ? (
-
-                          <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-[8px] font-black text-red-300">
-                            WITHDRAWAL PASSWORD NOT CONFIGURED
-                          </div>
-
-                        ) : customer.mustChangeWithdrawalPassword ? (
-
-                          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-[8px] font-black text-amber-300">
-                            WITHDRAWAL PASSWORD CHANGE REQUIRED
-                          </div>
-
-                        ) : (
-
-                          <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3 text-[8px] font-black text-green-300">
-                            WITHDRAWAL PASSWORD SET
-                          </div>
-
-                        )}
-
-                      </div>
-
+                      <p className="mt-1 text-[9px] text-amber-300">
+                        {
+                          customer.loginId
+                        }
+                      </p>
                     </div>
 
-                  )
-                )}
+                    <StatusBadge
+                      status={
+                        customer.status
+                      }
+                    />
 
-              </div>
+                  </div>
 
+                  <div className="mt-3 space-y-2">
+
+                    <InfoBox
+                      label="LOGIN PASSWORD"
+                      value={
+                        customer.mustChangePassword
+                          ? 'CHANGE REQUIRED'
+                          : 'SET'
+                      }
+                    />
+
+                    <InfoBox
+                      label="WITHDRAWAL PASSWORD"
+                      value={
+                        !customer.withdrawalPasswordConfigured
+                          ? 'NOT CONFIGURED'
+                          : customer.mustChangeWithdrawalPassword
+                          ? 'CHANGE REQUIRED'
+                          : 'SET'
+                      }
+                    />
+
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        resetLoginPassword(
+                          customer
+                        )
+                      }
+                      className="min-h-[42px] rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 text-[8px] font-black text-amber-300"
+                    >
+                      RESET LOGIN PASSWORD
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        resetWithdrawalPassword(
+                          customer
+                        )
+                      }
+                      className="min-h-[42px] rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-2 text-[8px] font-black text-cyan-300"
+                    >
+                      RESET WITHDRAWAL PASSWORD
+                    </button>
+
+                  </div>
+
+                </div>
+              )
             )}
 
           </div>
-
         </AdminPage>
-
-      )}
-
-      {/* PENDING DEPOSITS */}
-
-      {activeSection ===
-        'Pending Deposits' && (
-
-        <AdminPage
-          title="Pending Deposits"
-          icon="📥"
-          onBack={() =>
-            setActiveSection(
-              'Dashboard'
-            )
-          }
-        >
-
-          <InfoBox
-            label="TOTAL PENDING"
-            value={pendingDeposits}
-          />
-
-          {pendingDeposits === 0 && (
-            <EmptyState
-              text="No pending deposits"
-            />
-          )}
-
-          <div className="mt-4 space-y-3">
-
-            {depositRequests
-              .filter(
-                (item) =>
-                  String(
-                    item?.status ||
-                      ''
-                  ).toUpperCase() ===
-                  'PENDING'
-              )
-              .map(
-                (
-                  request,
-                  index
-                ) => (
-
-                  <div
-                    key={
-                      request?.id ||
-                      index
-                    }
-                    className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
-                  >
-
-                    <p className="text-sm font-black">
-                      {request?.customerId ||
-                        request?.userId ||
-                        request?.customer ||
-                        'Demo Customer'}
-                    </p>
-
-                    {request?.customerName && (
-                      <p className="mt-1 text-[8px] text-gray-400">
-                        {
-                          request.customerName
-                        }
-                      </p>
-                    )}
-
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-
-                      <InfoBox
-                        label="AMOUNT"
-                        value={
-                          request?.amount
-                            ? `₹${Number(
-                                request.amount
-                              ).toLocaleString(
-                                'en-IN'
-                              )}`
-                            : '—'
-                        }
-                      />
-
-                      <InfoBox
-                        label="REFERENCE / UTR"
-                        value={
-                          request?.reference ||
-                          request?.utr ||
-                          '—'
-                        }
-                      />
-
-                    </div>
-
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-
-                      <InfoBox
-                        label="METHOD"
-                        value={
-                          request?.method ||
-                          '—'
-                        }
-                      />
-
-                      <InfoBox
-                        label="PAYMENT PROOF"
-                        value={
-                          request?.proof ||
-                          '—'
-                        }
-                      />
-
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          approveDeposit(
-                            request.id
-                          )
-                        }
-                        className="h-[44px] rounded-lg border border-green-400/40 bg-green-700 text-[10px] font-black text-white"
-                      >
-                        ✓ APPROVE
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          rejectDeposit(
-                            request.id
-                          )
-                        }
-                        className="h-[44px] rounded-lg border border-red-400/40 bg-red-700 text-[10px] font-black text-white"
-                      >
-                        ✕ REJECT
-                      </button>
-
-                    </div>
-
-                    <p className="mt-3 text-center text-[7px] leading-4 text-gray-500">
-                      Demo review only. This
-                      does not verify or
-                      process a real payment.
-                    </p>
-
-                  </div>
-
-                )
-              )}
-
-          </div>
-
-        </AdminPage>
-
-      )}
-
-      {/* PENDING WITHDRAWALS */}
-
-      {activeSection ===
-        'Pending Withdrawals' && (
-
-        <AdminPage
-          title="Pending Withdrawals"
-          icon="💸"
-          onBack={() =>
-            setActiveSection(
-              'Dashboard'
-            )
-          }
-        >
-
-          <InfoBox
-            label="TOTAL PENDING"
-            value={
-              pendingWithdrawals
-            }
-          />
-
-          {pendingWithdrawals ===
-            0 && (
-
-            <EmptyState
-              text="No pending withdrawals"
-            />
-
-          )}
-
-          <div className="mt-4 space-y-3">
-
-            {withdrawalRequests
-              .filter(
-                (item) =>
-                  String(
-                    item?.status ||
-                      ''
-                  ).toUpperCase() ===
-                  'PENDING'
-              )
-              .map(
-                (
-                  request,
-                  index
-                ) => (
-
-                  <div
-                    key={
-                      request?.id ||
-                      index
-                    }
-                    className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
-                  >
-
-                    <p className="text-sm font-black">
-                      {request?.customerName ||
-                        request?.customerId ||
-                        'Demo Customer'}
-                    </p>
-
-                    <div className="mt-3">
-
-                      <InfoBox
-                        label="REQUESTED DEMO COINS"
-                        value={Number(
-                          request?.amount ||
-                            0
-                        ).toLocaleString(
-                          'en-IN'
-                        )}
-                      />
-
-                    </div>
-
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-
-                      <InfoBox
-                        label="ACCOUNT HOLDER"
-                        value={
-                          request?.holderName ||
-                          '—'
-                        }
-                      />
-
-                      <InfoBox
-                        label="BANK NAME"
-                        value={
-                          request?.bankName ||
-                          '—'
-                        }
-                      />
-
-                      <InfoBox
-                        label="ACCOUNT NUMBER"
-                        value={
-                          request?.accountNumber ||
-                          '—'
-                        }
-                      />
-
-                      <InfoBox
-                        label="IFSC CODE"
-                        value={
-                          request?.ifsc ||
-                          '—'
-                        }
-                      />
-
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          approveWithdrawal(
-                            request.id
-                          )
-                        }
-                        className="h-[44px] rounded-lg bg-green-700 text-[10px] font-black"
-                      >
-                        ✓ APPROVE
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          rejectWithdrawal(
-                            request.id
-                          )
-                        }
-                        className="h-[44px] rounded-lg bg-red-700 text-[10px] font-black"
-                      >
-                        ✕ REJECT
-                      </button>
-
-                    </div>
-
-                  </div>
-
-                )
-              )}
-
-          </div>
-
-        </AdminPage>
-
       )}
 
       {/* COIN MANAGEMENT */}
 
       {activeSection ===
         'Coin Management' && (
-
         <AdminPage
           title="Coin Management"
           icon="🪙"
@@ -1561,53 +1455,168 @@ export default function AdminDashboard({
             )
           }
         >
+          <div className="rounded-xl border border-[#28655f] bg-[#083d37] p-4">
 
-          <EmptyState
-            text="Demo coin management setup pending"
-          />
+            <p className="text-xs font-black text-amber-300">
+              DEMO COIN CONTROL
+            </p>
 
-        </AdminPage>
+            <p className="mt-2 text-[8px] leading-4 text-gray-400">
+              Simulation only. This does
+              not represent real money.
+            </p>
 
-      )}
+            <label className="mt-4 block text-[8px] font-black text-gray-400">
+              CUSTOMER
+            </label>
 
-      {/* API SETTINGS */}
+            <select
+              value={coinCustomerId}
+              onChange={(e) =>
+                setCoinCustomerId(
+                  e.target.value
+                )
+              }
+              className="mt-2 h-[46px] w-full rounded-lg border border-[#28655f] bg-[#061c1a] px-3 text-xs text-white"
+            >
+              <option value="">
+                Select Customer
+              </option>
 
-      {activeSection ===
-        'API Settings' && (
+              {customers.map(
+                (customer) => (
+                  <option
+                    key={
+                      customer.id
+                    }
+                    value={
+                      customer.loginId
+                    }
+                  >
+                    {customer.name} -{' '}
+                    {
+                      customer.loginId
+                    }
+                  </option>
+                )
+              )}
+            </select>
 
-        <AdminPage
-          title="API Settings"
-          icon="🔌"
-          onBack={() =>
-            setActiveSection(
-              'Dashboard'
-            )
-          }
-        >
-
-          <ApiBox
-            title="SPORTS API"
-            description="Sports data provider configuration"
-          />
-
-          <div className="mt-3">
-
-            <ApiBox
-              title="GAME API"
-              description="Game provider configuration"
+            <CustomerInput
+              label="DEMO COINS"
+              type="number"
+              value={coinAmount}
+              onChange={(e) =>
+                setCoinAmount(
+                  e.target.value
+                )
+              }
             />
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+
+              <button
+                onClick={() =>
+                  changeDemoCoins(
+                    'ADD'
+                  )
+                }
+                className="h-[46px] rounded-lg bg-green-700 text-[10px] font-black"
+              >
+                + ADD DEMO COINS
+              </button>
+
+              <button
+                onClick={() =>
+                  changeDemoCoins(
+                    'REMOVE'
+                  )
+                }
+                className="h-[46px] rounded-lg bg-red-700 text-[10px] font-black"
+              >
+                − REMOVE DEMO COINS
+              </button>
+
+            </div>
+
+            {coinMessage && (
+              <MessageBox
+                text={coinMessage}
+              />
+            )}
+
+          </div>
+
+          <p className="mt-5 text-[10px] font-black text-amber-300">
+            RECENT COIN ACTIVITY
+          </p>
+
+          <div className="mt-3 space-y-2">
+
+            {coinHistory.length ===
+            0 ? (
+              <EmptyState text="No demo coin activity yet" />
+            ) : (
+              coinHistory
+                .slice(0, 20)
+                .map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-lg border border-[#28655f] bg-[#083d37] p-3"
+                  >
+                    <div className="flex justify-between gap-3">
+
+                      <div>
+                        <p className="text-[9px] font-black">
+                          {
+                            item.customerName
+                          }
+                        </p>
+
+                        <p className="mt-1 text-[8px] text-gray-400">
+                          {
+                            item.customerId
+                          }
+                        </p>
+                      </div>
+
+                      <span
+                        className={
+                          item.type ===
+                          'ADD'
+                            ? 'text-green-300'
+                            : 'text-red-300'
+                        }
+                      >
+                        {item.type ===
+                        'ADD'
+                          ? '+'
+                          : '-'}
+                        {Number(
+                          item.amount
+                        ).toLocaleString(
+                          'en-IN'
+                        )}
+                      </span>
+
+                    </div>
+
+                    <p className="mt-2 text-[7px] text-gray-500">
+                      {item.date}
+                    </p>
+                  </div>
+                ))
+            )}
 
           </div>
 
         </AdminPage>
-
       )}
 
       {/* TRANSACTION HISTORY */}
 
       {activeSection ===
         'Transaction History' && (
-
         <AdminPage
           title="Transaction History"
           icon="📒"
@@ -1617,18 +1626,17 @@ export default function AdminDashboard({
             )
           }
         >
-
           <div className="grid grid-cols-2 gap-2">
 
             <InfoBox
-              label="DEPOSIT REQUESTS"
+              label="DEPOSITS"
               value={
                 depositRequests.length
               }
             />
 
             <InfoBox
-              label="WITHDRAWAL REQUESTS"
+              label="WITHDRAWALS"
               value={
                 withdrawalRequests.length
               }
@@ -1636,133 +1644,66 @@ export default function AdminDashboard({
 
           </div>
 
-          <p className="mt-4 text-[9px] font-black text-amber-300">
+          <p className="mt-5 text-[10px] font-black text-amber-300">
             DEPOSIT HISTORY
           </p>
 
-          <div className="mt-2 space-y-2">
+          <div className="mt-3 space-y-2">
 
-            {depositRequests
-              .slice(0, 20)
-              .map(
-                (
-                  request,
-                  index
-                ) => (
+            {depositRequests.map(
+              (item) => (
+                <div
+                  key={item.id}
+                  className="rounded-lg border border-[#28655f] bg-[#083d37] p-3"
+                >
+                  <div className="flex justify-between">
 
-                  <div
-                    key={
-                      request?.id ||
-                      index
-                    }
-                    className="rounded-lg border border-[#28655f] bg-[#083d37] p-3"
-                  >
+                    <p className="text-[9px] font-black">
+                      ₹
+                      {Number(
+                        item.amount ||
+                          0
+                      ).toLocaleString(
+                        'en-IN'
+                      )}
+                    </p>
 
-                    <div className="flex items-center justify-between gap-3">
-
-                      <div>
-
-                        <p className="text-[9px] font-black">
-                          {request?.customerName ||
-                            request?.customerId ||
-                            'Demo Customer'}
-                        </p>
-
-                        <p className="mt-1 text-[8px] text-gray-400">
-                          ₹
-                          {Number(
-                            request?.amount ||
-                              0
-                          ).toLocaleString(
-                            'en-IN'
-                          )}
-                        </p>
-
-                      </div>
-
-                      <StatusBadge
-                        status={
-                          request?.status
-                        }
-                      />
-
-                    </div>
+                    <StatusBadge
+                      status={
+                        item.status
+                      }
+                    />
 
                   </div>
-
-                )
-              )}
-
-          </div>
-
-          <p className="mt-5 text-[9px] font-black text-amber-300">
-            WITHDRAWAL HISTORY
-          </p>
-
-          <div className="mt-2 space-y-2">
-
-            {withdrawalRequests
-              .slice(0, 20)
-              .map(
-                (
-                  request,
-                  index
-                ) => (
-
-                  <div
-                    key={
-                      request?.id ||
-                      index
-                    }
-                    className="rounded-lg border border-[#28655f] bg-[#083d37] p-3"
-                  >
-
-                    <div className="flex items-center justify-between gap-3">
-
-                      <div>
-
-                        <p className="text-[9px] font-black">
-                          {request?.customerName ||
-                            request?.customerId ||
-                            'Demo Customer'}
-                        </p>
-
-                        <p className="mt-1 text-[8px] text-gray-400">
-                          {Number(
-                            request?.amount ||
-                              0
-                          ).toLocaleString(
-                            'en-IN'
-                          )}{' '}
-                          Demo Coins
-                        </p>
-
-                      </div>
-
-                      <StatusBadge
-                        status={
-                          request?.status
-                        }
-                      />
-
-                    </div>
-
-                  </div>
-
-                )
-              )}
+                </div>
+              )
+            )}
 
           </div>
-
         </AdminPage>
+      )}
 
+      {/* API */}
+
+      {activeSection ===
+        'API Settings' && (
+        <AdminPage
+          title="API Settings"
+          icon="🔌"
+          onBack={() =>
+            setActiveSection(
+              'Dashboard'
+            )
+          }
+        >
+          <EmptyState text="API configuration section" />
+        </AdminPage>
       )}
 
       {/* ADMIN SETTINGS */}
 
       {activeSection ===
         'Admin Settings' && (
-
         <AdminPage
           title="Admin Settings"
           icon="⚙️"
@@ -1772,7 +1713,6 @@ export default function AdminDashboard({
             )
           }
         >
-
           <InfoBox
             label="ADMIN ID"
             value={
@@ -1780,9 +1720,7 @@ export default function AdminDashboard({
               'admin'
             }
           />
-
         </AdminPage>
-
       )}
 
     </div>
@@ -1790,7 +1728,7 @@ export default function AdminDashboard({
 }
 
 /* =====================================================
-   COMPONENTS
+   SMALL COMPONENTS
 ===================================================== */
 
 function AdminPage({
@@ -1803,9 +1741,8 @@ function AdminPage({
     <main className="mx-auto max-w-5xl px-3 py-4">
 
       <button
-        type="button"
         onClick={onBack}
-        className="mb-4 rounded-md border border-amber-500/40 bg-black/20 px-3 py-2 text-[9px] font-black text-amber-300"
+        className="mb-4 rounded-md border border-amber-500/40 px-3 py-2 text-[9px] font-black text-amber-300"
       >
         ‹ ADMIN DASHBOARD
       </button>
@@ -1819,7 +1756,6 @@ function AdminPage({
           </span>
 
           <div>
-
             <p className="text-[8px] font-black text-gray-500">
               ADMIN MANAGEMENT
             </p>
@@ -1827,7 +1763,6 @@ function AdminPage({
             <h2 className="text-lg font-black text-amber-300">
               {title}
             </h2>
-
           </div>
 
         </div>
@@ -1835,7 +1770,6 @@ function AdminPage({
         {children}
 
       </section>
-
     </main>
   );
 }
@@ -1845,25 +1779,23 @@ function CustomerInput({
   type = 'text',
   value,
   onChange,
-  placeholder,
 }) {
   return (
-    <div>
+    <label className="mt-3 block">
 
-      <label className="mb-2 block text-[8px] font-black text-gray-400">
+      <span className="text-[8px] font-black text-gray-400">
         {label}
-      </label>
+      </span>
 
       <input
         type={type}
         value={value}
         onChange={onChange}
-        placeholder={placeholder}
         autoComplete="off"
-        className="h-[46px] w-full rounded-lg border border-[#28655f] bg-[#061c1a] px-3 text-xs text-white outline-none focus:border-amber-400"
+        className="mt-2 h-[46px] w-full rounded-lg border border-[#28655f] bg-[#061c1a] px-3 text-xs text-white outline-none"
       />
 
-    </div>
+    </label>
   );
 }
 
@@ -1878,7 +1810,7 @@ function InfoBox({
         {label}
       </p>
 
-      <p className="mt-1 break-all text-[10px] font-black text-white">
+      <p className="mt-1 break-all text-[10px] font-black">
         {value}
       </p>
 
@@ -1889,34 +1821,32 @@ function InfoBox({
 function StatusBadge({
   status,
 }) {
-  const normalized =
+  const value =
     String(
       status || 'PENDING'
     ).toUpperCase();
 
-  let className =
-    'bg-amber-500/10 text-amber-300 border-amber-500/30';
+  let style =
+    'border-amber-500/30 bg-amber-500/10 text-amber-300';
 
   if (
-    normalized === 'APPROVED' ||
-    normalized === 'SUCCESS'
+    value === 'APPROVED' ||
+    value === 'ACTIVE'
   ) {
-    className =
-      'bg-green-500/10 text-green-300 border-green-500/30';
+    style =
+      'border-green-500/30 bg-green-500/10 text-green-300';
   }
 
-  if (
-    normalized === 'REJECTED'
-  ) {
-    className =
-      'bg-red-500/10 text-red-300 border-red-500/30';
+  if (value === 'REJECTED') {
+    style =
+      'border-red-500/30 bg-red-500/10 text-red-300';
   }
 
   return (
     <span
-      className={`rounded border px-2 py-1 text-[7px] font-black ${className}`}
+      className={`rounded border px-2 py-1 text-[7px] font-black ${style}`}
     >
-      {normalized}
+      {value}
     </span>
   );
 }
@@ -1925,9 +1855,9 @@ function EmptyState({
   text,
 }) {
   return (
-    <div className="mt-4 rounded-xl border border-dashed border-[#28655f] bg-black/10 px-4 py-8 text-center">
+    <div className="mt-4 rounded-xl border border-dashed border-[#28655f] px-4 py-8 text-center">
 
-      <p className="text-[10px] font-bold text-gray-500">
+      <p className="text-[10px] text-gray-500">
         {text}
       </p>
 
@@ -1935,33 +1865,19 @@ function EmptyState({
   );
 }
 
-function ApiBox({
-  title,
-  description,
+function MessageBox({
+  text,
+  error = false,
 }) {
   return (
-    <div className="rounded-xl border border-[#28655f] bg-[#083d37] p-4">
-
-      <div className="flex items-center justify-between gap-3">
-
-        <div>
-
-          <p className="text-xs font-black text-white">
-            {title}
-          </p>
-
-          <p className="mt-1 text-[8px] text-gray-400">
-            {description}
-          </p>
-
-        </div>
-
-        <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[7px] font-black text-amber-300">
-          SETUP
-        </span>
-
-      </div>
-
+    <div
+      className={`mt-3 rounded-lg border p-3 text-[9px] font-bold ${
+        error
+          ? 'border-red-500/40 bg-red-500/10 text-red-300'
+          : 'border-green-500/40 bg-green-500/10 text-green-300'
+      }`}
+    >
+      {text}
     </div>
   );
 }
