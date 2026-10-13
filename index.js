@@ -1,1143 +1,1823 @@
-import React, { useEffect, useState } from 'react';
+import express from 'express';
+import path from 'path';
+import https from 'https';
+import bcrypt from 'bcryptjs';
+import pg from 'pg';
+import { fileURLToPath } from 'url';
+import { sportsService } from './sportsService.js';
 
-const ACCOUNT_KEY = 'tsb_demo_withdrawal_account';
-const TRANSACTION_KEY = 'telugu_sports_demo_withdrawals';
-const BALANCE_KEY = 'telugu_sports_demo_balance';
-const AUTH_KEY = 'telugu_sports_auth_user';
+const { Pool } = pg;
 
-const STARTING_BALANCE = 10000;
-const MIN_WITHDRAWAL = 100;
-const HISTORY_LIMIT = 20;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-export default function WithdrawalPage({ onBack }) {
-  const [showAddAccount, setShowAddAccount] = useState(false);
+const app = express();
 
-  const [account, setAccount] = useState(() => {
-    try {
-      const saved = localStorage.getItem(ACCOUNT_KEY);
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+const PORT = process.env.PORT || 10000;
 
-  const [transactions, setTransactions] = useState(() => {
-    try {
-      const saved = localStorage.getItem(TRANSACTION_KEY);
-      const parsed = saved ? JSON.parse(saved) : [];
+/* =========================================================
+   MIDDLEWARE
+========================================================= */
 
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
+app.use(
+  express.json({
+    limit: '2mb',
+  })
+);
 
-  const [balance, setBalance] = useState(() => {
-    try {
-      const saved = localStorage.getItem(BALANCE_KEY);
+app.use(
+  express.urlencoded({
+    extended: true,
+    limit: '2mb',
+  })
+);
 
-      if (saved === null) {
-        localStorage.setItem(
-          BALANCE_KEY,
-          String(STARTING_BALANCE)
+/* =========================================================
+   POSTGRESQL
+========================================================= */
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+
+  ssl:
+    process.env.NODE_ENV === 'production'
+      ? {
+          rejectUnauthorized: false,
+        }
+      : false,
+});
+
+/* =========================================================
+   DATABASE INITIALIZATION
+========================================================= */
+
+async function initializeDatabase() {
+  if (!process.env.DATABASE_URL) {
+    console.warn(
+      'DATABASE_URL is not configured.'
+    );
+
+    return;
+  }
+
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS customers (
+        id SERIAL PRIMARY KEY,
+
+        name VARCHAR(120)
+          NOT NULL,
+
+        login_id VARCHAR(60)
+          UNIQUE
+          NOT NULL,
+
+        password_hash TEXT
+          NOT NULL,
+
+        must_change_password
+          BOOLEAN
+          NOT NULL
+          DEFAULT TRUE,
+
+        withdrawal_password_hash
+          TEXT,
+
+        must_change_withdrawal_password
+          BOOLEAN
+          NOT NULL
+          DEFAULT TRUE,
+
+        status VARCHAR(20)
+          NOT NULL
+          DEFAULT 'ACTIVE',
+
+        created_at
+          TIMESTAMPTZ
+          NOT NULL
+          DEFAULT NOW(),
+
+        updated_at
+          TIMESTAMPTZ
+          NOT NULL
+          DEFAULT NOW()
+      );
+    `);
+
+    await pool.query(`
+      ALTER TABLE customers
+      ADD COLUMN IF NOT EXISTS
+        withdrawal_password_hash TEXT;
+    `);
+
+    await pool.query(`
+      ALTER TABLE customers
+      ADD COLUMN IF NOT EXISTS
+        must_change_withdrawal_password
+        BOOLEAN
+        NOT NULL
+        DEFAULT TRUE;
+    `);
+
+    console.log(
+      'Customers table ready.'
+    );
+
+    console.log(
+      'Withdrawal password support ready.'
+    );
+
+    console.log(
+      'Admin password reset support ready.'
+    );
+  } catch (error) {
+    console.error(
+      'Database initialization error:',
+      error
+    );
+  }
+}
+
+/* =========================================================
+   OTP STORE
+========================================================= */
+
+const otpStore = new Map();
+
+/* =========================================================
+   FAST2SMS
+========================================================= */
+
+function sendFast2SMS(
+  mobile,
+  otp
+) {
+  return new Promise(
+    (resolve, reject) => {
+      const apiKey =
+        process.env.FAST2SMS_API_KEY ||
+        process.env.SMS_API_KEY;
+
+      if (!apiKey) {
+        return reject(
+          new Error(
+            'FAST2SMS_API_KEY environment variable is not configured on Render.'
+          )
         );
-
-        return STARTING_BALANCE;
       }
 
-      const parsed = Number(saved);
+      const queryParams =
+        new URLSearchParams({
+          authorization: apiKey,
+          variables_values: otp,
+          route: 'otp',
+          numbers: mobile,
+        }).toString();
 
-      return Number.isFinite(parsed)
-        ? parsed
-        : STARTING_BALANCE;
-    } catch {
-      return STARTING_BALANCE;
-    }
-  });
+      const options = {
+        hostname: 'www.fast2sms.com',
 
-  const [form, setForm] = useState({
-    holderName: '',
-    bankName: '',
-    accountNumber: '',
-    confirmAccountNumber: '',
-    ifsc: '',
-    password: '',
-  });
+        path:
+          `/dev/bulkV2?${queryParams}`,
 
-  const [amount, setAmount] = useState('');
+        method: 'GET',
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        TRANSACTION_KEY,
-        JSON.stringify(transactions)
-      );
-    } catch (error) {
-      console.error(
-        'Unable to save withdrawal transactions:',
-        error
-      );
-    }
-  }, [transactions]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        BALANCE_KEY,
-        String(balance)
-      );
-
-      window.dispatchEvent(
-        new CustomEvent('tsb-demo-balance-updated', {
-          detail: {
-            balance,
-          },
-        })
-      );
-    } catch (error) {
-      console.error(
-        'Unable to save demo balance:',
-        error
-      );
-    }
-  }, [balance]);
-
-  const getCustomer = () => {
-    try {
-      const saved = localStorage.getItem(AUTH_KEY);
-
-      if (!saved) {
-        return {
-          customerId: 'DEMO',
-          customerName: 'Demo User',
-        };
-      }
-
-      const user = JSON.parse(saved);
-
-      return {
-        customerId:
-          user?.customerId ||
-          user?.loginId ||
-          user?.username ||
-          user?.identifier ||
-          user?.mobile ||
-          user?.email ||
-          'DEMO',
-
-        customerName:
-          user?.name ||
-          user?.username ||
-          'Demo User',
+        headers: {
+          'cache-control': 'no-cache',
+        },
       };
-    } catch {
-      return {
-        customerId: 'DEMO',
-        customerName: 'Demo User',
-      };
-    }
-  };
 
-  const updateForm = (field, value) => {
-    setForm((previous) => ({
-      ...previous,
-      [field]: value,
-    }));
-  };
-
-  /* =====================================================
-     SAVE / CHANGE BANK ACCOUNT
-     PASSWORD IS REQUIRED ONLY HERE
-  ===================================================== */
-
-  const saveAccount = (event) => {
-    event.preventDefault();
-
-    const holderName =
-      form.holderName.trim();
-
-    const bankName =
-      form.bankName.trim();
-
-    const accountNumber =
-      form.accountNumber.trim();
-
-    const confirmAccountNumber =
-      form.confirmAccountNumber.trim();
-
-    const ifsc =
-      form.ifsc
-        .trim()
-        .toUpperCase();
-
-    const password =
-      form.password;
-
-    if (!holderName) {
-      alert('Enter account holder name');
-      return;
-    }
-
-    if (!bankName) {
-      alert('Enter bank name');
-      return;
-    }
-
-    if (
-      !/^[0-9]{9,18}$/.test(
-        accountNumber
-      )
-    ) {
-      alert(
-        'Enter a valid account number'
-      );
-      return;
-    }
-
-    if (
-      accountNumber !==
-      confirmAccountNumber
-    ) {
-      alert(
-        'Account numbers do not match'
-      );
-      return;
-    }
-
-    if (
-      !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(
-        ifsc
-      )
-    ) {
-      alert(
-        'Enter a valid IFSC code'
-      );
-      return;
-    }
-
-    if (
-      password.length < 6
-    ) {
-      alert(
-        'Enter your Withdrawal Password'
-      );
-      return;
-    }
-
-    const newAccount = {
-      holderName,
-      bankName,
-      accountNumber,
-      ifsc,
-
-      /*
-        Demo-only local verification value.
-        This password is NOT requested for
-        every withdrawal.
-      */
-      password,
-    };
-
-    try {
-      localStorage.setItem(
-        ACCOUNT_KEY,
-        JSON.stringify(newAccount)
-      );
-    } catch (error) {
-      console.error(
-        'Unable to save withdrawal account:',
-        error
-      );
-
-      alert(
-        'Unable to save account'
-      );
-
-      return;
-    }
-
-    setAccount(newAccount);
-
-    setShowAddAccount(false);
-
-    setForm({
-      holderName: '',
-      bankName: '',
-      accountNumber: '',
-      confirmAccountNumber: '',
-      ifsc: '',
-      password: '',
-    });
-  };
-
-  /* =====================================================
-     DEMO WITHDRAWAL
-     NO PASSWORD REQUIRED HERE
-     NO SUCCESS ALERT POPUP
-  ===================================================== */
-
-  const handleWithdraw = (event) => {
-    event.preventDefault();
-
-    if (!account) {
-      alert(
-        'Please add a bank account first'
-      );
-
-      return;
-    }
-
-    const value =
-      Number(amount);
-
-    if (
-      !Number.isInteger(value) ||
-      value < MIN_WITHDRAWAL
-    ) {
-      alert(
-        `Minimum withdrawal is ${MIN_WITHDRAWAL} demo coins`
-      );
-
-      return;
-    }
-
-    if (
-      value > balance
-    ) {
-      alert('LOW BALANCE');
-      return;
-    }
-
-    const customer =
-      getCustomer();
-
-    const transaction = {
-      id: `TSBW${Date.now()}`,
-
-      customerId:
-        customer.customerId,
-
-      customerName:
-        customer.customerName,
-
-      amount: value,
-
-      status: 'PENDING',
-
-      holderName:
-        account.holderName,
-
-      bankName:
-        account.bankName,
-
-      accountNumber:
-        account.accountNumber,
-
-      ifsc:
-        account.ifsc,
-
-      accountLast4:
-        account.accountNumber.slice(-4),
-
-      createdAt:
-        new Date().toISOString(),
-
-      date:
-        new Date().toLocaleString(
-          'en-IN'
-        ),
-
-      coinsHeld: value,
-
-      coinsRestored: false,
-
-      type:
-        'DEMO_WITHDRAWAL',
-    };
-
-    const nextBalance =
-      balance - value;
-
-    const nextTransactions = [
-      transaction,
-      ...transactions,
-    ];
-
-    setBalance(
-      nextBalance
-    );
-
-    setTransactions(
-      nextTransactions
-    );
-
-    try {
-      localStorage.setItem(
-        BALANCE_KEY,
-        String(nextBalance)
-      );
-
-      localStorage.setItem(
-        TRANSACTION_KEY,
-        JSON.stringify(
-          nextTransactions
-        )
-      );
-    } catch (error) {
-      console.error(
-        'Unable to submit demo withdrawal request:',
-        error
-      );
-    }
-
-    /*
-      IMPORTANT:
-      No alert popup here.
-
-      Request automatically appears
-      in Withdrawal History as PENDING.
-    */
-
-    setAmount('');
-  };
-
-  /* =====================================================
-     DELETE ACCOUNT
-  ===================================================== */
-
-  const deleteAccount = () => {
-    const confirmed =
-      window.confirm(
-        'Remove saved demo bank account?'
-      );
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      localStorage.removeItem(
-        ACCOUNT_KEY
-      );
-    } catch (error) {
-      console.error(
-        'Unable to remove account:',
-        error
-      );
-    }
-
-    setAccount(null);
-
-    setShowAddAccount(false);
-
-    setForm({
-      holderName: '',
-      bankName: '',
-      accountNumber: '',
-      confirmAccountNumber: '',
-      ifsc: '',
-      password: '',
-    });
-  };
-
-  /* =====================================================
-     HELPERS
-  ===================================================== */
-
-  const maskAccount = (
-    number
-  ) => {
-    if (!number) {
-      return '';
-    }
-
-    return `XXXX XXXX ${number.slice(
-      -4
-    )}`;
-  };
-
-  const statusClass = (
-    status
-  ) => {
-    const normalized =
-      String(
-        status || ''
-      ).toUpperCase();
-
-    if (
-      normalized === 'APPROVED' ||
-      normalized === 'SUCCESS'
-    ) {
-      return 'border border-green-500 bg-green-50 text-green-700';
-    }
-
-    if (
-      normalized === 'REJECTED' ||
-      normalized === 'REJECT'
-    ) {
-      return 'border border-red-500 bg-red-50 text-red-700';
-    }
-
-    return 'border border-amber-500 bg-amber-50 text-amber-700';
-  };
-
-  const history =
-    transactions.slice(
-      0,
-      HISTORY_LIMIT
-    );
-
-  return (
-    <div className="min-h-screen bg-[#f3f2f7] text-gray-900">
-
-      {/* HEADER */}
-
-      <header className="bg-teal-800 px-4 py-4 text-white">
-
-        <div className="mx-auto flex max-w-3xl items-center justify-between">
-
-          <div>
-
-            <p className="text-[10px] font-bold tracking-wider text-teal-100">
-              TELUGU SPORTS BOOK
-            </p>
-
-            <h1 className="text-lg font-black">
-              WITHDRAWAL
-            </h1>
-
-          </div>
-
-          <span className="rounded bg-white/10 px-2 py-1 text-[10px] font-bold">
-            DEMO
-          </span>
-
-        </div>
-
-      </header>
-
-      <main className="mx-auto max-w-3xl px-4 py-5">
-
-        {/* BACK */}
-
-        <button
-          type="button"
-          onClick={onBack}
-          className="mb-5 rounded-lg bg-amber-700 px-6 py-3 font-bold text-white"
-        >
-          ← BACK
-        </button>
-
-        {/* BALANCE */}
-
-        <section className="mb-5 rounded-xl bg-white p-5 text-center shadow-sm">
-
-          <p className="text-xs font-bold text-gray-500">
-            AVAILABLE DEMO BALANCE
-          </p>
-
-          <h2 className="mt-2 text-3xl font-black text-teal-800">
-            🪙{' '}
-            {balance.toLocaleString(
-              'en-IN'
-            )}
-          </h2>
-
-          <p className="mt-1 text-xs text-gray-500">
-            Demo Coins
-          </p>
-
-        </section>
-
-        {/* ACCOUNT BUTTON */}
-
-        <div className="mb-6 text-center">
-
-          <button
-            type="button"
-            onClick={() =>
-              setShowAddAccount(
-                (previous) =>
-                  !previous
-              )
+      const req = https.request(
+        options,
+        (response) => {
+          let data = '';
+
+          response.on(
+            'data',
+            (chunk) => {
+              data += chunk;
             }
-            className="rounded-full bg-green-600 px-8 py-4 text-lg font-black text-white"
-          >
-            {account
-              ? '✎ CHANGE ACCOUNT'
-              : '+ ADD ACCOUNT'}
-          </button>
+          );
 
-        </div>
+          response.on(
+            'end',
+            () => {
+              try {
+                const result =
+                  JSON.parse(data);
 
-        {/* ACCOUNT FORM */}
+                const isSuccess =
+                  result.return === true ||
+                  result.status_code === 200;
 
-        {showAddAccount && (
-
-          <form
-            onSubmit={
-              saveAccount
-            }
-            className="mb-6 space-y-4 rounded-xl bg-white p-5 shadow-sm"
-          >
-
-            <h2 className="text-center text-xl font-black">
-              {account
-                ? 'CHANGE BANK ACCOUNT'
-                : 'ADD BANK ACCOUNT'}
-            </h2>
-
-            <p className="text-center text-[11px] text-gray-500">
-              Withdrawal Password is required only when adding or changing a bank account.
-            </p>
-
-            {/* HOLDER NAME */}
-
-            <div>
-
-              <label className="mb-1 block text-xs font-bold text-gray-600">
-                ACCOUNT HOLDER NAME
-              </label>
-
-              <input
-                type="text"
-                placeholder="Enter account holder name"
-                value={
-                  form.holderName
+                if (isSuccess) {
+                  resolve(result);
+                  return;
                 }
-                onChange={(
-                  event
-                ) =>
-                  updateForm(
-                    'holderName',
-                    event.target.value
+
+                const errorMessage =
+                  Array.isArray(
+                    result.message
                   )
-                }
-                className="w-full rounded-lg border p-4"
-                required
-              />
+                    ? result.message.join(
+                        ', '
+                      )
+                    : result.message ||
+                      'Fast2SMS returned a failure status.';
 
-            </div>
-
-            {/* BANK NAME */}
-
-            <div>
-
-              <label className="mb-1 block text-xs font-bold text-gray-600">
-                BANK NAME
-              </label>
-
-              <input
-                type="text"
-                placeholder="Enter bank name"
-                value={
-                  form.bankName
-                }
-                onChange={(
-                  event
-                ) =>
-                  updateForm(
-                    'bankName',
-                    event.target.value
+                reject(
+                  new Error(
+                    errorMessage
                   )
-                }
-                className="w-full rounded-lg border p-4"
-                required
-              />
-
-            </div>
-
-            {/* ACCOUNT NUMBER */}
-
-            <div>
-
-              <label className="mb-1 block text-xs font-bold text-gray-600">
-                ACCOUNT NUMBER
-              </label>
-
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder="Enter bank account number"
-                value={
-                  form.accountNumber
-                }
-                onChange={(
-                  event
-                ) =>
-                  updateForm(
-                    'accountNumber',
-                    event.target.value.replace(
-                      /\D/g,
-                      ''
-                    )
+                );
+              } catch {
+                reject(
+                  new Error(
+                    'Failed to parse response from Fast2SMS API.'
                   )
-                }
-                className="w-full rounded-lg border p-4"
-                required
-              />
-
-            </div>
-
-            {/* CONFIRM ACCOUNT NUMBER */}
-
-            <div>
-
-              <label className="mb-1 block text-xs font-bold text-gray-600">
-                CONFIRM ACCOUNT NUMBER
-              </label>
-
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder="Confirm bank account number"
-                value={
-                  form.confirmAccountNumber
-                }
-                onChange={(
-                  event
-                ) =>
-                  updateForm(
-                    'confirmAccountNumber',
-                    event.target.value.replace(
-                      /\D/g,
-                      ''
-                    )
-                  )
-                }
-                className="w-full rounded-lg border p-4"
-                required
-              />
-
-            </div>
-
-            {/* IFSC */}
-
-            <div>
-
-              <label className="mb-1 block text-xs font-bold text-gray-600">
-                IFSC CODE
-              </label>
-
-              <input
-                type="text"
-                placeholder="Enter IFSC code"
-                value={
-                  form.ifsc
-                }
-                onChange={(
-                  event
-                ) =>
-                  updateForm(
-                    'ifsc',
-                    event.target.value.toUpperCase()
-                  )
-                }
-                className="w-full rounded-lg border p-4 uppercase"
-                required
-              />
-
-            </div>
-
-            {/* PASSWORD */}
-
-            <div>
-
-              <label className="mb-1 block text-xs font-bold text-gray-600">
-                WITHDRAWAL PASSWORD
-              </label>
-
-              <input
-                type="password"
-                placeholder="Enter withdrawal password"
-                value={
-                  form.password
-                }
-                onChange={(
-                  event
-                ) =>
-                  updateForm(
-                    'password',
-                    event.target.value
-                  )
-                }
-                className="w-full rounded-lg border p-4"
-                required
-              />
-
-              <p className="mt-2 text-[10px] text-gray-500">
-                Password is required only for adding or changing the bank account.
-              </p>
-
-            </div>
-
-            {/* SAVE */}
-
-            <button
-              type="submit"
-              className="w-full rounded-lg bg-teal-800 py-4 font-black text-white"
-            >
-              SAVE ACCOUNT
-            </button>
-
-          </form>
-
-        )}
-
-        {/* INFORMATION */}
-
-        <section className="mb-5 rounded-xl bg-white p-5 shadow-sm">
-
-          <div className="space-y-3 text-xs leading-5 text-red-600">
-
-            <p>
-              1. Withdrawal requests use available demo coins only.
-            </p>
-
-            <p>
-              2. The requested demo coins are held when the request is submitted.
-            </p>
-
-            <p>
-              3. Insufficient balance will show LOW BALANCE.
-            </p>
-
-            <p>
-              4. Pending requests can be reviewed in the demo Admin Panel.
-            </p>
-
-            <p>
-              5. This demonstration does not transfer real money.
-            </p>
-
-          </div>
-
-        </section>
-
-        {/* SAVED ACCOUNT */}
-
-        {account ? (
-
-          <section className="mb-6 rounded-xl bg-white p-5 shadow-sm">
-
-            <div className="mb-5 flex items-start justify-between gap-3">
-
-              <div>
-
-                <p className="text-[10px] font-bold text-gray-500">
-                  SAVED BANK ACCOUNT
-                </p>
-
-                <h2 className="mt-1 text-lg font-black">
-                  {account.holderName.toUpperCase()}
-                </h2>
-
-              </div>
-
-              <button
-                type="button"
-                onClick={
-                  deleteAccount
-                }
-                className="rounded-lg bg-red-600 px-3 py-2 text-xs font-black text-white"
-              >
-                DELETE
-              </button>
-
-            </div>
-
-            {/* ACCOUNT DETAILS */}
-
-            <div className="overflow-hidden rounded-xl bg-gray-100">
-
-              <AccountRow
-                label="Bank"
-                value={
-                  account.bankName
-                }
-              />
-
-              <AccountRow
-                label="Account No"
-                value={
-                  maskAccount(
-                    account.accountNumber
-                  )
-                }
-              />
-
-              <AccountRow
-                label="IFSC Code"
-                value={
-                  account.ifsc
-                }
-                last
-              />
-
-            </div>
-
-            {/* WITHDRAW FORM */}
-
-            <form
-              onSubmit={
-                handleWithdraw
+                );
               }
-              className="mt-5 space-y-4"
-            >
+            }
+          );
+        }
+      );
 
-              <div>
+      req.on(
+        'error',
+        (error) => {
+          reject(error);
+        }
+      );
 
-                <label className="mb-2 block text-xs font-black text-gray-600">
-                  ENTER AMOUNT
-                </label>
-
-                <input
-                  type="number"
-                  min={
-                    MIN_WITHDRAWAL
-                  }
-                  step="1"
-                  placeholder="Enter amount"
-                  value={
-                    amount
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setAmount(
-                      event.target.value
-                    )
-                  }
-                  className="w-full rounded-lg border p-4 text-lg font-bold"
-                  required
-                />
-
-              </div>
-
-              {/* QUICK AMOUNTS */}
-
-              <div className="grid grid-cols-4 gap-2">
-
-                {[
-                  500,
-                  1000,
-                  2000,
-                  5000,
-                ].map(
-                  (value) => (
-
-                    <button
-                      key={
-                        value
-                      }
-                      type="button"
-                      onClick={() =>
-                        setAmount(
-                          String(
-                            value
-                          )
-                        )
-                      }
-                      className="rounded-lg border border-teal-700 py-3 text-xs font-black text-teal-800"
-                    >
-                      {value.toLocaleString(
-                        'en-IN'
-                      )}
-                    </button>
-
-                  )
-                )}
-
-              </div>
-
-              {/* NO PASSWORD FIELD HERE */}
-
-              <button
-                type="submit"
-                className="w-full rounded-md bg-red-700 py-4 text-lg font-black text-white"
-              >
-                WITHDRAW
-              </button>
-
-            </form>
-
-          </section>
-
-        ) : (
-
-          <div className="mb-6 rounded-xl bg-white p-6 text-center text-sm text-gray-500 shadow-sm">
-
-            No bank account added yet.
-
-            <br />
-
-            Click ADD ACCOUNT to continue.
-
-          </div>
-
-        )}
-
-        {/* WITHDRAWAL HISTORY */}
-
-        <section className="overflow-hidden rounded-xl bg-white shadow-sm">
-
-          <div className="px-4 py-4">
-
-            <h2 className="text-lg font-black">
-              WITHDRAWAL HISTORY
-            </h2>
-
-            <p className="mt-1 text-[10px] text-gray-500">
-              Latest{' '}
-              {HISTORY_LIMIT}{' '}
-              demo withdrawal requests
-            </p>
-
-          </div>
-
-          <div className="overflow-x-auto">
-
-            <table className="w-full min-w-[560px] text-xs">
-
-              <thead className="bg-teal-800 text-white">
-
-                <tr>
-
-                  <th className="p-3 text-left">
-                    AMOUNT
-                  </th>
-
-                  <th className="p-3 text-left">
-                    STATUS
-                  </th>
-
-                  <th className="p-3 text-left">
-                    ACCOUNT
-                  </th>
-
-                  <th className="p-3 text-left">
-                    DATE
-                  </th>
-
-                </tr>
-
-              </thead>
-
-              <tbody>
-
-                {history.length ===
-                0 ? (
-
-                  <tr>
-
-                    <td
-                      colSpan={4}
-                      className="p-8 text-center text-gray-500"
-                    >
-                      No withdrawal requests yet
-                    </td>
-
-                  </tr>
-
-                ) : (
-
-                  history.map(
-                    (
-                      transaction
-                    ) => (
-
-                      <tr
-                        key={
-                          transaction.id
-                        }
-                        className="border-b"
-                      >
-
-                        <td className="p-3 font-bold">
-                          {Number(
-                            transaction.amount
-                          ).toLocaleString(
-                            'en-IN'
-                          )}
-                        </td>
-
-                        <td className="p-3">
-
-                          <span
-                            className={`inline-block rounded-md px-3 py-1 text-[10px] font-black ${statusClass(
-                              transaction.status
-                            )}`}
-                          >
-                            {
-                              transaction.status
-                            }
-                          </span>
-
-                        </td>
-
-                        <td className="p-3">
-                          {transaction.accountLast4
-                            ? `XXXX-${transaction.accountLast4}`
-                            : '—'}
-                        </td>
-
-                        <td className="whitespace-nowrap p-3">
-                          {
-                            transaction.date
-                          }
-                        </td>
-
-                      </tr>
-
-                    )
-                  )
-
-                )}
-
-              </tbody>
-
-            </table>
-
-          </div>
-
-        </section>
-
-        {/* FOOTER */}
-
-        <p className="py-6 text-center text-[10px] text-gray-500">
-          Demo Withdrawal System — No Real Money Transfers
-        </p>
-
-      </main>
-
-    </div>
+      req.end();
+    }
   );
 }
 
 /* =========================================================
-   ACCOUNT ROW
+   CUSTOMER HELPERS
 ========================================================= */
 
-function AccountRow({
-  label,
-  value,
-  last = false,
-}) {
-  return (
-    <div
-      className={`flex items-center justify-between gap-4 px-4 py-3 ${
-        last
-          ? ''
-          : 'border-b'
-      }`}
-    >
-      <span className="text-xs text-gray-500">
-        {label}
-      </span>
+function normalizeLoginId(
+  value
+) {
+  return String(value || '')
+    .trim()
+    .toLowerCase();
+}
 
-      <span className="text-right text-sm font-bold">
-        {value || '—'}
-      </span>
-    </div>
+function publicCustomer(
+  customer
+) {
+  return {
+    id: customer.id,
+
+    name: customer.name,
+
+    loginId: customer.login_id,
+
+    mustChangePassword:
+      Boolean(
+        customer.must_change_password
+      ),
+
+    mustChangeWithdrawalPassword:
+      Boolean(
+        customer
+          .must_change_withdrawal_password
+      ),
+
+    withdrawalPasswordConfigured:
+      Boolean(
+        customer
+          .withdrawal_password_hash
+      ),
+
+    status: customer.status,
+
+    createdAt:
+      customer.created_at,
+  };
+}
+
+/* =========================================================
+   CREATE CUSTOMER
+   ADMIN SIDE
+
+   POST /api/admin/customers
+========================================================= */
+
+app.post(
+  '/api/admin/customers',
+
+  async (req, res) => {
+    try {
+      const name =
+        String(
+          req.body.name || ''
+        ).trim();
+
+      const loginId =
+        normalizeLoginId(
+          req.body.loginId
+        );
+
+      const temporaryPassword =
+        String(
+          req.body
+            .temporaryPassword ||
+            ''
+        );
+
+      const temporaryWithdrawalPassword =
+        String(
+          req.body
+            .temporaryWithdrawalPassword ||
+            ''
+        );
+
+      if (!name) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Customer name is required.',
+          });
+      }
+
+      if (!loginId) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Login ID is required.',
+          });
+      }
+
+      if (
+        !/^[a-z0-9._-]{4,30}$/.test(
+          loginId
+        )
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Login ID must be 4-30 characters and can contain letters, numbers, dot, underscore or hyphen.',
+          });
+      }
+
+      if (
+        temporaryPassword.length < 6
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Temporary Login Password must contain at least 6 characters.',
+          });
+      }
+
+      if (
+        temporaryWithdrawalPassword
+          .length < 6
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Temporary Withdrawal Password must contain at least 6 characters.',
+          });
+      }
+
+      if (
+        temporaryPassword ===
+        temporaryWithdrawalPassword
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Login Password and Withdrawal Password must be different.',
+          });
+      }
+
+      const existing =
+        await pool.query(
+          `
+          SELECT id
+          FROM customers
+          WHERE login_id = $1
+          LIMIT 1
+          `,
+          [loginId]
+        );
+
+      if (
+        existing.rows.length > 0
+      ) {
+        return res
+          .status(409)
+          .json({
+            error:
+              'This Login ID already exists. Please choose another Login ID.',
+          });
+      }
+
+      const [
+        passwordHash,
+        withdrawalPasswordHash,
+      ] = await Promise.all([
+        bcrypt.hash(
+          temporaryPassword,
+          12
+        ),
+
+        bcrypt.hash(
+          temporaryWithdrawalPassword,
+          12
+        ),
+      ]);
+
+      const result =
+        await pool.query(
+          `
+          INSERT INTO customers (
+            name,
+            login_id,
+            password_hash,
+            must_change_password,
+            withdrawal_password_hash,
+            must_change_withdrawal_password,
+            status
+          )
+          VALUES (
+            $1,
+            $2,
+            $3,
+            TRUE,
+            $4,
+            TRUE,
+            'ACTIVE'
+          )
+          RETURNING
+            id,
+            name,
+            login_id,
+            must_change_password,
+            withdrawal_password_hash,
+            must_change_withdrawal_password,
+            status,
+            created_at
+          `,
+          [
+            name,
+            loginId,
+            passwordHash,
+            withdrawalPasswordHash,
+          ]
+        );
+
+      return res
+        .status(201)
+        .json({
+          success: true,
+
+          message:
+            'Customer created successfully.',
+
+          customer:
+            publicCustomer(
+              result.rows[0]
+            ),
+        });
+    } catch (error) {
+      console.error(
+        'Create Customer Error:',
+        error
+      );
+
+      if (
+        error?.code === '23505'
+      ) {
+        return res
+          .status(409)
+          .json({
+            error:
+              'This Login ID already exists.',
+          });
+      }
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Unable to create customer.',
+        });
+    }
+  }
+);
+
+/* =========================================================
+   CUSTOMER LIST
+   ADMIN SIDE
+
+   GET /api/admin/customers
+========================================================= */
+
+app.get(
+  '/api/admin/customers',
+
+  async (req, res) => {
+    try {
+      const result =
+        await pool.query(`
+          SELECT
+            id,
+            name,
+            login_id,
+            must_change_password,
+            withdrawal_password_hash,
+            must_change_withdrawal_password,
+            status,
+            created_at
+          FROM customers
+          ORDER BY id DESC
+        `);
+
+      return res.json({
+        success: true,
+
+        customers:
+          result.rows.map(
+            publicCustomer
+          ),
+      });
+    } catch (error) {
+      console.error(
+        'Customer List Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Unable to load customers.',
+        });
+    }
+  }
+);
+
+/* =========================================================
+   ADMIN RESET LOGIN PASSWORD
+
+   POST /api/admin/customers/:id/reset-login-password
+========================================================= */
+
+app.post(
+  '/api/admin/customers/:id/reset-login-password',
+
+  async (req, res) => {
+    try {
+      const customerId =
+        Number(req.params.id);
+
+      const newPassword =
+        String(
+          req.body.password ||
+          req.body.newPassword ||
+          req.body.temporaryPassword ||
+          ''
+        );
+
+      if (
+        !Number.isInteger(
+          customerId
+        ) ||
+        customerId <= 0
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Invalid customer ID.',
+          });
+      }
+
+      if (
+        newPassword.length < 6
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'New Login Password must contain at least 6 characters.',
+          });
+      }
+
+      const customerResult =
+        await pool.query(
+          `
+          SELECT
+            id,
+            name,
+            login_id,
+            withdrawal_password_hash
+          FROM customers
+          WHERE id = $1
+          LIMIT 1
+          `,
+          [customerId]
+        );
+
+      if (
+        customerResult.rows
+          .length === 0
+      ) {
+        return res
+          .status(404)
+          .json({
+            error:
+              'Customer account not found.',
+          });
+      }
+
+      const customer =
+        customerResult.rows[0];
+
+      if (
+        customer
+          .withdrawal_password_hash
+      ) {
+        const sameAsWithdrawal =
+          await bcrypt.compare(
+            newPassword,
+            customer
+              .withdrawal_password_hash
+          );
+
+        if (
+          sameAsWithdrawal
+        ) {
+          return res
+            .status(400)
+            .json({
+              error:
+                'Login Password and Withdrawal Password must be different.',
+            });
+        }
+      }
+
+      const passwordHash =
+        await bcrypt.hash(
+          newPassword,
+          12
+        );
+
+      const result =
+        await pool.query(
+          `
+          UPDATE customers
+          SET
+            password_hash = $1,
+            must_change_password = TRUE,
+            updated_at = NOW()
+          WHERE id = $2
+          RETURNING
+            id,
+            name,
+            login_id,
+            must_change_password,
+            withdrawal_password_hash,
+            must_change_withdrawal_password,
+            status,
+            created_at
+          `,
+          [
+            passwordHash,
+            customerId,
+          ]
+        );
+
+      return res.json({
+        success: true,
+
+        message:
+          'Login Password reset successfully. Customer must change it after login.',
+
+        customer:
+          publicCustomer(
+            result.rows[0]
+          ),
+      });
+    } catch (error) {
+      console.error(
+        'Admin Reset Login Password Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Unable to reset Login Password.',
+        });
+    }
+  }
+);
+
+/* =========================================================
+   ADMIN RESET WITHDRAWAL PASSWORD
+
+   POST /api/admin/customers/:id/reset-withdrawal-password
+========================================================= */
+
+app.post(
+  '/api/admin/customers/:id/reset-withdrawal-password',
+
+  async (req, res) => {
+    try {
+      const customerId =
+        Number(req.params.id);
+
+      const newPassword =
+        String(
+          req.body.password ||
+          req.body.newPassword ||
+          req.body.temporaryPassword ||
+          req.body
+            .temporaryWithdrawalPassword ||
+          ''
+        );
+
+      if (
+        !Number.isInteger(
+          customerId
+        ) ||
+        customerId <= 0
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Invalid customer ID.',
+          });
+      }
+
+      if (
+        newPassword.length < 6
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'New Withdrawal Password must contain at least 6 characters.',
+          });
+      }
+
+      const customerResult =
+        await pool.query(
+          `
+          SELECT
+            id,
+            name,
+            login_id,
+            password_hash
+          FROM customers
+          WHERE id = $1
+          LIMIT 1
+          `,
+          [customerId]
+        );
+
+      if (
+        customerResult.rows
+          .length === 0
+      ) {
+        return res
+          .status(404)
+          .json({
+            error:
+              'Customer account not found.',
+          });
+      }
+
+      const customer =
+        customerResult.rows[0];
+
+      const sameAsLogin =
+        await bcrypt.compare(
+          newPassword,
+          customer.password_hash
+        );
+
+      if (sameAsLogin) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Login Password and Withdrawal Password must be different.',
+          });
+      }
+
+      const passwordHash =
+        await bcrypt.hash(
+          newPassword,
+          12
+        );
+
+      const result =
+        await pool.query(
+          `
+          UPDATE customers
+          SET
+            withdrawal_password_hash = $1,
+            must_change_withdrawal_password = TRUE,
+            updated_at = NOW()
+          WHERE id = $2
+          RETURNING
+            id,
+            name,
+            login_id,
+            must_change_password,
+            withdrawal_password_hash,
+            must_change_withdrawal_password,
+            status,
+            created_at
+          `,
+          [
+            passwordHash,
+            customerId,
+          ]
+        );
+
+      return res.json({
+        success: true,
+
+        message:
+          'Withdrawal Password reset successfully. Customer must change it before use.',
+
+        customer:
+          publicCustomer(
+            result.rows[0]
+          ),
+      });
+    } catch (error) {
+      console.error(
+        'Admin Reset Withdrawal Password Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Unable to reset Withdrawal Password.',
+        });
+    }
+  }
+);
+
+/* =========================================================
+   CUSTOMER LOGIN
+
+   POST /api/auth/customer-login
+========================================================= */
+
+app.post(
+  '/api/auth/customer-login',
+
+  async (req, res) => {
+    try {
+      const loginId =
+        normalizeLoginId(
+          req.body.loginId ||
+          req.body.identifier
+        );
+
+      const password =
+        String(
+          req.body.password ||
+          ''
+        );
+
+      if (
+        !loginId ||
+        !password
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Login ID and Password are required.',
+          });
+      }
+
+      const result =
+        await pool.query(
+          `
+          SELECT *
+          FROM customers
+          WHERE login_id = $1
+          LIMIT 1
+          `,
+          [loginId]
+        );
+
+      if (
+        result.rows.length === 0
+      ) {
+        return res
+          .status(401)
+          .json({
+            error:
+              'Invalid Login ID or Password.',
+          });
+      }
+
+      const customer =
+        result.rows[0];
+
+      if (
+        String(
+          customer.status
+        ).toUpperCase() !==
+        'ACTIVE'
+      ) {
+        return res
+          .status(403)
+          .json({
+            error:
+              'This customer account is not active.',
+          });
+      }
+
+      const passwordMatches =
+        await bcrypt.compare(
+          password,
+          customer.password_hash
+        );
+
+      if (!passwordMatches) {
+        return res
+          .status(401)
+          .json({
+            error:
+              'Invalid Login ID or Password.',
+          });
+      }
+
+      return res.json({
+        success: true,
+
+        mustChangePassword:
+          Boolean(
+            customer
+              .must_change_password
+          ),
+
+        mustChangeWithdrawalPassword:
+          Boolean(
+            customer
+              .must_change_withdrawal_password
+          ),
+
+        withdrawalPasswordConfigured:
+          Boolean(
+            customer
+              .withdrawal_password_hash
+          ),
+
+        customer:
+          publicCustomer(
+            customer
+          ),
+      });
+    } catch (error) {
+      console.error(
+        'Customer Login Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Unable to login. Please try again.',
+        });
+    }
+  }
+);
+
+/* =========================================================
+   CHANGE CUSTOMER LOGIN PASSWORD
+
+   POST /api/auth/change-customer-password
+========================================================= */
+
+app.post(
+  '/api/auth/change-customer-password',
+
+  async (req, res) => {
+    try {
+      const loginId =
+        normalizeLoginId(
+          req.body.loginId
+        );
+
+      const currentPassword =
+        String(
+          req.body
+            .currentPassword ||
+          ''
+        );
+
+      const newPassword =
+        String(
+          req.body.newPassword ||
+          ''
+        );
+
+      const confirmPassword =
+        String(
+          req.body
+            .confirmPassword ||
+          ''
+        );
+
+      if (
+        !loginId ||
+        !currentPassword ||
+        !newPassword ||
+        !confirmPassword
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Please complete all Login Password fields.',
+          });
+      }
+
+      if (
+        newPassword.length < 6
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'New Login Password must contain at least 6 characters.',
+          });
+      }
+
+      if (
+        newPassword !==
+        confirmPassword
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'New Login Password and Confirm Login Password do not match.',
+          });
+      }
+
+      if (
+        currentPassword ===
+        newPassword
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'New Login Password must be different from the current password.',
+          });
+      }
+
+      const result =
+        await pool.query(
+          `
+          SELECT *
+          FROM customers
+          WHERE login_id = $1
+          LIMIT 1
+          `,
+          [loginId]
+        );
+
+      if (
+        result.rows.length === 0
+      ) {
+        return res
+          .status(404)
+          .json({
+            error:
+              'Customer account not found.',
+          });
+      }
+
+      const customer =
+        result.rows[0];
+
+      const passwordMatches =
+        await bcrypt.compare(
+          currentPassword,
+          customer.password_hash
+        );
+
+      if (!passwordMatches) {
+        return res
+          .status(401)
+          .json({
+            error:
+              'Current Login Password is incorrect.',
+          });
+      }
+
+      if (
+        customer
+          .withdrawal_password_hash
+      ) {
+        const sameAsWithdrawal =
+          await bcrypt.compare(
+            newPassword,
+            customer
+              .withdrawal_password_hash
+          );
+
+        if (
+          sameAsWithdrawal
+        ) {
+          return res
+            .status(400)
+            .json({
+              error:
+                'Login Password and Withdrawal Password must be different.',
+            });
+        }
+      }
+
+      const newPasswordHash =
+        await bcrypt.hash(
+          newPassword,
+          12
+        );
+
+      await pool.query(
+        `
+        UPDATE customers
+        SET
+          password_hash = $1,
+          must_change_password = FALSE,
+          updated_at = NOW()
+        WHERE id = $2
+        `,
+        [
+          newPasswordHash,
+          customer.id,
+        ]
+      );
+
+      return res.json({
+        success: true,
+
+        message:
+          'Login Password changed successfully.',
+
+        customer: {
+          id: customer.id,
+
+          name: customer.name,
+
+          loginId:
+            customer.login_id,
+
+          mustChangePassword:
+            false,
+
+          mustChangeWithdrawalPassword:
+            Boolean(
+              customer
+                .must_change_withdrawal_password
+            ),
+
+          withdrawalPasswordConfigured:
+            Boolean(
+              customer
+                .withdrawal_password_hash
+            ),
+
+          status:
+            customer.status,
+        },
+      });
+    } catch (error) {
+      console.error(
+        'Change Customer Login Password Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Unable to change Login Password.',
+        });
+    }
+  }
+);
+
+/* =========================================================
+   CHANGE WITHDRAWAL PASSWORD
+
+   POST /api/auth/change-withdrawal-password
+========================================================= */
+
+app.post(
+  '/api/auth/change-withdrawal-password',
+
+  async (req, res) => {
+    try {
+      const loginId =
+        normalizeLoginId(
+          req.body.loginId
+        );
+
+      const currentPassword =
+        String(
+          req.body
+            .currentPassword ||
+          ''
+        );
+
+      const newPassword =
+        String(
+          req.body.newPassword ||
+          ''
+        );
+
+      const confirmPassword =
+        String(
+          req.body
+            .confirmPassword ||
+          ''
+        );
+
+      if (
+        !loginId ||
+        !currentPassword ||
+        !newPassword ||
+        !confirmPassword
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Please complete all Withdrawal Password fields.',
+          });
+      }
+
+      if (
+        newPassword.length < 6
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'New Withdrawal Password must contain at least 6 characters.',
+          });
+      }
+
+      if (
+        newPassword !==
+        confirmPassword
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'New Withdrawal Password and Confirm Withdrawal Password do not match.',
+          });
+      }
+
+      if (
+        currentPassword ===
+        newPassword
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'New Withdrawal Password must be different from the current password.',
+          });
+      }
+
+      const result =
+        await pool.query(
+          `
+          SELECT *
+          FROM customers
+          WHERE login_id = $1
+          LIMIT 1
+          `,
+          [loginId]
+        );
+
+      if (
+        result.rows.length === 0
+      ) {
+        return res
+          .status(404)
+          .json({
+            error:
+              'Customer account not found.',
+          });
+      }
+
+      const customer =
+        result.rows[0];
+
+      if (
+        !customer
+          .withdrawal_password_hash
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Withdrawal Password has not been configured for this customer. Please contact Admin.',
+          });
+      }
+
+      const passwordMatches =
+        await bcrypt.compare(
+          currentPassword,
+          customer
+            .withdrawal_password_hash
+        );
+
+      if (!passwordMatches) {
+        return res
+          .status(401)
+          .json({
+            error:
+              'Current Withdrawal Password is incorrect.',
+          });
+      }
+
+      const sameAsLogin =
+        await bcrypt.compare(
+          newPassword,
+          customer.password_hash
+        );
+
+      if (sameAsLogin) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Login Password and Withdrawal Password must be different.',
+          });
+      }
+
+      const newPasswordHash =
+        await bcrypt.hash(
+          newPassword,
+          12
+        );
+
+      await pool.query(
+        `
+        UPDATE customers
+        SET
+          withdrawal_password_hash = $1,
+          must_change_withdrawal_password = FALSE,
+          updated_at = NOW()
+        WHERE id = $2
+        `,
+        [
+          newPasswordHash,
+          customer.id,
+        ]
+      );
+
+      return res.json({
+        success: true,
+
+        message:
+          'Withdrawal Password changed successfully.',
+
+        mustChangeWithdrawalPassword:
+          false,
+      });
+    } catch (error) {
+      console.error(
+        'Change Withdrawal Password Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Unable to change Withdrawal Password.',
+        });
+    }
+  }
+);
+
+/* =========================================================
+   OTP - EXISTING SUPPORT
+========================================================= */
+
+app.post(
+  '/api/auth/send-otp',
+
+  async (req, res) => {
+    try {
+      const cleanMobile =
+        req.body.mobile
+          ? String(
+              req.body.mobile
+            ).replace(
+              /\D/g,
+              ''
+            )
+          : '';
+
+      if (
+        cleanMobile.length !== 10
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Please enter a valid 10-digit mobile number.',
+          });
+      }
+
+      const generatedOtp =
+        Math.floor(
+          100000 +
+          Math.random() *
+          900000
+        ).toString();
+
+      const expiresAt =
+        Date.now() +
+        10 * 60 * 1000;
+
+      await sendFast2SMS(
+        cleanMobile,
+        generatedOtp
+      );
+
+      otpStore.set(
+        cleanMobile,
+        {
+          otp: generatedOtp,
+          expiresAt,
+        }
+      );
+
+      return res.json({
+        success: true,
+
+        message:
+          'OTP sent successfully.',
+      });
+    } catch (error) {
+      console.error(
+        'Fast2SMS Dispatch Error:',
+        error.message
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            error.message ||
+            'Failed to send SMS OTP.',
+        });
+    }
+  }
+);
+
+app.post(
+  '/api/auth/verify-otp',
+
+  async (req, res) => {
+    try {
+      const cleanMobile =
+        req.body.mobile
+          ? String(
+              req.body.mobile
+            ).replace(
+              /\D/g,
+              ''
+            )
+          : '';
+
+      const cleanOtp =
+        String(
+          req.body.otp || ''
+        ).trim();
+
+      if (
+        cleanMobile.length !== 10
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Please enter a valid 10-digit mobile number.',
+          });
+      }
+
+      if (
+        cleanOtp.length !== 6
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Please enter a valid 6-digit OTP code.',
+          });
+      }
+
+      const record =
+        otpStore.get(
+          cleanMobile
+        );
+
+      if (!record) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'No active OTP found.',
+          });
+      }
+
+      if (
+        Date.now() >
+        record.expiresAt
+      ) {
+        otpStore.delete(
+          cleanMobile
+        );
+
+        return res
+          .status(400)
+          .json({
+            error:
+              'OTP has expired.',
+          });
+      }
+
+      if (
+        record.otp !== cleanOtp
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Invalid OTP code.',
+          });
+      }
+
+      otpStore.delete(
+        cleanMobile
+      );
+
+      return res.json({
+        success: true,
+
+        message:
+          'Mobile number verified successfully.',
+      });
+    } catch (error) {
+      console.error(
+        'Verify OTP Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Server error during OTP verification.',
+        });
+    }
+  }
+);
+
+/* =========================================================
+   HEALTH
+========================================================= */
+
+app.get(
+  '/api/health',
+
+  async (req, res) => {
+    let databaseConnected =
+      false;
+
+    try {
+      if (
+        process.env.DATABASE_URL
+      ) {
+        await pool.query(
+          'SELECT 1'
+        );
+
+        databaseConnected =
+          true;
+      }
+    } catch (error) {
+      console.error(
+        'Database Health Error:',
+        error.message
+      );
+    }
+
+    let apiConnected = false;
+
+    try {
+      apiConnected =
+        typeof sportsService
+          .isApiConnected ===
+        'function'
+          ? await sportsService
+              .isApiConnected()
+          : true;
+    } catch (error) {
+      console.error(
+        'Sports Health Error:',
+        error.message
+      );
+    }
+
+    return res.json({
+      status: 'ok',
+
+      provider: 'odds_api',
+
+      apiConnected:
+        Boolean(apiConnected),
+
+      databaseConnected,
+    });
+  }
+);
+
+/* =========================================================
+   SPORTS EVENTS
+========================================================= */
+
+app.get(
+  '/api/sports/events',
+
+  async (req, res) => {
+    try {
+      const sport =
+        req.query.sport ||
+        'all';
+
+      const events =
+        await sportsService
+          .getEvents(sport);
+
+      return res.json({
+        data: events || [],
+      });
+    } catch (error) {
+      console.error(
+        'Get Sports Events Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Failed to retrieve sports events.',
+        });
+    }
+  }
+);
+
+/* =========================================================
+   SPORTS STREAM
+========================================================= */
+
+app.get(
+  '/api/sports/stream',
+
+  (req, res) => {
+    res.setHeader(
+      'Content-Type',
+      'text/event-stream'
+    );
+
+    res.setHeader(
+      'Cache-Control',
+      'no-cache'
+    );
+
+    res.setHeader(
+      'Connection',
+      'keep-alive'
+    );
+
+    res.flushHeaders();
+
+    if (
+      typeof sportsService
+        .addClient ===
+      'function'
+    ) {
+      sportsService.addClient(
+        res
+      );
+    }
+
+    req.on(
+      'close',
+      () => {
+        if (
+          typeof sportsService
+            .removeClient ===
+          'function'
+        ) {
+          sportsService
+            .removeClient(res);
+        }
+      }
+    );
+  }
+);
+
+/* =========================================================
+   API 404
+========================================================= */
+
+app.all(
+  '/api/*',
+
+  (req, res) => {
+    res
+      .status(404)
+      .json({
+        error:
+          `API endpoint ${req.originalUrl} not found.`,
+      });
+  }
+);
+
+/* =========================================================
+   FRONTEND
+========================================================= */
+
+app.use(
+  express.static(
+    path.join(
+      __dirname,
+      'dist'
+    )
+  )
+);
+
+app.get(
+  '*',
+
+  (req, res) => {
+    res.sendFile(
+      path.join(
+        __dirname,
+        'dist',
+        'index.html'
+      )
+    );
+  }
+);
+
+/* =========================================================
+   START SERVER
+========================================================= */
+
+async function startServer() {
+  await initializeDatabase();
+
+  app.listen(
+    PORT,
+    () => {
+      console.log(
+        `Server listening on port ${PORT}`
+      );
+    }
   );
 }
+
+startServer();
