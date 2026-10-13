@@ -62,11 +62,9 @@ export default function WithdrawalPage({ onBack }) {
     confirmAccountNumber: '',
     ifsc: '',
     password: '',
-    confirmPassword: '',
   });
 
   const [amount, setAmount] = useState('');
-  const [withdrawPassword, setWithdrawPassword] = useState('');
 
   useEffect(() => {
     try {
@@ -147,17 +145,33 @@ export default function WithdrawalPage({ onBack }) {
     }));
   };
 
+  /* =====================================================
+     SAVE / CHANGE BANK ACCOUNT
+     PASSWORD IS REQUIRED ONLY HERE
+  ===================================================== */
+
   const saveAccount = (event) => {
     event.preventDefault();
 
-    const holderName = form.holderName.trim();
-    const bankName = form.bankName.trim();
-    const accountNumber = form.accountNumber.trim();
+    const holderName =
+      form.holderName.trim();
+
+    const bankName =
+      form.bankName.trim();
+
+    const accountNumber =
+      form.accountNumber.trim();
 
     const confirmAccountNumber =
       form.confirmAccountNumber.trim();
 
-    const ifsc = form.ifsc.trim().toUpperCase();
+    const ifsc =
+      form.ifsc
+        .trim()
+        .toUpperCase();
+
+    const password =
+      form.password;
 
     if (!holderName) {
       alert('Enter account holder name');
@@ -169,30 +183,44 @@ export default function WithdrawalPage({ onBack }) {
       return;
     }
 
-    if (!/^[0-9]{9,18}$/.test(accountNumber)) {
-      alert('Enter a valid account number');
-      return;
-    }
-
-    if (accountNumber !== confirmAccountNumber) {
-      alert('Account numbers do not match');
-      return;
-    }
-
-    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
-      alert('Enter a valid IFSC code');
-      return;
-    }
-
-    if (form.password.length < 6) {
+    if (
+      !/^[0-9]{9,18}$/.test(
+        accountNumber
+      )
+    ) {
       alert(
-        'Withdrawal password must contain at least 6 characters'
+        'Enter a valid account number'
       );
       return;
     }
 
-    if (form.password !== form.confirmPassword) {
-      alert('Passwords do not match');
+    if (
+      accountNumber !==
+      confirmAccountNumber
+    ) {
+      alert(
+        'Account numbers do not match'
+      );
+      return;
+    }
+
+    if (
+      !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(
+        ifsc
+      )
+    ) {
+      alert(
+        'Enter a valid IFSC code'
+      );
+      return;
+    }
+
+    if (
+      password.length < 6
+    ) {
+      alert(
+        'Enter your Withdrawal Password'
+      );
       return;
     }
 
@@ -201,7 +229,13 @@ export default function WithdrawalPage({ onBack }) {
       bankName,
       accountNumber,
       ifsc,
-      password: form.password,
+
+      /*
+        Demo-only local verification value.
+        This password is NOT requested for
+        every withdrawal.
+      */
+      password,
     };
 
     try {
@@ -215,11 +249,15 @@ export default function WithdrawalPage({ onBack }) {
         error
       );
 
-      alert('Unable to save account');
+      alert(
+        'Unable to save account'
+      );
+
       return;
     }
 
     setAccount(newAccount);
+
     setShowAddAccount(false);
 
     setForm({
@@ -229,21 +267,28 @@ export default function WithdrawalPage({ onBack }) {
       confirmAccountNumber: '',
       ifsc: '',
       password: '',
-      confirmPassword: '',
     });
-
-    alert('Demo bank account saved successfully');
   };
+
+  /* =====================================================
+     DEMO WITHDRAWAL
+     NO PASSWORD REQUIRED HERE
+     NO SUCCESS ALERT POPUP
+  ===================================================== */
 
   const handleWithdraw = (event) => {
     event.preventDefault();
 
     if (!account) {
-      alert('Please add a bank account first');
+      alert(
+        'Please add a bank account first'
+      );
+
       return;
     }
 
-    const value = Number(amount);
+    const value =
+      Number(amount);
 
     if (
       !Number.isInteger(value) ||
@@ -252,58 +297,79 @@ export default function WithdrawalPage({ onBack }) {
       alert(
         `Minimum withdrawal is ${MIN_WITHDRAWAL} demo coins`
       );
+
       return;
     }
 
-    if (value > balance) {
+    if (
+      value > balance
+    ) {
       alert('LOW BALANCE');
       return;
     }
 
-    if (withdrawPassword !== account.password) {
-      alert('Incorrect withdrawal password');
-      return;
-    }
-
-    const customer = getCustomer();
+    const customer =
+      getCustomer();
 
     const transaction = {
       id: `TSBW${Date.now()}`,
 
-      customerId: customer.customerId,
-      customerName: customer.customerName,
+      customerId:
+        customer.customerId,
+
+      customerName:
+        customer.customerName,
 
       amount: value,
 
       status: 'PENDING',
 
-      holderName: account.holderName,
-      bankName: account.bankName,
-      accountNumber: account.accountNumber,
-      ifsc: account.ifsc,
+      holderName:
+        account.holderName,
+
+      bankName:
+        account.bankName,
+
+      accountNumber:
+        account.accountNumber,
+
+      ifsc:
+        account.ifsc,
 
       accountLast4:
         account.accountNumber.slice(-4),
 
-      createdAt: new Date().toISOString(),
+      createdAt:
+        new Date().toISOString(),
 
-      date: new Date().toLocaleString('en-IN'),
+      date:
+        new Date().toLocaleString(
+          'en-IN'
+        ),
 
       coinsHeld: value,
+
       coinsRestored: false,
 
-      type: 'DEMO_WITHDRAWAL',
+      type:
+        'DEMO_WITHDRAWAL',
     };
 
-    const nextBalance = balance - value;
+    const nextBalance =
+      balance - value;
 
     const nextTransactions = [
       transaction,
       ...transactions,
     ];
 
-    setBalance(nextBalance);
-    setTransactions(nextTransactions);
+    setBalance(
+      nextBalance
+    );
+
+    setTransactions(
+      nextTransactions
+    );
 
     try {
       localStorage.setItem(
@@ -313,34 +379,46 @@ export default function WithdrawalPage({ onBack }) {
 
       localStorage.setItem(
         TRANSACTION_KEY,
-        JSON.stringify(nextTransactions)
+        JSON.stringify(
+          nextTransactions
+        )
       );
     } catch (error) {
       console.error(
-        'Unable to submit withdrawal request:',
+        'Unable to submit demo withdrawal request:',
         error
       );
     }
 
-    setAmount('');
-    setWithdrawPassword('');
+    /*
+      IMPORTANT:
+      No alert popup here.
 
-    alert(
-      'Demo withdrawal request submitted. Status: PENDING'
-    );
+      Request automatically appears
+      in Withdrawal History as PENDING.
+    */
+
+    setAmount('');
   };
 
+  /* =====================================================
+     DELETE ACCOUNT
+  ===================================================== */
+
   const deleteAccount = () => {
-    const confirmed = window.confirm(
-      'Remove saved demo bank account?'
-    );
+    const confirmed =
+      window.confirm(
+        'Remove saved demo bank account?'
+      );
 
     if (!confirmed) {
       return;
     }
 
     try {
-      localStorage.removeItem(ACCOUNT_KEY);
+      localStorage.removeItem(
+        ACCOUNT_KEY
+      );
     } catch (error) {
       console.error(
         'Unable to remove account:',
@@ -349,20 +427,42 @@ export default function WithdrawalPage({ onBack }) {
     }
 
     setAccount(null);
+
+    setShowAddAccount(false);
+
+    setForm({
+      holderName: '',
+      bankName: '',
+      accountNumber: '',
+      confirmAccountNumber: '',
+      ifsc: '',
+      password: '',
+    });
   };
 
-  const maskAccount = (number) => {
+  /* =====================================================
+     HELPERS
+  ===================================================== */
+
+  const maskAccount = (
+    number
+  ) => {
     if (!number) {
       return '';
     }
 
-    return `XXXX XXXX ${number.slice(-4)}`;
+    return `XXXX XXXX ${number.slice(
+      -4
+    )}`;
   };
 
-  const statusClass = (status) => {
-    const normalized = String(
-      status || ''
-    ).toUpperCase();
+  const statusClass = (
+    status
+  ) => {
+    const normalized =
+      String(
+        status || ''
+      ).toUpperCase();
 
     if (
       normalized === 'APPROVED' ||
@@ -381,10 +481,11 @@ export default function WithdrawalPage({ onBack }) {
     return 'border border-amber-500 bg-amber-50 text-amber-700';
   };
 
-  const history = transactions.slice(
-    0,
-    HISTORY_LIMIT
-  );
+  const history =
+    transactions.slice(
+      0,
+      HISTORY_LIMIT
+    );
 
   return (
     <div className="min-h-screen bg-[#f3f2f7] text-gray-900">
@@ -396,6 +497,7 @@ export default function WithdrawalPage({ onBack }) {
         <div className="mx-auto flex max-w-3xl items-center justify-between">
 
           <div>
+
             <p className="text-[10px] font-bold tracking-wider text-teal-100">
               TELUGU SPORTS BOOK
             </p>
@@ -403,6 +505,7 @@ export default function WithdrawalPage({ onBack }) {
             <h1 className="text-lg font-black">
               WITHDRAWAL
             </h1>
+
           </div>
 
           <span className="rounded bg-white/10 px-2 py-1 text-[10px] font-bold">
@@ -434,7 +537,10 @@ export default function WithdrawalPage({ onBack }) {
           </p>
 
           <h2 className="mt-2 text-3xl font-black text-teal-800">
-            🪙 {balance.toLocaleString('en-IN')}
+            🪙{' '}
+            {balance.toLocaleString(
+              'en-IN'
+            )}
           </h2>
 
           <p className="mt-1 text-xs text-gray-500">
@@ -443,7 +549,7 @@ export default function WithdrawalPage({ onBack }) {
 
         </section>
 
-        {/* ADD ACCOUNT */}
+        {/* ACCOUNT BUTTON */}
 
         <div className="mb-6 text-center">
 
@@ -451,7 +557,8 @@ export default function WithdrawalPage({ onBack }) {
             type="button"
             onClick={() =>
               setShowAddAccount(
-                (previous) => !previous
+                (previous) =>
+                  !previous
               )
             }
             className="rounded-full bg-green-600 px-8 py-4 text-lg font-black text-white"
@@ -468,15 +575,26 @@ export default function WithdrawalPage({ onBack }) {
         {showAddAccount && (
 
           <form
-            onSubmit={saveAccount}
+            onSubmit={
+              saveAccount
+            }
             className="mb-6 space-y-4 rounded-xl bg-white p-5 shadow-sm"
           >
 
             <h2 className="text-center text-xl font-black">
-              ADD BANK ACCOUNT
+              {account
+                ? 'CHANGE BANK ACCOUNT'
+                : 'ADD BANK ACCOUNT'}
             </h2>
 
+            <p className="text-center text-[11px] text-gray-500">
+              Withdrawal Password is required only when adding or changing a bank account.
+            </p>
+
+            {/* HOLDER NAME */}
+
             <div>
+
               <label className="mb-1 block text-xs font-bold text-gray-600">
                 ACCOUNT HOLDER NAME
               </label>
@@ -484,8 +602,12 @@ export default function WithdrawalPage({ onBack }) {
               <input
                 type="text"
                 placeholder="Enter account holder name"
-                value={form.holderName}
-                onChange={(event) =>
+                value={
+                  form.holderName
+                }
+                onChange={(
+                  event
+                ) =>
                   updateForm(
                     'holderName',
                     event.target.value
@@ -494,9 +616,13 @@ export default function WithdrawalPage({ onBack }) {
                 className="w-full rounded-lg border p-4"
                 required
               />
+
             </div>
 
+            {/* BANK NAME */}
+
             <div>
+
               <label className="mb-1 block text-xs font-bold text-gray-600">
                 BANK NAME
               </label>
@@ -504,8 +630,12 @@ export default function WithdrawalPage({ onBack }) {
               <input
                 type="text"
                 placeholder="Enter bank name"
-                value={form.bankName}
-                onChange={(event) =>
+                value={
+                  form.bankName
+                }
+                onChange={(
+                  event
+                ) =>
                   updateForm(
                     'bankName',
                     event.target.value
@@ -514,9 +644,13 @@ export default function WithdrawalPage({ onBack }) {
                 className="w-full rounded-lg border p-4"
                 required
               />
+
             </div>
 
+            {/* ACCOUNT NUMBER */}
+
             <div>
+
               <label className="mb-1 block text-xs font-bold text-gray-600">
                 ACCOUNT NUMBER
               </label>
@@ -525,8 +659,12 @@ export default function WithdrawalPage({ onBack }) {
                 type="text"
                 inputMode="numeric"
                 placeholder="Enter bank account number"
-                value={form.accountNumber}
-                onChange={(event) =>
+                value={
+                  form.accountNumber
+                }
+                onChange={(
+                  event
+                ) =>
                   updateForm(
                     'accountNumber',
                     event.target.value.replace(
@@ -538,9 +676,13 @@ export default function WithdrawalPage({ onBack }) {
                 className="w-full rounded-lg border p-4"
                 required
               />
+
             </div>
 
+            {/* CONFIRM ACCOUNT NUMBER */}
+
             <div>
+
               <label className="mb-1 block text-xs font-bold text-gray-600">
                 CONFIRM ACCOUNT NUMBER
               </label>
@@ -549,8 +691,12 @@ export default function WithdrawalPage({ onBack }) {
                 type="text"
                 inputMode="numeric"
                 placeholder="Confirm bank account number"
-                value={form.confirmAccountNumber}
-                onChange={(event) =>
+                value={
+                  form.confirmAccountNumber
+                }
+                onChange={(
+                  event
+                ) =>
                   updateForm(
                     'confirmAccountNumber',
                     event.target.value.replace(
@@ -562,9 +708,13 @@ export default function WithdrawalPage({ onBack }) {
                 className="w-full rounded-lg border p-4"
                 required
               />
+
             </div>
 
+            {/* IFSC */}
+
             <div>
+
               <label className="mb-1 block text-xs font-bold text-gray-600">
                 IFSC CODE
               </label>
@@ -572,8 +722,12 @@ export default function WithdrawalPage({ onBack }) {
               <input
                 type="text"
                 placeholder="Enter IFSC code"
-                value={form.ifsc}
-                onChange={(event) =>
+                value={
+                  form.ifsc
+                }
+                onChange={(
+                  event
+                ) =>
                   updateForm(
                     'ifsc',
                     event.target.value.toUpperCase()
@@ -582,18 +736,26 @@ export default function WithdrawalPage({ onBack }) {
                 className="w-full rounded-lg border p-4 uppercase"
                 required
               />
+
             </div>
 
+            {/* PASSWORD */}
+
             <div>
+
               <label className="mb-1 block text-xs font-bold text-gray-600">
-                CREATE WITHDRAWAL PASSWORD
+                WITHDRAWAL PASSWORD
               </label>
 
               <input
                 type="password"
-                placeholder="Minimum 6 characters"
-                value={form.password}
-                onChange={(event) =>
+                placeholder="Enter withdrawal password"
+                value={
+                  form.password
+                }
+                onChange={(
+                  event
+                ) =>
                   updateForm(
                     'password',
                     event.target.value
@@ -602,27 +764,14 @@ export default function WithdrawalPage({ onBack }) {
                 className="w-full rounded-lg border p-4"
                 required
               />
+
+              <p className="mt-2 text-[10px] text-gray-500">
+                Password is required only for adding or changing the bank account.
+              </p>
+
             </div>
 
-            <div>
-              <label className="mb-1 block text-xs font-bold text-gray-600">
-                CONFIRM WITHDRAWAL PASSWORD
-              </label>
-
-              <input
-                type="password"
-                placeholder="Confirm password"
-                value={form.confirmPassword}
-                onChange={(event) =>
-                  updateForm(
-                    'confirmPassword',
-                    event.target.value
-                  )
-                }
-                className="w-full rounded-lg border p-4"
-                required
-              />
-            </div>
+            {/* SAVE */}
 
             <button
               type="submit"
@@ -642,28 +791,23 @@ export default function WithdrawalPage({ onBack }) {
           <div className="space-y-3 text-xs leading-5 text-red-600">
 
             <p>
-              1. Withdrawal requests use available demo
-              coins only.
+              1. Withdrawal requests use available demo coins only.
             </p>
 
             <p>
-              2. The requested demo coins are held when
-              the request is submitted.
+              2. The requested demo coins are held when the request is submitted.
             </p>
 
             <p>
-              3. Insufficient balance will show LOW
-              BALANCE.
+              3. Insufficient balance will show LOW BALANCE.
             </p>
 
             <p>
-              4. Pending requests can be reviewed in the
-              demo Admin Panel.
+              4. Pending requests can be reviewed in the demo Admin Panel.
             </p>
 
             <p>
-              5. This demonstration does not transfer
-              real money.
+              5. This demonstration does not transfer real money.
             </p>
 
           </div>
@@ -679,6 +823,7 @@ export default function WithdrawalPage({ onBack }) {
             <div className="mb-5 flex items-start justify-between gap-3">
 
               <div>
+
                 <p className="text-[10px] font-bold text-gray-500">
                   SAVED BANK ACCOUNT
                 </p>
@@ -686,11 +831,14 @@ export default function WithdrawalPage({ onBack }) {
                 <h2 className="mt-1 text-lg font-black">
                   {account.holderName.toUpperCase()}
                 </h2>
+
               </div>
 
               <button
                 type="button"
-                onClick={deleteAccount}
+                onClick={
+                  deleteAccount
+                }
                 className="rounded-lg bg-red-600 px-3 py-2 text-xs font-black text-white"
               >
                 DELETE
@@ -698,23 +846,31 @@ export default function WithdrawalPage({ onBack }) {
 
             </div>
 
+            {/* ACCOUNT DETAILS */}
+
             <div className="overflow-hidden rounded-xl bg-gray-100">
 
               <AccountRow
                 label="Bank"
-                value={account.bankName}
+                value={
+                  account.bankName
+                }
               />
 
               <AccountRow
                 label="Account No"
-                value={maskAccount(
-                  account.accountNumber
-                )}
+                value={
+                  maskAccount(
+                    account.accountNumber
+                  )
+                }
               />
 
               <AccountRow
                 label="IFSC Code"
-                value={account.ifsc}
+                value={
+                  account.ifsc
+                }
                 last
               />
 
@@ -723,22 +879,31 @@ export default function WithdrawalPage({ onBack }) {
             {/* WITHDRAW FORM */}
 
             <form
-              onSubmit={handleWithdraw}
+              onSubmit={
+                handleWithdraw
+              }
               className="mt-5 space-y-4"
             >
 
               <div>
+
                 <label className="mb-2 block text-xs font-black text-gray-600">
                   ENTER AMOUNT
                 </label>
 
                 <input
                   type="number"
-                  min={MIN_WITHDRAWAL}
+                  min={
+                    MIN_WITHDRAWAL
+                  }
                   step="1"
                   placeholder="Enter amount"
-                  value={amount}
-                  onChange={(event) =>
+                  value={
+                    amount
+                  }
+                  onChange={(
+                    event
+                  ) =>
                     setAmount(
                       event.target.value
                     )
@@ -746,19 +911,31 @@ export default function WithdrawalPage({ onBack }) {
                   className="w-full rounded-lg border p-4 text-lg font-bold"
                   required
                 />
+
               </div>
+
+              {/* QUICK AMOUNTS */}
 
               <div className="grid grid-cols-4 gap-2">
 
-                {[500, 1000, 2000, 5000].map(
+                {[
+                  500,
+                  1000,
+                  2000,
+                  5000,
+                ].map(
                   (value) => (
 
                     <button
-                      key={value}
+                      key={
+                        value
+                      }
                       type="button"
                       onClick={() =>
                         setAmount(
-                          String(value)
+                          String(
+                            value
+                          )
                         )
                       }
                       className="rounded-lg border border-teal-700 py-3 text-xs font-black text-teal-800"
@@ -773,24 +950,7 @@ export default function WithdrawalPage({ onBack }) {
 
               </div>
 
-              <div>
-                <label className="mb-2 block text-xs font-black text-gray-600">
-                  WITHDRAWAL PASSWORD
-                </label>
-
-                <input
-                  type="password"
-                  placeholder="Enter withdrawal password"
-                  value={withdrawPassword}
-                  onChange={(event) =>
-                    setWithdrawPassword(
-                      event.target.value
-                    )
-                  }
-                  className="w-full rounded-lg border p-4"
-                  required
-                />
-              </div>
+              {/* NO PASSWORD FIELD HERE */}
 
               <button
                 type="submit"
@@ -817,7 +977,7 @@ export default function WithdrawalPage({ onBack }) {
 
         )}
 
-        {/* HISTORY */}
+        {/* WITHDRAWAL HISTORY */}
 
         <section className="overflow-hidden rounded-xl bg-white shadow-sm">
 
@@ -828,8 +988,9 @@ export default function WithdrawalPage({ onBack }) {
             </h2>
 
             <p className="mt-1 text-[10px] text-gray-500">
-              Latest {HISTORY_LIMIT} demo withdrawal
-              requests
+              Latest{' '}
+              {HISTORY_LIMIT}{' '}
+              demo withdrawal requests
             </p>
 
           </div>
@@ -864,7 +1025,8 @@ export default function WithdrawalPage({ onBack }) {
 
               <tbody>
 
-                {history.length === 0 ? (
+                {history.length ===
+                0 ? (
 
                   <tr>
 
@@ -879,46 +1041,56 @@ export default function WithdrawalPage({ onBack }) {
 
                 ) : (
 
-                  history.map((transaction) => (
+                  history.map(
+                    (
+                      transaction
+                    ) => (
 
-                    <tr
-                      key={transaction.id}
-                      className="border-b"
-                    >
+                      <tr
+                        key={
+                          transaction.id
+                        }
+                        className="border-b"
+                      >
 
-                      <td className="p-3 font-bold">
-                        {Number(
-                          transaction.amount
-                        ).toLocaleString(
-                          'en-IN'
-                        )}
-                      </td>
+                        <td className="p-3 font-bold">
+                          {Number(
+                            transaction.amount
+                          ).toLocaleString(
+                            'en-IN'
+                          )}
+                        </td>
 
-                      <td className="p-3">
+                        <td className="p-3">
 
-                        <span
-                          className={`inline-block rounded-md px-3 py-1 text-[10px] font-black ${statusClass(
-                            transaction.status
-                          )}`}
-                        >
-                          {transaction.status}
-                        </span>
+                          <span
+                            className={`inline-block rounded-md px-3 py-1 text-[10px] font-black ${statusClass(
+                              transaction.status
+                            )}`}
+                          >
+                            {
+                              transaction.status
+                            }
+                          </span>
 
-                      </td>
+                        </td>
 
-                      <td className="p-3">
-                        {transaction.accountLast4
-                          ? `XXXX-${transaction.accountLast4}`
-                          : '—'}
-                      </td>
+                        <td className="p-3">
+                          {transaction.accountLast4
+                            ? `XXXX-${transaction.accountLast4}`
+                            : '—'}
+                        </td>
 
-                      <td className="whitespace-nowrap p-3">
-                        {transaction.date}
-                      </td>
+                        <td className="whitespace-nowrap p-3">
+                          {
+                            transaction.date
+                          }
+                        </td>
 
-                    </tr>
+                      </tr>
 
-                  ))
+                    )
+                  )
 
                 )}
 
@@ -930,9 +1102,10 @@ export default function WithdrawalPage({ onBack }) {
 
         </section>
 
+        {/* FOOTER */}
+
         <p className="py-6 text-center text-[10px] text-gray-500">
-          Demo Withdrawal System — No Real Money
-          Transfers
+          Demo Withdrawal System — No Real Money Transfers
         </p>
 
       </main>
@@ -940,6 +1113,10 @@ export default function WithdrawalPage({ onBack }) {
     </div>
   );
 }
+
+/* =========================================================
+   ACCOUNT ROW
+========================================================= */
 
 function AccountRow({
   label,
@@ -949,7 +1126,9 @@ function AccountRow({
   return (
     <div
       className={`flex items-center justify-between gap-4 px-4 py-3 ${
-        last ? '' : 'border-b'
+        last
+          ? ''
+          : 'border-b'
       }`}
     >
       <span className="text-xs text-gray-500">
