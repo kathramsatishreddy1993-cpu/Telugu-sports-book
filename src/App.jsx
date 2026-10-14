@@ -26,6 +26,19 @@ export default function App() {
   const [authMode, setAuthMode] =
     useState(null);
 
+  /*
+    This stores the game/match
+    selected before login.
+
+    We are not changing the current
+    login system. It is only useful
+    for future demo navigation.
+  */
+  const [
+    selectedPublicItem,
+    setSelectedPublicItem,
+  ] = useState(null);
+
   /* =========================================
      CUSTOMER LOGIN
   ========================================= */
@@ -133,6 +146,31 @@ export default function App() {
   };
 
   /* =========================================
+     PUBLIC GAME / MATCH CLICK
+  ========================================= */
+
+  const handlePublicItemClick = (
+    mode = 'login',
+    item = null
+  ) => {
+    setSelectedPublicItem(
+      item
+    );
+
+    /*
+      Public homepage is shown only
+      while customer is logged out.
+
+      Reuse the existing AuthModal.
+    */
+    setAuthMode(
+      mode === 'signup'
+        ? 'signup'
+        : 'login'
+    );
+  };
+
+  /* =========================================
      CUSTOMER LOGIN SUCCESS
   ========================================= */
 
@@ -140,7 +178,7 @@ export default function App() {
     loggedInUser
   ) => {
     /*
-      AuthModal should return the
+      AuthModal returns the
       database login result.
 
       These flags decide whether
@@ -172,6 +210,34 @@ export default function App() {
     setAuthMode(null);
 
     setView('home');
+
+    /*
+      Keep the selected demo item
+      available for future navigation.
+
+      Current working dashboard flow
+      remains unchanged.
+    */
+
+    if (selectedPublicItem) {
+      try {
+        sessionStorage.setItem(
+          'telugu_sports_selected_demo_item',
+          JSON.stringify(
+            selectedPublicItem
+          )
+        );
+      } catch (error) {
+        console.error(
+          'Unable to save selected demo item:',
+          error
+        );
+      }
+    }
+
+    setSelectedPublicItem(
+      null
+    );
   };
 
   /* =========================================
@@ -214,6 +280,10 @@ export default function App() {
       localStorage.removeItem(
         AUTH_KEY
       );
+
+      sessionStorage.removeItem(
+        'telugu_sports_selected_demo_item'
+      );
     } catch (error) {
       console.error(
         'Unable to logout:',
@@ -224,6 +294,10 @@ export default function App() {
     setUser(null);
 
     setAuthMode(null);
+
+    setSelectedPublicItem(
+      null
+    );
 
     setView('home');
   };
@@ -375,7 +449,19 @@ export default function App() {
       {view === 'home' ? (
         <main className="flex-1 pb-16">
 
-          <HeroBanner />
+          {/* =================================
+              GAMES + TODAY LIVE MATCHES
+          ================================= */}
+
+          <HeroBanner
+            onRequireAuth={
+              handlePublicItemClick
+            }
+          />
+
+          {/* =================================
+              BONUS
+          ================================= */}
 
           <div className="max-w-xl mx-auto px-4 my-4">
 
@@ -389,6 +475,10 @@ export default function App() {
 
           </div>
 
+          {/* =================================
+              SPORTS
+          ================================= */}
+
           <SportsSections />
 
         </main>
@@ -400,13 +490,25 @@ export default function App() {
         />
       )}
 
+      {/* =====================================
+          EXISTING CUSTOMER AUTH MODAL
+      ===================================== */}
+
       <AuthModal
         isOpen={
           !!authMode
         }
-        onClose={() =>
-          setAuthMode(null)
+        initialMode={
+          authMode ||
+          'login'
         }
+        onClose={() => {
+          setAuthMode(null);
+
+          setSelectedPublicItem(
+            null
+          );
+        }}
         onLoginSuccess={
           handleLoginSuccess
         }
