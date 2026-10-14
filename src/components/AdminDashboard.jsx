@@ -1,49 +1,23 @@
-import React, {
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
-
+import React, { useEffect, useMemo, useState } from 'react';
 import AdminPaymentSettings from './AdminPaymentSettings';
 
-const DEPOSIT_KEY =
-  'telugu_sports_demo_deposits';
+const DEPOSIT_KEY = 'telugu_sports_demo_deposits';
+const WITHDRAWAL_KEY = 'telugu_sports_demo_withdrawals';
+const BALANCE_KEY = 'telugu_sports_demo_balance';
+const COIN_HISTORY_KEY = 'telugu_sports_demo_coin_history';
 
-const WITHDRAWAL_KEY =
-  'telugu_sports_demo_withdrawals';
-
-const BALANCE_KEY =
-  'telugu_sports_demo_balance';
-
-const COIN_HISTORY_KEY =
-  'telugu_sports_demo_coin_history';
-
-export default function AdminDashboard({
-  admin,
-  onLogout,
-}) {
-  const [activeSection, setActiveSection] =
-    useState('Dashboard');
+export default function AdminDashboard({ admin, onLogout }) {
+  const [activeSection, setActiveSection] = useState('Dashboard');
 
   /* =====================================================
      DEPOSITS
   ===================================================== */
 
-  const [
-    depositRequests,
-    setDepositRequests,
-  ] = useState(() => {
+  const [depositRequests, setDepositRequests] = useState(() => {
     try {
-      const saved =
-        localStorage.getItem(DEPOSIT_KEY);
-
-      const parsed = saved
-        ? JSON.parse(saved)
-        : [];
-
-      return Array.isArray(parsed)
-        ? parsed
-        : [];
+      const saved = localStorage.getItem(DEPOSIT_KEY);
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
@@ -53,23 +27,11 @@ export default function AdminDashboard({
      WITHDRAWALS
   ===================================================== */
 
-  const [
-    withdrawalRequests,
-    setWithdrawalRequests,
-  ] = useState(() => {
+  const [withdrawalRequests, setWithdrawalRequests] = useState(() => {
     try {
-      const saved =
-        localStorage.getItem(
-          WITHDRAWAL_KEY
-        );
-
-      const parsed = saved
-        ? JSON.parse(saved)
-        : [];
-
-      return Array.isArray(parsed)
-        ? parsed
-        : [];
+      const saved = localStorage.getItem(WITHDRAWAL_KEY);
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
@@ -79,94 +41,42 @@ export default function AdminDashboard({
      CUSTOMERS
   ===================================================== */
 
-  const [customers, setCustomers] =
-    useState([]);
-
-  const [customerName, setCustomerName] =
-    useState('');
-
-  const [
-    customerLoginId,
-    setCustomerLoginId,
-  ] = useState('');
-
-  const [
-    loginPassword,
-    setLoginPassword,
-  ] = useState('');
-
-  const [
-    withdrawalPassword,
-    setWithdrawalPassword,
-  ] = useState('');
-
-  const [
-    customerLoading,
-    setCustomerLoading,
-  ] = useState(false);
-
-  const [
-    customerMessage,
-    setCustomerMessage,
-  ] = useState('');
-
-  const [
-    customerError,
-    setCustomerError,
-  ] = useState('');
+  const [customers, setCustomers] = useState([]);
+  const [customerName, setCustomerName] = useState('');
+  const [customerLoginId, setCustomerLoginId] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [withdrawalPassword, setWithdrawalPassword] = useState('');
+  const [customerLoading, setCustomerLoading] = useState(false);
+  const [customerMessage, setCustomerMessage] = useState('');
+  const [customerError, setCustomerError] = useState('');
 
   /* =====================================================
      DEMO COIN MANAGEMENT
   ===================================================== */
 
-  const [
-    coinCustomerId,
-    setCoinCustomerId,
-  ] = useState('');
+  const [coinCustomerId, setCoinCustomerId] = useState('');
+  const [coinAmount, setCoinAmount] = useState('');
+  const [coinMessage, setCoinMessage] = useState('');
 
-  const [
-    coinAmount,
-    setCoinAmount,
-  ] = useState('');
-
-  const [
-    coinMessage,
-    setCoinMessage,
-  ] = useState('');
-
-  const [
-    coinHistory,
-    setCoinHistory,
-  ] = useState(() => {
+  const [coinHistory, setCoinHistory] = useState(() => {
     try {
-      const saved =
-        localStorage.getItem(
-          COIN_HISTORY_KEY
-        );
-
-      const parsed = saved
-        ? JSON.parse(saved)
-        : [];
-
-      return Array.isArray(parsed)
-        ? parsed
-        : [];
+      const saved = localStorage.getItem(COIN_HISTORY_KEY);
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
   });
 
   /* =====================================================
-     SAVE LOCAL DEMO DATA
+     SAVE LOCAL DATA
   ===================================================== */
 
   useEffect(() => {
     try {
       localStorage.setItem(
         DEPOSIT_KEY,
-        JSON.stringify(
-          depositRequests
-        )
+        JSON.stringify(depositRequests)
       );
     } catch (error) {
       console.error(error);
@@ -177,9 +87,7 @@ export default function AdminDashboard({
     try {
       localStorage.setItem(
         WITHDRAWAL_KEY,
-        JSON.stringify(
-          withdrawalRequests
-        )
+        JSON.stringify(withdrawalRequests)
       );
     } catch (error) {
       console.error(error);
@@ -190,9 +98,7 @@ export default function AdminDashboard({
     try {
       localStorage.setItem(
         COIN_HISTORY_KEY,
-        JSON.stringify(
-          coinHistory
-        )
+        JSON.stringify(coinHistory)
       );
     } catch (error) {
       console.error(error);
@@ -208,17 +114,12 @@ export default function AdminDashboard({
       setCustomerLoading(true);
       setCustomerError('');
 
-      const response = await fetch(
-        '/api/admin/customers'
-      );
-
-      const data =
-        await response.json();
+      const response = await fetch('/api/admin/customers');
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
-          data?.error ||
-            'Unable to load customers.'
+          data?.error || 'Unable to load customers.'
         );
       }
 
@@ -231,8 +132,7 @@ export default function AdminDashboard({
       console.error(error);
 
       setCustomerError(
-        error.message ||
-          'Unable to load customers.'
+        error.message || 'Unable to load customers.'
       );
     } finally {
       setCustomerLoading(false);
@@ -242,8 +142,7 @@ export default function AdminDashboard({
   useEffect(() => {
     if (
       activeSection === 'Customers' ||
-      activeSection ===
-        'Coin Management'
+      activeSection === 'Coin Management'
     ) {
       loadCustomers();
     }
@@ -253,41 +152,28 @@ export default function AdminDashboard({
      CREATE CUSTOMER
   ===================================================== */
 
-  const createCustomer = async (
-    event
-  ) => {
+  const createCustomer = async (event) => {
     event.preventDefault();
 
     setCustomerError('');
     setCustomerMessage('');
 
-    const cleanName =
-      customerName.trim();
-
-    const cleanLoginId =
-      customerLoginId
-        .trim()
-        .toLowerCase();
+    const cleanName = customerName.trim();
+    const cleanLoginId = customerLoginId
+      .trim()
+      .toLowerCase();
 
     if (!cleanName) {
-      setCustomerError(
-        'Customer Name is required.'
-      );
+      setCustomerError('Customer Name is required.');
       return;
     }
 
     if (!cleanLoginId) {
-      setCustomerError(
-        'Login ID is required.'
-      );
+      setCustomerError('Login ID is required.');
       return;
     }
 
-    if (
-      !/^[a-z0-9._-]{4,30}$/.test(
-        cleanLoginId
-      )
-    ) {
+    if (!/^[a-z0-9._-]{4,30}$/.test(cleanLoginId)) {
       setCustomerError(
         'Login ID must be 4-30 characters.'
       );
@@ -301,19 +187,14 @@ export default function AdminDashboard({
       return;
     }
 
-    if (
-      withdrawalPassword.length < 6
-    ) {
+    if (withdrawalPassword.length < 6) {
       setCustomerError(
         'Withdrawal Password must contain at least 6 characters.'
       );
       return;
     }
 
-    if (
-      loginPassword ===
-      withdrawalPassword
-    ) {
+    if (loginPassword === withdrawalPassword) {
       setCustomerError(
         'Login Password and Withdrawal Password must be different.'
       );
@@ -323,36 +204,26 @@ export default function AdminDashboard({
     try {
       setCustomerLoading(true);
 
-      const response = await fetch(
-        '/api/admin/customers',
-        {
-          method: 'POST',
+      const response = await fetch('/api/admin/customers', {
+        method: 'POST',
 
-          headers: {
-            'Content-Type':
-              'application/json',
-          },
+        headers: {
+          'Content-Type': 'application/json',
+        },
 
-          body: JSON.stringify({
-            name: cleanName,
-            loginId: cleanLoginId,
+        body: JSON.stringify({
+          name: cleanName,
+          loginId: cleanLoginId,
+          temporaryPassword: loginPassword,
+          temporaryWithdrawalPassword: withdrawalPassword,
+        }),
+      });
 
-            temporaryPassword:
-              loginPassword,
-
-            temporaryWithdrawalPassword:
-              withdrawalPassword,
-          }),
-        }
-      );
-
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
-          data?.error ||
-            'Unable to create customer.'
+          data?.error || 'Unable to create customer.'
         );
       }
 
@@ -368,8 +239,7 @@ export default function AdminDashboard({
       await loadCustomers();
     } catch (error) {
       setCustomerError(
-        error.message ||
-          'Unable to create customer.'
+        error.message || 'Unable to create customer.'
       );
     } finally {
       setCustomerLoading(false);
@@ -380,21 +250,14 @@ export default function AdminDashboard({
      RESET LOGIN PASSWORD
   ===================================================== */
 
-  const resetLoginPassword = async (
-    customer
-  ) => {
-    const temporaryPassword =
-      window.prompt(
-        `Enter NEW temporary Login Password for ${customer.loginId}`
-      );
+  const resetLoginPassword = async (customer) => {
+    const temporaryPassword = window.prompt(
+      `Enter NEW temporary Login Password for ${customer.loginId}`
+    );
 
-    if (!temporaryPassword) {
-      return;
-    }
+    if (!temporaryPassword) return;
 
-    if (
-      temporaryPassword.length < 6
-    ) {
+    if (temporaryPassword.length < 6) {
       alert(
         'Temporary Login Password must contain at least 6 characters.'
       );
@@ -408,8 +271,7 @@ export default function AdminDashboard({
           method: 'POST',
 
           headers: {
-            'Content-Type':
-              'application/json',
+            'Content-Type': 'application/json',
           },
 
           body: JSON.stringify({
@@ -418,13 +280,11 @@ export default function AdminDashboard({
         }
       );
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
-          data?.error ||
-            'Unable to reset Login Password.'
+          data?.error || 'Unable to reset Login Password.'
         );
       }
 
@@ -435,8 +295,7 @@ export default function AdminDashboard({
       await loadCustomers();
     } catch (error) {
       alert(
-        error.message ||
-          'Unable to reset Login Password.'
+        error.message || 'Unable to reset Login Password.'
       );
     }
   };
@@ -445,120 +304,94 @@ export default function AdminDashboard({
      RESET WITHDRAWAL PASSWORD
   ===================================================== */
 
-  const resetWithdrawalPassword =
-    async (customer) => {
-      const temporaryWithdrawalPassword =
-        window.prompt(
-          `Enter NEW temporary Withdrawal Password for ${customer.loginId}`
-        );
+  const resetWithdrawalPassword = async (customer) => {
+    const temporaryWithdrawalPassword = window.prompt(
+      `Enter NEW temporary Withdrawal Password for ${customer.loginId}`
+    );
 
-      if (
-        !temporaryWithdrawalPassword
-      ) {
-        return;
-      }
+    if (!temporaryWithdrawalPassword) return;
 
-      if (
-        temporaryWithdrawalPassword.length <
-        6
-      ) {
-        alert(
-          'Temporary Withdrawal Password must contain at least 6 characters.'
-        );
-        return;
-      }
+    if (temporaryWithdrawalPassword.length < 6) {
+      alert(
+        'Temporary Withdrawal Password must contain at least 6 characters.'
+      );
+      return;
+    }
 
-      try {
-        const response = await fetch(
-          `/api/admin/customers/${customer.id}/reset-withdrawal-password`,
-          {
-            method: 'POST',
+    try {
+      const response = await fetch(
+        `/api/admin/customers/${customer.id}/reset-withdrawal-password`,
+        {
+          method: 'POST',
 
-            headers: {
-              'Content-Type':
-                'application/json',
-            },
+          headers: {
+            'Content-Type': 'application/json',
+          },
 
-            body: JSON.stringify({
-              temporaryWithdrawalPassword,
-            }),
-          }
-        );
-
-        const data =
-          await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            data?.error ||
-              'Unable to reset Withdrawal Password.'
-          );
+          body: JSON.stringify({
+            temporaryWithdrawalPassword,
+          }),
         }
+      );
 
-        alert(
-          'Temporary Withdrawal Password reset successfully.'
-        );
+      const data = await response.json();
 
-        await loadCustomers();
-      } catch (error) {
-        alert(
-          error.message ||
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
             'Unable to reset Withdrawal Password.'
         );
       }
-    };
+
+      alert(
+        'Temporary Withdrawal Password reset successfully.'
+      );
+
+      await loadCustomers();
+    } catch (error) {
+      alert(
+        error.message ||
+          'Unable to reset Withdrawal Password.'
+      );
+    }
+  };
 
   /* =====================================================
      COUNTS
   ===================================================== */
 
-  const pendingDeposits =
-    useMemo(() => {
-      return depositRequests.filter(
-        (item) =>
-          String(
-            item?.status || ''
-          ).toUpperCase() ===
-          'PENDING'
-      ).length;
-    }, [depositRequests]);
+  const pendingDeposits = useMemo(() => {
+    return depositRequests.filter(
+      (item) =>
+        String(item?.status || '').toUpperCase() ===
+        'PENDING'
+    ).length;
+  }, [depositRequests]);
 
-  const pendingWithdrawals =
-    useMemo(() => {
-      return withdrawalRequests.filter(
-        (item) =>
-          String(
-            item?.status || ''
-          ).toUpperCase() ===
-          'PENDING'
-      ).length;
-    }, [withdrawalRequests]);
+  const pendingWithdrawals = useMemo(() => {
+    return withdrawalRequests.filter(
+      (item) =>
+        String(item?.status || '').toUpperCase() ===
+        'PENDING'
+    ).length;
+  }, [withdrawalRequests]);
 
   /* =====================================================
-     APPROVE / REJECT DEPOSIT
+     DEPOSIT REVIEW
   ===================================================== */
 
-  const approveDeposit = (
-    requestId
-  ) => {
-    const request =
-      depositRequests.find(
-        (item) =>
-          item?.id === requestId
-      );
+  const approveDeposit = (requestId) => {
+    const request = depositRequests.find(
+      (item) => item?.id === requestId
+    );
 
     if (!request) {
-      alert(
-        'Deposit request not found.'
-      );
+      alert('Deposit request not found.');
       return;
     }
 
     if (
-      String(
-        request.status
-      ).toUpperCase() !==
-      'PENDING'
+      String(request.status).toUpperCase() !== 'PENDING'
     ) {
       alert(
         'This request has already been reviewed.'
@@ -566,34 +399,26 @@ export default function AdminDashboard({
       return;
     }
 
-    const confirmed =
-      window.confirm(
-        `Approve ₹${Number(
-          request.amount || 0
-        ).toLocaleString(
-          'en-IN'
-        )} demo deposit request?`
-      );
+    const confirmed = window.confirm(
+      `Approve ₹${Number(
+        request.amount || 0
+      ).toLocaleString('en-IN')} demo deposit request?`
+    );
 
     if (!confirmed) return;
 
-    setDepositRequests(
-      (previous) =>
-        previous.map((item) =>
-          item?.id === requestId
-            ? {
-                ...item,
-                status:
-                  'APPROVED',
-                reviewedAt:
-                  new Date().toISOString(),
-                reviewedDate:
-                  new Date().toLocaleString(
-                    'en-IN'
-                  ),
-              }
-            : item
-        )
+    setDepositRequests((previous) =>
+      previous.map((item) =>
+        item?.id === requestId
+          ? {
+              ...item,
+              status: 'APPROVED',
+              reviewedAt: new Date().toISOString(),
+              reviewedDate:
+                new Date().toLocaleString('en-IN'),
+            }
+          : item
+      )
     );
 
     alert(
@@ -601,41 +426,31 @@ export default function AdminDashboard({
     );
   };
 
-  const rejectDeposit = (
-    requestId
-  ) => {
-    const request =
-      depositRequests.find(
-        (item) =>
-          item?.id === requestId
-      );
+  const rejectDeposit = (requestId) => {
+    const request = depositRequests.find(
+      (item) => item?.id === requestId
+    );
 
     if (!request) return;
 
-    const confirmed =
-      window.confirm(
-        'Reject this demo deposit request?'
-      );
+    const confirmed = window.confirm(
+      'Reject this demo deposit request?'
+    );
 
     if (!confirmed) return;
 
-    setDepositRequests(
-      (previous) =>
-        previous.map((item) =>
-          item?.id === requestId
-            ? {
-                ...item,
-                status:
-                  'REJECTED',
-                reviewedAt:
-                  new Date().toISOString(),
-                reviewedDate:
-                  new Date().toLocaleString(
-                    'en-IN'
-                  ),
-              }
-            : item
-        )
+    setDepositRequests((previous) =>
+      previous.map((item) =>
+        item?.id === requestId
+          ? {
+              ...item,
+              status: 'REJECTED',
+              reviewedAt: new Date().toISOString(),
+              reviewedDate:
+                new Date().toLocaleString('en-IN'),
+            }
+          : item
+      )
     );
 
     alert(
@@ -644,29 +459,21 @@ export default function AdminDashboard({
   };
 
   /* =====================================================
-     WITHDRAWALS
+     WITHDRAWAL REVIEW
   ===================================================== */
 
-  const approveWithdrawal = (
-    requestId
-  ) => {
-    const request =
-      withdrawalRequests.find(
-        (item) =>
-          item?.id === requestId
-      );
+  const approveWithdrawal = (requestId) => {
+    const request = withdrawalRequests.find(
+      (item) => item?.id === requestId
+    );
 
     if (!request) {
-      alert(
-        'Withdrawal request not found.'
-      );
+      alert('Withdrawal request not found.');
       return;
     }
 
     if (
-      String(
-        request.status || ''
-      ).toUpperCase() !==
+      String(request.status || '').toUpperCase() !==
       'PENDING'
     ) {
       alert(
@@ -675,30 +482,24 @@ export default function AdminDashboard({
       return;
     }
 
-    const confirmed =
-      window.confirm(
-        'Approve this demo withdrawal request?'
-      );
+    const confirmed = window.confirm(
+      'Approve this demo withdrawal request?'
+    );
 
     if (!confirmed) return;
 
-    setWithdrawalRequests(
-      (previous) =>
-        previous.map((item) =>
-          item?.id === requestId
-            ? {
-                ...item,
-                status:
-                  'APPROVED',
-                reviewedAt:
-                  new Date().toISOString(),
-                reviewedDate:
-                  new Date().toLocaleString(
-                    'en-IN'
-                  ),
-              }
-            : item
-        )
+    setWithdrawalRequests((previous) =>
+      previous.map((item) =>
+        item?.id === requestId
+          ? {
+              ...item,
+              status: 'APPROVED',
+              reviewedAt: new Date().toISOString(),
+              reviewedDate:
+                new Date().toLocaleString('en-IN'),
+            }
+          : item
+      )
     );
 
     alert(
@@ -706,30 +507,18 @@ export default function AdminDashboard({
     );
   };
 
-  /* =====================================================
-     REJECT WITHDRAWAL + RESTORE HELD DEMO COINS
-  ===================================================== */
-
-  const rejectWithdrawal = (
-    requestId
-  ) => {
-    const request =
-      withdrawalRequests.find(
-        (item) =>
-          item?.id === requestId
-      );
+  const rejectWithdrawal = (requestId) => {
+    const request = withdrawalRequests.find(
+      (item) => item?.id === requestId
+    );
 
     if (!request) {
-      alert(
-        'Withdrawal request not found.'
-      );
+      alert('Withdrawal request not found.');
       return;
     }
 
     if (
-      String(
-        request.status || ''
-      ).toUpperCase() !==
+      String(request.status || '').toUpperCase() !==
       'PENDING'
     ) {
       alert(
@@ -739,48 +528,34 @@ export default function AdminDashboard({
     }
 
     const refundAmount = Number(
-      request.coinsHeld ||
-        request.amount ||
-        0
+      request.coinsHeld || request.amount || 0
     );
 
-    const confirmed =
-      window.confirm(
-        `Reject ${refundAmount.toLocaleString(
-          'en-IN'
-        )} demo coins withdrawal and restore the coins?`
-      );
+    const confirmed = window.confirm(
+      `Reject ${refundAmount.toLocaleString(
+        'en-IN'
+      )} demo coins withdrawal and restore the coins?`
+    );
 
     if (!confirmed) return;
 
     try {
-      const storedBalance =
-        Number(
-          localStorage.getItem(
-            BALANCE_KEY
-          ) || 0
-        );
+      const storedBalance = Number(
+        localStorage.getItem(BALANCE_KEY) || 0
+      );
 
-      const currentBalance =
-        Number.isFinite(
-          storedBalance
-        )
-          ? storedBalance
-          : 0;
+      const currentBalance = Number.isFinite(storedBalance)
+        ? storedBalance
+        : 0;
 
       const shouldRestore =
-        request.coinsRestored !==
-          true &&
-        Number.isFinite(
-          refundAmount
-        ) &&
+        request.coinsRestored !== true &&
+        Number.isFinite(refundAmount) &&
         refundAmount > 0;
 
-      const nextBalance =
-        shouldRestore
-          ? currentBalance +
-            refundAmount
-          : currentBalance;
+      const nextBalance = shouldRestore
+        ? currentBalance + refundAmount
+        : currentBalance;
 
       if (shouldRestore) {
         localStorage.setItem(
@@ -789,50 +564,36 @@ export default function AdminDashboard({
         );
 
         window.dispatchEvent(
-          new CustomEvent(
-            'tsb-demo-balance-updated',
-            {
-              detail: {
-                balance:
-                  nextBalance,
-              },
-            }
-          )
+          new CustomEvent('tsb-demo-balance-updated', {
+            detail: {
+              balance: nextBalance,
+            },
+          })
         );
       }
 
-      setWithdrawalRequests(
-        (previous) =>
-          previous.map(
-            (item) =>
-              item?.id ===
-              requestId
-                ? {
-                    ...item,
+      setWithdrawalRequests((previous) =>
+        previous.map((item) =>
+          item?.id === requestId
+            ? {
+                ...item,
+                status: 'REJECTED',
 
-                    status:
-                      'REJECTED',
+                coinsRestored: shouldRestore
+                  ? true
+                  : item.coinsRestored,
 
-                    coinsRestored:
-                      shouldRestore
-                        ? true
-                        : item.coinsRestored,
+                restoredCoins: shouldRestore
+                  ? refundAmount
+                  : item.restoredCoins,
 
-                    restoredCoins:
-                      shouldRestore
-                        ? refundAmount
-                        : item.restoredCoins,
+                reviewedAt: new Date().toISOString(),
 
-                    reviewedAt:
-                      new Date().toISOString(),
-
-                    reviewedDate:
-                      new Date().toLocaleString(
-                        'en-IN'
-                      ),
-                  }
-                : item
-          )
+                reviewedDate:
+                  new Date().toLocaleString('en-IN'),
+              }
+            : item
+        )
       );
 
       alert(
@@ -858,63 +619,47 @@ export default function AdminDashboard({
      DEMO COINS
   ===================================================== */
 
-  const changeDemoCoins = (
-    mode
-  ) => {
+  const changeDemoCoins = (mode) => {
     setCoinMessage('');
 
     if (!coinCustomerId) {
-      setCoinMessage(
-        'Select customer first.'
-      );
+      setCoinMessage('Select customer first.');
       return;
     }
 
-    const amount =
-      Number(coinAmount);
+    const amount = Number(coinAmount);
 
-    if (
-      !Number.isFinite(amount) ||
-      amount <= 0
-    ) {
+    if (!Number.isFinite(amount) || amount <= 0) {
       setCoinMessage(
         'Enter valid demo coin amount.'
       );
       return;
     }
 
-    const customer =
-      customers.find(
-        (item) =>
-          String(item.loginId) ===
-          String(coinCustomerId)
-      );
+    const customer = customers.find(
+      (item) =>
+        String(item.loginId) ===
+        String(coinCustomerId)
+    );
 
     try {
-      const current =
-        Number(
-          localStorage.getItem(
-            BALANCE_KEY
-          ) || 10000
-        );
+      const current = Number(
+        localStorage.getItem(BALANCE_KEY) || 10000
+      );
 
-      const safeCurrent =
-        Number.isFinite(current)
-          ? current
-          : 10000;
+      const safeCurrent = Number.isFinite(current)
+        ? current
+        : 10000;
 
-      let nextBalance =
-        safeCurrent;
+      let nextBalance = safeCurrent;
 
       if (mode === 'ADD') {
-        nextBalance =
-          safeCurrent + amount;
+        nextBalance = safeCurrent + amount;
       } else {
-        nextBalance =
-          Math.max(
-            0,
-            safeCurrent - amount
-          );
+        nextBalance = Math.max(
+          0,
+          safeCurrent - amount
+        );
       }
 
       localStorage.setItem(
@@ -924,38 +669,26 @@ export default function AdminDashboard({
 
       const record = {
         id: Date.now(),
-        customerId:
-          coinCustomerId,
+        customerId: coinCustomerId,
         customerName:
-          customer?.name ||
-          coinCustomerId,
+          customer?.name || coinCustomerId,
         type: mode,
         amount,
-        balance:
-          nextBalance,
-        date:
-          new Date().toLocaleString(
-            'en-IN'
-          ),
+        balance: nextBalance,
+        date: new Date().toLocaleString('en-IN'),
       };
 
-      setCoinHistory(
-        (previous) => [
-          record,
-          ...previous,
-        ]
-      );
+      setCoinHistory((previous) => [
+        record,
+        ...previous,
+      ]);
 
       window.dispatchEvent(
-        new CustomEvent(
-          'tsb-demo-balance-updated',
-          {
-            detail: {
-              balance:
-                nextBalance,
-            },
-          }
-        )
+        new CustomEvent('tsb-demo-balance-updated', {
+          detail: {
+            balance: nextBalance,
+          },
+        })
       );
 
       setCoinAmount('');
@@ -982,18 +715,14 @@ export default function AdminDashboard({
 
   const adminBoxes = [
     {
-      title:
-        'Deposit Accounts',
+      title: 'Deposit Accounts',
       icon: '🏦',
-      section:
-        'Deposit Accounts',
+      section: 'Deposit Accounts',
     },
     {
-      title:
-        'Coin Management',
+      title: 'Coin Management',
       icon: '🪙',
-      section:
-        'Coin Management',
+      section: 'Coin Management',
     },
     {
       title: 'Customers',
@@ -1006,31 +735,22 @@ export default function AdminDashboard({
       section: 'API Settings',
     },
     {
-      title:
-        'Transaction History',
+      title: 'Transaction History',
       icon: '📒',
-      section:
-        'Transaction History',
+      section: 'Transaction History',
     },
     {
-      title:
-        'Admin Settings',
+      title: 'Admin Settings',
       icon: '⚙️',
-      section:
-        'Admin Settings',
+      section: 'Admin Settings',
     },
   ];
 
-  if (
-    activeSection ===
-    'Deposit Accounts'
-  ) {
+  if (activeSection === 'Deposit Accounts') {
     return (
       <AdminPaymentSettings
         onBack={() =>
-          setActiveSection(
-            'Dashboard'
-          )
+          setActiveSection('Dashboard')
         }
       />
     );
@@ -1038,6 +758,8 @@ export default function AdminDashboard({
 
   return (
     <div className="min-h-screen bg-[#061c1a] text-white">
+
+      {/* HEADER */}
 
       <header className="sticky top-0 z-50 bg-[#9a5a00] px-4 py-4 shadow-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
@@ -1058,18 +780,18 @@ export default function AdminDashboard({
             </p>
 
             <p className="text-[11px] font-black">
-              {admin?.username ||
-                'admin'}
+              {admin?.username || 'admin'}
             </p>
           </div>
 
         </div>
       </header>
 
-      {/* DASHBOARD */}
+      {/* =================================================
+          DASHBOARD
+      ================================================= */}
 
-      {activeSection ===
-        'Dashboard' && (
+      {activeSection === 'Dashboard' && (
         <main className="mx-auto max-w-5xl px-3 py-5">
 
           <h2 className="text-xl font-black">
@@ -1079,10 +801,9 @@ export default function AdminDashboard({
           <div className="mt-5 grid grid-cols-2 gap-2">
 
             <button
+              type="button"
               onClick={() =>
-                setActiveSection(
-                  'Pending Deposits'
-                )
+                setActiveSection('Pending Deposits')
               }
               className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 text-left"
             >
@@ -1100,10 +821,9 @@ export default function AdminDashboard({
             </button>
 
             <button
+              type="button"
               onClick={() =>
-                setActiveSection(
-                  'Pending Withdrawals'
-                )
+                setActiveSection('Pending Withdrawals')
               }
               className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-left"
             >
@@ -1128,31 +848,29 @@ export default function AdminDashboard({
 
           <div className="grid grid-cols-2 gap-3">
 
-            {adminBoxes.map(
-              (item) => (
-                <button
-                  key={item.title}
-                  onClick={() =>
-                    setActiveSection(
-                      item.section
-                    )
-                  }
-                  className="min-h-[130px] rounded-xl border border-[#28655f] bg-[#083d37] p-4 text-left"
-                >
-                  <span className="text-3xl">
-                    {item.icon}
-                  </span>
+            {adminBoxes.map((item) => (
+              <button
+                type="button"
+                key={item.title}
+                onClick={() =>
+                  setActiveSection(item.section)
+                }
+                className="min-h-[130px] rounded-xl border border-[#28655f] bg-[#083d37] p-4 text-left"
+              >
+                <span className="text-3xl">
+                  {item.icon}
+                </span>
 
-                  <p className="mt-4 text-[11px] font-black">
-                    {item.title}
-                  </p>
-                </button>
-              )
-            )}
+                <p className="mt-4 text-[11px] font-black">
+                  {item.title}
+                </p>
+              </button>
+            ))}
 
           </div>
 
           <button
+            type="button"
             onClick={onLogout}
             className="mt-6 h-[46px] w-full rounded-lg bg-red-700 text-xs font-black"
           >
@@ -1162,17 +880,16 @@ export default function AdminDashboard({
         </main>
       )}
 
-      {/* PENDING DEPOSITS */}
+      {/* =================================================
+          PENDING DEPOSITS
+      ================================================= */}
 
-      {activeSection ===
-        'Pending Deposits' && (
+      {activeSection === 'Pending Deposits' && (
         <AdminPage
           title="Pending Deposits"
           icon="📥"
           onBack={() =>
-            setActiveSection(
-              'Dashboard'
-            )
+            setActiveSection('Dashboard')
           }
         >
           <InfoBox
@@ -1180,8 +897,7 @@ export default function AdminDashboard({
             value={pendingDeposits}
           />
 
-          {pendingDeposits ===
-            0 && (
+          {pendingDeposits === 0 && (
             <EmptyState text="No pending deposits" />
           )}
 
@@ -1192,14 +908,14 @@ export default function AdminDashboard({
                 (item) =>
                   String(
                     item.status
-                  ).toUpperCase() ===
-                  'PENDING'
+                  ).toUpperCase() === 'PENDING'
               )
               .map((request) => (
                 <div
                   key={request.id}
                   className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
                 >
+
                   <p className="text-sm font-black">
                     {request.customerId ||
                       request.userId ||
@@ -1209,9 +925,7 @@ export default function AdminDashboard({
 
                   {request.customerName && (
                     <p className="mt-1 text-[9px] text-gray-400">
-                      {
-                        request.customerName
-                      }
+                      {request.customerName}
                     </p>
                   )}
 
@@ -1220,11 +934,8 @@ export default function AdminDashboard({
                     <InfoBox
                       label="AMOUNT"
                       value={`₹${Number(
-                        request.amount ||
-                          0
-                      ).toLocaleString(
-                        'en-IN'
-                      )}`}
+                        request.amount || 0
+                      ).toLocaleString('en-IN')}`}
                     />
 
                     <InfoBox
@@ -1238,18 +949,12 @@ export default function AdminDashboard({
 
                     <InfoBox
                       label="METHOD"
-                      value={
-                        request.method ||
-                        '—'
-                      }
+                      value={request.method || '—'}
                     />
 
                     <InfoBox
                       label="PAYMENT PROOF"
-                      value={
-                        request.proof ||
-                        '—'
-                      }
+                      value={request.proof || '—'}
                     />
 
                   </div>
@@ -1261,9 +966,7 @@ export default function AdminDashboard({
                         const newWindow =
                           window.open();
 
-                        if (
-                          newWindow
-                        ) {
+                        if (newWindow) {
                           newWindow.document.write(
                             `<img src="${request.proofData}" style="max-width:100%;height:auto;" />`
                           );
@@ -1278,10 +981,9 @@ export default function AdminDashboard({
                   <div className="mt-4 grid grid-cols-2 gap-2">
 
                     <button
+                      type="button"
                       onClick={() =>
-                        approveDeposit(
-                          request.id
-                        )
+                        approveDeposit(request.id)
                       }
                       className="h-[44px] rounded-lg bg-green-700 text-[10px] font-black"
                     >
@@ -1289,10 +991,9 @@ export default function AdminDashboard({
                     </button>
 
                     <button
+                      type="button"
                       onClick={() =>
-                        rejectDeposit(
-                          request.id
-                        )
+                        rejectDeposit(request.id)
                       }
                       className="h-[44px] rounded-lg bg-red-700 text-[10px] font-black"
                     >
@@ -1302,8 +1003,7 @@ export default function AdminDashboard({
                   </div>
 
                   <p className="mt-3 text-center text-[7px] text-gray-500">
-                    Demo review only.
-                    Approval does not verify
+                    Demo review only. Approval does not verify
                     or process a real payment.
                   </p>
 
@@ -1314,17 +1014,16 @@ export default function AdminDashboard({
         </AdminPage>
       )}
 
-      {/* PENDING WITHDRAWALS */}
+      {/* =================================================
+          PENDING WITHDRAWALS
+      ================================================= */}
 
-      {activeSection ===
-        'Pending Withdrawals' && (
+      {activeSection === 'Pending Withdrawals' && (
         <AdminPage
           title="Pending Withdrawals"
           icon="💸"
           onBack={() =>
-            setActiveSection(
-              'Dashboard'
-            )
+            setActiveSection('Dashboard')
           }
         >
           <InfoBox
@@ -1332,8 +1031,7 @@ export default function AdminDashboard({
             value={pendingWithdrawals}
           />
 
-          {pendingWithdrawals ===
-            0 && (
+          {pendingWithdrawals === 0 && (
             <EmptyState text="No pending withdrawals" />
           )}
 
@@ -1344,8 +1042,7 @@ export default function AdminDashboard({
                 (item) =>
                   String(
                     item.status
-                  ).toUpperCase() ===
-                  'PENDING'
+                  ).toUpperCase() === 'PENDING'
               )
               .map((request) => (
                 <div
@@ -1355,6 +1052,8 @@ export default function AdminDashboard({
 
                   <div className="grid grid-cols-2 gap-2">
 
+                    {/* CUSTOMER NAME */}
+
                     <InfoBox
                       label="CUSTOMER NAME"
                       value={
@@ -1362,6 +1061,8 @@ export default function AdminDashboard({
                         'Demo Customer'
                       }
                     />
+
+                    {/* CUSTOMER ID */}
 
                     <InfoBox
                       label="CUSTOMER ID"
@@ -1373,38 +1074,73 @@ export default function AdminDashboard({
                       }
                     />
 
+                    {/* AMOUNT */}
+
                     <InfoBox
                       label="REQUESTED DEMO COINS"
                       value={Number(
-                        request.amount ||
-                          0
-                      ).toLocaleString(
-                        'en-IN'
-                      )}
+                        request.amount || 0
+                      ).toLocaleString('en-IN')}
                     />
 
+                    {/* BANK NAME */}
+
                     <InfoBox
-                      label="BANK ACCOUNT"
+                      label="BANK NAME"
                       value={
-                        request.accountLast4
-                          ? `XXXX-${request.accountLast4}`
-                          : request.accountNumber
-                          ? `XXXX-${String(
-                              request.accountNumber
-                            ).slice(-4)}`
-                          : '—'
+                        request.bankName ||
+                        '—'
+                      }
+                    />
+
+                    {/* FULL ACCOUNT NUMBER */}
+
+                    <InfoBox
+                      label="ACCOUNT NUMBER"
+                      value={
+                        request.accountNumber ||
+                        '—'
+                      }
+                    />
+
+                    {/* IFSC */}
+
+                    <InfoBox
+                      label="IFSC CODE"
+                      value={
+                        request.ifsc ||
+                        request.ifscCode ||
+                        '—'
                       }
                     />
 
                   </div>
 
+                  {/* REQUEST DATE */}
+
+                  {(request.date ||
+                    request.createdAt) && (
+                    <div className="mt-2">
+
+                      <InfoBox
+                        label="REQUEST DATE"
+                        value={
+                          request.date ||
+                          new Date(
+                            request.createdAt
+                          ).toLocaleString('en-IN')
+                        }
+                      />
+
+                    </div>
+                  )}
+
                   <div className="mt-3 grid grid-cols-2 gap-2">
 
                     <button
+                      type="button"
                       onClick={() =>
-                        approveWithdrawal(
-                          request.id
-                        )
+                        approveWithdrawal(request.id)
                       }
                       className="h-[44px] rounded-lg bg-green-700 text-[10px] font-black"
                     >
@@ -1412,10 +1148,9 @@ export default function AdminDashboard({
                     </button>
 
                     <button
+                      type="button"
                       onClick={() =>
-                        rejectWithdrawal(
-                          request.id
-                        )
+                        rejectWithdrawal(request.id)
                       }
                       className="h-[44px] rounded-lg bg-red-700 text-[10px] font-black"
                     >
@@ -1424,6 +1159,11 @@ export default function AdminDashboard({
 
                   </div>
 
+                  <p className="mt-3 text-center text-[7px] text-gray-500">
+                    Demo withdrawal review only.
+                    No real-money transfer is performed.
+                  </p>
+
                 </div>
               ))}
 
@@ -1431,23 +1171,24 @@ export default function AdminDashboard({
         </AdminPage>
       )}
 
-      {/* CUSTOMERS */}
+      {/* =================================================
+          CUSTOMERS
+      ================================================= */}
 
-      {activeSection ===
-        'Customers' && (
+      {activeSection === 'Customers' && (
         <AdminPage
           title="Customers"
           icon="👥"
           onBack={() =>
-            setActiveSection(
-              'Dashboard'
-            )
+            setActiveSection('Dashboard')
           }
         >
+
           <form
             onSubmit={createCustomer}
             className="rounded-xl border border-amber-500/30 bg-black/10 p-4"
           >
+
             <p className="text-xs font-black text-amber-300">
               CREATE CUSTOMER ID
             </p>
@@ -1458,21 +1199,15 @@ export default function AdminDashboard({
                 label="CUSTOMER NAME"
                 value={customerName}
                 onChange={(e) =>
-                  setCustomerName(
-                    e.target.value
-                  )
+                  setCustomerName(e.target.value)
                 }
               />
 
               <CustomerInput
                 label="LOGIN ID"
-                value={
-                  customerLoginId
-                }
+                value={customerLoginId}
                 onChange={(e) =>
-                  setCustomerLoginId(
-                    e.target.value
-                  )
+                  setCustomerLoginId(e.target.value)
                 }
               />
 
@@ -1481,22 +1216,16 @@ export default function AdminDashboard({
                 type="password"
                 value={loginPassword}
                 onChange={(e) =>
-                  setLoginPassword(
-                    e.target.value
-                  )
+                  setLoginPassword(e.target.value)
                 }
               />
 
               <CustomerInput
                 label="WITHDRAWAL PASSWORD"
                 type="password"
-                value={
-                  withdrawalPassword
-                }
+                value={withdrawalPassword}
                 onChange={(e) =>
-                  setWithdrawalPassword(
-                    e.target.value
-                  )
+                  setWithdrawalPassword(e.target.value)
                 }
               />
 
@@ -1511,126 +1240,122 @@ export default function AdminDashboard({
 
             {customerMessage && (
               <MessageBox
-                text={
-                  customerMessage
-                }
+                text={customerMessage}
               />
             )}
 
             <button
               type="submit"
-              disabled={
-                customerLoading
-              }
+              disabled={customerLoading}
               className="mt-4 h-[46px] w-full rounded-lg bg-amber-500 text-[10px] font-black text-black"
             >
-              CREATE CUSTOMER
+              {customerLoading
+                ? 'PLEASE WAIT...'
+                : 'CREATE CUSTOMER'}
             </button>
+
           </form>
 
           <div className="mt-5 space-y-3">
 
-            {customers.map(
-              (customer) => (
-                <div
-                  key={customer.id}
-                  className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
-                >
-                  <div className="flex justify-between">
+            {customers.length === 0 &&
+              !customerLoading && (
+                <EmptyState text="No customers found" />
+              )}
 
-                    <div>
-                      <p className="text-sm font-black">
-                        {customer.name}
-                      </p>
+            {customers.map((customer) => (
+              <div
+                key={customer.id}
+                className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
+              >
 
-                      <p className="mt-1 text-[9px] text-amber-300">
-                        {
-                          customer.loginId
-                        }
-                      </p>
-                    </div>
+                <div className="flex justify-between">
 
-                    <StatusBadge
-                      status={
-                        customer.status
-                      }
-                    />
+                  <div>
+                    <p className="text-sm font-black">
+                      {customer.name}
+                    </p>
 
+                    <p className="mt-1 text-[9px] text-amber-300">
+                      {customer.loginId}
+                    </p>
                   </div>
 
-                  <div className="mt-3 space-y-2">
-
-                    <InfoBox
-                      label="LOGIN PASSWORD"
-                      value={
-                        customer.mustChangePassword
-                          ? 'CHANGE REQUIRED'
-                          : 'SET'
-                      }
-                    />
-
-                    <InfoBox
-                      label="WITHDRAWAL PASSWORD"
-                      value={
-                        !customer.withdrawalPasswordConfigured
-                          ? 'NOT CONFIGURED'
-                          : customer.mustChangeWithdrawalPassword
-                          ? 'CHANGE REQUIRED'
-                          : 'SET'
-                      }
-                    />
-
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        resetLoginPassword(
-                          customer
-                        )
-                      }
-                      className="min-h-[42px] rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 text-[8px] font-black text-amber-300"
-                    >
-                      RESET LOGIN PASSWORD
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        resetWithdrawalPassword(
-                          customer
-                        )
-                      }
-                      className="min-h-[42px] rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-2 text-[8px] font-black text-cyan-300"
-                    >
-                      RESET WITHDRAWAL PASSWORD
-                    </button>
-
-                  </div>
+                  <StatusBadge
+                    status={customer.status}
+                  />
 
                 </div>
-              )
-            )}
+
+                <div className="mt-3 space-y-2">
+
+                  <InfoBox
+                    label="LOGIN PASSWORD"
+                    value={
+                      customer.mustChangePassword
+                        ? 'CHANGE REQUIRED'
+                        : 'SET'
+                    }
+                  />
+
+                  <InfoBox
+                    label="WITHDRAWAL PASSWORD"
+                    value={
+                      !customer.withdrawalPasswordConfigured
+                        ? 'NOT CONFIGURED'
+                        : customer.mustChangeWithdrawalPassword
+                        ? 'CHANGE REQUIRED'
+                        : 'SET'
+                    }
+                  />
+
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      resetLoginPassword(customer)
+                    }
+                    className="min-h-[42px] rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 text-[8px] font-black text-amber-300"
+                  >
+                    RESET LOGIN PASSWORD
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      resetWithdrawalPassword(customer)
+                    }
+                    className="min-h-[42px] rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-2 text-[8px] font-black text-cyan-300"
+                  >
+                    RESET WITHDRAWAL PASSWORD
+                  </button>
+
+                </div>
+
+              </div>
+            ))}
 
           </div>
+
         </AdminPage>
       )}
 
-      {/* COIN MANAGEMENT */}
+      {/* =================================================
+          COIN MANAGEMENT
+      ================================================= */}
 
-      {activeSection ===
-        'Coin Management' && (
+      {activeSection === 'Coin Management' && (
         <AdminPage
           title="Coin Management"
           icon="🪙"
           onBack={() =>
-            setActiveSection(
-              'Dashboard'
-            )
+            setActiveSection('Dashboard')
           }
         >
+
           <div className="rounded-xl border border-[#28655f] bg-[#083d37] p-4">
 
             <p className="text-xs font-black text-amber-300">
@@ -1638,8 +1363,7 @@ export default function AdminDashboard({
             </p>
 
             <p className="mt-2 text-[8px] leading-4 text-gray-400">
-              Simulation only. This does
-              not represent real money.
+              Simulation only. This does not represent real money.
             </p>
 
             <label className="mt-4 block text-[8px] font-black text-gray-400">
@@ -1649,33 +1373,24 @@ export default function AdminDashboard({
             <select
               value={coinCustomerId}
               onChange={(e) =>
-                setCoinCustomerId(
-                  e.target.value
-                )
+                setCoinCustomerId(e.target.value)
               }
               className="mt-2 h-[46px] w-full rounded-lg border border-[#28655f] bg-[#061c1a] px-3 text-xs text-white"
             >
+
               <option value="">
                 Select Customer
               </option>
 
-              {customers.map(
-                (customer) => (
-                  <option
-                    key={
-                      customer.id
-                    }
-                    value={
-                      customer.loginId
-                    }
-                  >
-                    {customer.name} -{' '}
-                    {
-                      customer.loginId
-                    }
-                  </option>
-                )
-              )}
+              {customers.map((customer) => (
+                <option
+                  key={customer.id}
+                  value={customer.loginId}
+                >
+                  {customer.name} - {customer.loginId}
+                </option>
+              ))}
+
             </select>
 
             <CustomerInput
@@ -1683,19 +1398,16 @@ export default function AdminDashboard({
               type="number"
               value={coinAmount}
               onChange={(e) =>
-                setCoinAmount(
-                  e.target.value
-                )
+                setCoinAmount(e.target.value)
               }
             />
 
             <div className="mt-4 grid grid-cols-2 gap-2">
 
               <button
+                type="button"
                 onClick={() =>
-                  changeDemoCoins(
-                    'ADD'
-                  )
+                  changeDemoCoins('ADD')
                 }
                 className="h-[46px] rounded-lg bg-green-700 text-[10px] font-black"
               >
@@ -1703,10 +1415,9 @@ export default function AdminDashboard({
               </button>
 
               <button
+                type="button"
                 onClick={() =>
-                  changeDemoCoins(
-                    'REMOVE'
-                  )
+                  changeDemoCoins('REMOVE')
                 }
                 className="h-[46px] rounded-lg bg-red-700 text-[10px] font-black"
               >
@@ -1716,9 +1427,7 @@ export default function AdminDashboard({
             </div>
 
             {coinMessage && (
-              <MessageBox
-                text={coinMessage}
-              />
+              <MessageBox text={coinMessage} />
             )}
 
           </div>
@@ -1729,8 +1438,7 @@ export default function AdminDashboard({
 
           <div className="mt-3 space-y-2">
 
-            {coinHistory.length ===
-            0 ? (
+            {coinHistory.length === 0 ? (
               <EmptyState text="No demo coin activity yet" />
             ) : (
               coinHistory
@@ -1740,39 +1448,32 @@ export default function AdminDashboard({
                     key={item.id}
                     className="rounded-lg border border-[#28655f] bg-[#083d37] p-3"
                   >
+
                     <div className="flex justify-between gap-3">
 
                       <div>
                         <p className="text-[9px] font-black">
-                          {
-                            item.customerName
-                          }
+                          {item.customerName}
                         </p>
 
                         <p className="mt-1 text-[8px] text-gray-400">
-                          {
-                            item.customerId
-                          }
+                          {item.customerId}
                         </p>
                       </div>
 
                       <span
                         className={
-                          item.type ===
-                          'ADD'
+                          item.type === 'ADD'
                             ? 'text-green-300'
                             : 'text-red-300'
                         }
                       >
-                        {item.type ===
-                        'ADD'
+                        {item.type === 'ADD'
                           ? '+'
                           : '-'}
                         {Number(
                           item.amount
-                        ).toLocaleString(
-                          'en-IN'
-                        )}
+                        ).toLocaleString('en-IN')}
                       </span>
 
                     </div>
@@ -1780,6 +1481,7 @@ export default function AdminDashboard({
                     <p className="mt-2 text-[7px] text-gray-500">
                       {item.date}
                     </p>
+
                   </div>
                 ))
             )}
@@ -1789,33 +1491,29 @@ export default function AdminDashboard({
         </AdminPage>
       )}
 
-      {/* TRANSACTION HISTORY */}
+      {/* =================================================
+          TRANSACTION HISTORY
+      ================================================= */}
 
-      {activeSection ===
-        'Transaction History' && (
+      {activeSection === 'Transaction History' && (
         <AdminPage
           title="Transaction History"
           icon="📒"
           onBack={() =>
-            setActiveSection(
-              'Dashboard'
-            )
+            setActiveSection('Dashboard')
           }
         >
+
           <div className="grid grid-cols-2 gap-2">
 
             <InfoBox
               label="DEPOSITS"
-              value={
-                depositRequests.length
-              }
+              value={depositRequests.length}
             />
 
             <InfoBox
               label="WITHDRAWALS"
-              value={
-                withdrawalRequests.length
-              }
+              value={withdrawalRequests.length}
             />
 
           </div>
@@ -1826,75 +1524,132 @@ export default function AdminDashboard({
 
           <div className="mt-3 space-y-2">
 
-            {depositRequests.map(
-              (item) => (
+            {depositRequests.length === 0 ? (
+              <EmptyState text="No deposit history" />
+            ) : (
+              depositRequests.map((item) => (
                 <div
                   key={item.id}
                   className="rounded-lg border border-[#28655f] bg-[#083d37] p-3"
                 >
+
                   <div className="flex justify-between">
 
                     <p className="text-[9px] font-black">
                       ₹
                       {Number(
-                        item.amount ||
-                          0
-                      ).toLocaleString(
-                        'en-IN'
-                      )}
+                        item.amount || 0
+                      ).toLocaleString('en-IN')}
                     </p>
 
                     <StatusBadge
-                      status={
-                        item.status
-                      }
+                      status={item.status}
                     />
 
                   </div>
+
+                  {(item.customerName ||
+                    item.customerId) && (
+                    <p className="mt-2 text-[8px] text-gray-400">
+                      {item.customerName || ''}
+                      {item.customerName &&
+                      item.customerId
+                        ? ' • '
+                        : ''}
+                      {item.customerId || ''}
+                    </p>
+                  )}
+
                 </div>
-              )
+              ))
             )}
 
           </div>
+
+          <p className="mt-6 text-[10px] font-black text-amber-300">
+            WITHDRAWAL HISTORY
+          </p>
+
+          <div className="mt-3 space-y-2">
+
+            {withdrawalRequests.length === 0 ? (
+              <EmptyState text="No withdrawal history" />
+            ) : (
+              withdrawalRequests.map((item) => (
+                <div
+                  key={item.id}
+                  className="rounded-lg border border-[#28655f] bg-[#083d37] p-3"
+                >
+
+                  <div className="flex items-start justify-between gap-3">
+
+                    <div>
+                      <p className="text-[9px] font-black">
+                        {Number(
+                          item.amount || 0
+                        ).toLocaleString('en-IN')}{' '}
+                        DEMO COINS
+                      </p>
+
+                      <p className="mt-1 text-[8px] text-gray-400">
+                        {item.customerName ||
+                          'Demo Customer'}
+                      </p>
+
+                      <p className="mt-1 text-[8px] text-gray-500">
+                        {item.customerId ||
+                          item.loginId ||
+                          item.userId ||
+                          '—'}
+                      </p>
+                    </div>
+
+                    <StatusBadge
+                      status={item.status}
+                    />
+
+                  </div>
+
+                </div>
+              ))
+            )}
+
+          </div>
+
         </AdminPage>
       )}
 
-      {/* API SETTINGS */}
+      {/* =================================================
+          API SETTINGS
+      ================================================= */}
 
-      {activeSection ===
-        'API Settings' && (
+      {activeSection === 'API Settings' && (
         <AdminPage
           title="API Settings"
           icon="🔌"
           onBack={() =>
-            setActiveSection(
-              'Dashboard'
-            )
+            setActiveSection('Dashboard')
           }
         >
           <EmptyState text="API configuration section" />
         </AdminPage>
       )}
 
-      {/* ADMIN SETTINGS */}
+      {/* =================================================
+          ADMIN SETTINGS
+      ================================================= */}
 
-      {activeSection ===
-        'Admin Settings' && (
+      {activeSection === 'Admin Settings' && (
         <AdminPage
           title="Admin Settings"
           icon="⚙️"
           onBack={() =>
-            setActiveSection(
-              'Dashboard'
-            )
+            setActiveSection('Dashboard')
           }
         >
           <InfoBox
             label="ADMIN ID"
-            value={
-              admin?.username ||
-              'admin'
-            }
+            value={admin?.username || 'admin'}
           />
         </AdminPage>
       )}
@@ -1917,6 +1672,7 @@ function AdminPage({
     <main className="mx-auto max-w-5xl px-3 py-4">
 
       <button
+        type="button"
         onClick={onBack}
         className="mb-4 rounded-md border border-amber-500/40 px-3 py-2 text-[9px] font-black text-amber-300"
       >
@@ -1946,6 +1702,7 @@ function AdminPage({
         {children}
 
       </section>
+
     </main>
   );
 }
@@ -1997,23 +1754,26 @@ function InfoBox({
 function StatusBadge({
   status,
 }) {
-  const value =
-    String(
-      status || 'PENDING'
-    ).toUpperCase();
+  const value = String(
+    status || 'PENDING'
+  ).toUpperCase();
 
   let style =
     'border-amber-500/30 bg-amber-500/10 text-amber-300';
 
   if (
     value === 'APPROVED' ||
-    value === 'ACTIVE'
+    value === 'ACTIVE' ||
+    value === 'SUCCESS'
   ) {
     style =
       'border-green-500/30 bg-green-500/10 text-green-300';
   }
 
-  if (value === 'REJECTED') {
+  if (
+    value === 'REJECTED' ||
+    value === 'REJECT'
+  ) {
     style =
       'border-red-500/30 bg-red-500/10 text-red-300';
   }
