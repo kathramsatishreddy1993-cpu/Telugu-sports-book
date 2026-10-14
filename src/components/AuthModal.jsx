@@ -1,7 +1,41 @@
-import React, { useEffect, useState } from 'react';
+import React, {
+  useEffect,
+  useState,
+} from 'react';
 
-const AUTH_KEY = 'telugu_sports_auth_user';
-const ADMIN_WHATSAPP_NUMBER = '919346824432';
+const AUTH_KEY =
+  'telugu_sports_auth_user';
+
+const DEFAULT_WHATSAPP_NUMBER =
+  '919346824432';
+
+/* =====================================================
+   NORMALIZE WHATSAPP NUMBER
+===================================================== */
+
+function normalizeWhatsAppNumber(
+  value
+) {
+  const digits = String(
+    value || ''
+  ).replace(/\D/g, '');
+
+  if (!digits) {
+    return DEFAULT_WHATSAPP_NUMBER;
+  }
+
+  /*
+    If Admin entered only a
+    10-digit Indian mobile number,
+    automatically add country code 91.
+  */
+
+  if (digits.length === 10) {
+    return `91${digits}`;
+  }
+
+  return digits;
+}
 
 export default function AuthModal({
   isOpen,
@@ -9,39 +43,166 @@ export default function AuthModal({
   onLoginSuccess,
   initialMode = 'login',
 }) {
-  const [isLogin, setIsLogin] = useState(
-    initialMode !== 'signup'
+  const [isLogin, setIsLogin] =
+    useState(
+      initialMode !== 'signup'
+    );
+
+  const [
+    identifier,
+    setIdentifier,
+  ] = useState('');
+
+  const [
+    password,
+    setPassword,
+  ] = useState('');
+
+  const [
+    signupName,
+    setSignupName,
+  ] = useState('');
+
+  const [
+    preferredId,
+    setPreferredId,
+  ] = useState('');
+
+  const [
+    showPassword,
+    setShowPassword,
+  ] = useState(false);
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(false);
+
+  const [
+    error,
+    setError,
+  ] = useState('');
+
+  const [
+    adminWhatsAppNumber,
+    setAdminWhatsAppNumber,
+  ] = useState(
+    DEFAULT_WHATSAPP_NUMBER
   );
 
-  const [identifier, setIdentifier] =
-    useState('');
+  const [
+    whatsappLoading,
+    setWhatsAppLoading,
+  ] = useState(false);
 
-  const [password, setPassword] =
-    useState('');
-
-  const [signupName, setSignupName] =
-    useState('');
-
-  const [preferredId, setPreferredId] =
-    useState('');
-
-  const [showPassword, setShowPassword] =
-    useState(false);
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [error, setError] =
-    useState('');
+  /* =====================================================
+     MODAL RESET
+  ===================================================== */
 
   useEffect(() => {
     if (!isOpen) {
       return;
     }
 
-    setIsLogin(initialMode !== 'signup');
+    setIsLogin(
+      initialMode !== 'signup'
+    );
+
     setError('');
-  }, [isOpen, initialMode]);
+  }, [
+    isOpen,
+    initialMode,
+  ]);
+
+  /* =====================================================
+     LOAD ADMIN WHATSAPP NUMBER
+  ===================================================== */
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    let active = true;
+
+    const loadWhatsAppNumber =
+      async () => {
+        try {
+          setWhatsAppLoading(true);
+
+          const response =
+            await fetch(
+              '/api/settings/whatsapp',
+              {
+                method: 'GET',
+
+                headers: {
+                  Accept:
+                    'application/json',
+                },
+
+                cache:
+                  'no-store',
+              }
+            );
+
+          let data = null;
+
+          try {
+            data =
+              await response.json();
+          } catch {
+            data = null;
+          }
+
+          if (!response.ok) {
+            throw new Error(
+              data?.error ||
+                'Unable to load WhatsApp number.'
+            );
+          }
+
+          if (!active) {
+            return;
+          }
+
+          const number =
+            normalizeWhatsAppNumber(
+              data?.whatsappNumber ||
+                data?.number ||
+                data?.phone ||
+                DEFAULT_WHATSAPP_NUMBER
+            );
+
+          setAdminWhatsAppNumber(
+            number
+          );
+        } catch (loadError) {
+          console.error(
+            'WhatsApp Settings Error:',
+            loadError
+          );
+
+          if (active) {
+            setAdminWhatsAppNumber(
+              DEFAULT_WHATSAPP_NUMBER
+            );
+          }
+        } finally {
+          if (active) {
+            setWhatsAppLoading(
+              false
+            );
+          }
+        }
+      };
+
+    loadWhatsAppNumber();
+
+    return () => {
+      active = false;
+    };
+  }, [isOpen]);
 
   if (!isOpen) {
     return null;
@@ -67,18 +228,23 @@ export default function AuthModal({
      DATABASE CUSTOMER LOGIN
   ===================================================== */
 
-  const handleLogin = async (event) => {
+  const handleLogin = async (
+    event
+  ) => {
     event.preventDefault();
 
     setError('');
 
     const cleanLoginId =
-      identifier.trim().toLowerCase();
+      identifier
+        .trim()
+        .toLowerCase();
 
     if (!cleanLoginId) {
       setError(
         'Please enter your User ID.'
       );
+
       return;
     }
 
@@ -86,33 +252,39 @@ export default function AuthModal({
       setError(
         'Please enter your Password.'
       );
+
       return;
     }
 
     try {
       setLoading(true);
 
-      const response = await fetch(
-        '/api/auth/customer-login',
-        {
-          method: 'POST',
+      const response =
+        await fetch(
+          '/api/auth/customer-login',
+          {
+            method: 'POST',
 
-          headers: {
-            'Content-Type':
-              'application/json',
-          },
+            headers: {
+              'Content-Type':
+                'application/json',
+            },
 
-          body: JSON.stringify({
-            loginId: cleanLoginId,
-            password,
-          }),
-        }
-      );
+            body:
+              JSON.stringify({
+                loginId:
+                  cleanLoginId,
+
+                password,
+              }),
+          }
+        );
 
       let data = null;
 
       try {
-        data = await response.json();
+        data =
+          await response.json();
       } catch {
         data = null;
       }
@@ -155,31 +327,39 @@ export default function AuthModal({
 
         mustChangePassword:
           Boolean(
-            data?.mustChangePassword ??
-              customer?.mustChangePassword
+            data
+              ?.mustChangePassword ??
+              customer
+                ?.mustChangePassword
           ),
 
         mustChangeWithdrawalPassword:
           Boolean(
-            data?.mustChangeWithdrawalPassword ??
-              customer?.mustChangeWithdrawalPassword
+            data
+              ?.mustChangeWithdrawalPassword ??
+              customer
+                ?.mustChangeWithdrawalPassword
           ),
 
         withdrawalPasswordConfigured:
           Boolean(
-            data?.withdrawalPasswordConfigured ??
-              customer?.withdrawalPasswordConfigured
+            data
+              ?.withdrawalPasswordConfigured ??
+              customer
+                ?.withdrawalPasswordConfigured
           ),
       };
 
       /*
-        We intentionally do NOT save the
-        temporary password anywhere.
+        Temporary Login Password
+        is intentionally NOT stored.
       */
 
       localStorage.setItem(
         AUTH_KEY,
-        JSON.stringify(loggedInUser)
+        JSON.stringify(
+          loggedInUser
+        )
       );
 
       setIdentifier('');
@@ -219,13 +399,18 @@ export default function AuthModal({
 
     const demoUser = {
       name: 'Demo User',
+
       loginId: 'demo',
+
       identifier: 'demo',
 
       isAuthenticated: true,
+
       isDemo: true,
 
-      mustChangePassword: false,
+      mustChangePassword:
+        false,
+
       mustChangeWithdrawalPassword:
         false,
 
@@ -236,7 +421,9 @@ export default function AuthModal({
     try {
       localStorage.setItem(
         AUTH_KEY,
-        JSON.stringify(demoUser)
+        JSON.stringify(
+          demoUser
+        )
       );
     } catch (storageError) {
       console.error(
@@ -246,7 +433,9 @@ export default function AuthModal({
     }
 
     if (onLoginSuccess) {
-      onLoginSuccess(demoUser);
+      onLoginSuccess(
+        demoUser
+      );
     }
 
     if (onClose) {
@@ -278,6 +467,7 @@ export default function AuthModal({
       setError(
         'Please enter your Name.'
       );
+
       return;
     }
 
@@ -288,8 +478,14 @@ export default function AuthModal({
       setError(
         'Please enter your Preferred User ID.'
       );
+
       return;
     }
+
+    const whatsappNumber =
+      normalizeWhatsAppNumber(
+        adminWhatsAppNumber
+      );
 
     let message =
       'Hello, I want a new TSB ID.';
@@ -308,14 +504,16 @@ export default function AuthModal({
       '\nPlease create my TSB ID, temporary Login Password and temporary Withdrawal Password.';
 
     const encodedMessage =
-      encodeURIComponent(message);
+      encodeURIComponent(
+        message
+      );
 
     const appLink =
-      `whatsapp://send?phone=${ADMIN_WHATSAPP_NUMBER}` +
+      `whatsapp://send?phone=${whatsappNumber}` +
       `&text=${encodedMessage}`;
 
     const webLink =
-      `https://wa.me/${ADMIN_WHATSAPP_NUMBER}` +
+      `https://wa.me/${whatsappNumber}` +
       `?text=${encodedMessage}`;
 
     window.location.href =
@@ -427,7 +625,9 @@ export default function AuthModal({
 
         {isLogin && (
           <form
-            onSubmit={handleLogin}
+            onSubmit={
+              handleLogin
+            }
             className="space-y-4"
           >
 
@@ -441,11 +641,18 @@ export default function AuthModal({
 
               <input
                 type="text"
-                value={identifier}
-                disabled={loading}
-                onChange={(event) =>
+                value={
+                  identifier
+                }
+                disabled={
+                  loading
+                }
+                onChange={(
+                  event
+                ) =>
                   setIdentifier(
-                    event.target.value
+                    event.target
+                      .value
                   )
                 }
                 placeholder="Enter Customer ID"
@@ -471,11 +678,18 @@ export default function AuthModal({
                       ? 'text'
                       : 'password'
                   }
-                  value={password}
-                  disabled={loading}
-                  onChange={(event) =>
+                  value={
+                    password
+                  }
+                  disabled={
+                    loading
+                  }
+                  onChange={(
+                    event
+                  ) =>
                     setPassword(
-                      event.target.value
+                      event.target
+                        .value
                     )
                   }
                   placeholder="Enter Login Password"
@@ -485,10 +699,13 @@ export default function AuthModal({
 
                 <button
                   type="button"
-                  disabled={loading}
+                  disabled={
+                    loading
+                  }
                   onClick={() =>
                     setShowPassword(
-                      (value) => !value
+                      (value) =>
+                        !value
                     )
                   }
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400"
@@ -514,7 +731,9 @@ export default function AuthModal({
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={
+                loading
+              }
               className="h-[52px] w-full rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 text-sm font-black uppercase tracking-wider text-black disabled:opacity-50"
             >
               {loading
@@ -543,7 +762,9 @@ export default function AuthModal({
               onClick={
                 handleDemoLogin
               }
-              disabled={loading}
+              disabled={
+                loading
+              }
               className="h-[52px] w-full rounded-lg bg-emerald-600 text-sm font-black uppercase tracking-wider text-white disabled:opacity-50"
             >
               Login with Demo ID
@@ -556,7 +777,9 @@ export default function AuthModal({
 
         {!isLogin && (
           <form
-            onSubmit={handleSignup}
+            onSubmit={
+              handleSignup
+            }
             className="space-y-4"
           >
 
@@ -570,10 +793,15 @@ export default function AuthModal({
 
               <input
                 type="text"
-                value={signupName}
-                onChange={(event) =>
+                value={
+                  signupName
+                }
+                onChange={(
+                  event
+                ) =>
                   setSignupName(
-                    event.target.value
+                    event.target
+                      .value
                   )
                 }
                 placeholder="Enter your Name"
@@ -593,10 +821,15 @@ export default function AuthModal({
 
               <input
                 type="text"
-                value={preferredId}
-                onChange={(event) =>
+                value={
+                  preferredId
+                }
+                onChange={(
+                  event
+                ) =>
                   setPreferredId(
-                    event.target.value
+                    event.target
+                      .value
                   )
                 }
                 placeholder="Example: satish123"
@@ -638,9 +871,14 @@ export default function AuthModal({
 
             <button
               type="submit"
-              className="h-[52px] w-full rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 text-sm font-black uppercase tracking-wider text-black"
+              disabled={
+                whatsappLoading
+              }
+              className="h-[52px] w-full rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 text-sm font-black uppercase tracking-wider text-black disabled:opacity-50"
             >
-              SIGN UP
+              {whatsappLoading
+                ? 'Loading...'
+                : 'SIGN UP'}
             </button>
 
             {/* DIVIDER */}
@@ -661,13 +899,16 @@ export default function AuthModal({
 
             <button
               type="button"
+              disabled={
+                whatsappLoading
+              }
               onClick={() =>
                 openAdminWhatsApp({
                   requireDetails:
                     false,
                 })
               }
-              className="flex h-[56px] w-full items-center justify-center gap-3 rounded-full bg-[#20c968] px-4 text-sm font-black text-white shadow-lg"
+              className="flex h-[56px] w-full items-center justify-center gap-3 rounded-full bg-[#20c968] px-4 text-sm font-black text-white shadow-lg disabled:opacity-50"
             >
 
               <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-lg">
@@ -675,7 +916,9 @@ export default function AuthModal({
               </span>
 
               <span>
-                GET TSB ID NOW
+                {whatsappLoading
+                  ? 'LOADING...'
+                  : 'GET TSB ID NOW'}
               </span>
 
             </button>
@@ -697,6 +940,10 @@ export default function AuthModal({
     </div>
   );
 }
+
+/* =====================================================
+   ERROR BOX
+===================================================== */
 
 function ErrorBox({
   text,
