@@ -15,6 +15,8 @@ const app = express();
 
 const PORT = process.env.PORT || 10000;
 
+const DEFAULT_ADMIN_WHATSAPP_NUMBER = '919346824432';
+
 /* =========================================================
    MIDDLEWARE
 ========================================================= */
@@ -61,6 +63,10 @@ async function initializeDatabase() {
   }
 
   try {
+    /* =====================================================
+       CUSTOMERS TABLE
+    ===================================================== */
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS customers (
         id SERIAL PRIMARY KEY,
@@ -119,6 +125,47 @@ async function initializeDatabase() {
         DEFAULT TRUE;
     `);
 
+    /* =====================================================
+       SITE SETTINGS TABLE
+    ===================================================== */
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS site_settings (
+        setting_key VARCHAR(100)
+          PRIMARY KEY,
+
+        setting_value TEXT
+          NOT NULL,
+
+        updated_at
+          TIMESTAMPTZ
+          NOT NULL
+          DEFAULT NOW()
+      );
+    `);
+
+    /* =====================================================
+       DEFAULT WHATSAPP NUMBER
+    ===================================================== */
+
+    await pool.query(
+      `
+      INSERT INTO site_settings (
+        setting_key,
+        setting_value
+      )
+      VALUES (
+        'admin_whatsapp_number',
+        $1
+      )
+      ON CONFLICT (setting_key)
+      DO NOTHING
+      `,
+      [
+        DEFAULT_ADMIN_WHATSAPP_NUMBER,
+      ]
+    );
+
     console.log(
       'Customers table ready.'
     );
@@ -129,6 +176,14 @@ async function initializeDatabase() {
 
     console.log(
       'Admin password reset support ready.'
+    );
+
+    console.log(
+      'Site settings table ready.'
+    );
+
+    console.log(
+      'WhatsApp settings support ready.'
     );
   } catch (error) {
     console.error(
@@ -299,6 +354,240 @@ function publicCustomer(
       customer.created_at,
   };
 }
+
+/* =========================================================
+   WHATSAPP HELPERS
+========================================================= */
+
+function normalizeWhatsAppNumber(
+  value
+) {
+  return String(value || '')
+    .replace(/\D/g, '')
+    .trim();
+}
+
+function isValidWhatsAppNumber(
+  value
+) {
+  return /^[1-9][0-9]{9,14}$/.test(
+    value
+  );
+}
+
+async function getAdminWhatsAppNumber() {
+  if (!process.env.DATABASE_URL) {
+    return DEFAULT_ADMIN_WHATSAPP_NUMBER;
+  }
+
+  try {
+    const result =
+      await pool.query(
+        `
+        SELECT setting_value
+        FROM site_settings
+        WHERE setting_key = $1
+        LIMIT 1
+        `,
+        [
+          'admin_whatsapp_number',
+        ]
+      );
+
+    const savedNumber =
+      normalizeWhatsAppNumber(
+        result.rows?.[0]
+          ?.setting_value
+      );
+
+    if (
+      isValidWhatsAppNumber(
+        savedNumber
+      )
+    ) {
+      return savedNumber;
+    }
+
+    return DEFAULT_ADMIN_WHATSAPP_NUMBER;
+  } catch (error) {
+    console.error(
+      'Get WhatsApp Number Error:',
+      error
+    );
+
+    return DEFAULT_ADMIN_WHATSAPP_NUMBER;
+  }
+}
+
+/* =========================================================
+   PUBLIC SITE SETTINGS
+
+   GET /api/public/settings
+========================================================= */
+
+app.get(
+  '/api/public/settings',
+
+  async (req, res) => {
+    try {
+      const whatsappNumber =
+        await getAdminWhatsAppNumber();
+
+      return res.json({
+        success: true,
+
+        whatsappNumber,
+      });
+    } catch (error) {
+      console.error(
+        'Public Settings Error:',
+        error
+      );
+
+      return res.json({
+        success: true,
+
+        whatsappNumber:
+          DEFAULT_ADMIN_WHATSAPP_NUMBER,
+      });
+    }
+  }
+);
+
+/* =========================================================
+   ADMIN GET WHATSAPP NUMBER
+
+   GET /api/admin/settings/whatsapp
+========================================================= */
+
+app.get(
+  '/api/admin/settings/whatsapp',
+
+  async (req, res) => {
+    try {
+      const whatsappNumber =
+        await getAdminWhatsAppNumber();
+
+      return res.json({
+        success: true,
+
+        whatsappNumber,
+      });
+    } catch (error) {
+      console.error(
+        'Admin Get WhatsApp Settings Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Unable to load WhatsApp number.',
+        });
+    }
+  }
+);
+
+/* =========================================================
+   ADMIN UPDATE WHATSAPP NUMBER
+
+   PUT /api/admin/settings/whatsapp
+========================================================= */
+
+app.put(
+  '/api/admin/settings/whatsapp',
+
+  async (req, res) => {
+    try {
+      const whatsappNumber =
+        normalizeWhatsAppNumber(
+          req.body.whatsappNumber ||
+          req.body.number
+        );
+
+      if (
+        !isValidWhatsAppNumber(
+          whatsappNumber
+        )
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Please enter a valid WhatsApp number with country code. Example: 919346824432',
+          });
+      }
+
+      if (
+        !process.env.DATABASE_URL
+      ) {
+        return res
+          .status(500)
+          .json({
+            error:
+              'Database is not configured.',
+          });
+      }
+
+      const result =
+        await pool.query(
+          `
+          INSERT INTO site_settings (
+            setting_key,
+            setting_value,
+            updated_at
+          )
+          VALUES (
+            $1,
+            $2,
+            NOW()
+          )
+          ON CONFLICT (setting_key)
+          DO UPDATE SET
+            setting_value =
+              EXCLUDED.setting_value,
+            updated_at =
+              NOW()
+          RETURNING
+            setting_value,
+            updated_at
+          `,
+          [
+            'admin_whatsapp_number',
+            whatsappNumber,
+          ]
+        );
+
+      return res.json({
+        success: true,
+
+        message:
+          'WhatsApp number updated successfully.',
+
+        whatsappNumber:
+          result.rows[0]
+            .setting_value,
+
+        updatedAt:
+          result.rows[0]
+            .updated_at,
+      });
+    } catch (error) {
+      console.error(
+        'Admin Update WhatsApp Settings Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Unable to update WhatsApp number.',
+        });
+    }
+  }
+);
 
 /* =========================================================
    CREATE CUSTOMER
