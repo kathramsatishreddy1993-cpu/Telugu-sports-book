@@ -1314,7 +1314,7 @@ export default function AdminDashboard({
         </AdminPage>
       )}
 
-      {/* WITHDRAWALS */}
+      {/* PENDING WITHDRAWALS */}
 
       {activeSection ===
         'Pending Withdrawals' && (
@@ -1352,15 +1352,51 @@ export default function AdminDashboard({
                   key={request.id}
                   className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
                 >
-                  <InfoBox
-                    label="REQUESTED DEMO COINS"
-                    value={Number(
-                      request.amount ||
-                        0
-                    ).toLocaleString(
-                      'en-IN'
-                    )}
-                  />
+
+                  <div className="grid grid-cols-2 gap-2">
+
+                    <InfoBox
+                      label="CUSTOMER NAME"
+                      value={
+                        request.customerName ||
+                        'Demo Customer'
+                      }
+                    />
+
+                    <InfoBox
+                      label="CUSTOMER ID"
+                      value={
+                        request.customerId ||
+                        request.loginId ||
+                        request.userId ||
+                        '—'
+                      }
+                    />
+
+                    <InfoBox
+                      label="REQUESTED DEMO COINS"
+                      value={Number(
+                        request.amount ||
+                          0
+                      ).toLocaleString(
+                        'en-IN'
+                      )}
+                    />
+
+                    <InfoBox
+                      label="BANK ACCOUNT"
+                      value={
+                        request.accountLast4
+                          ? `XXXX-${request.accountLast4}`
+                          : request.accountNumber
+                          ? `XXXX-${String(
+                              request.accountNumber
+                            ).slice(-4)}`
+                          : '—'
+                      }
+                    />
+
+                  </div>
 
                   <div className="mt-3 grid grid-cols-2 gap-2">
 
@@ -1387,6 +1423,7 @@ export default function AdminDashboard({
                     </button>
 
                   </div>
+
                 </div>
               ))}
 
@@ -1822,7 +1859,7 @@ export default function AdminDashboard({
         </AdminPage>
       )}
 
-      {/* API */}
+      {/* API SETTINGS */}
 
       {activeSection ===
         'API Settings' && (
