@@ -16,7 +16,7 @@ export default function Header({
 
   return (
     <header className="sticky top-0 z-50 border-b border-gray-800 bg-[#08111d]/95 backdrop-blur">
-      <div className="mx-auto flex h-[88px] max-w-7xl items-center justify-between gap-2 px-3 sm:h-[96px] sm:px-4">
+      <div className="mx-auto flex h-[96px] max-w-7xl items-center justify-between gap-2 px-3 sm:h-[104px] sm:px-4">
 
         {/* =================================
             TSB LOGO
@@ -36,13 +36,12 @@ export default function Header({
           <div
             className="
               relative
-              h-[74px]
+              h-[86px]
               w-full
-              max-w-[290px]
+              max-w-[430px]
               overflow-hidden
-              sm:h-[82px]
-              sm:max-w-[360px]
-              md:max-w-[430px]
+              sm:h-[94px]
+              sm:max-w-[470px]
             "
           >
             <img
@@ -52,14 +51,14 @@ export default function Header({
               className="
                 absolute
                 left-1/2
-                top-1/2
+                top-[47%]
                 h-auto
-                w-[135%]
+                w-[126%]
                 max-w-none
                 -translate-x-1/2
                 -translate-y-1/2
                 object-contain
-                sm:w-[128%]
+                sm:w-[120%]
               "
             />
           </div>
@@ -74,8 +73,7 @@ export default function Header({
           {loggedIn ? (
             <>
               <span className="hidden max-w-[100px] truncate text-xs font-semibold text-emerald-400 sm:block">
-                {user?.name ||
-                  'Demo User'}
+                {user?.name || 'Demo User'}
               </span>
 
               <button
@@ -101,14 +99,10 @@ export default function Header({
             </>
           ) : (
             <>
-              {/* LOGIN */}
-
               <button
                 type="button"
                 onClick={() =>
-                  onOpenAuth?.(
-                    'login'
-                  )
+                  onOpenAuth?.('login')
                 }
                 className="
                   rounded-xl
@@ -131,14 +125,10 @@ export default function Header({
                 Log In
               </button>
 
-              {/* SIGN UP */}
-
               <button
                 type="button"
                 onClick={() =>
-                  onOpenAuth?.(
-                    'signup'
-                  )
+                  onOpenAuth?.('signup')
                 }
                 className="
                   rounded-xl
