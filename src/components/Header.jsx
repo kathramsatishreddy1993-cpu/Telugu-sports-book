@@ -1,7 +1,7 @@
 import React from 'react';
 
 const TSB_LOGO =
-  '/file_0000000094288208a5d577eadc40844c.png';
+  '/games/file_0000000092bc82118617f615539c5f17.png';
 
 export default function Header({
   onOpenAuth,
@@ -11,16 +11,16 @@ export default function Header({
 }) {
   const loggedIn = Boolean(
     isAuthenticated ||
-    user?.isAuthenticated
+      user?.isAuthenticated
   );
 
   return (
-    <header className="sticky top-0 z-50 border-b border-gray-800 bg-[#0b121e]/95 px-3 py-2 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2">
+    <header className="sticky top-0 z-50 border-b border-gray-800 bg-[#08111d]/95 backdrop-blur">
+      <div className="mx-auto flex h-[82px] max-w-7xl items-center justify-between gap-2 px-3 sm:h-[92px] sm:px-4">
 
-        {/* =========================
+        {/* =================================
             TSB LOGO
-        ========================= */}
+        ================================= */}
 
         <button
           type="button"
@@ -36,14 +36,24 @@ export default function Header({
           <img
             src={TSB_LOGO}
             alt="Telugu Sports Book"
-            className="h-[58px] w-auto max-w-[190px] rounded-md object-contain sm:h-[68px] sm:max-w-[260px]"
+            className="
+              h-[64px]
+              w-auto
+              max-w-[230px]
+              object-contain
+              object-left
+              sm:h-[74px]
+              sm:max-w-[300px]
+              md:h-[80px]
+              md:max-w-[360px]
+            "
             draggable="false"
           />
         </button>
 
-        {/* =========================
+        {/* =================================
             AUTH BUTTONS
-        ========================= */}
+        ================================= */}
 
         <div className="flex flex-none items-center gap-2">
 
@@ -57,13 +67,26 @@ export default function Header({
               <button
                 type="button"
                 onClick={onLogout}
-                className="rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-500 active:scale-95 sm:text-sm"
+                className="
+                  rounded-lg
+                  bg-red-600
+                  px-3
+                  py-2
+                  text-xs
+                  font-bold
+                  text-white
+                  transition
+                  active:scale-95
+                  hover:bg-red-500
+                "
               >
                 Logout
               </button>
             </>
           ) : (
             <>
+              {/* LOGIN */}
+
               <button
                 type="button"
                 onClick={() =>
@@ -71,10 +94,28 @@ export default function Header({
                     'login'
                   )
                 }
-                className="rounded-lg border border-gray-700 bg-gray-800/80 px-3 py-2 text-xs font-bold text-gray-200 transition hover:bg-gray-700 hover:text-white active:scale-95 sm:px-4 sm:text-sm"
+                className="
+                  rounded-xl
+                  border
+                  border-gray-700
+                  bg-[#151e2d]
+                  px-3
+                  py-2.5
+                  text-xs
+                  font-black
+                  text-gray-100
+                  shadow-lg
+                  transition
+                  active:scale-95
+                  hover:bg-gray-700
+                  sm:px-4
+                  sm:text-sm
+                "
               >
                 Log In
               </button>
+
+              {/* SIGN UP */}
 
               <button
                 type="button"
@@ -83,7 +124,25 @@ export default function Header({
                     'signup'
                   )
                 }
-                className="rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 px-3 py-2 text-xs font-black text-black shadow-md transition hover:from-amber-300 hover:to-amber-400 active:scale-95 sm:px-4 sm:text-sm"
+                className="
+                  rounded-xl
+                  bg-gradient-to-r
+                  from-amber-400
+                  to-orange-500
+                  px-3
+                  py-2.5
+                  text-xs
+                  font-black
+                  text-black
+                  shadow-lg
+                  shadow-amber-500/10
+                  transition
+                  active:scale-95
+                  hover:from-amber-300
+                  hover:to-orange-400
+                  sm:px-4
+                  sm:text-sm
+                "
               >
                 Sign Up
               </button>
