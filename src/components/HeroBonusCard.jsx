@@ -1,118 +1,321 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
-export default function HeroBonusCard({ onOpenBonus }) {
+/* =========================================
+   BONUS DATA
+========================================= */
+
+const BONUS_ITEMS = [
+  {
+    id: 'welcome',
+    title: 'WELCOME',
+    subtitle: 'BONUS',
+    percentage: '10%',
+    icon: '🎁',
+    border:
+      'border-emerald-400/50',
+    glow:
+      'from-emerald-500/30 via-green-500/10 to-transparent',
+    percentageColor:
+      'text-emerald-300',
+  },
+  {
+    id: 'promo',
+    title: 'PROMO CODE',
+    subtitle: 'BONUS',
+    percentage: '10%',
+    icon: '🎟️',
+    border:
+      'border-violet-400/50',
+    glow:
+      'from-blue-500/30 via-violet-500/15 to-transparent',
+    percentageColor:
+      'text-cyan-300',
+  },
+  {
+    id: 'losing',
+    title: 'LOSING',
+    subtitle: 'BONUS',
+    percentage: '10%',
+    icon: '↩️',
+    border:
+      'border-orange-400/50',
+    glow:
+      'from-orange-500/30 via-red-500/10 to-transparent',
+    percentageColor:
+      'text-orange-300',
+  },
+];
+
+/* =========================================
+   MAIN COMPONENT
+========================================= */
+
+export default function HeroBonusCard({
+  onOpenBonus,
+}) {
+  const scrollRef = useRef(null);
+
+  /* =========================================
+     GENTLE AUTO SCROLL
+  ========================================= */
+
+  useEffect(() => {
+    const element =
+      scrollRef.current;
+
+    if (!element) {
+      return undefined;
+    }
+
+    let animationFrame = null;
+    let paused = false;
+
+    const autoScroll = () => {
+      if (!paused) {
+        element.scrollLeft += 0.22;
+
+        const maxScroll =
+          element.scrollWidth -
+          element.clientWidth;
+
+        if (
+          maxScroll > 0 &&
+          element.scrollLeft >=
+            maxScroll
+        ) {
+          element.scrollLeft = 0;
+        }
+      }
+
+      animationFrame =
+        requestAnimationFrame(
+          autoScroll
+        );
+    };
+
+    const pause = () => {
+      paused = true;
+    };
+
+    const resume = () => {
+      paused = false;
+    };
+
+    element.addEventListener(
+      'touchstart',
+      pause,
+      {
+        passive: true,
+      }
+    );
+
+    element.addEventListener(
+      'touchend',
+      resume,
+      {
+        passive: true,
+      }
+    );
+
+    element.addEventListener(
+      'mouseenter',
+      pause
+    );
+
+    element.addEventListener(
+      'mouseleave',
+      resume
+    );
+
+    animationFrame =
+      requestAnimationFrame(
+        autoScroll
+      );
+
+    return () => {
+      if (animationFrame) {
+        cancelAnimationFrame(
+          animationFrame
+        );
+      }
+
+      element.removeEventListener(
+        'touchstart',
+        pause
+      );
+
+      element.removeEventListener(
+        'touchend',
+        resume
+      );
+
+      element.removeEventListener(
+        'mouseenter',
+        pause
+      );
+
+      element.removeEventListener(
+        'mouseleave',
+        resume
+      );
+    };
+  }, []);
+
   return (
-    <section className="bg-[#080d16] px-4 pb-5 pt-3 text-white">
-      {/* TITLE ROW */}
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="text-3xl">🎁</span>
+    <section className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-[#0b111d] text-white">
 
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-400">
-              Exclusive Member
-            </p>
+      {/* =====================================
+          BACKGROUND LIGHTS
+      ===================================== */}
 
-            <h2 className="text-xl font-black uppercase leading-tight">
-              BONUS
-            </h2>
-          </div>
-        </div>
+      <div className="pointer-events-none absolute -left-12 top-0 h-24 w-24 rounded-full bg-amber-500/10 blur-3xl" />
+
+      <div className="pointer-events-none absolute right-0 top-0 h-24 w-24 rounded-full bg-violet-500/10 blur-3xl" />
+
+      {/* =====================================
+          HORIZONTAL BONUS ROW
+      ===================================== */}
+
+      <div
+        ref={scrollRef}
+        className="scrollbar-hide relative flex items-stretch gap-2 overflow-x-auto p-2"
+      >
+
+        {/* ===================================
+            BONUS TITLE CARD
+        =================================== */}
 
         <button
           type="button"
           onClick={onOpenBonus}
-          className="shrink-0 text-xs font-black text-amber-400 underline underline-offset-4"
+          className="relative h-[78px] w-[112px] flex-none overflow-hidden rounded-lg border border-amber-400/50 bg-[#15130d] text-left active:scale-[0.97]"
         >
-          View Details →
-        </button>
-      </div>
 
-      {/* SINGLE BONUS CARD */}
-      <button
-        type="button"
-        onClick={onOpenBonus}
-        className="group relative w-full overflow-hidden rounded-[24px] border-2 border-amber-500 bg-[#111a2d] p-[2px] text-left"
-      >
-        {/* MULTI COLOR BORDER EFFECT */}
-        <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 opacity-40" />
+          <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-amber-500/25 via-orange-500/10 to-transparent" />
 
-        <div className="relative rounded-[21px] bg-[#10192b] px-5 py-5">
-          {/* TOP */}
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <span className="inline-flex rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-400">
-                MEMBER OFFERS
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-red-500 via-yellow-300 to-violet-500" />
+
+          <div className="relative flex h-full flex-col justify-center px-3">
+
+            <div className="flex items-center gap-1.5">
+
+              <span className="text-xl">
+                🎁
               </span>
 
-              <h3 className="mt-3 text-xl font-black text-white">
-                Exclusive Member Bonuses
-              </h3>
+              <span className="text-[14px] font-black tracking-wide text-amber-300">
+                BONUS
+              </span>
 
-              <p className="mt-2 text-[12px] leading-5 text-gray-400">
-                Welcome Bonus • Promo Code Bonus • Losing Bonus
-              </p>
             </div>
 
-            <div className="text-right">
-              <span className="text-3xl">🎁</span>
-            </div>
+            <p className="mt-1 text-[7px] font-black uppercase tracking-[0.13em] text-orange-300">
+              Special Offers
+            </p>
+
+            <p className="mt-1 text-[6px] font-bold uppercase tracking-wider text-gray-500">
+              View Details →
+            </p>
+
           </div>
 
-          {/* BONUS MINI ITEMS */}
-          <div className="mt-5 grid grid-cols-3 gap-2">
-            {/* WELCOME */}
-            <div className="rounded-xl border border-emerald-500/30 bg-black/20 px-2 py-3 text-center">
-              <p className="text-lg font-black text-emerald-400">
-                20%
-              </p>
+        </button>
 
-              <p className="mt-1 text-[8px] font-black uppercase leading-tight text-white">
-                Welcome
-              </p>
-            </div>
+        {/* ===================================
+            BONUS CARDS
+        =================================== */}
 
-            {/* PROMO */}
-            <div className="rounded-xl border border-blue-500/30 bg-black/20 px-2 py-3 text-center">
-              <p className="text-lg font-black text-blue-400">
-                10%
-              </p>
+        {BONUS_ITEMS.map(
+          (bonus) => (
+            <BonusItem
+              key={bonus.id}
+              bonus={bonus}
+              onClick={
+                onOpenBonus
+              }
+            />
+          )
+        )}
 
-              <p className="mt-1 text-[8px] font-black uppercase leading-tight text-white">
-                Promo Code
-              </p>
-            </div>
+      </div>
 
-            {/* LOSING */}
-            <div className="rounded-xl border border-red-500/30 bg-black/20 px-2 py-3 text-center">
-              <p className="text-lg font-black text-orange-400">
-                10%
-              </p>
+      {/* =====================================
+          MULTI COLOR BOTTOM LIGHT
+      ===================================== */}
 
-              <p className="mt-1 text-[8px] font-black uppercase leading-tight text-white">
-                Losing
-              </p>
-            </div>
-          </div>
+      <div className="pointer-events-none absolute inset-x-4 bottom-0 h-px bg-gradient-to-r from-emerald-400 via-cyan-400 via-violet-400 to-orange-400 opacity-70" />
 
-          {/* BOTTOM */}
-          <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">
-                TAP TO VIEW ALL BONUS DETAILS
-              </p>
-
-              <p className="mt-1 text-[9px] text-gray-500">
-                Limited period demo offers
-              </p>
-            </div>
-
-            <span className="text-2xl font-black text-amber-400">
-              →
-            </span>
-          </div>
-        </div>
-      </button>
     </section>
+  );
+}
+
+/* =========================================
+   BONUS ITEM
+========================================= */
+
+function BonusItem({
+  bonus,
+  onClick,
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group relative h-[78px] w-[132px] flex-none overflow-hidden rounded-lg border ${bonus.border} bg-[#111827] text-left transition active:scale-[0.97]`}
+    >
+
+      {/* BACKGROUND */}
+
+      <div
+        className={`absolute inset-0 bg-gradient-to-br ${bonus.glow}`}
+      />
+
+      {/* TOP LIGHT */}
+
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px animate-pulse bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+
+      {/* SIDE GLOW */}
+
+      <div className="pointer-events-none absolute -right-5 -top-5 h-14 w-14 rounded-full bg-white/10 blur-2xl transition group-hover:bg-white/20" />
+
+      {/* CONTENT */}
+
+      <div className="relative flex h-full items-center gap-2 px-2.5">
+
+        {/* ICON */}
+
+        <div className="flex h-9 w-9 flex-none items-center justify-center rounded-lg border border-white/10 bg-black/25 text-xl shadow-lg">
+          {bonus.icon}
+        </div>
+
+        {/* TEXT */}
+
+        <div className="min-w-0">
+
+          <div
+            className={`text-[17px] font-black leading-none ${bonus.percentageColor}`}
+          >
+            {bonus.percentage}
+          </div>
+
+          <div className="mt-1 truncate text-[8px] font-black uppercase tracking-wide text-white">
+            {bonus.title}
+          </div>
+
+          <div className="mt-0.5 text-[6px] font-bold uppercase tracking-wider text-gray-400">
+            {bonus.subtitle}
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* BOTTOM NEON */}
+
+      <div
+        className={`pointer-events-none absolute inset-x-2 bottom-0 h-px bg-gradient-to-r ${bonus.glow}`}
+      />
+
+    </button>
   );
 }
