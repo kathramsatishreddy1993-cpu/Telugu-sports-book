@@ -16,7 +16,7 @@ export default function Header({
 
   return (
     <header className="sticky top-0 z-50 border-b border-gray-800 bg-[#08111d]/95 backdrop-blur">
-      <div className="mx-auto flex h-[82px] max-w-7xl items-center justify-between gap-2 px-3 sm:h-[92px] sm:px-4">
+      <div className="mx-auto flex h-[88px] max-w-7xl items-center justify-between gap-2 px-3 sm:h-[96px] sm:px-4">
 
         {/* =================================
             TSB LOGO
@@ -30,25 +30,39 @@ export default function Header({
               behavior: 'smooth',
             });
           }}
-          className="flex min-w-0 flex-1 items-center justify-start"
+          className="min-w-0 flex-1"
           aria-label="Telugu Sports Book Home"
         >
-          <img
-            src={TSB_LOGO}
-            alt="Telugu Sports Book"
+          <div
             className="
-              h-[64px]
-              w-auto
-              max-w-[230px]
-              object-contain
-              object-left
-              sm:h-[74px]
-              sm:max-w-[300px]
-              md:h-[80px]
-              md:max-w-[360px]
+              relative
+              h-[74px]
+              w-full
+              max-w-[290px]
+              overflow-hidden
+              sm:h-[82px]
+              sm:max-w-[360px]
+              md:max-w-[430px]
             "
-            draggable="false"
-          />
+          >
+            <img
+              src={TSB_LOGO}
+              alt="Telugu Sports Book"
+              draggable="false"
+              className="
+                absolute
+                left-1/2
+                top-1/2
+                h-auto
+                w-[135%]
+                max-w-none
+                -translate-x-1/2
+                -translate-y-1/2
+                object-contain
+                sm:w-[128%]
+              "
+            />
+          </div>
         </button>
 
         {/* =================================
@@ -68,16 +82,18 @@ export default function Header({
                 type="button"
                 onClick={onLogout}
                 className="
-                  rounded-lg
+                  rounded-xl
                   bg-red-600
                   px-3
-                  py-2
+                  py-2.5
                   text-xs
-                  font-bold
+                  font-black
                   text-white
                   transition
                   active:scale-95
                   hover:bg-red-500
+                  sm:px-4
+                  sm:text-sm
                 "
               >
                 Logout
