@@ -45,8 +45,6 @@ const matches = [
   },
 ];
 
-/* FIRST 8 FEATURED GAMES */
-
 const featuredGames = [
   { name: 'CREED ROOMZ', image: '/games/creed-roomz.png' },
   { name: 'LIGHTNING', image: '/games/lightning.png' },
@@ -60,8 +58,6 @@ const featuredGames = [
     image: '/games/color-prediction.png',
   },
 ];
-
-/* NEW LAUNCH — 12 REAL IMAGES */
 
 const newLaunch = [
   { name: 'JILI', image: '/games/jili.png' },
@@ -89,8 +85,6 @@ const newLaunch = [
   },
   { name: 'LOOT BOXES', image: '/games/loot-boxes.png' },
 ];
-
-/* MY FAVOURITES — 8 REAL IMAGES */
 
 const favourites = [
   {
@@ -126,8 +120,6 @@ const favourites = [
     image: '/games/teen-patti.png',
   },
 ];
-
-/* OUR PROVIDERS — 9 REAL IMAGES */
 
 const providers = [
   {
@@ -168,17 +160,15 @@ const providers = [
   },
 ];
 
-/* NEON SCROLLING TEXT */
-
 function NeonScrollingLine() {
   return (
-    <div className="neon-scroll-area">
-      <div className="neon-scroll-track">
-        <span className="neon-scroll-text">
+    <div className="tsb-neon-area">
+      <div className="tsb-neon-track">
+        <span className="tsb-neon-text">
           ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS & ENTERTAINMENT DEMO ✦
         </span>
 
-        <span className="neon-scroll-text">
+        <span className="tsb-neon-text">
           ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS & ENTERTAINMENT DEMO ✦
         </span>
       </div>
@@ -186,50 +176,51 @@ function NeonScrollingLine() {
   );
 }
 
-/* REUSABLE REAL IMAGE GRID */
-
-function RealGameGrid({
+function GameSection({
   title,
   games,
   onGameClick,
-  topBorder = false,
 }) {
   return (
-    <section
-      className={`bg-[#062f2b] ${
-        topBorder
-          ? 'border-t-4 border-[#073c37]'
-          : 'border-t border-[#164c46]'
-      }`}
-    >
-      {title && (
-        <h2 className="px-3 py-2 text-sm font-black text-white">
-          {title}
-        </h2>
-      )}
+    <section className="border-t border-[#1e293b] bg-[#080d16] px-3 py-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]" />
 
-      <div className="grid grid-cols-4 gap-[2px]">
+          <h2 className="text-sm font-black uppercase tracking-[0.08em] text-white">
+            {title}
+          </h2>
+        </div>
+
+        <span className="text-[8px] font-black uppercase tracking-wider text-gray-600">
+          Explore
+        </span>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2">
         {games.map((game) => (
           <button
             key={game.name}
             type="button"
             onClick={() => onGameClick(game)}
-            className="min-w-0 overflow-hidden bg-[#10251f] text-white"
+            className="group min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#111827] text-white shadow-lg transition active:scale-[0.97]"
           >
             <div className="relative aspect-square w-full overflow-hidden bg-black">
               <img
                 src={game.image}
                 alt={game.name}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
               />
 
-              <span className="absolute right-1 top-1 rounded bg-black/60 px-1 py-[1px] text-[6px] font-bold">
+              <span className="absolute right-1 top-1 rounded bg-black/70 px-1.5 py-0.5 text-[6px] font-black text-cyan-300">
                 DEMO
               </span>
+
+              <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-black to-transparent" />
             </div>
 
-            <div className="flex h-[25px] items-center justify-center bg-gradient-to-b from-[#7c4b0b] to-[#063c34] px-1">
-              <span className="line-clamp-2 text-center text-[7px] font-black uppercase leading-tight">
+            <div className="flex min-h-[32px] items-center justify-center px-1 py-1">
+              <span className="line-clamp-2 text-center text-[7px] font-black uppercase leading-tight text-gray-200">
                 {game.name}
               </span>
             </div>
@@ -381,8 +372,6 @@ export default function DemoDashboard({
     }
   };
 
-  /* PAGES */
-
   if (showDeposit) {
     return (
       <DepositPage
@@ -456,8 +445,6 @@ export default function DemoDashboard({
     );
   }
 
-  /* MATCH DETAILS */
-
   if (selectedMatch) {
     return (
       <MatchDetailsPage
@@ -470,45 +457,45 @@ export default function DemoDashboard({
     );
   }
 
-  /* GAME COMING SOON */
-
   if (selectedGame) {
     return (
-      <div className="min-h-screen bg-[#062f2b] text-white">
-        <header className="flex items-center bg-[#9a5a00] px-3 py-3">
+      <div className="min-h-screen bg-[#080d16] text-white">
+        <header className="sticky top-0 z-40 flex items-center border-b border-cyan-500/20 bg-[#0b121e] px-4 py-3">
           <button
             type="button"
             onClick={() =>
               setSelectedGame(null)
             }
-            className="mr-3 rounded border border-amber-300 px-3 py-1.5 text-xs font-black"
+            className="mr-3 rounded-lg border border-cyan-400/40 bg-[#111827] px-3 py-2 text-xs font-black text-cyan-300"
           >
             ‹ BACK
           </button>
 
-          <h1 className="text-sm font-black text-amber-200">
+          <h1 className="truncate text-sm font-black text-white">
             {selectedGame.name}
           </h1>
         </header>
 
-        <div className="flex min-h-[70vh] flex-col items-center justify-center px-5 text-center">
-          <img
-            src={selectedGame.image}
-            alt={selectedGame.name}
-            className="mb-5 w-full max-w-[300px] rounded-lg shadow-2xl"
-          />
+        <div className="flex min-h-[75vh] flex-col items-center justify-center px-5 text-center">
+          <div className="w-full max-w-[320px] overflow-hidden rounded-2xl border border-cyan-500/30 bg-[#111827] p-2 shadow-[0_0_35px_rgba(34,211,238,0.12)]">
+            <img
+              src={selectedGame.image}
+              alt={selectedGame.name}
+              className="w-full rounded-xl"
+            />
+          </div>
 
-          <h2 className="text-2xl font-black text-amber-300">
+          <h2 className="mt-6 text-2xl font-black text-white">
             {selectedGame.name}
           </h2>
 
-          <div className="mt-4 rounded-full border border-amber-400 bg-black/30 px-6 py-2">
-            <span className="text-sm font-black">
+          <div className="mt-4 rounded-full border border-amber-400/50 bg-amber-400/10 px-6 py-2">
+            <span className="text-sm font-black text-amber-300">
               🚀 COMING SOON
             </span>
           </div>
 
-          <p className="mt-4 text-xs text-gray-300">
+          <p className="mt-4 text-xs text-gray-500">
             Demo preview only
           </p>
         </div>
@@ -517,47 +504,44 @@ export default function DemoDashboard({
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#eeeeee] text-black">
+    <div className="min-h-screen overflow-x-hidden bg-[#080d16] text-white">
 
       <style>
         {`
-          .neon-scroll-area {
+          .tsb-neon-area {
             width: 100%;
-            height: 34px;
+            height: 30px;
             overflow: hidden;
             position: relative;
-            margin-top: 5px;
-            margin-bottom: 3px;
             white-space: nowrap;
             display: flex;
             align-items: center;
           }
 
-          .neon-scroll-track {
+          .tsb-neon-track {
             position: absolute;
             display: flex;
             width: max-content;
             align-items: center;
-            animation: teluguSportsScroll 13s linear infinite;
+            animation: tsbScroll 14s linear infinite;
           }
 
-          .neon-scroll-text {
+          .tsb-neon-text {
             display: inline-block;
             padding-right: 70px;
-            font-size: 16px;
-            line-height: 34px;
+            font-size: 12px;
+            line-height: 30px;
             font-weight: 900;
             letter-spacing: 1px;
 
             background: linear-gradient(
               90deg,
-              #ff1744,
-              #ffea00,
-              #00e5ff,
-              #76ff03,
-              #ff00ff,
-              #ffffff,
-              #ff1744
+              #22d3ee,
+              #34d399,
+              #fbbf24,
+              #fb7185,
+              #a78bfa,
+              #22d3ee
             );
 
             background-size: 300% 100%;
@@ -565,14 +549,14 @@ export default function DemoDashboard({
             background-clip: text;
             color: transparent;
 
-            animation: neonColorMove 2s linear infinite;
+            animation: tsbColor 3s linear infinite;
 
             filter:
-              drop-shadow(0 0 2px #ffffff)
-              drop-shadow(0 0 4px #00e5ff);
+              drop-shadow(0 0 2px rgba(34,211,238,.7))
+              drop-shadow(0 0 5px rgba(52,211,153,.35));
           }
 
-          @keyframes teluguSportsScroll {
+          @keyframes tsbScroll {
             0% {
               transform: translateX(100vw);
             }
@@ -582,7 +566,7 @@ export default function DemoDashboard({
             }
           }
 
-          @keyframes neonColorMove {
+          @keyframes tsbColor {
             0% {
               background-position: 0% 50%;
             }
@@ -591,34 +575,65 @@ export default function DemoDashboard({
               background-position: 300% 50%;
             }
           }
+
+          .tsb-scrollbar::-webkit-scrollbar {
+            height: 3px;
+          }
+
+          .tsb-scrollbar::-webkit-scrollbar-track {
+            background: #020617;
+          }
+
+          .tsb-scrollbar::-webkit-scrollbar-thumb {
+            background: #0d9488;
+            border-radius: 999px;
+          }
         `}
       </style>
 
-      {/* HEADER */}
+      {/* PREMIUM HEADER */}
 
-      <header className="bg-[#9a5a00] px-3 pb-2 pt-3 text-white">
+      <header className="border-b border-[#1f2937] bg-gradient-to-br from-[#0c1727] via-[#0b121e] to-[#111827] px-4 pb-3 pt-4">
 
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start justify-between gap-3">
 
-          <div>
-            <h1 className="text-lg font-black text-amber-300">
-              🏠 TELUGU SPORTS
-            </h1>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-400/30 bg-gradient-to-br from-amber-400/20 to-orange-500/10 text-xl shadow-[0_0_20px_rgba(245,158,11,.12)]">
+                🏆
+              </div>
 
-            <p className="ml-7 mt-0.5 text-[10px] font-black tracking-[0.15em]">
-              BOOK • DEMO
-            </p>
+              <div>
+                <h1 className="text-lg font-black tracking-wide">
+                  <span className="text-amber-400">
+                    TELUGU
+                  </span>{' '}
+                  <span className="text-white">
+                    SPORTS
+                  </span>
+                </h1>
+
+                <p className="mt-0.5 text-[9px] font-black uppercase tracking-[0.24em] text-cyan-400">
+                  BOOK • DEMO
+                </p>
+              </div>
+            </div>
           </div>
 
-          <div className="relative text-right">
+          <div className="relative shrink-0 text-right">
 
-            <p className="text-xs font-black text-amber-200">
-              🪙{' '}
-              {demoBalance.toLocaleString(
-                'en-IN'
-              )}{' '}
-              Demo Coins
-            </p>
+            <div className="rounded-xl border border-amber-400/20 bg-black/20 px-3 py-2">
+              <p className="text-[8px] font-bold uppercase tracking-wider text-gray-500">
+                Demo Balance
+              </p>
+
+              <p className="mt-0.5 text-sm font-black text-amber-300">
+                🪙{' '}
+                {demoBalance.toLocaleString(
+                  'en-IN'
+                )}
+              </p>
+            </div>
 
             <button
               type="button"
@@ -627,7 +642,7 @@ export default function DemoDashboard({
                   (value) => !value
                 )
               }
-              className="mt-1 rounded border border-amber-300/50 bg-[#7c4800] px-2 py-1.5 text-xs font-black"
+              className="mt-2 max-w-[135px] truncate rounded-lg border border-cyan-400/30 bg-[#111827] px-3 py-2 text-[10px] font-black text-cyan-200"
             >
               {user?.name ||
                 user?.identifier ||
@@ -636,7 +651,7 @@ export default function DemoDashboard({
             </button>
 
             {showCustomerMenu && (
-              <div className="absolute right-0 top-full z-50 mt-1 w-52 overflow-hidden rounded-md border bg-white text-left text-gray-900 shadow-2xl">
+              <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-white/10 bg-[#111827] text-left text-gray-100 shadow-2xl">
 
                 {customerMenuItems.map(
                   (item) => (
@@ -648,7 +663,7 @@ export default function DemoDashboard({
                           item
                         )
                       }
-                      className="block w-full border-b px-3 py-2 text-left text-[11px] font-bold"
+                      className="block w-full border-b border-white/5 px-4 py-3 text-left text-[11px] font-bold transition hover:bg-white/5"
                     >
                       {item}
                     </button>
@@ -658,7 +673,7 @@ export default function DemoDashboard({
                 <button
                   type="button"
                   onClick={onLogout}
-                  className="block w-full bg-red-50 px-3 py-2 text-left text-[11px] font-black text-red-700"
+                  className="block w-full bg-red-500/10 px-4 py-3 text-left text-[11px] font-black text-red-400"
                 >
                   Logout
                 </button>
@@ -669,20 +684,32 @@ export default function DemoDashboard({
           </div>
         </div>
 
-        <NeonScrollingLine />
+        <div className="mt-2 overflow-hidden rounded-lg border border-cyan-500/10 bg-black/20">
+          <NeonScrollingLine />
+        </div>
 
-        {/* DEPOSIT / WITHDRAWAL */}
+        {/* ACTION CARDS */}
 
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-3 grid grid-cols-2 gap-3">
 
           <button
             type="button"
             onClick={() =>
               setShowDeposit(true)
             }
-            className="h-[44px] rounded-md border border-white bg-green-700 px-2 text-xs font-black text-white shadow"
+            className="relative overflow-hidden rounded-xl border border-emerald-400/40 bg-gradient-to-br from-emerald-500/25 via-[#10241f] to-[#0d1719] px-3 py-3 text-left shadow-[0_0_20px_rgba(52,211,153,.08)] transition active:scale-[0.98]"
           >
-            💰 DEPOSIT
+            <span className="block text-xl">
+              💰
+            </span>
+
+            <span className="mt-1 block text-sm font-black text-white">
+              DEPOSIT
+            </span>
+
+            <span className="mt-0.5 block text-[8px] font-bold uppercase tracking-wider text-emerald-400">
+              Demo Credits
+            </span>
           </button>
 
           <button
@@ -690,29 +717,45 @@ export default function DemoDashboard({
             onClick={() =>
               setShowWithdrawal(true)
             }
-            className="h-[44px] rounded-md border border-white bg-red-700 px-2 text-xs font-black text-white shadow"
+            className="relative overflow-hidden rounded-xl border border-orange-400/40 bg-gradient-to-br from-orange-500/25 via-[#251811] to-[#17120f] px-3 py-3 text-left shadow-[0_0_20px_rgba(251,146,60,.08)] transition active:scale-[0.98]"
           >
-            💸 WITHDRAWAL
+            <span className="block text-xl">
+              💸
+            </span>
+
+            <span className="mt-1 block text-sm font-black text-white">
+              WITHDRAWAL
+            </span>
+
+            <span className="mt-0.5 block text-[8px] font-bold uppercase tracking-wider text-orange-400">
+              Demo Request
+            </span>
           </button>
 
         </div>
 
-        <p className="mt-2 text-center text-[9px] font-black text-amber-100">
-          🏆 OUR EXCHANGE • DREAM BIG WIN BIG 🏆
-        </p>
+        <div className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-amber-400/10 bg-amber-400/5 px-3 py-2">
+          <span className="text-xs">
+            🏆
+          </span>
+
+          <p className="text-[9px] font-black uppercase tracking-wider text-amber-300">
+            Our Exchange • Demo Sports Hub
+          </p>
+        </div>
 
       </header>
 
       {/* MAIN NAV */}
 
       <nav
-        className="w-full overflow-x-auto bg-[#945500] text-white"
+        className="tsb-scrollbar w-full overflow-x-auto border-b border-white/10 bg-[#0d1523]"
         style={{
           WebkitOverflowScrolling: 'touch',
           touchAction: 'pan-x',
         }}
       >
-        <div className="flex w-max min-w-full">
+        <div className="flex w-max min-w-full px-2 py-2">
 
           {tabs.map((tab) => (
             <button
@@ -721,10 +764,10 @@ export default function DemoDashboard({
               onClick={() =>
                 setSelectedTab(tab)
               }
-              className={`shrink-0 border-r border-amber-300/40 px-5 py-2.5 text-[10px] font-black ${
+              className={`mr-2 shrink-0 rounded-lg border px-4 py-2 text-[9px] font-black transition ${
                 selectedTab === tab
-                  ? 'bg-[#c35b08]'
-                  : ''
+                  ? 'border-cyan-400/50 bg-cyan-400/15 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,.08)]'
+                  : 'border-white/10 bg-[#111827] text-gray-400'
               }`}
             >
               {tab}
@@ -737,13 +780,13 @@ export default function DemoDashboard({
       {/* SPORTS */}
 
       <section
-        className="w-full overflow-x-auto bg-[#075249]"
+        className="tsb-scrollbar w-full overflow-x-auto border-b border-white/10 bg-[#0a101b]"
         style={{
           WebkitOverflowScrolling: 'touch',
           touchAction: 'pan-x',
         }}
       >
-        <div className="flex w-max">
+        <div className="flex w-max gap-2 px-3 py-3">
 
           {sports.map((sport) => (
             <button
@@ -754,17 +797,17 @@ export default function DemoDashboard({
                   sport.name
                 )
               }
-              className={`w-[88px] shrink-0 px-1 py-1.5 text-center text-white ${
+              className={`w-[90px] shrink-0 rounded-xl border px-2 py-2 text-center transition ${
                 selectedSport === sport.name
-                  ? 'bg-[#043d38]'
-                  : 'bg-[#0b6259]'
+                  ? 'border-amber-400/50 bg-gradient-to-br from-amber-400/20 to-orange-500/10 text-white'
+                  : 'border-white/10 bg-[#111827] text-gray-400'
               }`}
             >
-              <span className="block text-lg leading-none">
+              <span className="block text-xl leading-none">
                 {sport.icon}
               </span>
 
-              <span className="mt-1 block whitespace-nowrap text-[7px] font-black leading-none">
+              <span className="mt-2 block whitespace-nowrap text-[7px] font-black leading-none">
                 {sport.name}
               </span>
             </button>
@@ -773,11 +816,37 @@ export default function DemoDashboard({
         </div>
       </section>
 
+      {/* MATCH SECTION HEADER */}
+
+      <section className="bg-[#080d16] px-3 pb-2 pt-4">
+        <div className="flex items-center justify-between">
+
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500 shadow-[0_0_12px_#ef4444]" />
+
+              <h2 className="text-lg font-black tracking-wide text-white">
+                LIVE SPORTS
+              </h2>
+            </div>
+
+            <p className="mt-1 text-[9px] font-bold text-gray-600">
+              Demo / mock sports data
+            </p>
+          </div>
+
+          <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[8px] font-black text-emerald-400">
+            ● CONNECTED
+          </span>
+
+        </div>
+      </section>
+
       {/* FILTER */}
 
-      <section className="flex items-center justify-between gap-1 border-b bg-white px-2 py-2">
+      <section className="border-b border-white/10 bg-[#080d16] px-3 py-3">
 
-        <div className="flex gap-1">
+        <div className="flex gap-2">
 
           {[
             'LIVE',
@@ -790,10 +859,10 @@ export default function DemoDashboard({
               onClick={() =>
                 setMatchFilter(filter)
               }
-              className={`rounded-full border px-2.5 py-1.5 text-[8px] font-black ${
+              className={`rounded-lg border px-4 py-2 text-[8px] font-black ${
                 matchFilter === filter
-                  ? 'border-amber-600 bg-amber-50 text-amber-900'
-                  : 'border-gray-300 bg-white text-gray-600'
+                  ? 'border-red-400/40 bg-red-500/15 text-red-300'
+                  : 'border-white/10 bg-[#111827] text-gray-500'
               }`}
             >
               {filter}
@@ -802,25 +871,29 @@ export default function DemoDashboard({
 
         </div>
 
-        <span className="text-[8px] font-black">
-          DEMO MATCHES
-        </span>
-
       </section>
 
       {/* MATCHES */}
 
-      <section className="bg-[#eeeeee]">
+      <section className="bg-[#080d16] px-3 pb-4">
 
         {matches.map((match) => (
           <article
             key={match.id}
-            className="mb-1 border-b border-gray-300 bg-white px-2 py-2"
+            className="mb-3 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#111827] to-[#0c1320] shadow-xl"
           >
 
-            <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start justify-between gap-2 border-b border-white/5 px-4 py-3">
 
               <div className="min-w-0 flex-1">
+
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
+
+                  <span className="text-[7px] font-black uppercase tracking-wider text-red-400">
+                    Live Demo
+                  </span>
+                </div>
 
                 <button
                   type="button"
@@ -831,12 +904,12 @@ export default function DemoDashboard({
                   }
                   className="block w-full text-left"
                 >
-                  <h2 className="truncate border-b-2 border-teal-700 pb-1 text-[13px] font-black">
+                  <h2 className="truncate text-[13px] font-black text-white">
                     {match.teams}
                   </h2>
                 </button>
 
-                <p className="mt-1 text-[9px] font-bold text-red-600">
+                <p className="mt-1 text-[8px] font-bold text-gray-500">
                   {match.date}
                 </p>
 
@@ -847,86 +920,90 @@ export default function DemoDashboard({
                 onClick={() =>
                   setSelectedMatch(match)
                 }
-                className="shrink-0 rounded bg-[#0b766d] px-2 py-1.5 text-[8px] font-black text-white"
+                className="shrink-0 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-[8px] font-black text-cyan-300"
               >
                 OPEN ›
               </button>
 
             </div>
 
-            <div className="mt-2 grid grid-cols-3 text-center text-[9px] font-black">
-              <span>1</span>
-              <span>X</span>
-              <span>2</span>
+            <div className="px-3 py-3">
+
+              <div className="grid grid-cols-3 text-center text-[8px] font-black text-gray-500">
+                <span>1</span>
+                <span>X</span>
+                <span>2</span>
+              </div>
+
+              <div className="mt-2 grid grid-cols-6 gap-1">
+
+                {match.odds.map(
+                  (odd, index) => (
+                    <button
+                      key={`${match.id}-${index}`}
+                      type="button"
+                      onClick={() =>
+                        setSelectedMatch(
+                          match
+                        )
+                      }
+                      className={`h-[42px] rounded-lg border text-[9px] font-black ${
+                        index % 2 === 0
+                          ? 'border-cyan-400/20 bg-cyan-400/15 text-cyan-200'
+                          : 'border-pink-400/20 bg-pink-400/15 text-pink-200'
+                      }`}
+                    >
+                      {odd}
+                    </button>
+                  )
+                )}
+
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedMatch(match)
+                }
+                className="mt-3 h-[34px] w-full rounded-lg border border-cyan-400/20 bg-[#0b1c24] text-[8px] font-black uppercase tracking-wider text-cyan-300"
+              >
+                View Match Details ›
+              </button>
+
             </div>
-
-            <div className="mt-1 grid grid-cols-6 gap-[2px]">
-
-              {match.odds.map(
-                (odd, index) => (
-                  <button
-                    key={`${match.id}-${index}`}
-                    type="button"
-                    onClick={() =>
-                      setSelectedMatch(
-                        match
-                      )
-                    }
-                    className={`h-[38px] text-[9px] font-black ${
-                      index % 2 === 0
-                        ? 'bg-sky-300'
-                        : 'bg-pink-300'
-                    }`}
-                  >
-                    {odd}
-                  </button>
-                )
-              )}
-
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                setSelectedMatch(match)
-              }
-              className="mt-1.5 h-[30px] w-full rounded border border-teal-700 bg-teal-50 text-[8px] font-black text-teal-900"
-            >
-              VIEW MATCH ODDS & FANCY MARKETS ›
-            </button>
 
           </article>
         ))}
 
       </section>
 
-      {/* FIRST 8 REAL IMAGES */}
+      {/* FEATURED */}
 
-      <RealGameGrid
+      <GameSection
+        title="FEATURED GAMES"
         games={featuredGames}
         onGameClick={setSelectedGame}
-        topBorder
       />
 
       {/* NEW LAUNCH */}
 
-      <RealGameGrid
+      <GameSection
         title="NEW LAUNCH"
         games={newLaunch}
         onGameClick={setSelectedGame}
       />
 
-      {/* MY FAVOURITES */}
+      {/* FAVOURITES */}
 
-      <RealGameGrid
+      <GameSection
         title="MY FAVOURITES"
         games={favourites}
         onGameClick={setSelectedGame}
       />
 
-      {/* OUR PROVIDERS */}
+      {/* PROVIDERS */}
 
-      <RealGameGrid
+      <GameSection
         title="OUR PROVIDERS"
         games={providers}
         onGameClick={setSelectedGame}
@@ -934,13 +1011,21 @@ export default function DemoDashboard({
 
       {/* FOOTER */}
 
-      <footer className="bg-white px-4 py-8 text-center">
+      <footer className="border-t border-white/10 bg-[#050911] px-5 py-8 text-center">
 
-        <p className="text-sm font-black text-green-700">
-          📕 DEMO WEBSITE
+        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/5 text-xl">
+          🏆
+        </div>
+
+        <p className="mt-3 text-sm font-black text-white">
+          TELUGU SPORTS BOOK
         </p>
 
-        <p className="mx-auto mt-2 max-w-xl text-[10px] leading-5 text-gray-500">
+        <p className="mt-1 text-[8px] font-black uppercase tracking-[0.18em] text-cyan-500">
+          Demo Website
+        </p>
+
+        <p className="mx-auto mt-3 max-w-xl text-[9px] leading-5 text-gray-600">
           For demonstration and informational purposes only.
           No real-money transactions.
         </p>
