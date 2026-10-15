@@ -9,6 +9,9 @@ const AUTH_KEY =
 const DEFAULT_WHATSAPP_NUMBER =
   '919346824432';
 
+const LOGIN_BACKGROUND =
+  '/file_0000000094288208a5d577eadc40844c.png';
+
 /* =====================================================
    NORMALIZE WHATSAPP NUMBER
 ===================================================== */
@@ -24,18 +27,16 @@ function normalizeWhatsAppNumber(
     return DEFAULT_WHATSAPP_NUMBER;
   }
 
-  /*
-    If Admin entered only a
-    10-digit Indian mobile number,
-    automatically add country code 91.
-  */
-
   if (digits.length === 10) {
     return `91${digits}`;
   }
 
   return digits;
 }
+
+/* =====================================================
+   AUTH MODAL
+===================================================== */
 
 export default function AuthModal({
   isOpen,
@@ -72,6 +73,11 @@ export default function AuthModal({
     showPassword,
     setShowPassword,
   ] = useState(false);
+
+  const [
+    rememberMe,
+    setRememberMe,
+  ] = useState(true);
 
   const [
     loading,
@@ -242,7 +248,7 @@ export default function AuthModal({
 
     if (!cleanLoginId) {
       setError(
-        'Please enter your User ID.'
+        'Please enter your Customer ID.'
       );
 
       return;
@@ -350,11 +356,6 @@ export default function AuthModal({
           ),
       };
 
-      /*
-        Temporary Login Password
-        is intentionally NOT stored.
-      */
-
       localStorage.setItem(
         AUTH_KEY,
         JSON.stringify(
@@ -444,7 +445,7 @@ export default function AuthModal({
   };
 
   /* =====================================================
-     WHATSAPP SIGNUP
+     WHATSAPP
   ===================================================== */
 
   const openAdminWhatsApp = ({
@@ -545,395 +546,515 @@ export default function AuthModal({
   ===================================================== */
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 px-4">
+    <div
+      className="fixed inset-0 z-[9999] overflow-y-auto bg-[#02070d]"
+      style={{
+        backgroundImage: `
+          linear-gradient(
+            rgba(2, 8, 15, 0.30),
+            rgba(2, 8, 15, 0.62)
+          ),
+          url("${LOGIN_BACKGROUND}")
+        `,
+        backgroundSize: 'cover',
+        backgroundPosition:
+          'center top',
+        backgroundRepeat:
+          'no-repeat',
+      }}
+    >
+      {/* DARK OVERLAY */}
 
-      <div className="relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-2xl border border-teal-900/50 bg-[#060913] p-6 shadow-2xl">
+      <div className="absolute inset-0 bg-black/20" />
 
-        {/* CLOSE */}
+      {/* CLOSE */}
 
-        <button
-          type="button"
-          onClick={closeModal}
-          disabled={loading}
-          className="absolute right-4 top-4 text-xl text-gray-400 transition hover:text-white disabled:opacity-40"
-          aria-label="Close"
-        >
-          ×
-        </button>
+      <button
+        type="button"
+        onClick={closeModal}
+        disabled={loading}
+        className="fixed right-4 top-4 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/60 text-2xl text-white shadow-xl backdrop-blur-md disabled:opacity-40"
+        aria-label="Close"
+      >
+        ×
+      </button>
 
-        {/* LOGO */}
+      {/* PAGE */}
 
-        <div className="mb-6 text-center">
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8">
 
-          <div className="mb-2 text-3xl font-extrabold tracking-wide text-amber-400">
-            TSB
-          </div>
+        <div className="w-full max-w-[430px]">
 
-          <h2 className="text-xl font-black text-white">
-            {isLogin
-              ? 'Welcome Back'
-              : 'Sign Up'}
-          </h2>
+          {/* TOP SPACER
+              Keeps form below the logo
+              already present in image.
+          */}
 
-          <p className="mt-2 text-sm text-gray-400">
-            {isLogin
-              ? 'Login with your Customer ID and Password'
-              : 'Request your new TSB ID'}
-          </p>
+          <div className="h-[170px] sm:h-[190px]" />
 
-        </div>
+          {/* LOGIN CARD */}
 
-        {/* TABS */}
+          <div className="overflow-hidden rounded-[28px] border border-cyan-400/70 bg-[#03101b]/95 shadow-[0_0_35px_rgba(34,211,238,0.22)] backdrop-blur-xl">
 
-        <div className="mb-5 flex rounded-lg bg-[#0d111c] p-1">
+            <div className="px-5 pb-6 pt-5 sm:px-7">
 
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => {
-              setIsLogin(true);
-              setError('');
-            }}
-            className={`flex-1 rounded-md py-2.5 text-sm font-bold transition ${
-              isLogin
-                ? 'bg-teal-600 text-white'
-                : 'text-gray-400'
-            }`}
-          >
-            Log In
-          </button>
+              {/* TITLE */}
 
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => {
-              setIsLogin(false);
-              setError('');
-            }}
-            className={`flex-1 rounded-md py-2.5 text-sm font-bold transition ${
-              !isLogin
-                ? 'bg-teal-600 text-white'
-                : 'text-gray-400'
-            }`}
-          >
-            Sign Up
-          </button>
+              <div className="text-center">
 
-        </div>
+                <h2 className="text-2xl font-black text-white">
+                  Welcome to
+                </h2>
 
-        {/* LOGIN */}
+                <div className="mt-1 text-[22px] font-black uppercase leading-tight">
+                  <span className="text-rose-500">
+                    TELUGU
+                  </span>{' '}
 
-        {isLogin && (
-          <form
-            onSubmit={
-              handleLogin
-            }
-            className="space-y-4"
-          >
+                  <span className="text-white">
+                    SPORTS
+                  </span>{' '}
 
-            {/* USER ID */}
+                  <span className="text-amber-400">
+                    BOOK
+                  </span>
+                </div>
 
-            <div>
+                <p className="mt-2 text-xs text-gray-300">
+                  Sports &amp; Entertainment Demo
+                </p>
 
-              <label className="mb-2 block text-xs font-bold text-gray-300">
-                Customer ID
-              </label>
+              </div>
 
-              <input
-                type="text"
-                value={
-                  identifier
-                }
-                disabled={
-                  loading
-                }
-                onChange={(
-                  event
-                ) =>
-                  setIdentifier(
-                    event.target
-                      .value
-                  )
-                }
-                placeholder="Enter Customer ID"
-                autoComplete="username"
-                className="h-[52px] w-full rounded-lg border border-gray-800 bg-[#0d111c] px-4 text-sm text-white outline-none focus:border-teal-500 disabled:opacity-60"
-              />
+              {/* TABS */}
 
-            </div>
-
-            {/* PASSWORD */}
-
-            <div>
-
-              <label className="mb-2 block text-xs font-bold text-gray-300">
-                Login Password
-              </label>
-
-              <div className="relative">
-
-                <input
-                  type={
-                    showPassword
-                      ? 'text'
-                      : 'password'
-                  }
-                  value={
-                    password
-                  }
-                  disabled={
-                    loading
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setPassword(
-                      event.target
-                        .value
-                    )
-                  }
-                  placeholder="Enter Login Password"
-                  autoComplete="current-password"
-                  className="h-[52px] w-full rounded-lg border border-gray-800 bg-[#0d111c] px-4 pr-20 text-sm text-white outline-none focus:border-teal-500 disabled:opacity-60"
-                />
+              <div className="mt-5 flex overflow-hidden rounded-xl border border-cyan-500/30 bg-[#07131f]/90 p-1">
 
                 <button
                   type="button"
-                  disabled={
-                    loading
-                  }
-                  onClick={() =>
-                    setShowPassword(
-                      (value) =>
-                        !value
-                    )
-                  }
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400"
+                  disabled={loading}
+                  onClick={() => {
+                    setIsLogin(
+                      true
+                    );
+
+                    setError('');
+                  }}
+                  className={`h-12 flex-1 rounded-lg text-sm font-black transition ${
+                    isLogin
+                      ? 'bg-gradient-to-r from-cyan-600 to-teal-500 text-white shadow-[0_0_18px_rgba(6,182,212,0.35)]'
+                      : 'text-gray-300'
+                  }`}
                 >
-                  {showPassword
-                    ? 'Hide'
-                    : 'Show'}
+                  Login
                 </button>
+
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => {
+                    setIsLogin(
+                      false
+                    );
+
+                    setError('');
+                  }}
+                  className={`h-12 flex-1 rounded-lg text-sm font-black transition ${
+                    !isLogin
+                      ? 'bg-gradient-to-r from-cyan-600 to-teal-500 text-white shadow-[0_0_18px_rgba(6,182,212,0.35)]'
+                      : 'text-gray-300'
+                  }`}
+                >
+                  Sign Up
+                </button>
+
+              </div>
+
+              {/* ================================
+                  LOGIN
+              ================================= */}
+
+              {isLogin && (
+                <form
+                  onSubmit={
+                    handleLogin
+                  }
+                  className="mt-5 space-y-4"
+                >
+
+                  {/* CUSTOMER ID */}
+
+                  <div className="relative">
+
+                    <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xl text-gray-400">
+                      ♙
+                    </div>
+
+                    <input
+                      type="text"
+                      value={
+                        identifier
+                      }
+                      disabled={
+                        loading
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setIdentifier(
+                          event
+                            .target
+                            .value
+                        )
+                      }
+                      placeholder="Customer ID"
+                      autoComplete="username"
+                      className="h-[58px] w-full rounded-xl border border-slate-500/70 bg-[#071522]/95 pl-12 pr-4 text-sm text-white outline-none transition placeholder:text-gray-400 focus:border-cyan-400 disabled:opacity-60"
+                    />
+
+                  </div>
+
+                  {/* PASSWORD */}
+
+                  <div className="relative">
+
+                    <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg text-gray-400">
+                      🔒
+                    </div>
+
+                    <input
+                      type={
+                        showPassword
+                          ? 'text'
+                          : 'password'
+                      }
+                      value={
+                        password
+                      }
+                      disabled={
+                        loading
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setPassword(
+                          event
+                            .target
+                            .value
+                        )
+                      }
+                      placeholder="Password"
+                      autoComplete="current-password"
+                      className="h-[58px] w-full rounded-xl border border-slate-500/70 bg-[#071522]/95 pl-12 pr-20 text-sm text-white outline-none transition placeholder:text-gray-400 focus:border-cyan-400 disabled:opacity-60"
+                    />
+
+                    <button
+                      type="button"
+                      disabled={
+                        loading
+                      }
+                      onClick={() =>
+                        setShowPassword(
+                          (value) =>
+                            !value
+                        )
+                      }
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-cyan-300"
+                    >
+                      {showPassword
+                        ? 'HIDE'
+                        : 'SHOW'}
+                    </button>
+
+                  </div>
+
+                  {/* REMEMBER */}
+
+                  <div className="flex items-center justify-between gap-3">
+
+                    <label className="flex cursor-pointer items-center gap-2 text-xs text-gray-300">
+
+                      <input
+                        type="checkbox"
+                        checked={
+                          rememberMe
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          setRememberMe(
+                            event
+                              .target
+                              .checked
+                          )
+                        }
+                        className="h-4 w-4 accent-cyan-500"
+                      />
+
+                      Remember me
+
+                    </label>
+
+                    <span className="text-xs font-bold text-cyan-400">
+                      Secure Login
+                    </span>
+
+                  </div>
+
+                  {/* ERROR */}
+
+                  {error && (
+                    <ErrorBox
+                      text={error}
+                    />
+                  )}
+
+                  {/* LOGIN */}
+
+                  <button
+                    type="submit"
+                    disabled={
+                      loading
+                    }
+                    className="h-[56px] w-full rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-orange-500 text-base font-black uppercase tracking-wider text-black shadow-[0_0_22px_rgba(245,158,11,0.30)] transition active:scale-[0.99] disabled:opacity-50"
+                  >
+                    {loading
+                      ? 'CHECKING...'
+                      : 'LOGIN'}
+                  </button>
+
+                  {/* OR */}
+
+                  <div className="flex items-center gap-4 py-1">
+
+                    <div className="h-px flex-1 bg-gray-600/70" />
+
+                    <span className="text-xs font-bold text-gray-400">
+                      OR
+                    </span>
+
+                    <div className="h-px flex-1 bg-gray-600/70" />
+
+                  </div>
+
+                  {/* DEMO LOGIN */}
+
+                  <button
+                    type="button"
+                    onClick={
+                      handleDemoLogin
+                    }
+                    disabled={
+                      loading
+                    }
+                    className="flex h-[56px] w-full items-center justify-center gap-3 rounded-xl border-2 border-cyan-400 bg-[#06121d]/90 text-sm font-black uppercase tracking-wide text-white shadow-[0_0_20px_rgba(34,211,238,0.15)] transition active:scale-[0.99] disabled:opacity-50"
+                  >
+                    <span className="text-xl">
+                      🎮
+                    </span>
+
+                    LOGIN WITH DEMO ID
+                  </button>
+
+                  {/* WHATSAPP */}
+
+                  <button
+                    type="button"
+                    disabled={
+                      whatsappLoading
+                    }
+                    onClick={() =>
+                      openAdminWhatsApp({
+                        requireDetails:
+                          false,
+                      })
+                    }
+                    className="flex w-full items-center justify-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 transition active:scale-[0.99] disabled:opacity-50"
+                  >
+
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#20c968] text-xl text-white">
+                      ☎
+                    </span>
+
+                    <div className="text-left">
+
+                      <div className="text-[10px] text-gray-400">
+                        Need Help?
+                      </div>
+
+                      <div className="text-sm font-black text-emerald-400">
+                        {whatsappLoading
+                          ? 'Loading...'
+                          : 'Chat on WhatsApp'}
+                      </div>
+
+                    </div>
+
+                    <span className="ml-auto text-xl text-gray-400">
+                      ›
+                    </span>
+
+                  </button>
+
+                </form>
+              )}
+
+              {/* ================================
+                  SIGN UP
+              ================================= */}
+
+              {!isLogin && (
+                <form
+                  onSubmit={
+                    handleSignup
+                  }
+                  className="mt-5 space-y-4"
+                >
+
+                  <div>
+
+                    <label className="mb-2 block text-xs font-bold text-gray-300">
+                      Name
+                    </label>
+
+                    <input
+                      type="text"
+                      value={
+                        signupName
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setSignupName(
+                          event
+                            .target
+                            .value
+                        )
+                      }
+                      placeholder="Enter your Name"
+                      autoComplete="name"
+                      className="h-[56px] w-full rounded-xl border border-slate-500/70 bg-[#071522]/95 px-4 text-sm text-white outline-none placeholder:text-gray-400 focus:border-cyan-400"
+                    />
+
+                  </div>
+
+                  <div>
+
+                    <label className="mb-2 block text-xs font-bold text-gray-300">
+                      Preferred User ID
+                    </label>
+
+                    <input
+                      type="text"
+                      value={
+                        preferredId
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setPreferredId(
+                          event
+                            .target
+                            .value
+                        )
+                      }
+                      placeholder="Example: satish123"
+                      autoComplete="off"
+                      className="h-[56px] w-full rounded-xl border border-slate-500/70 bg-[#071522]/95 px-4 text-sm text-white outline-none placeholder:text-gray-400 focus:border-cyan-400"
+                    />
+
+                  </div>
+
+                  <div className="rounded-xl border border-amber-500/30 bg-black/40 p-4">
+
+                    <p className="text-[11px] leading-5 text-gray-300">
+                      Admin will create your
+                      Customer ID, Temporary
+                      Login Password and
+                      Temporary Withdrawal
+                      Password.
+                    </p>
+
+                    <p className="mt-2 text-[11px] leading-5 text-amber-300">
+                      You will change both
+                      temporary passwords
+                      after your first login.
+                    </p>
+
+                  </div>
+
+                  {error && (
+                    <ErrorBox
+                      text={error}
+                    />
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={
+                      whatsappLoading
+                    }
+                    className="h-[56px] w-full rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-orange-500 text-sm font-black uppercase tracking-wider text-black shadow-[0_0_22px_rgba(245,158,11,0.30)] disabled:opacity-50"
+                  >
+                    {whatsappLoading
+                      ? 'LOADING...'
+                      : 'SIGN UP'}
+                  </button>
+
+                  <div className="flex items-center gap-4">
+
+                    <div className="h-px flex-1 bg-gray-600/70" />
+
+                    <span className="text-xs font-bold text-gray-400">
+                      OR
+                    </span>
+
+                    <div className="h-px flex-1 bg-gray-600/70" />
+
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={
+                      whatsappLoading
+                    }
+                    onClick={() =>
+                      openAdminWhatsApp({
+                        requireDetails:
+                          false,
+                      })
+                    }
+                    className="flex h-[58px] w-full items-center justify-center gap-3 rounded-xl border-2 border-emerald-400 bg-[#061b15]/90 text-sm font-black text-emerald-300 disabled:opacity-50"
+                  >
+
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#20c968] text-lg text-white">
+                      ☎
+                    </span>
+
+                    GET TSB ID ON WHATSAPP
+
+                  </button>
+
+                </form>
+              )}
+
+              {/* DEMO NOTICE */}
+
+              <div className="mt-5 border-t border-white/10 pt-4">
+
+                <p className="text-center text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                  Demo / Informational Website Only
+                </p>
 
               </div>
 
             </div>
 
-            {/* ERROR */}
+          </div>
 
-            {error && (
-              <ErrorBox
-                text={error}
-              />
-            )}
+          <div className="h-8" />
 
-            {/* LOGIN BUTTON */}
-
-            <button
-              type="submit"
-              disabled={
-                loading
-              }
-              className="h-[52px] w-full rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 text-sm font-black uppercase tracking-wider text-black disabled:opacity-50"
-            >
-              {loading
-                ? 'Checking...'
-                : 'Log In'}
-            </button>
-
-            {/* DIVIDER */}
-
-            <div className="flex items-center gap-3 py-1">
-
-              <div className="h-px flex-1 bg-gray-800" />
-
-              <span className="text-[11px] font-bold text-gray-500">
-                OR
-              </span>
-
-              <div className="h-px flex-1 bg-gray-800" />
-
-            </div>
-
-            {/* DEMO LOGIN */}
-
-            <button
-              type="button"
-              onClick={
-                handleDemoLogin
-              }
-              disabled={
-                loading
-              }
-              className="h-[52px] w-full rounded-lg bg-emerald-600 text-sm font-black uppercase tracking-wider text-white disabled:opacity-50"
-            >
-              Login with Demo ID
-            </button>
-
-          </form>
-        )}
-
-        {/* SIGNUP */}
-
-        {!isLogin && (
-          <form
-            onSubmit={
-              handleSignup
-            }
-            className="space-y-4"
-          >
-
-            {/* NAME */}
-
-            <div>
-
-              <label className="mb-2 block text-xs font-bold text-gray-300">
-                Name
-              </label>
-
-              <input
-                type="text"
-                value={
-                  signupName
-                }
-                onChange={(
-                  event
-                ) =>
-                  setSignupName(
-                    event.target
-                      .value
-                  )
-                }
-                placeholder="Enter your Name"
-                autoComplete="name"
-                className="h-[52px] w-full rounded-lg border border-gray-800 bg-[#0d111c] px-4 text-sm text-white outline-none focus:border-teal-500"
-              />
-
-            </div>
-
-            {/* PREFERRED ID */}
-
-            <div>
-
-              <label className="mb-2 block text-xs font-bold text-gray-300">
-                Preferred User ID
-              </label>
-
-              <input
-                type="text"
-                value={
-                  preferredId
-                }
-                onChange={(
-                  event
-                ) =>
-                  setPreferredId(
-                    event.target
-                      .value
-                  )
-                }
-                placeholder="Example: satish123"
-                autoComplete="off"
-                className="h-[52px] w-full rounded-lg border border-gray-800 bg-[#0d111c] px-4 text-sm text-white outline-none focus:border-teal-500"
-              />
-
-            </div>
-
-            {/* INFO */}
-
-            <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
-
-              <p className="text-[10px] leading-5 text-gray-400">
-                Admin will create your
-                Customer ID, Temporary
-                Login Password and
-                Temporary Withdrawal
-                Password.
-              </p>
-
-              <p className="mt-2 text-[10px] leading-5 text-amber-300">
-                You will change both
-                temporary passwords after
-                your first login.
-              </p>
-
-            </div>
-
-            {/* ERROR */}
-
-            {error && (
-              <ErrorBox
-                text={error}
-              />
-            )}
-
-            {/* SIGN UP */}
-
-            <button
-              type="submit"
-              disabled={
-                whatsappLoading
-              }
-              className="h-[52px] w-full rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 text-sm font-black uppercase tracking-wider text-black disabled:opacity-50"
-            >
-              {whatsappLoading
-                ? 'Loading...'
-                : 'SIGN UP'}
-            </button>
-
-            {/* DIVIDER */}
-
-            <div className="flex items-center gap-3 py-1">
-
-              <div className="h-px flex-1 bg-gray-800" />
-
-              <span className="text-[11px] font-bold text-gray-500">
-                OR
-              </span>
-
-              <div className="h-px flex-1 bg-gray-800" />
-
-            </div>
-
-            {/* WHATSAPP */}
-
-            <button
-              type="button"
-              disabled={
-                whatsappLoading
-              }
-              onClick={() =>
-                openAdminWhatsApp({
-                  requireDetails:
-                    false,
-                })
-              }
-              className="flex h-[56px] w-full items-center justify-center gap-3 rounded-full bg-[#20c968] px-4 text-sm font-black text-white shadow-lg disabled:opacity-50"
-            >
-
-              <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-lg">
-                ☎
-              </span>
-
-              <span>
-                {whatsappLoading
-                  ? 'LOADING...'
-                  : 'GET TSB ID NOW'}
-              </span>
-
-            </button>
-
-            <p className="text-center text-[10px] leading-4 text-gray-500">
-              WhatsApp Admin to request
-              your new TSB ID.
-            </p>
-
-          </form>
-        )}
-
-        <p className="mt-5 text-center text-[11px] text-gray-500">
-          Demo / informational website only
-        </p>
+        </div>
 
       </div>
 
@@ -949,7 +1070,7 @@ function ErrorBox({
   text,
 }) {
   return (
-    <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-3 py-2 text-sm text-red-400">
+    <div className="rounded-xl border border-red-500/30 bg-red-950/50 px-3 py-3 text-sm text-red-300">
       {text}
     </div>
   );
