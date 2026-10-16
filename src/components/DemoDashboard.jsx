@@ -283,32 +283,49 @@ export default function DemoDashboard({
 
   const [selectedGame, setSelectedGame] =
     useState(null);
+const [demoBalance, setDemoBalance] =
+  useState(0);
 
-  const [demoBalance] = useState(() => {
+useEffect(() => {
+  const loadDemoBalance = async () => {
     try {
-      const saved = localStorage.getItem(
-        'telugu_sports_demo_balance'
-      );
+      const customerId =
+        user?.id || user?.customerId;
 
-      if (saved === null) {
-        localStorage.setItem(
-          'telugu_sports_demo_balance',
-          '10000'
-        );
-
-        return 10000;
+      if (!customerId) {
+        setDemoBalance(0);
+        return;
       }
 
-      const value = Number(saved);
+      const response = await fetch(
+        `/api/customers/${customerId}/demo-balance`
+      );
 
-      return Number.isFinite(value)
-        ? value
-        : 10000;
-    } catch {
-      return 10000;
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+          'Unable to load Demo Coin balance.'
+        );
+      }
+
+      setDemoBalance(
+        Number(data.balance) || 0
+      );
+    } catch (error) {
+      console.error(
+        'Demo Balance Load Error:',
+        error
+      );
+
+      setDemoBalance(0);
     }
-  });
+  };
 
+  loadDemoBalance();
+}, [user?.id, user?.customerId]);
+  
   const tabs = [
     'INPLAY',
     'SPORTS',
