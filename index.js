@@ -120,16 +120,23 @@ await pool.query(`
     withdrawal_password_hash TEXT;  
 `);  
 
-await pool.query(`  
-  ALTER TABLE customers  
-  ADD COLUMN IF NOT EXISTS  
-    must_change_withdrawal_password  
-    BOOLEAN  
-    NOT NULL  
-    DEFAULT TRUE;  
-`);
+  await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS
+      must_change_withdrawal_password
+      BOOLEAN
+      NOT NULL
+      DEFAULT TRUE;
+  `);
 
-await pool.query(  ALTER TABLE customers   ADD COLUMN IF NOT EXISTS   demo_coin_balance INTEGER   NOT NULL   DEFAULT 0;  );
+  await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS
+      demo_coin_balance
+      INTEGER
+      NOT NULL
+      DEFAULT 0;
+  `);
 /* =====================================================
 SITE SETTINGS TABLE
 ===================================================== */
