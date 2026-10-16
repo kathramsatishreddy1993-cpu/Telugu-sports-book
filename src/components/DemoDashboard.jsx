@@ -8,6 +8,7 @@ import UnsettledBetPage from './UnsettledBetPage';
 import SetButtonValuesPage from './SetButtonValuesPage';
 import ChangePasswordPage from './ChangePasswordPage';
 import MatchDetailsPage from './MatchDetailsPage';
+import RulesPage from './RulesPage';
 
 const sports = [
   { icon: '🏏', name: 'CRICKET' },
@@ -273,6 +274,9 @@ export default function DemoDashboard({
     setShowChangePassword,
   ] = useState(false);
 
+  const [showRules, setShowRules] =
+    useState(false);
+
   const [
     showCustomerMenu,
     setShowCustomerMenu,
@@ -283,49 +287,50 @@ export default function DemoDashboard({
 
   const [selectedGame, setSelectedGame] =
     useState(null);
-const [demoBalance, setDemoBalance] =
-  useState(0);
 
-useEffect(() => {
-  const loadDemoBalance = async () => {
-    try {
-      const customerId =
-        user?.id || user?.customerId;
+  const [demoBalance, setDemoBalance] =
+    useState(0);
 
-      if (!customerId) {
-        setDemoBalance(0);
-        return;
-      }
+  useEffect(() => {
+    const loadDemoBalance = async () => {
+      try {
+        const customerId =
+          user?.id || user?.customerId;
 
-      const response = await fetch(
-        `/api/customers/${customerId}/demo-balance`
-      );
+        if (!customerId) {
+          setDemoBalance(0);
+          return;
+        }
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data?.error ||
-          'Unable to load Demo Coin balance.'
+        const response = await fetch(
+          `/api/customers/${customerId}/demo-balance`
         );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data?.error ||
+            'Unable to load Demo Coin balance.'
+          );
+        }
+
+        setDemoBalance(
+          Number(data.balance) || 0
+        );
+      } catch (error) {
+        console.error(
+          'Demo Balance Load Error:',
+          error
+        );
+
+        setDemoBalance(0);
       }
+    };
 
-      setDemoBalance(
-        Number(data.balance) || 0
-      );
-    } catch (error) {
-      console.error(
-        'Demo Balance Load Error:',
-        error
-      );
+    loadDemoBalance();
+  }, [user?.id, user?.customerId]);
 
-      setDemoBalance(0);
-    }
-  };
-
-  loadDemoBalance();
-}, [user?.id, user?.customerId]);
-  
   const tabs = [
     'INPLAY',
     'SPORTS',
@@ -383,9 +388,8 @@ useEffect(() => {
     }
 
     if (item === 'Rule') {
-      alert(
-        'Rule — Demo page will be connected next'
-      );
+      setShowRules(true);
+      return;
     }
   };
 
@@ -457,6 +461,17 @@ useEffect(() => {
         user={user}
         onBack={() =>
           setShowChangePassword(false)
+        }
+      />
+    );
+  }
+
+  if (showRules) {
+    return (
+      <RulesPage
+        user={user}
+        onBack={() =>
+          setShowRules(false)
         }
       />
     );
