@@ -3361,16 +3361,12 @@ START SERVER
 ========================================================= */
 
 async function startServer() {
-await initializeDatabase();
+  await initializeDatabase();
 
-app.listen(
-PORT,
-() => {
-console.log(
-Server listening on port ${PORT}
-);
-}
-);
+  app.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
+  });
 }
 
 startServer();
+
