@@ -890,7 +890,228 @@ app.get(
     }
   }
 );
+/* =========================================================
+   ADMIN ADD DEMO COINS
 
+   POST /api/admin/customers/:id/add-demo-coins
+========================================================= */
+
+app.post(
+  '/api/admin/customers/:id/add-demo-coins',
+
+  async (req, res) => {
+    const client =
+      await pool.connect();
+
+    try {
+      const customerId =
+        Number(req.params.id);
+
+      const amount =
+        Number(req.body.amount);
+
+      const note =
+        String(
+          req.body.note ||
+          'Demo Coins added by Admin'
+        ).trim();
+
+      if (
+        !Number.isInteger(customerId) ||
+        customerId <= 0
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Invalid customer ID.',
+          });
+      }
+
+      if (
+        !Number.isInteger(amount) ||
+        amount <= 0
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Demo Coin amount must be a positive whole number.',
+          });
+      }
+
+      await client.query('BEGIN');
+
+      const customerResult =
+        await client.query(
+          `
+          UPDATE customers
+          SET
+            demo_coin_balance =
+              demo_coin_balance + $1,
+            updated_at = NOW()
+          WHERE id = $2
+          RETURNING
+            id,
+            name,
+            login_id,
+            demo_coin_balance,
+            status
+          `,
+          [
+            amount,
+            customerId,
+          ]
+        );
+
+      if (
+        customerResult.rows.length === 0
+      ) {
+        await client.query(
+          'ROLLBACK'
+        );
+
+        return res
+          .status(404)
+          .json({
+            error:
+              'Customer account not found.',
+          });
+      }
+
+      await client.query(
+        `
+        INSERT INTO demo_coin_transactions (
+          customer_id,
+          amount,
+          transaction_type,
+          note
+        )
+        VALUES (
+          $1,
+          $2,
+          'ADMIN_CREDIT',
+          $3
+        )
+        `,
+        [
+          customerId,
+          amount,
+          note,
+        ]
+      );
+
+      await client.query('COMMIT');
+
+      return res.json({
+        success: true,
+
+        message:
+          `${amount} Demo Coins added successfully.`,
+
+        customer:
+          customerResult.rows[0],
+      });
+    } catch (error) {
+      try {
+        await client.query(
+          'ROLLBACK'
+        );
+      } catch {}
+
+      console.error(
+        'Add Demo Coins Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Unable to add Demo Coins.',
+        });
+    } finally {
+      client.release();
+    }
+  }
+);
+/* =========================================================
+   CUSTOMER DEMO COIN BALANCE
+
+   GET /api/customers/:id/demo-balance
+========================================================= */
+
+app.get(
+  '/api/customers/:id/demo-balance',
+
+  async (req, res) => {
+    try {
+      const customerId =
+        Number(req.params.id);
+
+      if (
+        !Number.isInteger(customerId) ||
+        customerId <= 0
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Invalid customer ID.',
+          });
+      }
+
+      const result =
+        await pool.query(
+          `
+          SELECT
+            id,
+            name,
+            login_id,
+            demo_coin_balance
+          FROM customers
+          WHERE id = $1
+          LIMIT 1
+          `,
+          [customerId]
+        );
+
+      if (result.rows.length === 0) {
+        return res
+          .status(404)
+          .json({
+            error:
+              'Customer account not found.',
+          });
+      }
+
+      return res.json({
+        success: true,
+        customerId:
+          result.rows[0].id,
+        loginId:
+          result.rows[0].login_id,
+        balance:
+          Number(
+            result.rows[0]
+              .demo_coin_balance || 0
+          ),
+      });
+    } catch (error) {
+      console.error(
+        'Demo Balance Error:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Unable to load Demo Coin balance.',
+        });
+    }
+  }
+);
 /* =========================================================
    ADMIN RESET LOGIN PASSWORD
 
