@@ -12,8 +12,7 @@ const PAYMENT_SETTINGS_KEY =
 
 const DEFAULT_PAYMENT_SETTINGS = {
   account: {
-    accountName:
-      'TELUGU SPORTS',
+    accountName: 'TELUGU SPORTS',
     bankName: '',
     accountNumber: '',
     ifsc: '',
@@ -22,16 +21,19 @@ const DEFAULT_PAYMENT_SETTINGS = {
   phonepe: {
     number: '',
     upiId: '',
+    qrImage: '',
   },
 
   gpay: {
     number: '',
     upiId: '',
+    qrImage: '',
   },
 
   paytm: {
     number: '',
     upiId: '',
+    qrImage: '',
   },
 };
 
@@ -69,19 +71,13 @@ function safeParse(
   }
 }
 
-function formatAmount(
-  value
-) {
+function formatAmount(value) {
   return Number(
     value || 0
-  ).toLocaleString(
-    'en-IN'
-  );
+  ).toLocaleString('en-IN');
 }
 
-function formatDate(
-  value
-) {
+function formatDate(value) {
   if (!value) {
     return '-';
   }
@@ -89,33 +85,23 @@ function formatDate(
   try {
     return new Date(
       value
-    ).toLocaleString(
-      'en-IN'
-    );
+    ).toLocaleString('en-IN');
   } catch {
     return String(value);
   }
 }
 
-function getStatusClass(
-  status
-) {
+function getStatusClass(status) {
   const cleanStatus =
     String(
       status || ''
     ).toUpperCase();
 
-  if (
-    cleanStatus ===
-    'APPROVED'
-  ) {
+  if (cleanStatus === 'APPROVED') {
     return 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10';
   }
 
-  if (
-    cleanStatus ===
-    'REJECTED'
-  ) {
+  if (cleanStatus === 'REJECTED') {
     return 'text-red-400 border-red-500/40 bg-red-500/10';
   }
 
@@ -130,54 +116,49 @@ export default function DepositPage({
      CURRENT CUSTOMER
   ===================================================== */
 
-  const customer =
-    useMemo(
-      () => {
-        const storedUser =
-          safeParse(
-            localStorage.getItem(
-              AUTH_KEY
-            ),
-            {}
-          ) || {};
+  const customer = useMemo(() => {
+    const storedUser =
+      safeParse(
+        localStorage.getItem(
+          AUTH_KEY
+        ),
+        {}
+      ) || {};
 
-        const source =
-          user &&
-          typeof user ===
-            'object'
-            ? user
-            : storedUser;
+    const source =
+      user &&
+      typeof user === 'object'
+        ? user
+        : storedUser;
 
-        const customerId =
-          Number(
-            source.id ||
-            source.customerId ||
-            0
-          );
+    const customerId =
+      Number(
+        source.id ||
+        source.customerId ||
+        0
+      );
 
-        const loginId =
-          String(
-            source.loginId ||
-            source.identifier ||
-            ''
-          ).trim();
+    const loginId =
+      String(
+        source.loginId ||
+        source.identifier ||
+        ''
+      ).trim();
 
-        const name =
-          String(
-            source.name ||
-            source.customerName ||
-            loginId ||
-            'Customer'
-          ).trim();
+    const name =
+      String(
+        source.name ||
+        source.customerName ||
+        loginId ||
+        'Customer'
+      ).trim();
 
-        return {
-          customerId,
-          loginId,
-          name,
-        };
-      },
-      [user]
-    );
+    return {
+      customerId,
+      loginId,
+      name,
+    };
+  }, [user]);
 
   /* =====================================================
      STATE
@@ -186,9 +167,7 @@ export default function DepositPage({
   const [
     selectedMethod,
     setSelectedMethod,
-  ] = useState(
-    'ACCOUNT'
-  );
+  ] = useState('ACCOUNT');
 
   const [
     amount,
@@ -251,55 +230,76 @@ export default function DepositPage({
      LOAD PAYMENT SETTINGS
   ===================================================== */
 
-  useEffect(
-    () => {
-      const saved =
-        safeParse(
-          localStorage.getItem(
-            PAYMENT_SETTINGS_KEY
-          ),
-          null
-        );
+  const loadPaymentSettings = () => {
+    const saved =
+      safeParse(
+        localStorage.getItem(
+          PAYMENT_SETTINGS_KEY
+        ),
+        null
+      );
 
+    if (
+      saved &&
+      typeof saved === 'object'
+    ) {
+      setPaymentSettings({
+        ...DEFAULT_PAYMENT_SETTINGS,
+        ...saved,
+
+        account: {
+          ...DEFAULT_PAYMENT_SETTINGS.account,
+          ...(saved.account || {}),
+        },
+
+        phonepe: {
+          ...DEFAULT_PAYMENT_SETTINGS.phonepe,
+          ...(saved.phonepe || {}),
+        },
+
+        gpay: {
+          ...DEFAULT_PAYMENT_SETTINGS.gpay,
+          ...(saved.gpay || {}),
+        },
+
+        paytm: {
+          ...DEFAULT_PAYMENT_SETTINGS.paytm,
+          ...(saved.paytm || {}),
+        },
+      });
+    } else {
+      setPaymentSettings(
+        DEFAULT_PAYMENT_SETTINGS
+      );
+    }
+  };
+
+  useEffect(() => {
+    loadPaymentSettings();
+
+    const handleStorage = (
+      event
+    ) => {
       if (
-        saved &&
-        typeof saved ===
-          'object'
+        event.key ===
+        PAYMENT_SETTINGS_KEY
       ) {
-        setPaymentSettings(
-          {
-            ...DEFAULT_PAYMENT_SETTINGS,
-            ...saved,
-
-            account: {
-              ...DEFAULT_PAYMENT_SETTINGS.account,
-              ...(saved.account ||
-                {}),
-            },
-
-            phonepe: {
-              ...DEFAULT_PAYMENT_SETTINGS.phonepe,
-              ...(saved.phonepe ||
-                {}),
-            },
-
-            gpay: {
-              ...DEFAULT_PAYMENT_SETTINGS.gpay,
-              ...(saved.gpay ||
-                {}),
-            },
-
-            paytm: {
-              ...DEFAULT_PAYMENT_SETTINGS.paytm,
-              ...(saved.paytm ||
-                {}),
-            },
-          }
-        );
+        loadPaymentSettings();
       }
-    },
-    []
-  );
+    };
+
+    window.addEventListener(
+      'storage',
+      handleStorage
+    );
+
+    return () => {
+      window.removeEventListener(
+        'storage',
+        handleStorage
+      );
+    };
+  }, []);
 
   /* =====================================================
      LOAD CUSTOMER BALANCE
@@ -307,16 +307,12 @@ export default function DepositPage({
 
   const loadBalance =
     async () => {
-      if (
-        !customer.customerId
-      ) {
+      if (!customer.customerId) {
         setBalance(0);
         return;
       }
 
-      setLoadingBalance(
-        true
-      );
+      setLoadingBalance(true);
 
       try {
         const response =
@@ -358,31 +354,22 @@ export default function DepositPage({
 
         setBalance(0);
       } finally {
-        setLoadingBalance(
-          false
-        );
+        setLoadingBalance(false);
       }
     };
 
   /* =====================================================
-     LOAD CUSTOMER REQUEST HISTORY FROM SERVER
+     LOAD CUSTOMER DEPOSIT HISTORY
   ===================================================== */
 
   const loadHistory =
     async () => {
-      if (
-        !customer.customerId
-      ) {
-        setTransactions(
-          []
-        );
-
+      if (!customer.customerId) {
+        setTransactions([]);
         return;
       }
 
-      setLoadingHistory(
-        true
-      );
+      setLoadingHistory(true);
 
       try {
         const response =
@@ -423,27 +410,19 @@ export default function DepositPage({
           historyError
         );
 
-        setTransactions(
-          []
-        );
+        setTransactions([]);
       } finally {
-        setLoadingHistory(
-          false
-        );
+        setLoadingHistory(false);
       }
     };
 
-  useEffect(
-    () => {
-      loadBalance();
-      loadHistory();
-    },
-    [customer.customerId]
-  );
+  useEffect(() => {
+    loadBalance();
+    loadHistory();
+  }, [customer.customerId]);
 
   /* =====================================================
-     UTR / REFERENCE INPUT
-     EXACTLY 12 DIGITS
+     REFERENCE NUMBER
   ===================================================== */
 
   const handleReferenceChange =
@@ -453,14 +432,8 @@ export default function DepositPage({
           event.target.value ||
           ''
         )
-          .replace(
-            /\D/g,
-            ''
-          )
-          .slice(
-            0,
-            12
-          );
+          .replace(/\D/g, '')
+          .slice(0, 12);
 
       setReferenceNumber(
         digitsOnly
@@ -471,7 +444,7 @@ export default function DepositPage({
     };
 
   /* =====================================================
-     AMOUNT INPUT
+     AMOUNT
   ===================================================== */
 
   const handleAmountChange =
@@ -480,21 +453,16 @@ export default function DepositPage({
         String(
           event.target.value ||
           ''
-        ).replace(
-          /\D/g,
-          ''
-        );
+        ).replace(/\D/g, '');
 
-      setAmount(
-        digitsOnly
-      );
+      setAmount(digitsOnly);
 
       setError('');
       setMessage('');
     };
 
   /* =====================================================
-     PROOF FILE
+     PROOF
   ===================================================== */
 
   const handleProofChange =
@@ -503,8 +471,7 @@ export default function DepositPage({
       setMessage('');
 
       const file =
-        event.target
-          .files?.[0];
+        event.target.files?.[0];
 
       if (!file) {
         setProofFile(null);
@@ -525,8 +492,7 @@ export default function DepositPage({
       ) {
         setProofFile(null);
 
-        event.target.value =
-          '';
+        event.target.value = '';
 
         setError(
           'Please select a JPG, PNG or WEBP image.'
@@ -537,14 +503,11 @@ export default function DepositPage({
 
       if (
         file.size >
-        1.5 *
-          1024 *
-          1024
+        1.5 * 1024 * 1024
       ) {
         setProofFile(null);
 
-        event.target.value =
-          '';
+        event.target.value = '';
 
         setError(
           'Screenshot size must be 1.5 MB or less.'
@@ -557,7 +520,7 @@ export default function DepositPage({
     };
 
   /* =====================================================
-     SUBMIT REQUEST TO SERVER
+     SUBMIT
   ===================================================== */
 
   const handleSubmit =
@@ -571,9 +534,7 @@ export default function DepositPage({
       setError('');
       setMessage('');
 
-      if (
-        !customer.customerId
-      ) {
+      if (!customer.customerId) {
         setError(
           'Customer account information is missing. Please login again.'
         );
@@ -616,8 +577,7 @@ export default function DepositPage({
           await fetch(
             '/api/demo-deposits',
             {
-              method:
-                'POST',
+              method: 'POST',
 
               headers: {
                 'Content-Type':
@@ -627,26 +587,22 @@ export default function DepositPage({
                   'application/json',
               },
 
-              body:
-                JSON.stringify(
-                  {
-                    customerId:
-                      customer.customerId,
+              body: JSON.stringify({
+                customerId:
+                  customer.customerId,
 
-                    amount:
-                      cleanAmount,
+                amount:
+                  cleanAmount,
 
-                    referenceNumber,
+                referenceNumber,
 
-                    paymentMethod:
-                      selectedMethod,
+                paymentMethod:
+                  selectedMethod,
 
-                    proofName:
-                      proofFile
-                        ?.name ||
-                      '',
-                  }
-                ),
+                proofName:
+                  proofFile?.name ||
+                  '',
+              }),
             }
           );
 
@@ -691,8 +647,7 @@ export default function DepositPage({
           );
 
         if (fileInput) {
-          fileInput.value =
-            '';
+          fileInput.value = '';
         }
 
         await loadHistory();
@@ -703,14 +658,11 @@ export default function DepositPage({
         );
 
         setError(
-          submitError
-            ?.message ||
+          submitError?.message ||
           'Unable to submit deposit request.'
         );
       } finally {
-        setSubmitting(
-          false
-        );
+        setSubmitting(false);
       }
     };
 
@@ -778,15 +730,49 @@ export default function DepositPage({
         paymentSettings[key] ||
         {};
 
+      const methodName =
+        selectedMethod ===
+        'PHONEPE'
+          ? 'PhonePe'
+          : selectedMethod ===
+            'GPAY'
+          ? 'Google Pay'
+          : 'Paytm';
+
       return (
-        <div className="space-y-2">
-          <InfoRow
-            label="Mobile Number"
-            value={
-              details.number ||
-              '-'
-            }
-          />
+        <div className="space-y-4">
+          {/* QR CODE */}
+
+          {details.qrImage ? (
+            <div className="rounded-2xl border border-cyan-500/20 bg-[#050b12] p-4">
+              <p className="mb-3 text-center text-[11px] font-bold leading-relaxed text-slate-400">
+                Scan the QR code
+                below
+              </p>
+
+              <div className="flex justify-center">
+                <div className="rounded-2xl bg-white p-3 shadow-xl">
+                  <img
+                    src={
+                      details.qrImage
+                    }
+                    alt={`${methodName} QR Code`}
+                    className="h-[230px] w-[230px] max-w-full object-contain sm:h-[280px] sm:w-[280px]"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-700 bg-[#050b12] px-4 py-6 text-center">
+              <p className="text-xs font-bold text-slate-500">
+                {methodName} QR
+                code is not
+                available.
+              </p>
+            </div>
+          )}
+
+          {/* UPI ID */}
 
           <InfoRow
             label="UPI ID"
@@ -795,6 +781,20 @@ export default function DepositPage({
               '-'
             }
           />
+
+          {/* MOBILE NUMBER
+              Kept for compatibility
+              with older saved settings.
+          */}
+
+          {details.number ? (
+            <InfoRow
+              label="Mobile Number"
+              value={
+                details.number
+              }
+            />
+          ) : null}
         </div>
       );
     };
@@ -812,9 +812,7 @@ export default function DepositPage({
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={
-                onBack
-              }
+              onClick={onBack}
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-lg text-white"
             >
               ←
@@ -826,9 +824,8 @@ export default function DepositPage({
               </h1>
 
               <p className="text-[11px] text-slate-400">
-                {
-                  customer.name
-                }
+                {customer.name}
+
                 {customer.loginId
                   ? ` • ${customer.loginId}`
                   : ''}
@@ -881,6 +878,8 @@ export default function DepositPage({
 
                       setError('');
                       setMessage('');
+
+                      loadPaymentSettings();
                     }}
                     className={`rounded-xl border px-2 py-3 text-xs font-black transition ${
                       active
@@ -945,9 +944,7 @@ export default function DepositPage({
                 <input
                   type="text"
                   inputMode="numeric"
-                  value={
-                    amount
-                  }
+                  value={amount}
                   onChange={
                     handleAmountChange
                   }
@@ -963,8 +960,7 @@ export default function DepositPage({
               <div className="mb-1.5 flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-300">
                   UTR /
-                  Reference
-                  Number
+                  Reference Number
                 </label>
 
                 <span
@@ -997,10 +993,9 @@ export default function DepositPage({
               />
 
               <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
-                Reference
-                number must be
-                exactly 12
-                digits.
+                Reference number
+                must be exactly
+                12 digits.
               </p>
             </div>
 
@@ -1052,9 +1047,7 @@ export default function DepositPage({
 
             <button
               type="submit"
-              disabled={
-                submitting
-              }
+              disabled={submitting}
               className="w-full rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 px-4 py-3 text-sm font-black text-[#041018] shadow-lg transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting
@@ -1074,9 +1067,7 @@ export default function DepositPage({
 
             <button
               type="button"
-              onClick={
-                loadHistory
-              }
+              onClick={loadHistory}
               disabled={
                 loadingHistory
               }
@@ -1092,8 +1083,7 @@ export default function DepositPage({
           transactions.length ===
             0 ? (
             <div className="py-8 text-center text-xs text-slate-500">
-              Loading
-              deposit
+              Loading deposit
               history...
             </div>
           ) : transactions.length ===
@@ -1105,9 +1095,7 @@ export default function DepositPage({
           ) : (
             <div className="space-y-3">
               {transactions.map(
-                (
-                  transaction
-                ) => (
+                (transaction) => (
                   <div
                     key={
                       transaction.id
@@ -1178,9 +1166,8 @@ export default function DepositPage({
 
         <div className="px-2 pb-5 text-center text-[10px] leading-relaxed text-slate-600">
           Informational
-          demonstration
-          only. No
-          real-money
+          demonstration only.
+          No real-money
           transactions are
           processed by this
           page.
