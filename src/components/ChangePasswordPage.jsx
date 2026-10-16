@@ -10,19 +10,19 @@ export default function ChangePasswordPage({
     user?.identifier ||
     '';
 
+  /*
+   * ఈ page open అయినప్పుడు రెండు sections
+   * తప్పకుండా కనిపించాలి.
+   */
   const [
     loginPasswordDone,
     setLoginPasswordDone,
-  ] = useState(
-    !user?.mustChangePassword
-  );
+  ] = useState(false);
 
   const [
     withdrawalPasswordDone,
     setWithdrawalPasswordDone,
-  ] = useState(
-    !user?.mustChangeWithdrawalPassword
-  );
+  ] = useState(false);
 
   /* =========================================
      LOGIN PASSWORD
@@ -108,9 +108,7 @@ export default function ChangePasswordPage({
       return;
     }
 
-    if (
-      newLoginPassword.length < 6
-    ) {
+    if (newLoginPassword.length < 6) {
       setError(
         'New Login Password must contain at least 6 characters.'
       );
@@ -122,7 +120,7 @@ export default function ChangePasswordPage({
       confirmLoginPassword
     ) {
       setError(
-        'New Login Password and Confirm Login Password do not match.'
+        'New Login Password and Confirm New Password do not match.'
       );
       return;
     }
@@ -132,7 +130,7 @@ export default function ChangePasswordPage({
       newLoginPassword
     ) {
       setError(
-        'New Login Password must be different from the temporary password.'
+        'New Login Password must be different from Old Password.'
       );
       return;
     }
@@ -165,8 +163,7 @@ export default function ChangePasswordPage({
         }
       );
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -182,7 +179,7 @@ export default function ChangePasswordPage({
       setConfirmLoginPassword('');
 
       setMessage(
-        'Login Password changed successfully. Now change your Withdrawal Password.'
+        'Login Password changed successfully.'
       );
     } catch (requestError) {
       console.error(
@@ -222,8 +219,7 @@ export default function ChangePasswordPage({
       }
 
       if (
-        newWithdrawalPassword.length <
-        6
+        newWithdrawalPassword.length < 6
       ) {
         setError(
           'New Withdrawal Password must contain at least 6 characters.'
@@ -236,7 +232,7 @@ export default function ChangePasswordPage({
         confirmWithdrawalPassword
       ) {
         setError(
-          'New Withdrawal Password and Confirm Withdrawal Password do not match.'
+          'New Withdrawal Password and Confirm New Withdrawal Password do not match.'
         );
         return;
       }
@@ -246,7 +242,7 @@ export default function ChangePasswordPage({
         newWithdrawalPassword
       ) {
         setError(
-          'New Withdrawal Password must be different from the temporary password.'
+          'New Withdrawal Password must be different from Old Withdrawal Password.'
         );
         return;
       }
@@ -279,8 +275,7 @@ export default function ChangePasswordPage({
           }
         );
 
-        const data =
-          await response.json();
+        const data = await response.json();
 
         if (!response.ok) {
           throw new Error(
@@ -289,18 +284,11 @@ export default function ChangePasswordPage({
           );
         }
 
-        setWithdrawalPasswordDone(
-          true
-        );
+        setWithdrawalPasswordDone(true);
 
-        setCurrentWithdrawalPassword(
-          ''
-        );
-
+        setCurrentWithdrawalPassword('');
         setNewWithdrawalPassword('');
-        setConfirmWithdrawalPassword(
-          ''
-        );
+        setConfirmWithdrawalPassword('');
 
         setMessage(
           'Withdrawal Password changed successfully.'
@@ -325,12 +313,15 @@ export default function ChangePasswordPage({
   ========================================= */
 
   const continueToDashboard = () => {
+    setError('');
+    setMessage('');
+
     if (
       !loginPasswordDone ||
       !withdrawalPasswordDone
     ) {
       setError(
-        'Please complete both password changes first.'
+        'Please change both Login Password and Withdrawal Password first.'
       );
       return;
     }
@@ -365,9 +356,17 @@ export default function ChangePasswordPage({
       );
     }
 
-    if (onComplete) {
+    if (typeof onComplete === 'function') {
       onComplete(updatedUser);
+      return;
     }
+
+    /*
+     * Fallback:
+     * parent callback లేకపోయినా dashboardకి
+     * వెళ్లేందుకు page reload చేస్తుంది.
+     */
+    window.location.href = '/';
   };
 
   return (
@@ -376,11 +375,9 @@ export default function ChangePasswordPage({
       {/* HEADER */}
 
       <header className="border-b border-amber-500/30 bg-[#9a5a00] px-4 py-4">
-
         <div className="mx-auto flex max-w-md items-center justify-between gap-3">
 
           <div>
-
             <p className="text-[9px] font-black tracking-[0.15em] text-amber-200">
               TELUGU SPORTS BOOK
             </p>
@@ -388,23 +385,19 @@ export default function ChangePasswordPage({
             <h1 className="mt-1 text-lg font-black">
               🔐 SECURITY SETUP
             </h1>
-
           </div>
 
           <div className="text-right">
-
             <p className="text-[8px] text-amber-100">
               LOGIN ID
             </p>
 
             <p className="text-[10px] font-black">
-              {loginId}
+              {loginId || 'CUSTOMER'}
             </p>
-
           </div>
 
         </div>
-
       </header>
 
       <main className="mx-auto max-w-md px-4 py-6">
@@ -412,37 +405,29 @@ export default function ChangePasswordPage({
         {/* INTRO */}
 
         <div className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
-
           <p className="text-xs font-black text-amber-300">
             FIRST LOGIN SECURITY
           </p>
 
           <p className="mt-2 text-[10px] leading-5 text-gray-300">
-            Before entering your
-            Dashboard, change your
-            temporary Login Password
-            and temporary Withdrawal
-            Password.
+            Change your Login Password and
+            Withdrawal Password before entering
+            the Dashboard.
           </p>
-
         </div>
 
-        {/* PROGRESS */}
+        {/* STATUS */}
 
         <div className="mb-5 grid grid-cols-2 gap-2">
 
           <StatusBox
             title="LOGIN PASSWORD"
-            complete={
-              loginPasswordDone
-            }
+            complete={loginPasswordDone}
           />
 
           <StatusBox
             title="WITHDRAWAL PASSWORD"
-            complete={
-              withdrawalPasswordDone
-            }
+            complete={withdrawalPasswordDone}
           />
 
         </div>
@@ -451,290 +436,310 @@ export default function ChangePasswordPage({
 
         {error && (
           <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 p-3">
-
             <p className="text-[10px] font-bold text-red-300">
-              {error}
+              ⚠ {error}
             </p>
-
           </div>
         )}
 
-        {/* MESSAGE */}
+        {/* SUCCESS MESSAGE */}
 
         {message && (
           <div className="mb-4 rounded-lg border border-green-500/40 bg-green-500/10 p-3">
-
             <p className="text-[10px] font-bold text-green-300">
               ✓ {message}
             </p>
-
           </div>
         )}
 
-        {/* LOGIN PASSWORD */}
+        {/* =====================================
+            LOGIN PASSWORD FORM
+        ===================================== */}
 
-        {!loginPasswordDone && (
+        <form
+          onSubmit={changeLoginPassword}
+          className={`mb-5 rounded-xl border p-4 ${
+            loginPasswordDone
+              ? 'border-green-500/40 bg-green-500/10'
+              : 'border-[#28655f] bg-[#083d37]'
+          }`}
+        >
 
-          <form
-            onSubmit={
-              changeLoginPassword
-            }
-            className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
-          >
+          <div className="flex items-center justify-between gap-2">
 
-            <p className="text-sm font-black text-amber-300">
-              Change Login Password
-            </p>
+            <div>
+              <p className="text-sm font-black text-amber-300">
+                Change LOGIN PASSWORD
+              </p>
 
-            <p className="mt-2 text-[9px] leading-4 text-gray-400">
-              Enter the temporary
-              Login Password given by
-              Admin, then create your
-              new Login Password.
-            </p>
-
-            <div className="mt-4 space-y-3">
-
-              <PasswordInput
-                label="TEMPORARY LOGIN PASSWORD"
-                value={
-                  currentLoginPassword
-                }
-                onChange={(event) =>
-                  setCurrentLoginPassword(
-                    event.target.value
-                  )
-                }
-                show={
-                  showLoginPasswords
-                }
-              />
-
-              <PasswordInput
-                label="NEW LOGIN PASSWORD"
-                value={
-                  newLoginPassword
-                }
-                onChange={(event) =>
-                  setNewLoginPassword(
-                    event.target.value
-                  )
-                }
-                show={
-                  showLoginPasswords
-                }
-              />
-
-              <PasswordInput
-                label="CONFIRM LOGIN PASSWORD"
-                value={
-                  confirmLoginPassword
-                }
-                onChange={(event) =>
-                  setConfirmLoginPassword(
-                    event.target.value
-                  )
-                }
-                show={
-                  showLoginPasswords
-                }
-              />
-
+              <p className="mt-1 text-[8px] text-gray-400">
+                Login ID: {loginId}
+              </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                setShowLoginPasswords(
-                  (previous) =>
-                    !previous
-                )
-              }
-              className="mt-3 text-[9px] font-black text-teal-300"
-            >
-              {showLoginPasswords
-                ? 'HIDE PASSWORDS'
-                : 'SHOW PASSWORDS'}
-            </button>
+            {loginPasswordDone && (
+              <span className="rounded-full border border-green-500/40 bg-green-500/10 px-2 py-1 text-[8px] font-black text-green-300">
+                ✓ COMPLETED
+              </span>
+            )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="mt-4 h-[48px] w-full rounded-lg bg-amber-500 text-[10px] font-black text-black disabled:opacity-50"
-            >
-              {loading
-                ? 'PLEASE WAIT...'
-                : 'CHANGE LOGIN PASSWORD'}
-            </button>
+          </div>
 
-          </form>
+          {!loginPasswordDone && (
+            <>
+              <div className="mt-4 space-y-3">
 
-        )}
+                <PasswordInput
+                  label="OLD PASSWORD"
+                  placeholder="Enter Old Password"
+                  value={currentLoginPassword}
+                  onChange={(event) =>
+                    setCurrentLoginPassword(
+                      event.target.value
+                    )
+                  }
+                  show={showLoginPasswords}
+                  autoComplete="current-password"
+                />
 
-        {/* WITHDRAWAL PASSWORD */}
+                <PasswordInput
+                  label="NEW PASSWORD"
+                  placeholder="Enter New Password"
+                  value={newLoginPassword}
+                  onChange={(event) =>
+                    setNewLoginPassword(
+                      event.target.value
+                    )
+                  }
+                  show={showLoginPasswords}
+                  autoComplete="new-password"
+                />
 
-        {loginPasswordDone &&
-          !withdrawalPasswordDone && (
+                <PasswordInput
+                  label="CONFIRM NEW PASSWORD"
+                  placeholder="Confirm New Password"
+                  value={confirmLoginPassword}
+                  onChange={(event) =>
+                    setConfirmLoginPassword(
+                      event.target.value
+                    )
+                  }
+                  show={showLoginPasswords}
+                  autoComplete="new-password"
+                />
 
-          <form
-            onSubmit={
-              changeWithdrawalPassword
-            }
-            className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
-          >
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setShowLoginPasswords(
+                    (previous) => !previous
+                  )
+                }
+                className="mt-3 text-[9px] font-black text-teal-300"
+              >
+                {showLoginPasswords
+                  ? '🙈 HIDE PASSWORDS'
+                  : '👁 SHOW PASSWORDS'}
+              </button>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="mt-4 h-[48px] w-full rounded-lg bg-amber-500 text-[10px] font-black text-black disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading
+                  ? 'PLEASE WAIT...'
+                  : 'CHANGE LOGIN PASSWORD'}
+              </button>
+            </>
+          )}
+
+          {loginPasswordDone && (
+            <p className="mt-4 text-[10px] font-bold text-green-300">
+              ✓ Login Password changed successfully.
+            </p>
+          )}
+
+        </form>
+
+        {/* =====================================
+            WITHDRAWAL PASSWORD FORM
+        ===================================== */}
+
+        <form
+          onSubmit={changeWithdrawalPassword}
+          className={`mb-5 rounded-xl border p-4 ${
+            withdrawalPasswordDone
+              ? 'border-green-500/40 bg-green-500/10'
+              : 'border-[#28655f] bg-[#083d37]'
+          }`}
+        >
+
+          <div className="flex items-center justify-between gap-2">
 
             <p className="text-sm font-black text-amber-300">
-              Change Withdrawal
-              Password
+              Change WITHDRAWAL PASSWORD
             </p>
 
-            <p className="mt-2 text-[9px] leading-4 text-gray-400">
-              Enter the temporary
-              Withdrawal Password
-              given by Admin, then
-              create your new
-              Withdrawal Password.
+            {withdrawalPasswordDone && (
+              <span className="rounded-full border border-green-500/40 bg-green-500/10 px-2 py-1 text-[8px] font-black text-green-300">
+                ✓ COMPLETED
+              </span>
+            )}
+
+          </div>
+
+          {!withdrawalPasswordDone && (
+            <>
+              <div className="mt-4 space-y-3">
+
+                <PasswordInput
+                  label="OLD WITHDRAWAL PASSWORD"
+                  placeholder="Enter Old Withdrawal Password"
+                  value={currentWithdrawalPassword}
+                  onChange={(event) =>
+                    setCurrentWithdrawalPassword(
+                      event.target.value
+                    )
+                  }
+                  show={showWithdrawalPasswords}
+                  autoComplete="current-password"
+                />
+
+                <PasswordInput
+                  label="NEW WITHDRAWAL PASSWORD"
+                  placeholder="Enter New Withdrawal Password"
+                  value={newWithdrawalPassword}
+                  onChange={(event) =>
+                    setNewWithdrawalPassword(
+                      event.target.value
+                    )
+                  }
+                  show={showWithdrawalPasswords}
+                  autoComplete="new-password"
+                />
+
+                <PasswordInput
+                  label="CONFIRM NEW WITHDRAWAL PASSWORD"
+                  placeholder="Confirm New Withdrawal Password"
+                  value={confirmWithdrawalPassword}
+                  onChange={(event) =>
+                    setConfirmWithdrawalPassword(
+                      event.target.value
+                    )
+                  }
+                  show={showWithdrawalPasswords}
+                  autoComplete="new-password"
+                />
+
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setShowWithdrawalPasswords(
+                    (previous) => !previous
+                  )
+                }
+                className="mt-3 text-[9px] font-black text-teal-300"
+              >
+                {showWithdrawalPasswords
+                  ? '🙈 HIDE PASSWORDS'
+                  : '👁 SHOW PASSWORDS'}
+              </button>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="mt-4 h-[48px] w-full rounded-lg bg-amber-500 text-[10px] font-black text-black disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading
+                  ? 'PLEASE WAIT...'
+                  : 'CHANGE WITHDRAWAL PASSWORD'}
+              </button>
+            </>
+          )}
+
+          {withdrawalPasswordDone && (
+            <p className="mt-4 text-[10px] font-bold text-green-300">
+              ✓ Withdrawal Password changed successfully.
             </p>
+          )}
 
-            <div className="mt-4 space-y-3">
+        </form>
 
-              <PasswordInput
-                label="TEMPORARY WITHDRAWAL PASSWORD"
-                value={
-                  currentWithdrawalPassword
-                }
-                onChange={(event) =>
-                  setCurrentWithdrawalPassword(
-                    event.target.value
-                  )
-                }
-                show={
-                  showWithdrawalPasswords
-                }
-              />
-
-              <PasswordInput
-                label="NEW WITHDRAWAL PASSWORD"
-                value={
-                  newWithdrawalPassword
-                }
-                onChange={(event) =>
-                  setNewWithdrawalPassword(
-                    event.target.value
-                  )
-                }
-                show={
-                  showWithdrawalPasswords
-                }
-              />
-
-              <PasswordInput
-                label="CONFIRM WITHDRAWAL PASSWORD"
-                value={
-                  confirmWithdrawalPassword
-                }
-                onChange={(event) =>
-                  setConfirmWithdrawalPassword(
-                    event.target.value
-                  )
-                }
-                show={
-                  showWithdrawalPasswords
-                }
-              />
-
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                setShowWithdrawalPasswords(
-                  (previous) =>
-                    !previous
-                )
-              }
-              className="mt-3 text-[9px] font-black text-teal-300"
-            >
-              {showWithdrawalPasswords
-                ? 'HIDE PASSWORDS'
-                : 'SHOW PASSWORDS'}
-            </button>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="mt-4 h-[48px] w-full rounded-lg bg-amber-500 text-[10px] font-black text-black disabled:opacity-50"
-            >
-              {loading
-                ? 'PLEASE WAIT...'
-                : 'CHANGE WITHDRAWAL PASSWORD'}
-            </button>
-
-          </form>
-
-        )}
-
-        {/* COMPLETE */}
+        {/* =====================================
+            CONTINUE BUTTON
+        ===================================== */}
 
         {loginPasswordDone &&
           withdrawalPasswordDone && (
+            <div className="rounded-xl border border-green-500/40 bg-green-500/10 p-5 text-center">
 
-          <div className="rounded-xl border border-green-500/40 bg-green-500/10 p-5 text-center">
+              <div className="text-4xl">
+                ✅
+              </div>
 
-            <div className="text-4xl">
-              ✅
+              <p className="mt-3 text-sm font-black text-green-300">
+                SECURITY SETUP COMPLETE
+              </p>
+
+              <p className="mt-2 text-[10px] leading-5 text-gray-300">
+                Your Login Password and
+                Withdrawal Password have been
+                changed successfully.
+              </p>
+
+              <button
+                type="button"
+                onClick={continueToDashboard}
+                className="mt-5 h-[48px] w-full rounded-lg bg-green-600 text-[11px] font-black text-white"
+              >
+                CONTINUE TO DASHBOARD
+              </button>
+
             </div>
-
-            <p className="mt-3 text-sm font-black text-green-300">
-              SECURITY SETUP COMPLETE
-            </p>
-
-            <p className="mt-2 text-[10px] leading-5 text-gray-300">
-              Your Login Password and
-              Withdrawal Password have
-              been changed successfully.
-            </p>
-
-            <button
-              type="button"
-              onClick={
-                continueToDashboard
-              }
-              className="mt-5 h-[48px] w-full rounded-lg bg-green-600 text-[11px] font-black text-white"
-            >
-              CONTINUE TO DASHBOARD
-            </button>
-
-          </div>
-
-        )}
+          )}
 
         {/* LOGOUT */}
 
         <button
           type="button"
-          onClick={onLogout}
+          onClick={() => {
+            if (
+              typeof onLogout ===
+              'function'
+            ) {
+              onLogout();
+            }
+          }}
           className="mt-5 h-[44px] w-full rounded-lg border border-red-500/40 bg-red-500/10 text-[9px] font-black text-red-300"
         >
           LOGOUT
         </button>
 
         <p className="mt-5 text-center text-[8px] leading-4 text-gray-500">
-          Demo / informational website
-          security setup.
+          Demo / informational website security setup.
         </p>
 
       </main>
-
     </div>
   );
 }
+
+/* =========================================
+   PASSWORD INPUT
+========================================= */
 
 function PasswordInput({
   label,
   value,
   onChange,
   show,
+  placeholder,
+  autoComplete,
 }) {
   return (
     <div>
@@ -744,21 +749,21 @@ function PasswordInput({
       </label>
 
       <input
-        type={
-          show
-            ? 'text'
-            : 'password'
-        }
+        type={show ? 'text' : 'password'}
         value={value}
         onChange={onChange}
-        autoComplete="new-password"
-        placeholder="Minimum 6 characters"
-        className="h-[48px] w-full rounded-lg border border-[#28655f] bg-[#061c1a] px-3 text-xs text-white outline-none focus:border-amber-400"
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        className="h-[48px] w-full rounded-lg border border-[#28655f] bg-[#061c1a] px-3 text-xs text-white outline-none placeholder:text-gray-600 focus:border-amber-400"
       />
 
     </div>
   );
 }
+
+/* =========================================
+   STATUS BOX
+========================================= */
 
 function StatusBox({
   title,
