@@ -230,6 +230,21 @@ created_at TIMESTAMPTZ
       demo_withdrawal_customer_index
     ON demo_withdrawal_requests(customer_id);
   `);
+  await pool.query(`
+  ALTER TABLE demo_withdrawal_requests
+  ADD COLUMN IF NOT EXISTS
+    coins_held BOOLEAN
+    NOT NULL
+    DEFAULT FALSE;
+`);
+
+await pool.query(`
+  ALTER TABLE demo_withdrawal_requests
+  ADD COLUMN IF NOT EXISTS
+    coins_restored BOOLEAN
+    NOT NULL
+    DEFAULT FALSE;
+`);
    /* =====================================================
    DEMO DEPOSIT REQUESTS TABLE
 ===================================================== */
