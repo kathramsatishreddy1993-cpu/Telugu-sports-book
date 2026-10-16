@@ -467,13 +467,18 @@ return DEFAULT_ADMIN_WHATSAPP_NUMBER;
 }
 
 try {
-const result =
-await pool.query(
-  SELECT setting_value   FROM site_settings   WHERE setting_key = $1   LIMIT 1  ,
-[
-'admin_whatsapp_number',
-]
-);
+    const result =
+      await pool.query(
+        `
+          SELECT setting_value
+          FROM site_settings
+          WHERE setting_key = $1
+          LIMIT 1
+        `,
+        [
+          'admin_whatsapp_number',
+        ]
+      );
 
 const savedNumber =  
   normalizeWhatsAppNumber(  
