@@ -1,61 +1,97 @@
-import React, { useEffect, useState } from 'react';
+import React, {
+  useEffect,
+  useState,
+} from 'react';
 
-const ACCOUNT_KEY = 'tsb_demo_withdrawal_account';
-const TRANSACTION_KEY = 'telugu_sports_demo_withdrawals';
-const BALANCE_KEY = 'telugu_sports_demo_balance';
-const AUTH_KEY = 'telugu_sports_auth_user';
+const ACCOUNT_KEY =
+  'tsb_demo_withdrawal_account';
 
-const STARTING_BALANCE = 10000;
+const TRANSACTION_KEY =
+  'telugu_sports_demo_withdrawals';
+
+const AUTH_KEY =
+  'telugu_sports_auth_user';
+
 const MIN_WITHDRAWAL = 100;
 const HISTORY_LIMIT = 20;
 
-export default function WithdrawalPage({ onBack }) {
-  const [showAddAccount, setShowAddAccount] = useState(false);
+export default function WithdrawalPage({
+  user,
+  onBack,
+}) {
+  const [
+    showAddAccount,
+    setShowAddAccount,
+  ] = useState(false);
 
-  const [account, setAccount] = useState(() => {
+  const [
+    account,
+    setAccount,
+  ] = useState(() => {
     try {
-      const saved = localStorage.getItem(ACCOUNT_KEY);
-      return saved ? JSON.parse(saved) : null;
+      const saved =
+        localStorage.getItem(
+          ACCOUNT_KEY
+        );
+
+      return saved
+        ? JSON.parse(saved)
+        : null;
     } catch {
       return null;
     }
   });
 
-  const [transactions, setTransactions] = useState(() => {
+  const [
+    transactions,
+    setTransactions,
+  ] = useState(() => {
     try {
-      const saved = localStorage.getItem(TRANSACTION_KEY);
-      const parsed = saved ? JSON.parse(saved) : [];
+      const saved =
+        localStorage.getItem(
+          TRANSACTION_KEY
+        );
 
-      return Array.isArray(parsed) ? parsed : [];
+      const parsed = saved
+        ? JSON.parse(saved)
+        : [];
+
+      return Array.isArray(parsed)
+        ? parsed
+        : [];
     } catch {
       return [];
     }
   });
 
-  const [balance, setBalance] = useState(() => {
-    try {
-      const saved = localStorage.getItem(BALANCE_KEY);
+  /* =====================================================
+     AVAILABLE BALANCE
+     DATABASE ONLY
+  ===================================================== */
 
-      if (saved === null) {
-        localStorage.setItem(
-          BALANCE_KEY,
-          String(STARTING_BALANCE)
-        );
+  const [
+    balance,
+    setBalance,
+  ] = useState(0);
 
-        return STARTING_BALANCE;
-      }
+  const [
+    balanceLoading,
+    setBalanceLoading,
+  ] = useState(true);
 
-      const parsed = Number(saved);
+  const [
+    balanceError,
+    setBalanceError,
+  ] = useState('');
 
-      return Number.isFinite(parsed)
-        ? parsed
-        : STARTING_BALANCE;
-    } catch {
-      return STARTING_BALANCE;
-    }
-  });
+  /* =====================================================
+     FORM
+  ===================================================== */
 
-  const [form, setForm] = useState({
+  const [
+    form,
+    setForm,
+  ] = useState({
     holderName: '',
     bankName: '',
     accountNumber: '',
@@ -64,13 +100,182 @@ export default function WithdrawalPage({ onBack }) {
     password: '',
   });
 
-  const [amount, setAmount] = useState('');
+  const [
+    amount,
+    setAmount,
+  ] = useState('');
+
+  /* =====================================================
+     CURRENT CUSTOMER
+  ===================================================== */
+
+  const getCustomer = () => {
+    /*
+      First preference:
+      user prop supplied by dashboard.
+
+      Fallback:
+      authenticated user saved in localStorage.
+    */
+
+    if (user) {
+      return {
+        customerId:
+          user?.id ||
+          user?.customerId ||
+          user?.loginId ||
+          user?.identifier ||
+          '',
+
+        customerName:
+          user?.name ||
+          user?.username ||
+          user?.loginId ||
+          'Demo User',
+      };
+    }
+
+    try {
+      const saved =
+        localStorage.getItem(
+          AUTH_KEY
+        );
+
+      if (!saved) {
+        return {
+          customerId: '',
+          customerName:
+            'Demo User',
+        };
+      }
+
+      const savedUser =
+        JSON.parse(saved);
+
+      return {
+        customerId:
+          savedUser?.id ||
+          savedUser?.customerId ||
+          savedUser?.loginId ||
+          savedUser?.username ||
+          savedUser?.identifier ||
+          savedUser?.mobile ||
+          savedUser?.email ||
+          '',
+
+        customerName:
+          savedUser?.name ||
+          savedUser?.username ||
+          savedUser?.loginId ||
+          'Demo User',
+      };
+    } catch {
+      return {
+        customerId: '',
+        customerName:
+          'Demo User',
+      };
+    }
+  };
+
+  const customer =
+    getCustomer();
+
+  /* =====================================================
+     LOAD AVAILABLE BALANCE FROM SERVER
+  ===================================================== */
+
+  const loadBalance =
+    async () => {
+      const customerId =
+        customer.customerId;
+
+      if (!customerId) {
+        setBalance(0);
+
+        setBalanceError(
+          'Customer ID not available.'
+        );
+
+        setBalanceLoading(
+          false
+        );
+
+        return;
+      }
+
+      setBalanceLoading(true);
+      setBalanceError('');
+
+      try {
+        const response =
+          await fetch(
+            `/api/customers/${encodeURIComponent(
+              customerId
+            )}/demo-balance`
+          );
+
+        const data =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data?.error ||
+              'Unable to load available balance.'
+          );
+        }
+
+        const nextBalance =
+          Number(
+            data?.balance ??
+              data?.demo_coin_balance ??
+              data?.customer
+                ?.demo_coin_balance ??
+              0
+          );
+
+        setBalance(
+          Number.isFinite(
+            nextBalance
+          )
+            ? nextBalance
+            : 0
+        );
+      } catch (error) {
+        console.error(
+          'Available Balance Load Error:',
+          error
+        );
+
+        setBalance(0);
+
+        setBalanceError(
+          error?.message ||
+            'Unable to load available balance.'
+        );
+      } finally {
+        setBalanceLoading(
+          false
+        );
+      }
+    };
+
+  useEffect(() => {
+    loadBalance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customer.customerId]);
+
+  /* =====================================================
+     SAVE WITHDRAWAL HISTORY
+  ===================================================== */
 
   useEffect(() => {
     try {
       localStorage.setItem(
         TRANSACTION_KEY,
-        JSON.stringify(transactions)
+        JSON.stringify(
+          transactions
+        )
       );
     } catch (error) {
       console.error(
@@ -80,365 +285,382 @@ export default function WithdrawalPage({ onBack }) {
     }
   }, [transactions]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        BALANCE_KEY,
-        String(balance)
-      );
+  /* =====================================================
+     FORM UPDATE
+  ===================================================== */
 
-      window.dispatchEvent(
-        new CustomEvent('tsb-demo-balance-updated', {
-          detail: {
-            balance,
-          },
-        })
-      );
-    } catch (error) {
-      console.error(
-        'Unable to save demo balance:',
-        error
-      );
-    }
-  }, [balance]);
-
-  const getCustomer = () => {
-    try {
-      const saved = localStorage.getItem(AUTH_KEY);
-
-      if (!saved) {
-        return {
-          customerId: 'DEMO',
-          customerName: 'Demo User',
-        };
-      }
-
-      const user = JSON.parse(saved);
-
-      return {
-        customerId:
-          user?.customerId ||
-          user?.loginId ||
-          user?.username ||
-          user?.identifier ||
-          user?.mobile ||
-          user?.email ||
-          'DEMO',
-
-        customerName:
-          user?.name ||
-          user?.username ||
-          'Demo User',
-      };
-    } catch {
-      return {
-        customerId: 'DEMO',
-        customerName: 'Demo User',
-      };
-    }
-  };
-
-  const updateForm = (field, value) => {
-    setForm((previous) => ({
-      ...previous,
-      [field]: value,
-    }));
+  const updateForm = (
+    field,
+    value
+  ) => {
+    setForm(
+      (previous) => ({
+        ...previous,
+        [field]: value,
+      })
+    );
   };
 
   /* =====================================================
      SAVE / CHANGE BANK ACCOUNT
-     PASSWORD IS REQUIRED ONLY HERE
   ===================================================== */
 
-  const saveAccount = (event) => {
-    event.preventDefault();
+  const saveAccount =
+    (event) => {
+      event.preventDefault();
 
-    const holderName =
-      form.holderName.trim();
+      const holderName =
+        form.holderName.trim();
 
-    const bankName =
-      form.bankName.trim();
+      const bankName =
+        form.bankName.trim();
 
-    const accountNumber =
-      form.accountNumber.trim();
+      const accountNumber =
+        form.accountNumber.trim();
 
-    const confirmAccountNumber =
-      form.confirmAccountNumber.trim();
+      const confirmAccountNumber =
+        form.confirmAccountNumber.trim();
 
-    const ifsc =
-      form.ifsc
-        .trim()
-        .toUpperCase();
+      const ifsc =
+        form.ifsc
+          .trim()
+          .toUpperCase();
 
-    const password =
-      form.password;
+      const password =
+        form.password;
 
-    if (!holderName) {
-      alert('Enter account holder name');
-      return;
-    }
+      if (!holderName) {
+        alert(
+          'Enter account holder name'
+        );
 
-    if (!bankName) {
-      alert('Enter bank name');
-      return;
-    }
+        return;
+      }
 
-    if (
-      !/^[0-9]{9,18}$/.test(
-        accountNumber
-      )
-    ) {
-      alert(
-        'Enter a valid account number'
+      if (!bankName) {
+        alert(
+          'Enter bank name'
+        );
+
+        return;
+      }
+
+      if (
+        !/^[0-9]{9,18}$/.test(
+          accountNumber
+        )
+      ) {
+        alert(
+          'Enter a valid account number'
+        );
+
+        return;
+      }
+
+      if (
+        accountNumber !==
+        confirmAccountNumber
+      ) {
+        alert(
+          'Account numbers do not match'
+        );
+
+        return;
+      }
+
+      if (
+        !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(
+          ifsc
+        )
+      ) {
+        alert(
+          'Enter a valid IFSC code'
+        );
+
+        return;
+      }
+
+      if (
+        password.length < 6
+      ) {
+        alert(
+          'Enter your Withdrawal Password'
+        );
+
+        return;
+      }
+
+      const newAccount = {
+        holderName,
+        bankName,
+        accountNumber,
+        ifsc,
+
+        /*
+          Demo-only local verification value.
+        */
+
+        password,
+      };
+
+      try {
+        localStorage.setItem(
+          ACCOUNT_KEY,
+          JSON.stringify(
+            newAccount
+          )
+        );
+      } catch (error) {
+        console.error(
+          'Unable to save withdrawal account:',
+          error
+        );
+
+        alert(
+          'Unable to save account'
+        );
+
+        return;
+      }
+
+      setAccount(
+        newAccount
       );
-      return;
-    }
 
-    if (
-      accountNumber !==
-      confirmAccountNumber
-    ) {
-      alert(
-        'Account numbers do not match'
+      setShowAddAccount(
+        false
       );
-      return;
-    }
 
-    if (
-      !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(
-        ifsc
-      )
-    ) {
-      alert(
-        'Enter a valid IFSC code'
-      );
-      return;
-    }
-
-    if (
-      password.length < 6
-    ) {
-      alert(
-        'Enter your Withdrawal Password'
-      );
-      return;
-    }
-
-    const newAccount = {
-      holderName,
-      bankName,
-      accountNumber,
-      ifsc,
-
-      /*
-        Demo-only local verification value.
-        This password is NOT requested for
-        every withdrawal.
-      */
-      password,
+      setForm({
+        holderName: '',
+        bankName: '',
+        accountNumber: '',
+        confirmAccountNumber:
+          '',
+        ifsc: '',
+        password: '',
+      });
     };
-
-    try {
-      localStorage.setItem(
-        ACCOUNT_KEY,
-        JSON.stringify(newAccount)
-      );
-    } catch (error) {
-      console.error(
-        'Unable to save withdrawal account:',
-        error
-      );
-
-      alert(
-        'Unable to save account'
-      );
-
-      return;
-    }
-
-    setAccount(newAccount);
-
-    setShowAddAccount(false);
-
-    setForm({
-      holderName: '',
-      bankName: '',
-      accountNumber: '',
-      confirmAccountNumber: '',
-      ifsc: '',
-      password: '',
-    });
-  };
 
   /* =====================================================
      DEMO WITHDRAWAL
-     NO PASSWORD REQUIRED HERE
-     NO SUCCESS ALERT POPUP
   ===================================================== */
 
-  const handleWithdraw = (event) => {
-    event.preventDefault();
+  const handleWithdraw =
+    (event) => {
+      event.preventDefault();
 
-    if (!account) {
-      alert(
-        'Please add a bank account first'
+      if (!account) {
+        alert(
+          'Please add a bank account first'
+        );
+
+        return;
+      }
+
+      const value =
+        Number(amount);
+
+      if (
+        !Number.isInteger(
+          value
+        ) ||
+        value <
+          MIN_WITHDRAWAL
+      ) {
+        alert(
+          `Minimum withdrawal is ${MIN_WITHDRAWAL} demo coins`
+        );
+
+        return;
+      }
+
+      if (
+        balanceLoading
+      ) {
+        alert(
+          'Please wait. Available balance is loading.'
+        );
+
+        return;
+      }
+
+      if (balanceError) {
+        alert(
+          'Available balance could not be verified.'
+        );
+
+        return;
+      }
+
+      if (
+        value > balance
+      ) {
+        alert(
+          'LOW BALANCE'
+        );
+
+        return;
+      }
+
+      const transaction = {
+        id:
+          `TSBW${Date.now()}`,
+
+        customerId:
+          customer.customerId,
+
+        customerName:
+          customer.customerName,
+
+        amount:
+          value,
+
+        status:
+          'PENDING',
+
+        holderName:
+          account.holderName,
+
+        bankName:
+          account.bankName,
+
+        accountNumber:
+          account.accountNumber,
+
+        ifsc:
+          account.ifsc,
+
+        accountLast4:
+          account.accountNumber.slice(
+            -4
+          ),
+
+        createdAt:
+          new Date().toISOString(),
+
+        date:
+          new Date().toLocaleString(
+            'en-IN'
+          ),
+
+        coinsHeld:
+          value,
+
+        coinsRestored:
+          false,
+
+        type:
+          'DEMO_WITHDRAWAL',
+      };
+
+      /*
+        This page only creates the
+        demo request locally.
+
+        It does NOT create or invent
+        a default 10,000 balance.
+      */
+
+      const nextTransactions =
+        [
+          transaction,
+          ...transactions,
+        ];
+
+      setTransactions(
+        nextTransactions
       );
 
-      return;
-    }
+      try {
+        localStorage.setItem(
+          TRANSACTION_KEY,
+          JSON.stringify(
+            nextTransactions
+          )
+        );
+      } catch (error) {
+        console.error(
+          'Unable to submit demo withdrawal request:',
+          error
+        );
+      }
 
-    const value =
-      Number(amount);
+      /*
+        Temporarily reflect held
+        demo coins in this page UI.
+      */
 
-    if (
-      !Number.isInteger(value) ||
-      value < MIN_WITHDRAWAL
-    ) {
-      alert(
-        `Minimum withdrawal is ${MIN_WITHDRAWAL} demo coins`
+      setBalance(
+        (previous) =>
+          Math.max(
+            0,
+            Number(previous) -
+              value
+          )
       );
 
-      return;
-    }
-
-    if (
-      value > balance
-    ) {
-      alert('LOW BALANCE');
-      return;
-    }
-
-    const customer =
-      getCustomer();
-
-    const transaction = {
-      id: `TSBW${Date.now()}`,
-
-      customerId:
-        customer.customerId,
-
-      customerName:
-        customer.customerName,
-
-      amount: value,
-
-      status: 'PENDING',
-
-      holderName:
-        account.holderName,
-
-      bankName:
-        account.bankName,
-
-      accountNumber:
-        account.accountNumber,
-
-      ifsc:
-        account.ifsc,
-
-      accountLast4:
-        account.accountNumber.slice(-4),
-
-      createdAt:
-        new Date().toISOString(),
-
-      date:
-        new Date().toLocaleString(
-          'en-IN'
-        ),
-
-      coinsHeld: value,
-
-      coinsRestored: false,
-
-      type:
-        'DEMO_WITHDRAWAL',
-    };
-
-    const nextBalance =
-      balance - value;
-
-    const nextTransactions = [
-      transaction,
-      ...transactions,
-    ];
-
-    setBalance(
-      nextBalance
-    );
-
-    setTransactions(
-      nextTransactions
-    );
-
-    try {
-      localStorage.setItem(
-        BALANCE_KEY,
-        String(nextBalance)
-      );
-
-      localStorage.setItem(
-        TRANSACTION_KEY,
-        JSON.stringify(
-          nextTransactions
+      window.dispatchEvent(
+        new CustomEvent(
+          'tsb-demo-balance-updated',
+          {
+            detail: {
+              balance:
+                Math.max(
+                  0,
+                  balance -
+                    value
+                ),
+            },
+          }
         )
       );
-    } catch (error) {
-      console.error(
-        'Unable to submit demo withdrawal request:',
-        error
-      );
-    }
 
-    /*
-      IMPORTANT:
-      No alert popup here.
-
-      Request automatically appears
-      in Withdrawal History as PENDING.
-    */
-
-    setAmount('');
-  };
+      setAmount('');
+    };
 
   /* =====================================================
      DELETE ACCOUNT
   ===================================================== */
 
-  const deleteAccount = () => {
-    const confirmed =
-      window.confirm(
-        'Remove saved demo bank account?'
+  const deleteAccount =
+    () => {
+      const confirmed =
+        window.confirm(
+          'Remove saved demo bank account?'
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        localStorage.removeItem(
+          ACCOUNT_KEY
+        );
+      } catch (error) {
+        console.error(
+          'Unable to remove account:',
+          error
+        );
+      }
+
+      setAccount(null);
+
+      setShowAddAccount(
+        false
       );
 
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      localStorage.removeItem(
-        ACCOUNT_KEY
-      );
-    } catch (error) {
-      console.error(
-        'Unable to remove account:',
-        error
-      );
-    }
-
-    setAccount(null);
-
-    setShowAddAccount(false);
-
-    setForm({
-      holderName: '',
-      bankName: '',
-      accountNumber: '',
-      confirmAccountNumber: '',
-      ifsc: '',
-      password: '',
-    });
-  };
+      setForm({
+        holderName: '',
+        bankName: '',
+        accountNumber: '',
+        confirmAccountNumber:
+          '',
+        ifsc: '',
+        password: '',
+      });
+    };
 
   /* =====================================================
      HELPERS
@@ -465,15 +687,19 @@ export default function WithdrawalPage({ onBack }) {
       ).toUpperCase();
 
     if (
-      normalized === 'APPROVED' ||
-      normalized === 'SUCCESS'
+      normalized ===
+        'APPROVED' ||
+      normalized ===
+        'SUCCESS'
     ) {
       return 'border border-green-500 bg-green-50 text-green-700';
     }
 
     if (
-      normalized === 'REJECTED' ||
-      normalized === 'REJECT'
+      normalized ===
+        'REJECTED' ||
+      normalized ===
+        'REJECT'
     ) {
       return 'border border-red-500 bg-red-50 text-red-700';
     }
@@ -486,6 +712,10 @@ export default function WithdrawalPage({ onBack }) {
       0,
       HISTORY_LIMIT
     );
+
+  /* =====================================================
+     UI
+  ===================================================== */
 
   return (
     <div className="min-h-screen bg-[#f3f2f7] text-gray-900">
@@ -528,24 +758,52 @@ export default function WithdrawalPage({ onBack }) {
           ← BACK
         </button>
 
-        {/* BALANCE */}
+        {/* AVAILABLE BALANCE */}
 
         <section className="mb-5 rounded-xl bg-white p-5 text-center shadow-sm">
 
           <p className="text-xs font-bold text-gray-500">
-            AVAILABLE DEMO BALANCE
+            AVAILABLE BALANCE
           </p>
 
           <h2 className="mt-2 text-3xl font-black text-teal-800">
-            🪙{' '}
-            {balance.toLocaleString(
-              'en-IN'
-            )}
+
+            {balanceLoading
+              ? 'Loading...'
+              : `🪙 ${Number(
+                  balance
+                ).toLocaleString(
+                  'en-IN'
+                )}`}
+
           </h2>
 
-          <p className="mt-1 text-xs text-gray-500">
-            Demo Coins
-          </p>
+          {!balanceLoading &&
+            !balanceError && (
+              <p className="mt-1 text-xs text-gray-500">
+                Demo Coins
+              </p>
+            )}
+
+          {balanceError && (
+            <div className="mt-3">
+
+              <p className="text-xs font-bold text-red-600">
+                {balanceError}
+              </p>
+
+              <button
+                type="button"
+                onClick={
+                  loadBalance
+                }
+                className="mt-2 rounded-lg bg-teal-800 px-4 py-2 text-xs font-black text-white"
+              >
+                RETRY
+              </button>
+
+            </div>
+          )}
 
         </section>
 
@@ -591,8 +849,6 @@ export default function WithdrawalPage({ onBack }) {
               Withdrawal Password is required only when adding or changing a bank account.
             </p>
 
-            {/* HOLDER NAME */}
-
             <div>
 
               <label className="mb-1 block text-xs font-bold text-gray-600">
@@ -619,8 +875,6 @@ export default function WithdrawalPage({ onBack }) {
 
             </div>
 
-            {/* BANK NAME */}
-
             <div>
 
               <label className="mb-1 block text-xs font-bold text-gray-600">
@@ -646,8 +900,6 @@ export default function WithdrawalPage({ onBack }) {
               />
 
             </div>
-
-            {/* ACCOUNT NUMBER */}
 
             <div>
 
@@ -679,8 +931,6 @@ export default function WithdrawalPage({ onBack }) {
 
             </div>
 
-            {/* CONFIRM ACCOUNT NUMBER */}
-
             <div>
 
               <label className="mb-1 block text-xs font-bold text-gray-600">
@@ -711,8 +961,6 @@ export default function WithdrawalPage({ onBack }) {
 
             </div>
 
-            {/* IFSC */}
-
             <div>
 
               <label className="mb-1 block text-xs font-bold text-gray-600">
@@ -738,8 +986,6 @@ export default function WithdrawalPage({ onBack }) {
               />
 
             </div>
-
-            {/* PASSWORD */}
 
             <div>
 
@@ -770,8 +1016,6 @@ export default function WithdrawalPage({ onBack }) {
               </p>
 
             </div>
-
-            {/* SAVE */}
 
             <button
               type="submit"
@@ -846,8 +1090,6 @@ export default function WithdrawalPage({ onBack }) {
 
             </div>
 
-            {/* ACCOUNT DETAILS */}
-
             <div className="overflow-hidden rounded-xl bg-gray-100">
 
               <AccountRow
@@ -875,8 +1117,6 @@ export default function WithdrawalPage({ onBack }) {
               />
 
             </div>
-
-            {/* WITHDRAW FORM */}
 
             <form
               onSubmit={
@@ -914,8 +1154,6 @@ export default function WithdrawalPage({ onBack }) {
 
               </div>
 
-              {/* QUICK AMOUNTS */}
-
               <div className="grid grid-cols-4 gap-2">
 
                 {[
@@ -927,9 +1165,7 @@ export default function WithdrawalPage({ onBack }) {
                   (value) => (
 
                     <button
-                      key={
-                        value
-                      }
+                      key={value}
                       type="button"
                       onClick={() =>
                         setAmount(
@@ -950,11 +1186,15 @@ export default function WithdrawalPage({ onBack }) {
 
               </div>
 
-              {/* NO PASSWORD FIELD HERE */}
-
               <button
                 type="submit"
-                className="w-full rounded-md bg-red-700 py-4 text-lg font-black text-white"
+                disabled={
+                  balanceLoading ||
+                  Boolean(
+                    balanceError
+                  )
+                }
+                className="w-full rounded-md bg-red-700 py-4 text-lg font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 WITHDRAW
               </button>
@@ -1101,8 +1341,6 @@ export default function WithdrawalPage({ onBack }) {
           </div>
 
         </section>
-
-        {/* FOOTER */}
 
         <p className="py-6 text-center text-[10px] text-gray-500">
           Demo Withdrawal System — No Real Money Transfers
