@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import DepositPage from './DepositPage';
 import WithdrawalPage from './WithdrawalPage';
