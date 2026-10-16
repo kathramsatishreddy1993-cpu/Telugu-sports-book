@@ -3976,7 +3976,7 @@ app.get(
   APPROVED
   REJECTED
 */
-          app.patch(
+   app.patch(
   '/api/admin/demo-withdrawals/:id/status',
   async (req, res) => {
     const client = await pool.connect();
@@ -4015,8 +4015,9 @@ app.get(
       await client.query('BEGIN');
 
       /*
-        Lock the withdrawal request so that
-        the same request cannot restore coins twice.
+        Lock withdrawal request.
+        This prevents double approve/reject
+        and double coin restoration.
       */
 
       const requestResult = await client.query(
@@ -4035,7 +4036,7 @@ app.get(
             created_at,
             updated_at
           FROM demo_withdrawal_requests
-          WHERE id = $1
+          WHERE id = $1::INTEGER
           FOR UPDATE
         `,
         [requestId]
@@ -4055,65 +4056,41 @@ app.get(
 
       const currentStatus = String(
         currentRequest.status || ''
-      ).toUpperCase();
+      )
+        .trim()
+        .toUpperCase();
 
       /*
-        If already in the requested status,
-        return safely without changing balance.
+        Already completed requests cannot
+        be changed again.
       */
 
-      if (currentStatus === nextStatus) {
-        await client.query('COMMIT');
+      if (
+        currentStatus === 'APPROVED' ||
+        currentStatus === 'REJECTED'
+      ) {
+        await client.query('ROLLBACK');
 
-        return res.json({
-          success: true,
-          request: {
-            id: currentRequest.id,
-            customerId:
-              currentRequest.customer_id,
-            amount:
-              Number(currentRequest.amount),
-            accountHolderName:
-              currentRequest.account_holder_name,
-            bankName:
-              currentRequest.bank_name,
-            accountNumber:
-              currentRequest.account_number,
-            ifscCode:
-              currentRequest.ifsc_code,
-            status:
-              currentRequest.status,
-            createdAt:
-              currentRequest.created_at,
-            updatedAt:
-              currentRequest.updated_at,
-          },
+        return res.status(409).json({
+          success: false,
+          error: `Withdrawal request is already ${currentStatus}.`,
         });
       }
-
-      /*
-        Only a PENDING request can be
-        approved or rejected.
-
-        This prevents an APPROVED request
-        from later becoming REJECTED and
-        incorrectly restoring coins.
-      */
 
       if (currentStatus !== 'PENDING') {
         await client.query('ROLLBACK');
 
         return res.status(409).json({
           success: false,
-          error:
-            'This withdrawal request has already been finalized.',
+          error: 'Only PENDING withdrawal requests can be updated.',
         });
       }
 
       /*
-        REJECTED:
-        Restore coins only when they were
-        actually held/deducted for this request.
+        REJECT:
+        Restore demo coins only when
+        this request actually held coins
+        and they have not already been restored.
       */
 
       if (
@@ -4126,9 +4103,9 @@ app.get(
             UPDATE customers
             SET
               demo_coin_balance =
-                demo_coin_balance + $1,
+                demo_coin_balance + $1::INTEGER,
               updated_at = NOW()
-            WHERE id = $2
+            WHERE id = $2::INTEGER
           `,
           [
             Number(currentRequest.amount),
@@ -4144,61 +4121,76 @@ app.get(
               transaction_type,
               note
             )
-            VALUES ($1, $2, $3, $4)
+            VALUES (
+              $1::INTEGER,
+              $2::INTEGER,
+              'WITHDRAWAL_RESTORE',
+              $3::TEXT
+            )
           `,
           [
             Number(currentRequest.customer_id),
             Number(currentRequest.amount),
-            'ADD',
-            `Withdrawal #${requestId} rejected - demo coins restored`,
+            `Withdrawal request #${requestId} rejected - demo coins restored`,
           ]
         );
       }
 
-      const updatedResult =
-        await client.query(
-          `
-            UPDATE demo_withdrawal_requests
-            SET
-              status = $1,
-              coins_restored =
-                CASE
-                  WHEN $1 = 'REJECTED'
-                       AND coins_held = TRUE
-                  THEN TRUE
-                  ELSE coins_restored
-                END,
-              updated_at = NOW()
-            WHERE id = $2
-            RETURNING
-              id,
-              customer_id,
-              amount,
-              account_holder_name,
-              bank_name,
-              account_number,
-              ifsc_code,
-              status,
-              coins_held,
-              coins_restored,
-              created_at,
-              updated_at
-          `,
-          [
-            nextStatus,
-            requestId,
-          ]
-        );
+      /*
+        Update withdrawal status.
+
+        Explicit VARCHAR cast prevents:
+        PostgreSQL 42P08
+        text versus character varying
+      */
+
+      const updateResult = await client.query(
+        `
+          UPDATE demo_withdrawal_requests
+          SET
+            status = $1::VARCHAR(20),
+
+            coins_restored =
+              CASE
+                WHEN $1::VARCHAR(20) = 'REJECTED'
+                     AND coins_held = TRUE
+                THEN TRUE
+                ELSE coins_restored
+              END,
+
+            updated_at = NOW()
+
+          WHERE id = $2::INTEGER
+
+          RETURNING
+            id,
+            customer_id,
+            amount,
+            account_holder_name,
+            bank_name,
+            account_number,
+            ifsc_code,
+            status,
+            coins_held,
+            coins_restored,
+            created_at,
+            updated_at
+        `,
+        [
+          nextStatus,
+          requestId,
+        ]
+      );
 
       const updatedRequest =
-        updatedResult.rows[0];
+        updateResult.rows[0];
 
       const balanceResult =
         await client.query(
           `
             SELECT demo_coin_balance
             FROM customers
-            WHERE id = $1
+            WHERE id = $1::INTEGER
             LIMIT 1
           `,
           [
@@ -4208,11 +4200,10 @@ app.get(
           ]
         );
 
-      const demoCoinBalance =
-        Number(
-          balanceResult.rows[0]
-            ?.demo_coin_balance || 0
-        );
+      const demoCoinBalance = Number(
+        balanceResult.rows[0]
+          ?.demo_coin_balance || 0
+      );
 
       await client.query('COMMIT');
 
@@ -4242,6 +4233,12 @@ app.get(
 
           status:
             updatedRequest.status,
+
+          coinsHeld:
+            updatedRequest.coins_held,
+
+          coinsRestored:
+            updatedRequest.coins_restored,
 
           createdAt:
             updatedRequest.created_at,
@@ -4276,7 +4273,7 @@ app.get(
       client.release();
     }
   }
-);
+);       
       
 /* =========================================================
 API 404
