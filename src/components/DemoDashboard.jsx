@@ -622,8 +622,13 @@ export default function DemoDashboard({
 
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-400/30 bg-gradient-to-br from-amber-400/20 to-orange-500/10 text-xl shadow-[0_0_20px_rgba(245,158,11,.12)]">
-                🏆
+
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-amber-400/30 bg-black/20 shadow-[0_0_20px_rgba(245,158,11,.12)]">
+                <img
+                  src="/games/file_0000000092bc82118617f615539c5f17.png"
+                  alt="TSB Logo"
+                  className="h-full w-full object-contain"
+                />
               </div>
 
               <div>
@@ -710,8 +715,6 @@ export default function DemoDashboard({
         <div className="mt-2 overflow-hidden rounded-lg border border-cyan-500/10 bg-black/20">
           <NeonScrollingLine />
         </div>
-
-        {/* ACTION CARDS */}
 
         <div className="mt-3 grid grid-cols-2 gap-3">
 
@@ -910,7 +913,7 @@ export default function DemoDashboard({
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
 
                   <span className="text-[7px] font-black uppercase tracking-wider text-red-400">
-                    LIVE
+                    Live
                   </span>
                 </div>
 
@@ -996,15 +999,11 @@ export default function DemoDashboard({
 
       </section>
 
-      {/* FEATURED */}
-
       <GameSection
         title="FEATURED GAMES"
         games={featuredGames}
         onGameClick={setSelectedGame}
       />
-
-      {/* NEW LAUNCH */}
 
       <GameSection
         title="NEW LAUNCH"
@@ -1012,15 +1011,11 @@ export default function DemoDashboard({
         onGameClick={setSelectedGame}
       />
 
-      {/* FAVOURITES */}
-
       <GameSection
         title="MY FAVOURITES"
         games={favourites}
         onGameClick={setSelectedGame}
       />
-
-      {/* PROVIDERS */}
 
       <GameSection
         title="OUR PROVIDERS"
@@ -1032,16 +1027,16 @@ export default function DemoDashboard({
 
       <footer className="border-t border-white/10 bg-[#050911] px-5 py-8 text-center">
 
-        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/5 text-xl">
-          🏆
+        <div className="mx-auto h-16 w-16 overflow-hidden rounded-xl border border-cyan-400/20 bg-black/20 p-1">
+          <img
+            src="/games/file_0000000092bc82118617f615539c5f17.png"
+            alt="TSB Logo"
+            className="h-full w-full object-contain"
+          />
         </div>
 
         <p className="mt-3 text-sm font-black text-white">
           TELUGU SPORTS BOOK
-        </p>
-
-        <p className="mt-1 text-[8px] font-black uppercase tracking-[0.18em] text-cyan-500">
-          SPORTS & ENTERTAINMENT
         </p>
 
         <p className="mx-auto mt-3 max-w-xl text-[9px] leading-5 text-gray-600">
