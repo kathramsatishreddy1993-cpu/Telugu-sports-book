@@ -76,7 +76,7 @@ export default function AdminDashboard({
     useState('');
 
   /* =====================================================
-     DEMO COIN MANAGEMENT
+     COIN MANAGEMENT
   ===================================================== */
 
   const [coinCustomerId, setCoinCustomerId] =
@@ -947,7 +947,7 @@ export default function AdminDashboard({
         request.amount || 0
       ).toLocaleString(
         'en-IN'
-      )} demo coins withdrawal request?`
+      )} coins withdrawal request?`
     );
 
     if (!confirmed) return;
@@ -996,7 +996,7 @@ export default function AdminDashboard({
         request.amount || 0
       ).toLocaleString(
         'en-IN'
-      )} demo coins withdrawal request?`
+      )} coins withdrawal request?`
     );
 
     if (!confirmed) return;
@@ -1015,7 +1015,7 @@ export default function AdminDashboard({
   };
 
   /* =====================================================
-     DEMO COIN MANAGEMENT
+     COIN MANAGEMENT
   ===================================================== */
 
   const changeDemoCoins = async (mode) => {
@@ -1035,7 +1035,7 @@ export default function AdminDashboard({
       amount <= 0
     ) {
       setCoinMessage(
-        'Enter a valid whole-number Demo Coin amount.'
+        'Enter a valid whole-number Coin amount.'
       );
       return;
     }
@@ -1055,7 +1055,7 @@ export default function AdminDashboard({
 
     if (mode !== 'ADD') {
       setCoinMessage(
-        'Remove Demo Coins is not available yet.'
+        'Remove Coins is not available yet.'
       );
       return;
     }
@@ -1072,7 +1072,7 @@ export default function AdminDashboard({
           body: JSON.stringify({
             amount,
             note:
-              'Demo Coins added by Admin',
+              'Coins added by Admin',
           }),
         }
       );
@@ -1082,7 +1082,7 @@ export default function AdminDashboard({
       if (!response.ok) {
         throw new Error(
           data?.error ||
-            'Unable to add Demo Coins.'
+            'Unable to add Coins.'
         );
       }
 
@@ -1117,7 +1117,7 @@ export default function AdminDashboard({
       setCoinMessage(
         `${amount.toLocaleString(
           'en-IN'
-        )} Demo Coins added to ${
+        )} Coins added to ${
           customer.name
         }. New balance: ${nextBalance.toLocaleString(
           'en-IN'
@@ -1125,13 +1125,13 @@ export default function AdminDashboard({
       );
     } catch (error) {
       console.error(
-        'Demo Coin Update Error:',
+        'Coin Update Error:',
         error
       );
 
       setCoinMessage(
         error?.message ||
-          'Unable to update Demo Coins.'
+          'Unable to update Coins.'
       );
     }
   };
@@ -1491,11 +1491,6 @@ export default function AdminDashboard({
                       ✕ REJECT
                     </button>
                   </div>
-
-                  <p className="mt-3 text-center text-[7px] text-gray-500">
-                    Informational demonstration review only.
-                    Approval does not verify or process a real payment.
-                  </p>
                 </div>
               ))}
           </div>
@@ -1587,7 +1582,7 @@ export default function AdminDashboard({
 
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <InfoBox
-                      label="REQUESTED DEMO COINS"
+                      label="REQUESTED COINS"
                       value={Number(
                         request.amount || 0
                       ).toLocaleString(
@@ -1674,11 +1669,6 @@ export default function AdminDashboard({
                       ✕ REJECT
                     </button>
                   </div>
-
-                  <p className="mt-3 text-center text-[7px] text-gray-500">
-                    Demonstration review only.
-                    No real-money transfer is performed.
-                  </p>
                 </div>
               ))}
           </div>
@@ -1982,11 +1972,7 @@ export default function AdminDashboard({
         >
           <div className="rounded-xl border border-[#28655f] bg-[#083d37] p-4">
             <p className="text-xs font-black text-amber-300">
-              DEMO COIN CONTROL
-            </p>
-
-            <p className="mt-2 text-[8px] leading-4 text-gray-400">
-              Simulation only. This does not represent real money.
+              COIN CONTROL
             </p>
 
             <label className="mt-4 block text-[8px] font-black text-gray-400">
@@ -2020,7 +2006,7 @@ export default function AdminDashboard({
             </select>
 
             <CustomerInput
-              label="DEMO COINS"
+              label="COINS"
               type="number"
               value={coinAmount}
               onChange={(e) =>
@@ -2038,7 +2024,7 @@ export default function AdminDashboard({
                 }
                 className="h-[46px] rounded-lg bg-green-700 text-[10px] font-black"
               >
-                + ADD DEMO COINS
+                + ADD COINS
               </button>
 
               <button
@@ -2050,7 +2036,7 @@ export default function AdminDashboard({
                 }
                 className="h-[46px] rounded-lg bg-red-700 text-[10px] font-black"
               >
-                − REMOVE DEMO COINS
+                − REMOVE COINS
               </button>
             </div>
 
@@ -2067,7 +2053,7 @@ export default function AdminDashboard({
 
           <div className="mt-3 space-y-2">
             {coinHistory.length === 0 ? (
-              <EmptyState text="No demo coin activity yet" />
+              <EmptyState text="No coin activity yet" />
             ) : (
               coinHistory
                 .slice(0, 20)
@@ -2283,7 +2269,7 @@ export default function AdminDashboard({
                           ).toLocaleString(
                             'en-IN'
                           )}{' '}
-                          DEMO COINS
+                          COINS
                         </p>
 
                         <p className="mt-1 text-[8px] text-gray-400">
@@ -2333,11 +2319,6 @@ export default function AdminDashboard({
               )
             )}
           </div>
-
-          <p className="mt-5 text-center text-[7px] leading-4 text-gray-500">
-            Deposit and withdrawal records shown here are demonstration records.
-            No real-money payment or transfer is performed by this panel.
-          </p>
         </AdminPage>
       )}
 
