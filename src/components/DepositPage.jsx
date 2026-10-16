@@ -4,8 +4,8 @@ import React, {
   useState,
 } from 'react';
 
-const DEPOSIT_KEY =
-  'telugu_sports_demo_deposits';
+const AUTH_KEY =
+  'telugu_sports_auth_user';
 
 const PAYMENT_SETTINGS_KEY =
   'telugu_sports_payment_settings';
@@ -21,6 +21,117 @@ export default function DepositPage({
   user,
   onBack,
 }) {
+  /* =====================================================
+     CURRENT CUSTOMER
+  ===================================================== */
+
+  const customer =
+    useMemo(() => {
+      if (user) {
+        return {
+          customerId:
+            user?.id ||
+            user?.customerId ||
+            user?.loginId ||
+            user?.identifier ||
+            '',
+
+          loginId:
+            user?.loginId ||
+            user?.identifier ||
+            user?.id ||
+            user?.customerId ||
+            '',
+
+          customerName:
+            user?.name ||
+            user?.username ||
+            user?.loginId ||
+            'Customer',
+        };
+      }
+
+      try {
+        const saved =
+          localStorage.getItem(
+            AUTH_KEY
+          );
+
+        if (!saved) {
+          return {
+            customerId: '',
+            loginId: '',
+            customerName:
+              'Customer',
+          };
+        }
+
+        const savedUser =
+          JSON.parse(saved);
+
+        return {
+          customerId:
+            savedUser?.id ||
+            savedUser?.customerId ||
+            savedUser?.loginId ||
+            savedUser?.identifier ||
+            '',
+
+          loginId:
+            savedUser?.loginId ||
+            savedUser?.identifier ||
+            savedUser?.id ||
+            savedUser?.customerId ||
+            '',
+
+          customerName:
+            savedUser?.name ||
+            savedUser?.username ||
+            savedUser?.loginId ||
+            'Customer',
+        };
+      } catch {
+        return {
+          customerId: '',
+          loginId: '',
+          customerName:
+            'Customer',
+        };
+      }
+    }, [user]);
+
+  /*
+    Every customer receives
+    a separate deposit-history key.
+
+    Example:
+    Siri01 -> tsb_deposits_siri01
+    Gopi01 -> tsb_deposits_gopi01
+  */
+
+  const storageCustomerId =
+    useMemo(() => {
+      return String(
+        customer.customerId ||
+          customer.loginId ||
+          ''
+      )
+        .trim()
+        .toLowerCase()
+        .replace(
+          /[^a-z0-9_-]/g,
+          '_'
+        );
+    }, [
+      customer.customerId,
+      customer.loginId,
+    ]);
+
+  const depositKey =
+    storageCustomerId
+      ? `tsb_deposits_${storageCustomerId}`
+      : '';
+
   /* =====================================================
      STEP
   ===================================================== */
@@ -95,44 +206,47 @@ export default function DepositPage({
   const [
     transactions,
     setTransactions,
-  ] = useState(() => {
+  ] = useState([]);
+
+  /* =====================================================
+     LOAD CUSTOMER-SPECIFIC DEPOSIT HISTORY
+  ===================================================== */
+
+  useEffect(() => {
+    setTransactions([]);
+
+    if (!depositKey) {
+      return;
+    }
+
     try {
       const saved =
         localStorage.getItem(
-          DEPOSIT_KEY
+          depositKey
         );
 
-      const parsed = saved
-        ? JSON.parse(saved)
-        : [];
+      if (!saved) {
+        setTransactions([]);
+        return;
+      }
 
-      return Array.isArray(parsed)
-        ? parsed
-        : [];
-    } catch {
-      return [];
+      const parsed =
+        JSON.parse(saved);
+
+      setTransactions(
+        Array.isArray(parsed)
+          ? parsed
+          : []
+      );
+    } catch (loadError) {
+      console.error(
+        'Unable to load deposit history:',
+        loadError
+      );
+
+      setTransactions([]);
     }
-  });
-
-  /* =====================================================
-     CURRENT USER
-  ===================================================== */
-
-  const customerId =
-    user?.id ||
-    user?.customerId ||
-    '';
-
-  const customerLoginId =
-    user?.loginId ||
-    user?.identifier ||
-    user?.id ||
-    'demo-user';
-
-  const customerName =
-    user?.name ||
-    customerLoginId ||
-    'Demo User';
+  }, [depositKey]);
 
   /* =====================================================
      AVAILABLE BALANCE FROM DATABASE
@@ -153,23 +267,32 @@ export default function DepositPage({
 
     const loadBalance =
       async () => {
-        if (!customerId) {
+        if (
+          !customer.customerId
+        ) {
           if (!cancelled) {
             setAvailableBalance(0);
-            setBalanceLoading(false);
+            setBalanceLoading(
+              false
+            );
           }
 
           return;
         }
 
         try {
-          setBalanceLoading(true);
+          setBalanceLoading(
+            true
+          );
 
           const response =
             await fetch(
-              `/api/customers/${customerId}/demo-balance`,
+              `/api/customers/${encodeURIComponent(
+                customer.customerId
+              )}/demo-balance`,
               {
-                cache: 'no-store',
+                cache:
+                  'no-store',
               }
             );
 
@@ -183,14 +306,27 @@ export default function DepositPage({
             );
           }
 
+          const nextBalance =
+            Number(
+              data?.balance ??
+                data?.demo_coin_balance ??
+                data?.customer
+                  ?.demo_coin_balance ??
+                0
+            );
+
           if (!cancelled) {
             setAvailableBalance(
-              Number(
-                data?.balance || 0
+              Number.isFinite(
+                nextBalance
               )
+                ? nextBalance
+                : 0
             );
           }
-        } catch (balanceError) {
+        } catch (
+          balanceError
+        ) {
           console.error(
             'Deposit Balance Load Error:',
             balanceError
@@ -201,7 +337,9 @@ export default function DepositPage({
           }
         } finally {
           if (!cancelled) {
-            setBalanceLoading(false);
+            setBalanceLoading(
+              false
+            );
           }
         }
       };
@@ -211,7 +349,7 @@ export default function DepositPage({
     return () => {
       cancelled = true;
     };
-  }, [customerId]);
+  }, [customer.customerId]);
 
   const formattedBalance =
     Number(
@@ -392,7 +530,6 @@ export default function DepositPage({
 
   /* =====================================================
      STEP 1
-     AMOUNT → CONTINUE
   ===================================================== */
 
   const continueFromAmount =
@@ -426,7 +563,6 @@ export default function DepositPage({
 
   /* =====================================================
      STEP 2
-     METHOD → CONTINUE
   ===================================================== */
 
   const continueFromMethod =
@@ -440,6 +576,27 @@ export default function DepositPage({
         top: 0,
         behavior: 'smooth',
       });
+    };
+
+  /* =====================================================
+     UTR
+     EXACTLY 12 DIGITS
+  ===================================================== */
+
+  const handleUtrChange =
+    (event) => {
+      /*
+        Numbers only.
+        Maximum 12 digits.
+      */
+
+      const digitsOnly =
+        event.target.value
+          .replace(/\D/g, '')
+          .slice(0, 12);
+
+      setUtr(digitsOnly);
+      setError('');
     };
 
   /* =====================================================
@@ -536,6 +693,17 @@ export default function DepositPage({
       setError('');
       setMessage('');
 
+      if (
+        !customer.customerId &&
+        !customer.loginId
+      ) {
+        setError(
+          'Customer ID not available. Please login again.'
+        );
+
+        return;
+      }
+
       const numericAmount =
         Number(amount);
 
@@ -555,11 +723,21 @@ export default function DepositPage({
       }
 
       const cleanUtr =
-        utr.trim();
+        String(utr)
+          .trim();
 
-      if (!cleanUtr) {
+      /*
+        UTR MUST BE EXACTLY
+        12 NUMERIC DIGITS.
+      */
+
+      if (
+        !/^\d{12}$/.test(
+          cleanUtr
+        )
+      ) {
         setError(
-          'Please enter UTR / reference number.'
+          'UTR number must contain exactly 12 digits.'
         );
 
         return;
@@ -573,23 +751,28 @@ export default function DepositPage({
         return;
       }
 
+      /*
+        CUSTOMER LOCAL DUPLICATE CHECK.
+
+        Final server-wide duplicate
+        protection will also be added
+        in the backend/database.
+      */
+
       const duplicate =
         transactions.some(
           (transaction) =>
             String(
-              transaction
-                ?.reference ||
+              transaction?.reference ||
                 transaction?.utr ||
                 ''
-            )
-              .trim()
-              .toLowerCase() ===
-            cleanUtr.toLowerCase()
+            ).trim() ===
+            cleanUtr
         );
 
       if (duplicate) {
         setError(
-          'This UTR / Reference Number has already been submitted. Please enter a new UTR.'
+          'REPEATED UTR — This UTR number has already been submitted.'
         );
 
         return;
@@ -600,15 +783,16 @@ export default function DepositPage({
 
       const newTransaction = {
         id:
-          Date.now(),
+          `TSBD${Date.now()}`,
 
         customerId:
-          customerLoginId,
+          customer.customerId,
 
         loginId:
-          customerLoginId,
+          customer.loginId,
 
-        customerName,
+        customerName:
+          customer.customerName,
 
         amount:
           numericAmount,
@@ -654,8 +838,14 @@ export default function DepositPage({
         ];
 
       try {
+        if (!depositKey) {
+          throw new Error(
+            'Customer storage key unavailable.'
+          );
+        }
+
         localStorage.setItem(
-          DEPOSIT_KEY,
+          depositKey,
           JSON.stringify(
             updatedTransactions
           )
@@ -670,7 +860,7 @@ export default function DepositPage({
         );
 
         setError(
-          'Unable to save screenshot. Please upload a smaller screenshot and try again.'
+          'Unable to save request. Please upload a smaller screenshot and try again.'
         );
 
         return;
@@ -682,11 +872,12 @@ export default function DepositPage({
       setProofPreview('');
 
       setMessage(
-        'Demo deposit request submitted successfully. Admin review is pending.'
+        'Deposit request submitted successfully. Admin review is pending.'
       );
 
       setStep(1);
       setAmount('');
+
       setSelectedMethod(
         'ACCOUNT'
       );
@@ -718,6 +909,34 @@ export default function DepositPage({
 
       onBack?.();
     };
+
+  /* =====================================================
+     CURRENT CUSTOMER HISTORY
+  ===================================================== */
+
+  const customerTransactions =
+    transactions.filter(
+      (transaction) => {
+        const transactionCustomerId =
+          String(
+            transaction?.customerId ||
+              transaction?.loginId ||
+              ''
+          );
+
+        const currentCustomerId =
+          String(
+            customer.customerId ||
+              customer.loginId ||
+              ''
+          );
+
+        return (
+          transactionCustomerId ===
+          currentCustomerId
+        );
+      }
+    );
 
   /* =====================================================
      UI
@@ -773,11 +992,15 @@ export default function DepositPage({
               </p>
 
               <p className="mt-1 text-xs font-black">
-                {customerName}
+                {
+                  customer.customerName
+                }
               </p>
 
               <p className="mt-1 text-[8px] text-amber-300">
-                {customerLoginId}
+                {
+                  customer.loginId
+                }
               </p>
 
             </div>
@@ -798,20 +1021,6 @@ export default function DepositPage({
             </div>
 
           </div>
-
-        </section>
-
-        {/* DEMO NOTICE */}
-
-        <section className="mt-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
-
-          <p className="text-[9px] font-black text-amber-300">
-            DEMONSTRATION ONLY
-          </p>
-
-          <p className="mt-1 text-[9px] leading-4 text-gray-300">
-            No real payment is processed by this page.
-          </p>
 
         </section>
 
@@ -1170,22 +1379,39 @@ export default function DepositPage({
             <label className="mt-5 block">
 
               <span className="text-[10px] font-black text-gray-300">
-                UTR / REFERENCE NUMBER
+                UTR NUMBER
               </span>
 
               <input
                 type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={12}
                 value={utr}
-                onChange={(event) => {
-                  setUtr(
-                    event.target.value
-                  );
-
-                  setError('');
-                }}
-                placeholder="Enter UTR / reference number"
+                onChange={
+                  handleUtrChange
+                }
+                placeholder="Enter 12 digit UTR number"
                 className="mt-2 h-[50px] w-full rounded-lg border border-[#39756f] bg-[#062f2b] px-3 text-sm font-bold text-white outline-none focus:border-amber-400"
               />
+
+              <div className="mt-2 flex items-center justify-between gap-2">
+
+                <p className="text-[8px] text-gray-400">
+                  Enter exactly 12 numbers
+                </p>
+
+                <p
+                  className={`text-[8px] font-black ${
+                    utr.length === 12
+                      ? 'text-green-300'
+                      : 'text-amber-300'
+                  }`}
+                >
+                  {utr.length}/12
+                </p>
+
+              </div>
 
             </label>
 
@@ -1218,7 +1444,9 @@ export default function DepositPage({
                 </p>
 
                 <img
-                  src={proofPreview}
+                  src={
+                    proofPreview
+                  }
                   alt="Payment proof preview"
                   className="max-h-[420px] w-full rounded-lg object-contain"
                 />
@@ -1246,7 +1474,7 @@ export default function DepositPage({
               type="submit"
               className="mt-5 h-[48px] w-full rounded-lg border border-white bg-green-700 text-xs font-black"
             >
-              SUBMIT DEMO DEPOSIT
+              SUBMIT DEPOSIT
             </button>
 
           </form>
@@ -1267,13 +1495,13 @@ export default function DepositPage({
 
             </div>
 
-            {transactions.length ===
+            {customerTransactions.length ===
             0 ? (
 
               <div className="px-3 py-6 text-center">
 
                 <p className="text-[10px] text-gray-400">
-                  No demo deposit requests yet.
+                  No deposit requests yet.
                 </p>
 
               </div>
@@ -1282,7 +1510,7 @@ export default function DepositPage({
 
               <div>
 
-                {transactions.map(
+                {customerTransactions.map(
                   (
                     transaction
                   ) => (
@@ -1326,7 +1554,8 @@ export default function DepositPage({
                       <p className="mt-2 break-all text-[9px] text-gray-300">
                         UTR:{' '}
                         {
-                          transaction.reference
+                          transaction.reference ||
+                          transaction.utr
                         }
                       </p>
 
@@ -1348,8 +1577,14 @@ export default function DepositPage({
           </section>
         )}
 
+        {/*
+          Keep one clear disclosure.
+          Repeated DEMO wording has
+          been removed from the UI.
+        */}
+
         <p className="px-4 py-6 text-center text-[8px] leading-4 text-gray-500">
-          For demonstration and informational purposes only. No real-money transactions.
+          Informational demonstration only. No real-money transactions are processed by this page.
         </p>
 
       </main>
