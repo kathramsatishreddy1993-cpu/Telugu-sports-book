@@ -911,8 +911,20 @@ app.get(
 
 async (req, res) => {
 try {
-const result =
-await pool.query(  SELECT   id,   name,   login_id,   must_change_password,   withdrawal_password_hash,   must_change_withdrawal_password,   status,   created_at   FROM customers   ORDER BY id DESC  );
+const result = await pool.query(`
+  SELECT
+    id,
+    name,
+    login_id,
+    must_change_password,
+    withdrawal_password_hash,
+    must_change_withdrawal_password,
+    status,
+    demo_coin_balance,
+    created_at
+  FROM customers
+  ORDER BY id DESC
+`);
 
 return res.json({  
     success: true,  
