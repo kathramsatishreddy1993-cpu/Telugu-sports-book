@@ -3364,9 +3364,10 @@ app.patch(
 /* =========================================================
    DEMO WITHDRAWAL REQUESTS API
    ========================================================= */
-
-// Customer creates withdrawal request
+// Customer creates demo withdrawal request
 app.post('/api/demo-withdrawals', async (req, res) => {
+  const client = await pool.connect();
+
   try {
     const {
       customerId,
@@ -3380,14 +3381,24 @@ app.post('/api/demo-withdrawals', async (req, res) => {
     const cleanCustomerId = Number(customerId);
     const cleanAmount = Number(amount);
 
-    if (!Number.isInteger(cleanCustomerId) || cleanCustomerId <= 0) {
+    /* =====================================================
+       VALIDATION
+    ===================================================== */
+
+    if (
+      !Number.isInteger(cleanCustomerId) ||
+      cleanCustomerId <= 0
+    ) {
       return res.status(400).json({
         success: false,
         error: 'Valid customer ID is required.',
       });
     }
 
-    if (!Number.isInteger(cleanAmount) || cleanAmount <= 0) {
+    if (
+      !Number.isInteger(cleanAmount) ||
+      cleanAmount <= 0
+    ) {
       return res.status(400).json({
         success: false,
         error: 'Valid withdrawal amount is required.',
@@ -3406,17 +3417,31 @@ app.post('/api/demo-withdrawals', async (req, res) => {
       });
     }
 
-    const customerResult = await pool.query(
+    await client.query('BEGIN');
+
+    /* =====================================================
+       GET CUSTOMER + LOCK BALANCE ROW
+    ===================================================== */
+
+    const customerResult = await client.query(
       `
-        SELECT id, name, login_id, status, demo_coin_balance
+        SELECT
+          id,
+          name,
+          login_id,
+          status,
+          demo_coin_balance
         FROM customers
         WHERE id = $1
         LIMIT 1
+        FOR UPDATE
       `,
       [cleanCustomerId]
     );
 
     if (customerResult.rowCount === 0) {
+      await client.query('ROLLBACK');
+
       return res.status(404).json({
         success: false,
         error: 'Customer not found.',
@@ -3425,14 +3450,42 @@ app.post('/api/demo-withdrawals', async (req, res) => {
 
     const customer = customerResult.rows[0];
 
-    if (customer.status !== 'ACTIVE') {
+    if (
+      String(customer.status).toUpperCase() !==
+      'ACTIVE'
+    ) {
+      await client.query('ROLLBACK');
+
       return res.status(403).json({
         success: false,
         error: 'Customer account is not active.',
       });
     }
 
-    const result = await pool.query(
+    const currentBalance = Number(
+      customer.demo_coin_balance || 0
+    );
+
+    /* =====================================================
+       LOW BALANCE CHECK
+    ===================================================== */
+
+    if (cleanAmount > currentBalance) {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        success: false,
+        code: 'LOW_BALANCE',
+        error: 'LOW BALANCE',
+        balance: currentBalance,
+      });
+    }
+
+    /* =====================================================
+       CREATE PENDING DEMO REQUEST
+    ===================================================== */
+
+    const withdrawalResult = await client.query(
       `
         INSERT INTO demo_withdrawal_requests (
           customer_id,
@@ -3443,8 +3496,26 @@ app.post('/api/demo-withdrawals', async (req, res) => {
           ifsc_code,
           status
         )
-        VALUES ($1, $2, $3, $4, $5, $6, 'PENDING')
-        RETURNING *
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          'PENDING'
+        )
+        RETURNING
+          id,
+          customer_id,
+          amount,
+          account_holder_name,
+          bank_name,
+          account_number,
+          ifsc_code,
+          status,
+          created_at,
+          updated_at
       `,
       [
         cleanCustomerId,
@@ -3456,34 +3527,128 @@ app.post('/api/demo-withdrawals', async (req, res) => {
       ]
     );
 
-    const request = result.rows[0];
+    /* =====================================================
+       DEDUCT DEMO COINS
+       Simulation only
+    ===================================================== */
+
+    const balanceResult = await client.query(
+      `
+        UPDATE customers
+        SET
+          demo_coin_balance =
+            demo_coin_balance - $1,
+          updated_at = NOW()
+        WHERE id = $2
+        RETURNING demo_coin_balance
+      `,
+      [
+        cleanAmount,
+        cleanCustomerId,
+      ]
+    );
+
+    /* =====================================================
+       RECORD DEMO COIN TRANSACTION
+    ===================================================== */
+
+    await client.query(
+      `
+        INSERT INTO demo_coin_transactions (
+          customer_id,
+          amount,
+          transaction_type,
+          note
+        )
+        VALUES (
+          $1,
+          $2,
+          'WITHDRAWAL_HOLD',
+          $3
+        )
+      `,
+      [
+        cleanCustomerId,
+        -cleanAmount,
+        'Demo withdrawal request submitted',
+      ]
+    );
+
+    await client.query('COMMIT');
+
+    const request =
+      withdrawalResult.rows[0];
+
+    const newBalance = Number(
+      balanceResult.rows[0]
+        .demo_coin_balance || 0
+    );
 
     return res.status(201).json({
       success: true,
+
+      message:
+        'Demo withdrawal request submitted successfully.',
+
+      balance: newBalance,
+
       request: {
         id: request.id,
-        customerId: request.customer_id,
-        customerName: customer.name,
-        loginId: customer.login_id,
-        amount: request.amount,
-        accountHolderName: request.account_holder_name,
-        bankName: request.bank_name,
-        accountNumber: request.account_number,
-        ifscCode: request.ifsc_code,
-        status: request.status,
-        createdAt: request.created_at,
-        updatedAt: request.updated_at,
+
+        customerId:
+          request.customer_id,
+
+        customerName:
+          customer.name,
+
+        loginId:
+          customer.login_id,
+
+        amount:
+          Number(request.amount),
+
+        accountHolderName:
+          request.account_holder_name,
+
+        bankName:
+          request.bank_name,
+
+        accountNumber:
+          request.account_number,
+
+        ifscCode:
+          request.ifsc_code,
+
+        status:
+          request.status,
+
+        createdAt:
+          request.created_at,
+
+        updatedAt:
+          request.updated_at,
       },
     });
   } catch (error) {
-    console.error('Create Demo Withdrawal Error:', error);
+    try {
+      await client.query('ROLLBACK');
+    } catch {}
+
+    console.error(
+      'Create Demo Withdrawal Error:',
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      error: 'Unable to create withdrawal request.',
+      error:
+        'Unable to create demo withdrawal request.',
     });
+  } finally {
+    client.release();
   }
 });
+
 /* =========================================================
    DEMO WITHDRAWAL REQUESTS - STEP 2B
    Customer History + Admin List + Admin Status Update
