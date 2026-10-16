@@ -1055,93 +1055,138 @@ export default function AdminDashboard({
      DEMO COINS
   ===================================================== */
 
-  const changeDemoCoins = (
-    mode
-  ) => {
-    setCoinMessage('');
+  const changeDemoCoins = async (mode) => {
+  setCoinMessage('');
 
-    if (!coinCustomerId) {
-      setCoinMessage(
-        'Select customer first.'
-      );
-      return;
-    }
+  if (!coinCustomerId) {
+    setCoinMessage(
+      'Select customer first.'
+    );
+    return;
+  }
 
-    const amount =
-      Number(coinAmount);
+  const amount = Number(coinAmount);
 
-    if (
-      !Number.isFinite(amount) ||
-      amount <= 0
-    ) {
-      setCoinMessage(
-        'Enter valid demo coin amount.'
-      );
-      return;
-    }
+  if (
+    !Number.isInteger(amount) ||
+    amount <= 0
+  ) {
+    setCoinMessage(
+      'Enter a valid whole-number Demo Coin amount.'
+    );
+    return;
+  }
 
-    const customer =
-      customers.find(
-        (item) =>
-          String(item.loginId) ===
-          String(coinCustomerId)
-      );
+  const customer =
+    customers.find(
+      (item) =>
+        String(item.id) ===
+        String(coinCustomerId)
+    );
 
-    try {
-      const current =
-        Number(
-          localStorage.getItem(
-            BALANCE_KEY
-          ) || 10000
-        );
+  if (!customer) {
+    setCoinMessage(
+      'Selected customer was not found.'
+    );
+    return;
+  }
 
-      const safeCurrent =
-        Number.isFinite(current)
-          ? current
-          : 10000;
+  if (mode !== 'ADD') {
+    setCoinMessage(
+      'Remove Demo Coins is not available yet.'
+    );
+    return;
+  }
 
-      let nextBalance =
-        safeCurrent;
+  try {
+    const response = await fetch(
+      `/api/admin/customers/${customer.id}/add-demo-coins`,
+      {
+        method: 'POST',
 
-      if (mode === 'ADD') {
-        nextBalance =
-          safeCurrent + amount;
-      } else {
-        nextBalance =
-          Math.max(
-            0,
-            safeCurrent - amount
-          );
+        headers: {
+          'Content-Type':
+            'application/json',
+        },
+
+        body: JSON.stringify({
+          amount,
+          note:
+            'Demo Coins added by Admin',
+        }),
       }
+    );
 
-      localStorage.setItem(
-        BALANCE_KEY,
-        String(nextBalance)
+    const data =
+      await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data?.error ||
+          'Unable to add Demo Coins.'
+      );
+    }
+
+    const nextBalance =
+      Number(
+        data?.customer
+          ?.demo_coin_balance || 0
       );
 
-      const record = {
-        id: Date.now(),
+    const record = {
+      id: Date.now(),
 
-        customerId:
-          coinCustomerId,
+      customerId:
+        customer.id,
 
-        customerName:
-          customer?.name ||
-          coinCustomerId,
+      loginId:
+        customer.loginId,
 
-        type: mode,
+      customerName:
+        customer.name ||
+        customer.loginId,
 
-        amount,
+      type: 'ADD',
 
-        balance:
-          nextBalance,
+      amount,
 
-        date:
-          new Date().toLocaleString(
-            'en-IN'
-          ),
-      };
+      balance:
+        nextBalance,
 
+      date:
+        new Date().toLocaleString(
+          'en-IN'
+        ),
+    };
+
+    setCoinHistory(
+      (previous) => [
+        record,
+        ...previous,
+      ]
+    );
+
+    setCoinAmount('');
+
+    setCoinMessage(
+      `${amount.toLocaleString(
+        'en-IN'
+      )} Demo Coins added to ${customer.name}. New balance: ${nextBalance.toLocaleString(
+        'en-IN'
+      )}`
+    );
+  } catch (error) {
+    console.error(
+      'Demo Coin Update Error:',
+      error
+    );
+
+    setCoinMessage(
+      error?.message ||
+        'Unable to update Demo Coins.'
+    );
+  }
+};
       setCoinHistory(
         (previous) => [
           record,
@@ -2125,7 +2170,7 @@ export default function AdminDashboard({
                       customer.id
                     }
                     value={
-                      customer.loginId
+                       customer.id
                     }
                   >
                     {customer.name} -{' '}
