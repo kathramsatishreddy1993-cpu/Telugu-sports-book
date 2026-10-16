@@ -1,13 +1,11 @@
 import React, {
+  useEffect,
   useMemo,
   useState,
 } from 'react';
 
 const DEPOSIT_KEY =
   'telugu_sports_demo_deposits';
-
-const BALANCE_KEY =
-  'telugu_sports_demo_balance';
 
 const PAYMENT_SETTINGS_KEY =
   'telugu_sports_payment_settings';
@@ -117,34 +115,13 @@ export default function DepositPage({
   });
 
   /* =====================================================
-     BALANCE
-  ===================================================== */
-
-  const formattedBalance =
-    useMemo(() => {
-      try {
-        const saved =
-          Number(
-            localStorage.getItem(
-              BALANCE_KEY
-            ) || 10000
-          );
-
-        return Number.isFinite(
-          saved
-        )
-          ? saved.toLocaleString(
-              'en-IN'
-            )
-          : '10,000';
-      } catch {
-        return '10,000';
-      }
-    }, []);
-
-  /* =====================================================
      CURRENT USER
   ===================================================== */
+
+  const customerId =
+    user?.id ||
+    user?.customerId ||
+    '';
 
   const customerLoginId =
     user?.loginId ||
@@ -156,6 +133,92 @@ export default function DepositPage({
     user?.name ||
     customerLoginId ||
     'Demo User';
+
+  /* =====================================================
+     AVAILABLE BALANCE FROM DATABASE
+  ===================================================== */
+
+  const [
+    availableBalance,
+    setAvailableBalance,
+  ] = useState(0);
+
+  const [
+    balanceLoading,
+    setBalanceLoading,
+  ] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadBalance =
+      async () => {
+        if (!customerId) {
+          if (!cancelled) {
+            setAvailableBalance(0);
+            setBalanceLoading(false);
+          }
+
+          return;
+        }
+
+        try {
+          setBalanceLoading(true);
+
+          const response =
+            await fetch(
+              `/api/customers/${customerId}/demo-balance`,
+              {
+                cache: 'no-store',
+              }
+            );
+
+          const data =
+            await response.json();
+
+          if (!response.ok) {
+            throw new Error(
+              data?.error ||
+                'Unable to load balance.'
+            );
+          }
+
+          if (!cancelled) {
+            setAvailableBalance(
+              Number(
+                data?.balance || 0
+              )
+            );
+          }
+        } catch (balanceError) {
+          console.error(
+            'Deposit Balance Load Error:',
+            balanceError
+          );
+
+          if (!cancelled) {
+            setAvailableBalance(0);
+          }
+        } finally {
+          if (!cancelled) {
+            setBalanceLoading(false);
+          }
+        }
+      };
+
+    loadBalance();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId]);
+
+  const formattedBalance =
+    Number(
+      availableBalance || 0
+    ).toLocaleString(
+      'en-IN'
+    );
 
   /* =====================================================
      PAYMENT SETTINGS HELPERS
@@ -413,11 +476,6 @@ export default function DepositPage({
         return;
       }
 
-      /*
-        Keep proof small because this
-        demo uses localStorage.
-      */
-
       const maxSize =
         1.5 * 1024 * 1024;
 
@@ -515,10 +573,6 @@ export default function DepositPage({
         return;
       }
 
-      /*
-        Duplicate UTR check
-      */
-
       const duplicate =
         transactions.some(
           (transaction) =>
@@ -572,11 +626,6 @@ export default function DepositPage({
           proofName,
 
         proofName,
-
-        /*
-          This is what Admin uses
-          to display the screenshot.
-        */
 
         proofData,
 
@@ -736,11 +785,14 @@ export default function DepositPage({
             <div className="text-right">
 
               <p className="text-[8px] font-black text-gray-400">
-                DEMO BALANCE
+                AVAILABLE BALANCE
               </p>
 
               <p className="mt-1 text-sm font-black text-amber-300">
-                🪙 {formattedBalance}
+                🪙{' '}
+                {balanceLoading
+                  ? '...'
+                  : formattedBalance}
               </p>
 
             </div>
@@ -1115,8 +1167,6 @@ export default function DepositPage({
 
             </div>
 
-            {/* UTR */}
-
             <label className="mt-5 block">
 
               <span className="text-[10px] font-black text-gray-300">
@@ -1139,8 +1189,6 @@ export default function DepositPage({
 
             </label>
 
-            {/* PROOF */}
-
             <label className="mt-5 block">
 
               <span className="text-[10px] font-black text-gray-300">
@@ -1161,8 +1209,6 @@ export default function DepositPage({
               />
 
             </label>
-
-            {/* PREVIEW */}
 
             {proofPreview && (
               <div className="mt-4 overflow-hidden rounded-xl border border-green-500/40 bg-black/20 p-2">
