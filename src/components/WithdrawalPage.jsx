@@ -4,8 +4,7 @@ import React, {
   useState,
 } from 'react';
 
-const AUTH_KEY =
-  'telugu_sports_auth_user';
+const AUTH_KEY = 'telugu_sports_auth_user';
 
 const MIN_WITHDRAWAL = 100;
 const HISTORY_LIMIT = 20;
@@ -19,107 +18,65 @@ export default function WithdrawalPage({
   ===================================================== */
 
   const customer = useMemo(() => {
-    if (user) {
-      return {
-        customerId:
-          user?.id ||
-          user?.customerId ||
-          user?.loginId ||
-          user?.identifier ||
-          '',
+    let source = user;
 
-        customerName:
-          user?.name ||
-          user?.username ||
-          user?.loginId ||
-          'Customer',
-      };
-    }
+    if (!source) {
+      try {
+        const saved = localStorage.getItem(AUTH_KEY);
 
-    try {
-      const saved =
-        localStorage.getItem(
-          AUTH_KEY
+        if (saved) {
+          source = JSON.parse(saved);
+        }
+      } catch (error) {
+        console.error(
+          'Unable to read customer:',
+          error
         );
-
-      if (!saved) {
-        return {
-          customerId: '',
-          customerName:
-            'Customer',
-        };
       }
-
-      const savedUser =
-        JSON.parse(saved);
-
-      return {
-        customerId:
-          savedUser?.id ||
-          savedUser?.customerId ||
-          savedUser?.loginId ||
-          savedUser?.username ||
-          savedUser?.identifier ||
-          savedUser?.mobile ||
-          savedUser?.email ||
-          '',
-
-        customerName:
-          savedUser?.name ||
-          savedUser?.username ||
-          savedUser?.loginId ||
-          'Customer',
-      };
-    } catch {
-      return {
-        customerId: '',
-        customerName:
-          'Customer',
-      };
     }
+
+    return {
+      customerId: Number(
+        source?.id ||
+          source?.customerId ||
+          0
+      ),
+
+      customerName:
+        source?.name ||
+        source?.username ||
+        source?.loginId ||
+        source?.identifier ||
+        'Customer',
+
+      loginId:
+        source?.loginId ||
+        source?.identifier ||
+        '',
+    };
   }, [user]);
 
-  /*
-    IMPORTANT:
-    Every customer now receives separate
-    local storage keys.
+  /* =====================================================
+     CUSTOMER-SPECIFIC BANK STORAGE
+  ===================================================== */
 
-    Example:
+  const storageCustomerId = useMemo(() => {
+    if (!customer.customerId) {
+      return '';
+    }
 
-    Customer Siri01:
-    tsb_withdrawal_account_siri01
-    tsb_withdrawals_siri01
+    return String(customer.customerId)
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, '_');
+  }, [customer.customerId]);
 
-    Customer Gopi01:
-    tsb_withdrawal_account_gopi01
-    tsb_withdrawals_gopi01
-  */
-
-  const storageCustomerId =
-    useMemo(() => {
-      return String(
-        customer.customerId || ''
-      )
-        .trim()
-        .toLowerCase()
-        .replace(
-          /[^a-z0-9_-]/g,
-          '_'
-        );
-    }, [customer.customerId]);
-
-  const accountKey =
-    storageCustomerId
-      ? `tsb_withdrawal_account_${storageCustomerId}`
-      : '';
-
-  const transactionKey =
-    storageCustomerId
-      ? `tsb_withdrawals_${storageCustomerId}`
-      : '';
+  const accountKey = storageCustomerId
+    ? `tsb_withdrawal_account_${storageCustomerId}`
+    : '';
 
   /* =====================================================
-     ACCOUNT
+     STATE
   ===================================================== */
 
   const [
@@ -136,6 +93,21 @@ export default function WithdrawalPage({
     transactions,
     setTransactions,
   ] = useState([]);
+
+  const [
+    historyLoading,
+    setHistoryLoading,
+  ] = useState(false);
+
+  const [
+    historyError,
+    setHistoryError,
+  ] = useState('');
+
+  const [
+    submitting,
+    setSubmitting,
+  ] = useState(false);
 
   /* =====================================================
      AVAILABLE BALANCE
@@ -178,42 +150,34 @@ export default function WithdrawalPage({
   ] = useState('');
 
   /* =====================================================
-     LOAD CUSTOMER-SPECIFIC ACCOUNT
-     AND HISTORY
+     LOAD CUSTOMER BANK ACCOUNT
   ===================================================== */
 
   useEffect(() => {
     setAccount(null);
-    setTransactions([]);
     setShowAddAccount(false);
     setAmount('');
 
-    if (
-      !accountKey ||
-      !transactionKey
-    ) {
+    if (!accountKey) {
       return;
     }
 
     try {
       const savedAccount =
-        localStorage.getItem(
-          accountKey
-        );
+        localStorage.getItem(accountKey);
 
-      if (savedAccount) {
-        const parsedAccount =
-          JSON.parse(
-            savedAccount
-          );
+      if (!savedAccount) {
+        return;
+      }
 
-        setAccount(
-          parsedAccount &&
-            typeof parsedAccount ===
-              'object'
-            ? parsedAccount
-            : null
-        );
+      const parsedAccount =
+        JSON.parse(savedAccount);
+
+      if (
+        parsedAccount &&
+        typeof parsedAccount === 'object'
+      ) {
+        setAccount(parsedAccount);
       }
     } catch (error) {
       console.error(
@@ -223,150 +187,166 @@ export default function WithdrawalPage({
 
       setAccount(null);
     }
+  }, [accountKey]);
+
+  /* =====================================================
+     LOAD AVAILABLE BALANCE
+  ===================================================== */
+
+  const loadBalance = async () => {
+    const customerId =
+      customer.customerId;
+
+    if (!customerId) {
+      setBalance(0);
+
+      setBalanceError(
+        'Customer ID not available.'
+      );
+
+      setBalanceLoading(false);
+
+      return;
+    }
+
+    setBalanceLoading(true);
+    setBalanceError('');
 
     try {
-      const savedTransactions =
-        localStorage.getItem(
-          transactionKey
-        );
+      const response = await fetch(
+        `/api/customers/${encodeURIComponent(
+          customerId
+        )}/demo-balance`,
+        {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+          },
+          cache: 'no-store',
+        }
+      );
 
-      if (
-        savedTransactions
-      ) {
-        const parsed =
-          JSON.parse(
-            savedTransactions
-          );
+      const data = await response.json();
 
-        setTransactions(
-          Array.isArray(parsed)
-            ? parsed
-            : []
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            'Unable to load available balance.'
         );
       }
+
+      const nextBalance = Number(
+        data?.balance ??
+          data?.demo_coin_balance ??
+          data?.customer?.demo_coin_balance ??
+          0
+      );
+
+      setBalance(
+        Number.isFinite(nextBalance)
+          ? nextBalance
+          : 0
+      );
     } catch (error) {
       console.error(
-        'Unable to load withdrawal history:',
+        'Available Balance Load Error:',
         error
       );
 
-      setTransactions([]);
+      setBalance(0);
+
+      setBalanceError(
+        error?.message ||
+          'Unable to load available balance.'
+      );
+    } finally {
+      setBalanceLoading(false);
     }
-  }, [
-    accountKey,
-    transactionKey,
-  ]);
+  };
 
   /* =====================================================
-     LOAD AVAILABLE BALANCE FROM SERVER
+     LOAD WITHDRAWAL HISTORY FROM SERVER
   ===================================================== */
 
-  const loadBalance =
+  const loadWithdrawalHistory =
     async () => {
       const customerId =
         customer.customerId;
 
       if (!customerId) {
-        setBalance(0);
+        setTransactions([]);
 
-        setBalanceError(
+        setHistoryError(
           'Customer ID not available.'
-        );
-
-        setBalanceLoading(
-          false
         );
 
         return;
       }
 
-      setBalanceLoading(true);
-      setBalanceError('');
+      setHistoryLoading(true);
+      setHistoryError('');
 
       try {
-        const response =
-          await fetch(
-            `/api/customers/${encodeURIComponent(
-              customerId
-            )}/demo-balance`
-          );
+        const response = await fetch(
+          `/api/customers/${encodeURIComponent(
+            customerId
+          )}/demo-withdrawals`,
+          {
+            method: 'GET',
+            headers: {
+              Accept: 'application/json',
+            },
+            cache: 'no-store',
+          }
+        );
 
-        const data =
-          await response.json();
+        const data = await response.json();
 
         if (!response.ok) {
           throw new Error(
             data?.error ||
-              'Unable to load available balance.'
+              'Unable to load withdrawal history.'
           );
         }
 
-        const nextBalance =
-          Number(
-            data?.balance ??
-              data?.demo_coin_balance ??
-              data?.customer
-                ?.demo_coin_balance ??
-              0
-          );
+        const requests = Array.isArray(
+          data?.requests
+        )
+          ? data.requests
+          : [];
 
-        setBalance(
-          Number.isFinite(
-            nextBalance
-          )
-            ? nextBalance
-            : 0
-        );
+        setTransactions(requests);
       } catch (error) {
         console.error(
-          'Available Balance Load Error:',
+          'Withdrawal History Load Error:',
           error
         );
 
-        setBalance(0);
+        setTransactions([]);
 
-        setBalanceError(
+        setHistoryError(
           error?.message ||
-            'Unable to load available balance.'
+            'Unable to load withdrawal history.'
         );
       } finally {
-        setBalanceLoading(
-          false
-        );
+        setHistoryLoading(false);
       }
     };
 
-  useEffect(() => {
-    loadBalance();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customer.customerId]);
-
   /* =====================================================
-     SAVE CUSTOMER-SPECIFIC HISTORY
+     INITIAL SERVER LOAD
   ===================================================== */
 
   useEffect(() => {
-    if (!transactionKey) {
+    if (!customer.customerId) {
       return;
     }
 
-    try {
-      localStorage.setItem(
-        transactionKey,
-        JSON.stringify(
-          transactions
-        )
-      );
-    } catch (error) {
-      console.error(
-        'Unable to save withdrawal transactions:',
-        error
-      );
-    }
-  }, [
-    transactions,
-    transactionKey,
-  ]);
+    loadBalance();
+    loadWithdrawalHistory();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customer.customerId]);
 
   /* =====================================================
      FORM UPDATE
@@ -376,164 +356,168 @@ export default function WithdrawalPage({
     field,
     value
   ) => {
-    setForm(
-      (previous) => ({
-        ...previous,
-        [field]: value,
-      })
-    );
+    setForm((previous) => ({
+      ...previous,
+      [field]: value,
+    }));
   };
 
   /* =====================================================
      SAVE / CHANGE BANK ACCOUNT
   ===================================================== */
 
-  const saveAccount =
-    (event) => {
-      event.preventDefault();
+  const saveAccount = (event) => {
+    event.preventDefault();
 
-      if (!accountKey) {
-        alert(
-          'Customer ID not available'
-        );
-
-        return;
-      }
-
-      const holderName =
-        form.holderName.trim();
-
-      const bankName =
-        form.bankName.trim();
-
-      const accountNumber =
-        form.accountNumber.trim();
-
-      const confirmAccountNumber =
-        form.confirmAccountNumber.trim();
-
-      const ifsc =
-        form.ifsc
-          .trim()
-          .toUpperCase();
-
-      const password =
-        form.password;
-
-      if (!holderName) {
-        alert(
-          'Enter account holder name'
-        );
-
-        return;
-      }
-
-      if (!bankName) {
-        alert(
-          'Enter bank name'
-        );
-
-        return;
-      }
-
-      if (
-        !/^[0-9]{9,18}$/.test(
-          accountNumber
-        )
-      ) {
-        alert(
-          'Enter a valid account number'
-        );
-
-        return;
-      }
-
-      if (
-        accountNumber !==
-        confirmAccountNumber
-      ) {
-        alert(
-          'Account numbers do not match'
-        );
-
-        return;
-      }
-
-      if (
-        !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(
-          ifsc
-        )
-      ) {
-        alert(
-          'Enter a valid IFSC code'
-        );
-
-        return;
-      }
-
-      if (
-        password.length < 6
-      ) {
-        alert(
-          'Enter your Withdrawal Password'
-        );
-
-        return;
-      }
-
-      const newAccount = {
-        holderName,
-        bankName,
-        accountNumber,
-        ifsc,
-      };
-
-      try {
-        localStorage.setItem(
-          accountKey,
-          JSON.stringify(
-            newAccount
-          )
-        );
-      } catch (error) {
-        console.error(
-          'Unable to save withdrawal account:',
-          error
-        );
-
-        alert(
-          'Unable to save account'
-        );
-
-        return;
-      }
-
-      setAccount(
-        newAccount
+    if (!accountKey) {
+      alert(
+        'Customer ID not available'
       );
 
-      setShowAddAccount(
-        false
+      return;
+    }
+
+    const holderName =
+      form.holderName.trim();
+
+    const bankName =
+      form.bankName.trim();
+
+    const accountNumber =
+      form.accountNumber.trim();
+
+    const confirmAccountNumber =
+      form.confirmAccountNumber.trim();
+
+    const ifsc =
+      form.ifsc
+        .trim()
+        .toUpperCase();
+
+    const password =
+      form.password;
+
+    if (!holderName) {
+      alert(
+        'Enter account holder name'
       );
 
-      setForm({
-        holderName: '',
-        bankName: '',
-        accountNumber: '',
-        confirmAccountNumber:
-          '',
-        ifsc: '',
-        password: '',
-      });
+      return;
+    }
+
+    if (!bankName) {
+      alert(
+        'Enter bank name'
+      );
+
+      return;
+    }
+
+    if (
+      !/^[0-9]{9,18}$/.test(
+        accountNumber
+      )
+    ) {
+      alert(
+        'Enter a valid account number'
+      );
+
+      return;
+    }
+
+    if (
+      accountNumber !==
+      confirmAccountNumber
+    ) {
+      alert(
+        'Account numbers do not match'
+      );
+
+      return;
+    }
+
+    if (
+      !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(
+        ifsc
+      )
+    ) {
+      alert(
+        'Enter a valid IFSC code'
+      );
+
+      return;
+    }
+
+    /*
+      Withdrawal password remains required here.
+
+      Important:
+      It is NOT stored in localStorage.
+      Server-side verification can be connected
+      separately.
+    */
+
+    if (
+      !password ||
+      password.length < 6
+    ) {
+      alert(
+        'Enter your Withdrawal Password'
+      );
+
+      return;
+    }
+
+    const newAccount = {
+      holderName,
+      bankName,
+      accountNumber,
+      ifsc,
     };
 
+    try {
+      localStorage.setItem(
+        accountKey,
+        JSON.stringify(newAccount)
+      );
+    } catch (error) {
+      console.error(
+        'Unable to save withdrawal account:',
+        error
+      );
+
+      alert(
+        'Unable to save account'
+      );
+
+      return;
+    }
+
+    setAccount(newAccount);
+
+    setShowAddAccount(false);
+
+    setForm({
+      holderName: '',
+      bankName: '',
+      accountNumber: '',
+      confirmAccountNumber: '',
+      ifsc: '',
+      password: '',
+    });
+  };
+
   /* =====================================================
-     WITHDRAWAL REQUEST
+     SUBMIT WITHDRAWAL TO SERVER
   ===================================================== */
 
   const handleWithdraw =
-    (event) => {
+    async (event) => {
       event.preventDefault();
+
+      if (submitting) {
+        return;
+      }
 
       if (!account) {
         alert(
@@ -543,8 +527,14 @@ export default function WithdrawalPage({
         return;
       }
 
+      const customerId =
+        customer.customerId;
+
       if (
-        !customer.customerId
+        !Number.isInteger(
+          customerId
+        ) ||
+        customerId <= 0
       ) {
         alert(
           'Customer ID not available'
@@ -557,11 +547,8 @@ export default function WithdrawalPage({
         Number(amount);
 
       if (
-        !Number.isInteger(
-          value
-        ) ||
-        value <
-          MIN_WITHDRAWAL
+        !Number.isInteger(value) ||
+        value < MIN_WITHDRAWAL
       ) {
         alert(
           `Minimum withdrawal is ${MIN_WITHDRAWAL}`
@@ -570,9 +557,7 @@ export default function WithdrawalPage({
         return;
       }
 
-      if (
-        balanceLoading
-      ) {
+      if (balanceLoading) {
         alert(
           'Please wait. Available balance is loading.'
         );
@@ -588,172 +573,142 @@ export default function WithdrawalPage({
         return;
       }
 
-      if (
-        value > balance
-      ) {
-        alert(
-          'LOW BALANCE'
-        );
+      if (value > balance) {
+        alert('LOW BALANCE');
 
         return;
       }
 
-      const now =
-        new Date();
-
-      const transaction = {
-        id:
-          `TSBW${Date.now()}`,
-
-        customerId:
-          customer.customerId,
-
-        customerName:
-          customer.customerName,
-
-        amount:
-          value,
-
-        status:
-          'PENDING',
-
-        holderName:
-          account.holderName,
-
-        bankName:
-          account.bankName,
-
-        accountNumber:
-          account.accountNumber,
-
-        ifsc:
-          account.ifsc,
-
-        accountLast4:
-          account.accountNumber.slice(
-            -4
-          ),
-
-        createdAt:
-          now.toISOString(),
-
-        date:
-          now.toLocaleString(
-            'en-IN'
-          ),
-
-        coinsHeld:
-          value,
-
-        coinsRestored:
-          false,
-
-        type:
-          'WITHDRAWAL',
-      };
-
-      const nextTransactions =
-        [
-          transaction,
-          ...transactions,
-        ];
-
-      setTransactions(
-        nextTransactions
-      );
+      setSubmitting(true);
 
       try {
-        if (
-          transactionKey
-        ) {
-          localStorage.setItem(
-            transactionKey,
-            JSON.stringify(
-              nextTransactions
-            )
+        /*
+          STEP 2A SERVER ROUTE
+
+          POST /api/demo-withdrawals
+        */
+
+        const response = await fetch(
+          '/api/demo-withdrawals',
+          {
+            method: 'POST',
+
+            headers: {
+              'Content-Type':
+                'application/json',
+
+              Accept:
+                'application/json',
+            },
+
+            body: JSON.stringify({
+              customerId,
+              amount: value,
+
+              accountHolderName:
+                account.holderName,
+
+              bankName:
+                account.bankName,
+
+              accountNumber:
+                account.accountNumber,
+
+              ifscCode:
+                account.ifsc,
+            }),
+          }
+        );
+
+        const data =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data?.error ||
+              'Unable to submit withdrawal request.'
           );
         }
+
+        setAmount('');
+
+        /*
+          Reload directly from PostgreSQL.
+
+          This prevents another customer's
+          history from appearing here.
+        */
+
+        await loadWithdrawalHistory();
+
+        /*
+          Current balance is loaded again
+          from the server.
+
+          We do not create a fake
+          localStorage balance here.
+        */
+
+        await loadBalance();
+
+        alert(
+          'Withdrawal request submitted.'
+        );
       } catch (error) {
         console.error(
-          'Unable to submit withdrawal request:',
+          'Withdrawal Submit Error:',
           error
         );
-      }
 
-      const nextBalance =
-        Math.max(
-          0,
-          Number(balance) -
-            value
+        alert(
+          error?.message ||
+            'Unable to submit withdrawal request.'
         );
-
-      setBalance(
-        nextBalance
-      );
-
-      window.dispatchEvent(
-        new CustomEvent(
-          'tsb-demo-balance-updated',
-          {
-            detail: {
-              balance:
-                nextBalance,
-            },
-          }
-        )
-      );
-
-      setAmount('');
-
-      alert(
-        'Withdrawal request submitted.'
-      );
+      } finally {
+        setSubmitting(false);
+      }
     };
 
   /* =====================================================
-     DELETE ACCOUNT
+     DELETE SAVED BANK ACCOUNT
   ===================================================== */
 
-  const deleteAccount =
-    () => {
-      const confirmed =
-        window.confirm(
-          'Remove saved bank account?'
-        );
-
-      if (!confirmed) {
-        return;
-      }
-
-      try {
-        if (accountKey) {
-          localStorage.removeItem(
-            accountKey
-          );
-        }
-      } catch (error) {
-        console.error(
-          'Unable to remove account:',
-          error
-        );
-      }
-
-      setAccount(null);
-
-      setShowAddAccount(
-        false
+  const deleteAccount = () => {
+    const confirmed =
+      window.confirm(
+        'Remove saved bank account?'
       );
 
-      setForm({
-        holderName: '',
-        bankName: '',
-        accountNumber: '',
-        confirmAccountNumber:
-          '',
-        ifsc: '',
-        password: '',
-      });
-    };
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      if (accountKey) {
+        localStorage.removeItem(
+          accountKey
+        );
+      }
+    } catch (error) {
+      console.error(
+        'Unable to remove account:',
+        error
+      );
+    }
+
+    setAccount(null);
+
+    setShowAddAccount(false);
+
+    setForm({
+      holderName: '',
+      bankName: '',
+      accountNumber: '',
+      confirmAccountNumber: '',
+      ifsc: '',
+      password: '',
+    });
+  };
 
   /* =====================================================
      HELPERS
@@ -766,9 +721,9 @@ export default function WithdrawalPage({
       return '';
     }
 
-    return `XXXX XXXX ${number.slice(
-      -4
-    )}`;
+    return `XXXX XXXX ${String(
+      number
+    ).slice(-4)}`;
   };
 
   const statusClass = (
@@ -780,19 +735,15 @@ export default function WithdrawalPage({
       ).toUpperCase();
 
     if (
-      normalized ===
-        'APPROVED' ||
-      normalized ===
-        'SUCCESS'
+      normalized === 'APPROVED' ||
+      normalized === 'SUCCESS'
     ) {
       return 'border border-green-500 bg-green-50 text-green-700';
     }
 
     if (
-      normalized ===
-        'REJECTED' ||
-      normalized ===
-        'REJECT'
+      normalized === 'REJECTED' ||
+      normalized === 'REJECT'
     ) {
       return 'border border-red-500 bg-red-50 text-red-700';
     }
@@ -800,25 +751,45 @@ export default function WithdrawalPage({
     return 'border border-amber-500 bg-amber-50 text-amber-700';
   };
 
+  const formatDate = (
+    value
+  ) => {
+    if (!value) {
+      return '—';
+    }
+
+    const date =
+      new Date(value);
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return '—';
+    }
+
+    return date.toLocaleString(
+      'en-IN'
+    );
+  };
+
   /*
-    Extra safety:
-    Even if old/shared records somehow
-    enter this customer's storage,
-    show only this customer's records.
+    Server already filters using customer_id.
+
+    This additional frontend filter
+    is only an extra isolation check.
   */
 
   const history =
     transactions
       .filter(
         (transaction) =>
-          String(
-            transaction
-              ?.customerId ||
-              ''
+          Number(
+            transaction?.customerId
           ) ===
-          String(
-            customer.customerId ||
-              ''
+          Number(
+            customer.customerId
           )
       )
       .slice(
@@ -888,6 +859,7 @@ export default function WithdrawalPage({
           </h2>
 
           {balanceError && (
+
             <div className="mt-3">
 
               <p className="text-xs font-bold text-red-600">
@@ -905,6 +877,7 @@ export default function WithdrawalPage({
               </button>
 
             </div>
+
           )}
 
         </section>
@@ -1141,7 +1114,7 @@ export default function WithdrawalPage({
             </p>
 
             <p>
-              2. The requested amount is held when the request is submitted.
+              2. Requests are recorded separately for each customer.
             </p>
 
             <p>
@@ -1270,9 +1243,7 @@ export default function WithdrawalPage({
                       type="button"
                       onClick={() =>
                         setAmount(
-                          String(
-                            value
-                          )
+                          String(value)
                         )
                       }
                       className="rounded-lg border border-teal-700 py-3 text-xs font-black text-teal-800"
@@ -1290,14 +1261,15 @@ export default function WithdrawalPage({
               <button
                 type="submit"
                 disabled={
+                  submitting ||
                   balanceLoading ||
-                  Boolean(
-                    balanceError
-                  )
+                  Boolean(balanceError)
                 }
                 className="w-full rounded-md bg-red-700 py-4 text-lg font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                WITHDRAW
+                {submitting
+                  ? 'SUBMITTING...'
+                  : 'WITHDRAW'}
               </button>
 
             </form>
@@ -1322,19 +1294,50 @@ export default function WithdrawalPage({
 
         <section className="overflow-hidden rounded-xl bg-white shadow-sm">
 
-          <div className="px-4 py-4">
+          <div className="flex items-center justify-between gap-3 px-4 py-4">
 
-            <h2 className="text-lg font-black">
-              WITHDRAWAL HISTORY
-            </h2>
+            <div>
 
-            <p className="mt-1 text-[10px] text-gray-500">
-              Latest{' '}
-              {HISTORY_LIMIT}{' '}
-              withdrawal requests
-            </p>
+              <h2 className="text-lg font-black">
+                WITHDRAWAL HISTORY
+              </h2>
+
+              <p className="mt-1 text-[10px] text-gray-500">
+                Latest{' '}
+                {HISTORY_LIMIT}{' '}
+                withdrawal requests
+              </p>
+
+            </div>
+
+            <button
+              type="button"
+              onClick={
+                loadWithdrawalHistory
+              }
+              disabled={
+                historyLoading
+              }
+              className="rounded-lg bg-teal-800 px-3 py-2 text-[10px] font-black text-white disabled:opacity-50"
+            >
+              {historyLoading
+                ? 'LOADING...'
+                : 'REFRESH'}
+            </button>
 
           </div>
+
+          {historyError && (
+
+            <div className="mx-4 mb-4 rounded-lg border border-red-300 bg-red-50 p-3">
+
+              <p className="text-xs font-bold text-red-700">
+                {historyError}
+              </p>
+
+            </div>
+
+          )}
 
           <div className="overflow-x-auto">
 
@@ -1366,8 +1369,22 @@ export default function WithdrawalPage({
 
               <tbody>
 
-                {history.length ===
-                0 ? (
+                {historyLoading &&
+                history.length === 0 ? (
+
+                  <tr>
+
+                    <td
+                      colSpan={4}
+                      className="p-8 text-center font-bold text-gray-500"
+                    >
+                      Loading withdrawal history...
+                    </td>
+
+                  </tr>
+
+                ) : history.length ===
+                  0 ? (
 
                   <tr>
 
@@ -1383,54 +1400,61 @@ export default function WithdrawalPage({
                 ) : (
 
                   history.map(
-                    (
-                      transaction
-                    ) => (
+                    (transaction) => {
 
-                      <tr
-                        key={
-                          transaction.id
-                        }
-                        className="border-b"
-                      >
+                      const last4 =
+                        String(
+                          transaction
+                            ?.accountNumber ||
+                            ''
+                        ).slice(-4);
 
-                        <td className="p-3 font-bold">
-                          {Number(
-                            transaction.amount
-                          ).toLocaleString(
-                            'en-IN'
-                          )}
-                        </td>
-
-                        <td className="p-3">
-
-                          <span
-                            className={`inline-block rounded-md px-3 py-1 text-[10px] font-black ${statusClass(
-                              transaction.status
-                            )}`}
-                          >
-                            {
-                              transaction.status
-                            }
-                          </span>
-
-                        </td>
-
-                        <td className="p-3">
-                          {transaction.accountLast4
-                            ? `XXXX-${transaction.accountLast4}`
-                            : '—'}
-                        </td>
-
-                        <td className="whitespace-nowrap p-3">
-                          {
-                            transaction.date
+                      return (
+                        <tr
+                          key={
+                            transaction.id
                           }
-                        </td>
+                          className="border-b"
+                        >
 
-                      </tr>
+                          <td className="p-3 font-bold">
+                            {Number(
+                              transaction.amount
+                            ).toLocaleString(
+                              'en-IN'
+                            )}
+                          </td>
 
-                    )
+                          <td className="p-3">
+
+                            <span
+                              className={`inline-block rounded-md px-3 py-1 text-[10px] font-black ${statusClass(
+                                transaction.status
+                              )}`}
+                            >
+                              {String(
+                                transaction.status ||
+                                  'PENDING'
+                              ).toUpperCase()}
+                            </span>
+
+                          </td>
+
+                          <td className="p-3">
+                            {last4
+                              ? `XXXX-${last4}`
+                              : '—'}
+                          </td>
+
+                          <td className="whitespace-nowrap p-3">
+                            {formatDate(
+                              transaction.createdAt
+                            )}
+                          </td>
+
+                        </tr>
+                      );
+                    }
                   )
 
                 )}
