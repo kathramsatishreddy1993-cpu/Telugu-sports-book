@@ -1,13 +1,8 @@
 import React, {
   useEffect,
+  useMemo,
   useState,
 } from 'react';
-
-const ACCOUNT_KEY =
-  'tsb_demo_withdrawal_account';
-
-const TRANSACTION_KEY =
-  'telugu_sports_demo_withdrawals';
 
 const AUTH_KEY =
   'telugu_sports_auth_user';
@@ -19,6 +14,114 @@ export default function WithdrawalPage({
   user,
   onBack,
 }) {
+  /* =====================================================
+     CURRENT CUSTOMER
+  ===================================================== */
+
+  const customer = useMemo(() => {
+    if (user) {
+      return {
+        customerId:
+          user?.id ||
+          user?.customerId ||
+          user?.loginId ||
+          user?.identifier ||
+          '',
+
+        customerName:
+          user?.name ||
+          user?.username ||
+          user?.loginId ||
+          'Customer',
+      };
+    }
+
+    try {
+      const saved =
+        localStorage.getItem(
+          AUTH_KEY
+        );
+
+      if (!saved) {
+        return {
+          customerId: '',
+          customerName:
+            'Customer',
+        };
+      }
+
+      const savedUser =
+        JSON.parse(saved);
+
+      return {
+        customerId:
+          savedUser?.id ||
+          savedUser?.customerId ||
+          savedUser?.loginId ||
+          savedUser?.username ||
+          savedUser?.identifier ||
+          savedUser?.mobile ||
+          savedUser?.email ||
+          '',
+
+        customerName:
+          savedUser?.name ||
+          savedUser?.username ||
+          savedUser?.loginId ||
+          'Customer',
+      };
+    } catch {
+      return {
+        customerId: '',
+        customerName:
+          'Customer',
+      };
+    }
+  }, [user]);
+
+  /*
+    IMPORTANT:
+    Every customer now receives separate
+    local storage keys.
+
+    Example:
+
+    Customer Siri01:
+    tsb_withdrawal_account_siri01
+    tsb_withdrawals_siri01
+
+    Customer Gopi01:
+    tsb_withdrawal_account_gopi01
+    tsb_withdrawals_gopi01
+  */
+
+  const storageCustomerId =
+    useMemo(() => {
+      return String(
+        customer.customerId || ''
+      )
+        .trim()
+        .toLowerCase()
+        .replace(
+          /[^a-z0-9_-]/g,
+          '_'
+        );
+    }, [customer.customerId]);
+
+  const accountKey =
+    storageCustomerId
+      ? `tsb_withdrawal_account_${storageCustomerId}`
+      : '';
+
+  const transactionKey =
+    storageCustomerId
+      ? `tsb_withdrawals_${storageCustomerId}`
+      : '';
+
+  /* =====================================================
+     ACCOUNT
+  ===================================================== */
+
   const [
     showAddAccount,
     setShowAddAccount,
@@ -27,46 +130,15 @@ export default function WithdrawalPage({
   const [
     account,
     setAccount,
-  ] = useState(() => {
-    try {
-      const saved =
-        localStorage.getItem(
-          ACCOUNT_KEY
-        );
-
-      return saved
-        ? JSON.parse(saved)
-        : null;
-    } catch {
-      return null;
-    }
-  });
+  ] = useState(null);
 
   const [
     transactions,
     setTransactions,
-  ] = useState(() => {
-    try {
-      const saved =
-        localStorage.getItem(
-          TRANSACTION_KEY
-        );
-
-      const parsed = saved
-        ? JSON.parse(saved)
-        : [];
-
-      return Array.isArray(parsed)
-        ? parsed
-        : [];
-    } catch {
-      return [];
-    }
-  });
+  ] = useState([]);
 
   /* =====================================================
      AVAILABLE BALANCE
-     DATABASE ONLY
   ===================================================== */
 
   const [
@@ -106,80 +178,84 @@ export default function WithdrawalPage({
   ] = useState('');
 
   /* =====================================================
-     CURRENT CUSTOMER
+     LOAD CUSTOMER-SPECIFIC ACCOUNT
+     AND HISTORY
   ===================================================== */
 
-  const getCustomer = () => {
-    /*
-      First preference:
-      user prop supplied by dashboard.
+  useEffect(() => {
+    setAccount(null);
+    setTransactions([]);
+    setShowAddAccount(false);
+    setAmount('');
 
-      Fallback:
-      authenticated user saved in localStorage.
-    */
-
-    if (user) {
-      return {
-        customerId:
-          user?.id ||
-          user?.customerId ||
-          user?.loginId ||
-          user?.identifier ||
-          '',
-
-        customerName:
-          user?.name ||
-          user?.username ||
-          user?.loginId ||
-          'Demo User',
-      };
+    if (
+      !accountKey ||
+      !transactionKey
+    ) {
+      return;
     }
 
     try {
-      const saved =
+      const savedAccount =
         localStorage.getItem(
-          AUTH_KEY
+          accountKey
         );
 
-      if (!saved) {
-        return {
-          customerId: '',
-          customerName:
-            'Demo User',
-        };
+      if (savedAccount) {
+        const parsedAccount =
+          JSON.parse(
+            savedAccount
+          );
+
+        setAccount(
+          parsedAccount &&
+            typeof parsedAccount ===
+              'object'
+            ? parsedAccount
+            : null
+        );
       }
+    } catch (error) {
+      console.error(
+        'Unable to load customer bank account:',
+        error
+      );
 
-      const savedUser =
-        JSON.parse(saved);
-
-      return {
-        customerId:
-          savedUser?.id ||
-          savedUser?.customerId ||
-          savedUser?.loginId ||
-          savedUser?.username ||
-          savedUser?.identifier ||
-          savedUser?.mobile ||
-          savedUser?.email ||
-          '',
-
-        customerName:
-          savedUser?.name ||
-          savedUser?.username ||
-          savedUser?.loginId ||
-          'Demo User',
-      };
-    } catch {
-      return {
-        customerId: '',
-        customerName:
-          'Demo User',
-      };
+      setAccount(null);
     }
-  };
 
-  const customer =
-    getCustomer();
+    try {
+      const savedTransactions =
+        localStorage.getItem(
+          transactionKey
+        );
+
+      if (
+        savedTransactions
+      ) {
+        const parsed =
+          JSON.parse(
+            savedTransactions
+          );
+
+        setTransactions(
+          Array.isArray(parsed)
+            ? parsed
+            : []
+        );
+      }
+    } catch (error) {
+      console.error(
+        'Unable to load withdrawal history:',
+        error
+      );
+
+      setTransactions([]);
+    }
+  }, [
+    accountKey,
+    transactionKey,
+  ]);
 
   /* =====================================================
      LOAD AVAILABLE BALANCE FROM SERVER
@@ -266,13 +342,17 @@ export default function WithdrawalPage({
   }, [customer.customerId]);
 
   /* =====================================================
-     SAVE WITHDRAWAL HISTORY
+     SAVE CUSTOMER-SPECIFIC HISTORY
   ===================================================== */
 
   useEffect(() => {
+    if (!transactionKey) {
+      return;
+    }
+
     try {
       localStorage.setItem(
-        TRANSACTION_KEY,
+        transactionKey,
         JSON.stringify(
           transactions
         )
@@ -283,7 +363,10 @@ export default function WithdrawalPage({
         error
       );
     }
-  }, [transactions]);
+  }, [
+    transactions,
+    transactionKey,
+  ]);
 
   /* =====================================================
      FORM UPDATE
@@ -308,6 +391,14 @@ export default function WithdrawalPage({
   const saveAccount =
     (event) => {
       event.preventDefault();
+
+      if (!accountKey) {
+        alert(
+          'Customer ID not available'
+        );
+
+        return;
+      }
 
       const holderName =
         form.holderName.trim();
@@ -395,17 +486,11 @@ export default function WithdrawalPage({
         bankName,
         accountNumber,
         ifsc,
-
-        /*
-          Demo-only local verification value.
-        */
-
-        password,
       };
 
       try {
         localStorage.setItem(
-          ACCOUNT_KEY,
+          accountKey,
           JSON.stringify(
             newAccount
           )
@@ -443,7 +528,7 @@ export default function WithdrawalPage({
     };
 
   /* =====================================================
-     DEMO WITHDRAWAL
+     WITHDRAWAL REQUEST
   ===================================================== */
 
   const handleWithdraw =
@@ -453,6 +538,16 @@ export default function WithdrawalPage({
       if (!account) {
         alert(
           'Please add a bank account first'
+        );
+
+        return;
+      }
+
+      if (
+        !customer.customerId
+      ) {
+        alert(
+          'Customer ID not available'
         );
 
         return;
@@ -469,7 +564,7 @@ export default function WithdrawalPage({
           MIN_WITHDRAWAL
       ) {
         alert(
-          `Minimum withdrawal is ${MIN_WITHDRAWAL} demo coins`
+          `Minimum withdrawal is ${MIN_WITHDRAWAL}`
         );
 
         return;
@@ -502,6 +597,9 @@ export default function WithdrawalPage({
 
         return;
       }
+
+      const now =
+        new Date();
 
       const transaction = {
         id:
@@ -537,10 +635,10 @@ export default function WithdrawalPage({
           ),
 
         createdAt:
-          new Date().toISOString(),
+          now.toISOString(),
 
         date:
-          new Date().toLocaleString(
+          now.toLocaleString(
             'en-IN'
           ),
 
@@ -551,16 +649,8 @@ export default function WithdrawalPage({
           false,
 
         type:
-          'DEMO_WITHDRAWAL',
+          'WITHDRAWAL',
       };
-
-      /*
-        This page only creates the
-        demo request locally.
-
-        It does NOT create or invent
-        a default 10,000 balance.
-      */
 
       const nextTransactions =
         [
@@ -573,31 +663,32 @@ export default function WithdrawalPage({
       );
 
       try {
-        localStorage.setItem(
-          TRANSACTION_KEY,
-          JSON.stringify(
-            nextTransactions
-          )
-        );
+        if (
+          transactionKey
+        ) {
+          localStorage.setItem(
+            transactionKey,
+            JSON.stringify(
+              nextTransactions
+            )
+          );
+        }
       } catch (error) {
         console.error(
-          'Unable to submit demo withdrawal request:',
+          'Unable to submit withdrawal request:',
           error
         );
       }
 
-      /*
-        Temporarily reflect held
-        demo coins in this page UI.
-      */
+      const nextBalance =
+        Math.max(
+          0,
+          Number(balance) -
+            value
+        );
 
       setBalance(
-        (previous) =>
-          Math.max(
-            0,
-            Number(previous) -
-              value
-          )
+        nextBalance
       );
 
       window.dispatchEvent(
@@ -606,17 +697,17 @@ export default function WithdrawalPage({
           {
             detail: {
               balance:
-                Math.max(
-                  0,
-                  balance -
-                    value
-                ),
+                nextBalance,
             },
           }
         )
       );
 
       setAmount('');
+
+      alert(
+        'Withdrawal request submitted.'
+      );
     };
 
   /* =====================================================
@@ -627,7 +718,7 @@ export default function WithdrawalPage({
     () => {
       const confirmed =
         window.confirm(
-          'Remove saved demo bank account?'
+          'Remove saved bank account?'
         );
 
       if (!confirmed) {
@@ -635,9 +726,11 @@ export default function WithdrawalPage({
       }
 
       try {
-        localStorage.removeItem(
-          ACCOUNT_KEY
-        );
+        if (accountKey) {
+          localStorage.removeItem(
+            accountKey
+          );
+        }
       } catch (error) {
         console.error(
           'Unable to remove account:',
@@ -707,11 +800,31 @@ export default function WithdrawalPage({
     return 'border border-amber-500 bg-amber-50 text-amber-700';
   };
 
+  /*
+    Extra safety:
+    Even if old/shared records somehow
+    enter this customer's storage,
+    show only this customer's records.
+  */
+
   const history =
-    transactions.slice(
-      0,
-      HISTORY_LIMIT
-    );
+    transactions
+      .filter(
+        (transaction) =>
+          String(
+            transaction
+              ?.customerId ||
+              ''
+          ) ===
+          String(
+            customer.customerId ||
+              ''
+          )
+      )
+      .slice(
+        0,
+        HISTORY_LIMIT
+      );
 
   /* =====================================================
      UI
@@ -737,10 +850,6 @@ export default function WithdrawalPage({
             </h1>
 
           </div>
-
-          <span className="rounded bg-white/10 px-2 py-1 text-[10px] font-bold">
-            DEMO
-          </span>
 
         </div>
 
@@ -777,13 +886,6 @@ export default function WithdrawalPage({
                 )}`}
 
           </h2>
-
-          {!balanceLoading &&
-            !balanceError && (
-              <p className="mt-1 text-xs text-gray-500">
-                Demo Coins
-              </p>
-            )}
 
           {balanceError && (
             <div className="mt-3">
@@ -846,7 +948,7 @@ export default function WithdrawalPage({
             </h2>
 
             <p className="text-center text-[11px] text-gray-500">
-              Withdrawal Password is required only when adding or changing a bank account.
+              Withdrawal Password is required when adding or changing a bank account.
             </p>
 
             <div>
@@ -1035,11 +1137,11 @@ export default function WithdrawalPage({
           <div className="space-y-3 text-xs leading-5 text-red-600">
 
             <p>
-              1. Withdrawal requests use available demo coins only.
+              1. Withdrawal requests use the available balance only.
             </p>
 
             <p>
-              2. The requested demo coins are held when the request is submitted.
+              2. The requested amount is held when the request is submitted.
             </p>
 
             <p>
@@ -1047,11 +1149,7 @@ export default function WithdrawalPage({
             </p>
 
             <p>
-              4. Pending requests can be reviewed in the demo Admin Panel.
-            </p>
-
-            <p>
-              5. This demonstration does not transfer real money.
+              4. Pending requests can be reviewed by the Admin.
             </p>
 
           </div>
@@ -1073,7 +1171,10 @@ export default function WithdrawalPage({
                 </p>
 
                 <h2 className="mt-1 text-lg font-black">
-                  {account.holderName.toUpperCase()}
+                  {String(
+                    account.holderName ||
+                      ''
+                  ).toUpperCase()}
                 </h2>
 
               </div>
@@ -1230,7 +1331,7 @@ export default function WithdrawalPage({
             <p className="mt-1 text-[10px] text-gray-500">
               Latest{' '}
               {HISTORY_LIMIT}{' '}
-              demo withdrawal requests
+              withdrawal requests
             </p>
 
           </div>
@@ -1341,10 +1442,6 @@ export default function WithdrawalPage({
           </div>
 
         </section>
-
-        <p className="py-6 text-center text-[10px] text-gray-500">
-          Demo Withdrawal System — No Real Money Transfers
-        </p>
 
       </main>
 
