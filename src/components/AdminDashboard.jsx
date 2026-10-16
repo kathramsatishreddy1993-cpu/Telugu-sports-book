@@ -6,12 +6,6 @@ import React, {
 
 import AdminPaymentSettings from './AdminPaymentSettings';
 
-const WITHDRAWAL_KEY =
-  'telugu_sports_demo_withdrawals';
-
-const BALANCE_KEY =
-  'telugu_sports_demo_balance';
-
 const COIN_HISTORY_KEY =
   'telugu_sports_demo_coin_history';
 
@@ -29,23 +23,33 @@ export default function AdminDashboard({
      DEPOSITS - SERVER / POSTGRESQL
   ===================================================== */
 
-  const [depositRequests, setDepositRequests] = useState([]);
-  const [depositLoading, setDepositLoading] = useState(false);
-  const [depositError, setDepositError] = useState('');
+  const [depositRequests, setDepositRequests] =
+    useState([]);
+
+  const [depositLoading, setDepositLoading] =
+    useState(false);
+
+  const [depositError, setDepositError] =
+    useState('');
 
   /* =====================================================
-     WITHDRAWALS
+     WITHDRAWALS - SERVER / POSTGRESQL
   ===================================================== */
 
-  const [withdrawalRequests, setWithdrawalRequests] = useState(() => {
-    try {
-      const saved = localStorage.getItem(WITHDRAWAL_KEY);
-      const parsed = saved ? JSON.parse(saved) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
+  const [
+    withdrawalRequests,
+    setWithdrawalRequests,
+  ] = useState([]);
+
+  const [
+    withdrawalLoading,
+    setWithdrawalLoading,
+  ] = useState(false);
+
+  const [
+    withdrawalError,
+    setWithdrawalError,
+  ] = useState('');
 
   /* =====================================================
      CUSTOMERS
@@ -53,30 +57,53 @@ export default function AdminDashboard({
 
   const [customers, setCustomers] = useState([]);
   const [customerName, setCustomerName] = useState('');
-  const [customerLoginId, setCustomerLoginId] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [withdrawalPassword, setWithdrawalPassword] = useState('');
-  const [customerLoading, setCustomerLoading] = useState(false);
-  const [customerMessage, setCustomerMessage] = useState('');
-  const [customerError, setCustomerError] = useState('');
+  const [customerLoginId, setCustomerLoginId] =
+    useState('');
+  const [loginPassword, setLoginPassword] =
+    useState('');
+  const [
+    withdrawalPassword,
+    setWithdrawalPassword,
+  ] = useState('');
+
+  const [customerLoading, setCustomerLoading] =
+    useState(false);
+
+  const [customerMessage, setCustomerMessage] =
+    useState('');
+
+  const [customerError, setCustomerError] =
+    useState('');
 
   /* =====================================================
      DEMO COIN MANAGEMENT
   ===================================================== */
 
-  const [coinCustomerId, setCoinCustomerId] = useState('');
-  const [coinAmount, setCoinAmount] = useState('');
-  const [coinMessage, setCoinMessage] = useState('');
+  const [coinCustomerId, setCoinCustomerId] =
+    useState('');
 
-  const [coinHistory, setCoinHistory] = useState(() => {
-    try {
-      const saved = localStorage.getItem(COIN_HISTORY_KEY);
-      const parsed = saved ? JSON.parse(saved) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
+  const [coinAmount, setCoinAmount] = useState('');
+
+  const [coinMessage, setCoinMessage] =
+    useState('');
+
+  const [coinHistory, setCoinHistory] =
+    useState(() => {
+      try {
+        const saved =
+          localStorage.getItem(COIN_HISTORY_KEY);
+
+        const parsed = saved
+          ? JSON.parse(saved)
+          : [];
+
+        return Array.isArray(parsed)
+          ? parsed
+          : [];
+      } catch {
+        return [];
+      }
+    });
 
   /* =====================================================
      WHATSAPP SETTINGS
@@ -98,19 +125,8 @@ export default function AdminDashboard({
     useState('');
 
   /* =====================================================
-     SAVE LOCAL WITHDRAWAL / COIN DATA
+     SAVE COIN HISTORY
   ===================================================== */
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        WITHDRAWAL_KEY,
-        JSON.stringify(withdrawalRequests)
-      );
-    } catch (error) {
-      console.error(error);
-    }
-  }, [withdrawalRequests]);
 
   useEffect(() => {
     try {
@@ -178,8 +194,68 @@ export default function AdminDashboard({
     }
   };
 
+  /* =====================================================
+     LOAD WITHDRAWAL REQUESTS FROM SERVER
+  ===================================================== */
+
+  const loadWithdrawalRequests = async () => {
+    try {
+      setWithdrawalLoading(true);
+      setWithdrawalError('');
+
+      const response = await fetch(
+        '/api/admin/demo-withdrawals',
+        {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+          },
+          cache: 'no-store',
+        }
+      );
+
+      let data = {};
+
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            'Unable to load withdrawal requests.'
+        );
+      }
+
+      setWithdrawalRequests(
+        Array.isArray(data?.requests)
+          ? data.requests
+          : []
+      );
+    } catch (error) {
+      console.error(
+        'Load Withdrawal Requests Error:',
+        error
+      );
+
+      setWithdrawalError(
+        error?.message ||
+          'Unable to load withdrawal requests.'
+      );
+    } finally {
+      setWithdrawalLoading(false);
+    }
+  };
+
+  /* =====================================================
+     INITIAL SERVER DATA
+  ===================================================== */
+
   useEffect(() => {
     loadDepositRequests();
+    loadWithdrawalRequests();
   }, []);
 
   useEffect(() => {
@@ -189,6 +265,14 @@ export default function AdminDashboard({
       activeSection === 'Transaction History'
     ) {
       loadDepositRequests();
+    }
+
+    if (
+      activeSection === 'Dashboard' ||
+      activeSection === 'Pending Withdrawals' ||
+      activeSection === 'Transaction History'
+    ) {
+      loadWithdrawalRequests();
     }
   }, [activeSection]);
 
@@ -383,9 +467,7 @@ export default function AdminDashboard({
     const cleanName = customerName.trim();
 
     const cleanLoginId =
-      customerLoginId
-        .trim()
-        .toLowerCase();
+      customerLoginId.trim().toLowerCase();
 
     if (!cleanName) {
       setCustomerError(
@@ -419,9 +501,7 @@ export default function AdminDashboard({
       return;
     }
 
-    if (
-      withdrawalPassword.length < 6
-    ) {
+    if (withdrawalPassword.length < 6) {
       setCustomerError(
         'Withdrawal Password must contain at least 6 characters.'
       );
@@ -429,8 +509,7 @@ export default function AdminDashboard({
     }
 
     if (
-      loginPassword ===
-      withdrawalPassword
+      loginPassword === withdrawalPassword
     ) {
       setCustomerError(
         'Login Password and Withdrawal Password must be different.'
@@ -460,8 +539,7 @@ export default function AdminDashboard({
         }
       );
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -489,14 +567,18 @@ export default function AdminDashboard({
       setCustomerLoading(false);
     }
   };
-    /* =====================================================
+
+  /* =====================================================
      RESET LOGIN PASSWORD
   ===================================================== */
 
-  const resetLoginPassword = async (customer) => {
-    const temporaryPassword = window.prompt(
-      `Enter NEW temporary Login Password for ${customer.loginId}`
-    );
+  const resetLoginPassword = async (
+    customer
+  ) => {
+    const temporaryPassword =
+      window.prompt(
+        `Enter NEW temporary Login Password for ${customer.loginId}`
+      );
 
     if (!temporaryPassword) return;
 
@@ -547,7 +629,9 @@ export default function AdminDashboard({
      RESET WITHDRAWAL PASSWORD
   ===================================================== */
 
-  const resetWithdrawalPassword = async (customer) => {
+  const resetWithdrawalPassword = async (
+    customer
+  ) => {
     const temporaryWithdrawalPassword =
       window.prompt(
         `Enter NEW temporary Withdrawal Password for ${customer.loginId}`
@@ -555,7 +639,9 @@ export default function AdminDashboard({
 
     if (!temporaryWithdrawalPassword) return;
 
-    if (temporaryWithdrawalPassword.length < 6) {
+    if (
+      temporaryWithdrawalPassword.length < 6
+    ) {
       alert(
         'Temporary Withdrawal Password must contain at least 6 characters.'
       );
@@ -605,16 +691,18 @@ export default function AdminDashboard({
   const pendingDeposits = useMemo(() => {
     return depositRequests.filter(
       (item) =>
-        String(item?.status || '').toUpperCase() ===
-        'PENDING'
+        String(
+          item?.status || ''
+        ).toUpperCase() === 'PENDING'
     ).length;
   }, [depositRequests]);
 
   const pendingWithdrawals = useMemo(() => {
     return withdrawalRequests.filter(
       (item) =>
-        String(item?.status || '').toUpperCase() ===
-        'PENDING'
+        String(
+          item?.status || ''
+        ).toUpperCase() === 'PENDING'
     ).length;
   }, [withdrawalRequests]);
 
@@ -634,7 +722,8 @@ export default function AdminDashboard({
         {
           method: 'PATCH',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type':
+              'application/json',
             Accept: 'application/json',
           },
           body: JSON.stringify({
@@ -659,6 +748,7 @@ export default function AdminDashboard({
       }
 
       await loadDepositRequests();
+
       return true;
     } catch (error) {
       console.error(
@@ -675,7 +765,9 @@ export default function AdminDashboard({
     }
   };
 
-  const approveDeposit = async (requestId) => {
+  const approveDeposit = async (
+    requestId
+  ) => {
     const request = depositRequests.find(
       (item) => item?.id === requestId
     );
@@ -686,8 +778,9 @@ export default function AdminDashboard({
     }
 
     if (
-      String(request.status).toUpperCase() !==
-      'PENDING'
+      String(
+        request.status
+      ).toUpperCase() !== 'PENDING'
     ) {
       alert(
         'This request has already been reviewed.'
@@ -698,15 +791,18 @@ export default function AdminDashboard({
     const confirmed = window.confirm(
       `Approve ₹${Number(
         request.amount || 0
-      ).toLocaleString('en-IN')} deposit request?`
+      ).toLocaleString(
+        'en-IN'
+      )} deposit request?`
     );
 
     if (!confirmed) return;
 
-    const success = await updateDepositStatus(
-      requestId,
-      'APPROVED'
-    );
+    const success =
+      await updateDepositStatus(
+        requestId,
+        'APPROVED'
+      );
 
     if (success) {
       alert(
@@ -715,7 +811,9 @@ export default function AdminDashboard({
     }
   };
 
-  const rejectDeposit = async (requestId) => {
+  const rejectDeposit = async (
+    requestId
+  ) => {
     const request = depositRequests.find(
       (item) => item?.id === requestId
     );
@@ -726,8 +824,9 @@ export default function AdminDashboard({
     }
 
     if (
-      String(request.status).toUpperCase() !==
-      'PENDING'
+      String(
+        request.status
+      ).toUpperCase() !== 'PENDING'
     ) {
       alert(
         'This request has already been reviewed.'
@@ -741,10 +840,11 @@ export default function AdminDashboard({
 
     if (!confirmed) return;
 
-    const success = await updateDepositStatus(
-      requestId,
-      'REJECTED'
-    );
+    const success =
+      await updateDepositStatus(
+        requestId,
+        'REJECTED'
+      );
 
     if (success) {
       alert(
@@ -754,163 +854,162 @@ export default function AdminDashboard({
   };
 
   /* =====================================================
-     WITHDRAWALS
+     WITHDRAWAL STATUS - SERVER
   ===================================================== */
 
-  const approveWithdrawal = (requestId) => {
-    const request = withdrawalRequests.find(
-      (item) => item?.id === requestId
-    );
-
-    if (!request) {
-      alert('Withdrawal request not found.');
-      return;
-    }
-
-    if (
-      String(request.status || '').toUpperCase() !==
-      'PENDING'
-    ) {
-      alert(
-        'This withdrawal request has already been reviewed.'
-      );
-      return;
-    }
-
-    const confirmed = window.confirm(
-      'Approve this demo withdrawal request?'
-    );
-
-    if (!confirmed) return;
-
-    setWithdrawalRequests((previous) =>
-      previous.map((item) =>
-        item?.id === requestId
-          ? {
-              ...item,
-              status: 'APPROVED',
-              reviewedAt: new Date().toISOString(),
-              reviewedDate:
-                new Date().toLocaleString('en-IN'),
-            }
-          : item
-      )
-    );
-
-    alert(
-      'Withdrawal request changed to APPROVED.'
-    );
-  };
-
-  /* =====================================================
-     REJECT WITHDRAWAL
-  ===================================================== */
-
-  const rejectWithdrawal = (requestId) => {
-    const request = withdrawalRequests.find(
-      (item) => item?.id === requestId
-    );
-
-    if (!request) {
-      alert('Withdrawal request not found.');
-      return;
-    }
-
-    if (
-      String(request.status || '').toUpperCase() !==
-      'PENDING'
-    ) {
-      alert(
-        'This withdrawal request has already been reviewed.'
-      );
-      return;
-    }
-
-    const refundAmount = Number(
-      request.coinsHeld || request.amount || 0
-    );
-
-    const confirmed = window.confirm(
-      `Reject ${refundAmount.toLocaleString(
-        'en-IN'
-      )} demo coins withdrawal and restore the coins?`
-    );
-
-    if (!confirmed) return;
-
+  const updateWithdrawalStatus = async (
+    requestId,
+    nextStatus
+  ) => {
     try {
-      const storedBalance = Number(
-        localStorage.getItem(BALANCE_KEY) || 0
+      setWithdrawalError('');
+
+      const response = await fetch(
+        `/api/admin/demo-withdrawals/${encodeURIComponent(
+          requestId
+        )}/status`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type':
+              'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({
+            status: nextStatus,
+          }),
+        }
       );
 
-      const currentBalance =
-        Number.isFinite(storedBalance)
-          ? storedBalance
-          : 0;
+      let data = {};
 
-      const shouldRestore =
-        request.coinsRestored !== true &&
-        Number.isFinite(refundAmount) &&
-        refundAmount > 0;
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
 
-      const nextBalance = shouldRestore
-        ? currentBalance + refundAmount
-        : currentBalance;
-
-      if (shouldRestore) {
-        localStorage.setItem(
-          BALANCE_KEY,
-          String(nextBalance)
-        );
-
-        window.dispatchEvent(
-          new CustomEvent(
-            'tsb-demo-balance-updated',
-            {
-              detail: {
-                balance: nextBalance,
-              },
-            }
-          )
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            'Unable to update withdrawal request.'
         );
       }
 
-      setWithdrawalRequests((previous) =>
-        previous.map((item) =>
-          item?.id === requestId
-            ? {
-                ...item,
-                status: 'REJECTED',
-                coinsRestored: shouldRestore
-                  ? true
-                  : item.coinsRestored,
-                restoredCoins: shouldRestore
-                  ? refundAmount
-                  : item.restoredCoins,
-                reviewedAt:
-                  new Date().toISOString(),
-                reviewedDate:
-                  new Date().toLocaleString('en-IN'),
-              }
-            : item
-        )
-      );
+      await loadWithdrawalRequests();
 
-      alert(
-        shouldRestore
-          ? `${refundAmount.toLocaleString(
-              'en-IN'
-            )} demo coins restored to customer balance.`
-          : 'Withdrawal request rejected.'
-      );
+      return true;
     } catch (error) {
       console.error(
-        'Unable to reject withdrawal:',
+        'Update Withdrawal Status Error:',
         error
       );
 
+      const message =
+        error?.message ||
+        'Unable to update withdrawal request.';
+
+      setWithdrawalError(message);
+      alert(message);
+
+      return false;
+    }
+  };
+
+  const approveWithdrawal = async (
+    requestId
+  ) => {
+    const request =
+      withdrawalRequests.find(
+        (item) => item?.id === requestId
+      );
+
+    if (!request) {
       alert(
-        'Unable to reject withdrawal request.'
+        'Withdrawal request not found.'
+      );
+      return;
+    }
+
+    if (
+      String(
+        request.status || ''
+      ).toUpperCase() !== 'PENDING'
+    ) {
+      alert(
+        'This withdrawal request has already been reviewed.'
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Approve ${Number(
+        request.amount || 0
+      ).toLocaleString(
+        'en-IN'
+      )} demo coins withdrawal request?`
+    );
+
+    if (!confirmed) return;
+
+    const success =
+      await updateWithdrawalStatus(
+        requestId,
+        'APPROVED'
+      );
+
+    if (success) {
+      alert(
+        'Withdrawal request changed to APPROVED.'
+      );
+    }
+  };
+
+  const rejectWithdrawal = async (
+    requestId
+  ) => {
+    const request =
+      withdrawalRequests.find(
+        (item) => item?.id === requestId
+      );
+
+    if (!request) {
+      alert(
+        'Withdrawal request not found.'
+      );
+      return;
+    }
+
+    if (
+      String(
+        request.status || ''
+      ).toUpperCase() !== 'PENDING'
+    ) {
+      alert(
+        'This withdrawal request has already been reviewed.'
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Reject ${Number(
+        request.amount || 0
+      ).toLocaleString(
+        'en-IN'
+      )} demo coins withdrawal request?`
+    );
+
+    if (!confirmed) return;
+
+    const success =
+      await updateWithdrawalStatus(
+        requestId,
+        'REJECTED'
+      );
+
+    if (success) {
+      alert(
+        'Withdrawal request changed to REJECTED.'
       );
     }
   };
@@ -967,11 +1066,13 @@ export default function AdminDashboard({
         {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type':
+              'application/json',
           },
           body: JSON.stringify({
             amount,
-            note: 'Demo Coins added by Admin',
+            note:
+              'Demo Coins added by Admin',
           }),
         }
       );
@@ -986,7 +1087,8 @@ export default function AdminDashboard({
       }
 
       const nextBalance = Number(
-        data?.customer?.demo_coin_balance || 0
+        data?.customer
+          ?.demo_coin_balance || 0
       );
 
       const record = {
@@ -994,11 +1096,15 @@ export default function AdminDashboard({
         customerId: customer.id,
         loginId: customer.loginId,
         customerName:
-          customer.name || customer.loginId,
+          customer.name ||
+          customer.loginId,
         type: 'ADD',
         amount,
         balance: nextBalance,
-        date: new Date().toLocaleString('en-IN'),
+        date:
+          new Date().toLocaleString(
+            'en-IN'
+          ),
       };
 
       setCoinHistory((previous) => [
@@ -1029,7 +1135,8 @@ export default function AdminDashboard({
       );
     }
   };
-    /* =====================================================
+
+  /* =====================================================
      ADMIN BOXES
   ===================================================== */
 
@@ -1071,7 +1178,9 @@ export default function AdminDashboard({
     },
   ];
 
-  if (activeSection === 'Deposit Accounts') {
+  if (
+    activeSection === 'Deposit Accounts'
+  ) {
     return (
       <AdminPaymentSettings
         onBack={() =>
@@ -1101,7 +1210,8 @@ export default function AdminDashboard({
             </p>
 
             <p className="text-[11px] font-black">
-              {admin?.username || 'admin'}
+              {admin?.username ||
+                'admin'}
             </p>
           </div>
         </div>
@@ -1116,6 +1226,13 @@ export default function AdminDashboard({
           {depositError && (
             <MessageBox
               text={depositError}
+              error
+            />
+          )}
+
+          {withdrawalError && (
+            <MessageBox
+              text={withdrawalError}
               error
             />
           )}
@@ -1159,7 +1276,9 @@ export default function AdminDashboard({
               </span>
 
               <p className="mt-2 text-2xl font-black text-red-300">
-                {pendingWithdrawals}
+                {withdrawalLoading
+                  ? '...'
+                  : pendingWithdrawals}
               </p>
 
               <p className="text-[9px] font-black">
@@ -1205,7 +1324,8 @@ export default function AdminDashboard({
         </main>
       )}
 
-      {activeSection === 'Pending Deposits' && (
+      {activeSection ===
+        'Pending Deposits' && (
         <AdminPage
           title="Pending Deposits"
           icon="📥"
@@ -1279,7 +1399,9 @@ export default function AdminDashboard({
                     </div>
 
                     <StatusBadge
-                      status={request.status}
+                      status={
+                        request.status
+                      }
                     />
                   </div>
 
@@ -1380,7 +1502,8 @@ export default function AdminDashboard({
         </AdminPage>
       )}
 
-      {activeSection === 'Pending Withdrawals' && (
+      {activeSection ===
+        'Pending Withdrawals' && (
         <AdminPage
           title="Pending Withdrawals"
           icon="💸"
@@ -1390,23 +1513,50 @@ export default function AdminDashboard({
             )
           }
         >
-          <InfoBox
-            label="TOTAL PENDING"
-            value={
-              pendingWithdrawals
-            }
-          />
+          <div className="grid grid-cols-2 gap-2">
+            <InfoBox
+              label="TOTAL PENDING"
+              value={
+                withdrawalLoading
+                  ? '...'
+                  : pendingWithdrawals
+              }
+            />
 
-          {pendingWithdrawals === 0 && (
-            <EmptyState text="No pending withdrawals" />
+            <button
+              type="button"
+              disabled={
+                withdrawalLoading
+              }
+              onClick={
+                loadWithdrawalRequests
+              }
+              className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 p-3 text-[9px] font-black text-cyan-300 disabled:opacity-50"
+            >
+              {withdrawalLoading
+                ? 'LOADING...'
+                : '↻ REFRESH'}
+            </button>
+          </div>
+
+          {withdrawalError && (
+            <MessageBox
+              text={withdrawalError}
+              error
+            />
           )}
+
+          {!withdrawalLoading &&
+            pendingWithdrawals === 0 && (
+              <EmptyState text="No pending withdrawals" />
+            )}
 
           <div className="mt-4 space-y-3">
             {withdrawalRequests
               .filter(
                 (item) =>
                   String(
-                    item.status
+                    item?.status || ''
                   ).toUpperCase() ===
                   'PENDING'
               )
@@ -1415,25 +1565,27 @@ export default function AdminDashboard({
                   key={request.id}
                   className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
                 >
-                  <div className="grid grid-cols-2 gap-2">
-                    <InfoBox
-                      label="CUSTOMER NAME"
-                      value={
-                        request.customerName ||
-                        'Demo Customer'
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black">
+                        {request.customerName ||
+                          'Customer'}
+                      </p>
+
+                      <p className="mt-1 text-[9px] font-black text-amber-300">
+                        {request.loginId ||
+                          `ID: ${request.customerId}`}
+                      </p>
+                    </div>
+
+                    <StatusBadge
+                      status={
+                        request.status
                       }
                     />
+                  </div>
 
-                    <InfoBox
-                      label="CUSTOMER ID"
-                      value={
-                        request.customerId ||
-                        request.loginId ||
-                        request.userId ||
-                        '—'
-                      }
-                    />
-
+                  <div className="mt-3 grid grid-cols-2 gap-2">
                     <InfoBox
                       label="REQUESTED DEMO COINS"
                       value={Number(
@@ -1441,6 +1593,22 @@ export default function AdminDashboard({
                       ).toLocaleString(
                         'en-IN'
                       )}
+                    />
+
+                    <InfoBox
+                      label="CUSTOMER ID"
+                      value={
+                        request.customerId ||
+                        '—'
+                      }
+                    />
+
+                    <InfoBox
+                      label="ACCOUNT HOLDER"
+                      value={
+                        request.accountHolderName ||
+                        '—'
+                      }
                     />
 
                     <InfoBox
@@ -1462,31 +1630,26 @@ export default function AdminDashboard({
                     <InfoBox
                       label="IFSC CODE"
                       value={
-                        request.ifsc ||
                         request.ifscCode ||
                         '—'
                       }
                     />
                   </div>
 
-                  {(request.date ||
-                    request.createdAt) && (
+                  {request.createdAt && (
                     <div className="mt-2">
                       <InfoBox
                         label="REQUEST DATE"
-                        value={
-                          request.date ||
-                          new Date(
-                            request.createdAt
-                          ).toLocaleString(
-                            'en-IN'
-                          )
-                        }
+                        value={new Date(
+                          request.createdAt
+                        ).toLocaleString(
+                          'en-IN'
+                        )}
                       />
                     </div>
                   )}
 
-                  <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="mt-4 grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() =>
@@ -1513,7 +1676,7 @@ export default function AdminDashboard({
                   </div>
 
                   <p className="mt-3 text-center text-[7px] text-gray-500">
-                    Demo withdrawal review only.
+                    Demonstration review only.
                     No real-money transfer is performed.
                   </p>
                 </div>
@@ -1521,12 +1684,15 @@ export default function AdminDashboard({
           </div>
         </AdminPage>
       )}
-            {activeSection === 'Customers' && (
+
+      {activeSection === 'Customers' && (
         <AdminPage
           title="Customers"
           icon="👥"
           onBack={() =>
-            setActiveSection('Dashboard')
+            setActiveSection(
+              'Dashboard'
+            )
           }
         >
           <form
@@ -1572,7 +1738,9 @@ export default function AdminDashboard({
               <CustomerInput
                 label="WITHDRAWAL PASSWORD"
                 type="password"
-                value={withdrawalPassword}
+                value={
+                  withdrawalPassword
+                }
                 onChange={(e) =>
                   setWithdrawalPassword(
                     e.target.value
@@ -1629,7 +1797,9 @@ export default function AdminDashboard({
                     </div>
 
                     <StatusBadge
-                      status={customer.status}
+                      status={
+                        customer.status
+                      }
                     />
                   </div>
 
@@ -1723,7 +1893,9 @@ export default function AdminDashboard({
             </div>
 
             <form
-              onSubmit={saveWhatsAppNumber}
+              onSubmit={
+                saveWhatsAppNumber
+              }
               className="mt-4"
             >
               <label className="block">
@@ -1735,7 +1907,9 @@ export default function AdminDashboard({
                   type="tel"
                   inputMode="numeric"
                   value={whatsappInput}
-                  disabled={whatsappLoading}
+                  disabled={
+                    whatsappLoading
+                  }
                   onChange={(event) =>
                     setWhatsappInput(
                       event.target.value.replace(
@@ -1770,7 +1944,9 @@ export default function AdminDashboard({
 
               <button
                 type="submit"
-                disabled={whatsappLoading}
+                disabled={
+                  whatsappLoading
+                }
                 className="mt-4 h-[48px] w-full rounded-lg bg-[#20c968] text-[10px] font-black text-white disabled:opacity-50"
               >
                 {whatsappLoading
@@ -1793,12 +1969,15 @@ export default function AdminDashboard({
         </AdminPage>
       )}
 
-      {activeSection === 'Coin Management' && (
+      {activeSection ===
+        'Coin Management' && (
         <AdminPage
           title="Coin Management"
           icon="🪙"
           onBack={() =>
-            setActiveSection('Dashboard')
+            setActiveSection(
+              'Dashboard'
+            )
           }
         >
           <div className="rounded-xl border border-[#28655f] bg-[#083d37] p-4">
@@ -1900,22 +2079,28 @@ export default function AdminDashboard({
                     <div className="flex justify-between gap-3">
                       <div>
                         <p className="text-[9px] font-black">
-                          {item.customerName}
+                          {
+                            item.customerName
+                          }
                         </p>
 
                         <p className="mt-1 text-[8px] text-gray-400">
-                          {item.customerId}
+                          {
+                            item.customerId
+                          }
                         </p>
                       </div>
 
                       <span
                         className={
-                          item.type === 'ADD'
+                          item.type ===
+                          'ADD'
                             ? 'text-green-300'
                             : 'text-red-300'
                         }
                       >
-                        {item.type === 'ADD'
+                        {item.type ===
+                        'ADD'
                           ? '+'
                           : '-'}
                         {Number(
@@ -1935,12 +2120,16 @@ export default function AdminDashboard({
           </div>
         </AdminPage>
       )}
-            {activeSection === 'Transaction History' && (
+
+      {activeSection ===
+        'Transaction History' && (
         <AdminPage
           title="Transaction History"
           icon="📒"
           onBack={() =>
-            setActiveSection('Dashboard')
+            setActiveSection(
+              'Dashboard'
+            )
           }
         >
           <div className="grid grid-cols-2 gap-2">
@@ -1956,9 +2145,37 @@ export default function AdminDashboard({
             <InfoBox
               label="WITHDRAWALS"
               value={
-                withdrawalRequests.length
+                withdrawalLoading
+                  ? '...'
+                  : withdrawalRequests.length
               }
             />
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={depositLoading}
+              onClick={
+                loadDepositRequests
+              }
+              className="rounded-lg border border-green-500/30 bg-green-500/10 p-3 text-[8px] font-black text-green-300 disabled:opacity-50"
+            >
+              ↻ REFRESH DEPOSITS
+            </button>
+
+            <button
+              type="button"
+              disabled={
+                withdrawalLoading
+              }
+              onClick={
+                loadWithdrawalRequests
+              }
+              className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-[8px] font-black text-red-300 disabled:opacity-50"
+            >
+              ↻ REFRESH WITHDRAWALS
+            </button>
           </div>
 
           <p className="mt-5 text-[10px] font-black text-amber-300">
@@ -2007,7 +2224,9 @@ export default function AdminDashboard({
                       </div>
 
                       <StatusBadge
-                        status={item.status}
+                        status={
+                          item.status
+                        }
                       />
                     </div>
 
@@ -2037,8 +2256,17 @@ export default function AdminDashboard({
             WITHDRAWAL HISTORY
           </p>
 
+          {withdrawalError && (
+            <MessageBox
+              text={withdrawalError}
+              error
+            />
+          )}
+
           <div className="mt-3 space-y-2">
-            {withdrawalRequests.length === 0 ? (
+            {!withdrawalLoading &&
+            withdrawalRequests.length ===
+              0 ? (
               <EmptyState text="No withdrawal history" />
             ) : (
               withdrawalRequests.map(
@@ -2060,19 +2288,44 @@ export default function AdminDashboard({
 
                         <p className="mt-1 text-[8px] text-gray-400">
                           {item.customerName ||
-                            'Demo Customer'}
+                            'Customer'}
+                        </p>
+
+                        <p className="mt-1 text-[8px] text-amber-300">
+                          {item.loginId ||
+                            item.customerId ||
+                            '—'}
+                        </p>
+
+                        <p className="mt-2 text-[8px] text-gray-500">
+                          {item.bankName ||
+                            '—'}
+                          {' • '}
+                          {item.accountNumber ||
+                            '—'}
                         </p>
 
                         <p className="mt-1 text-[8px] text-gray-500">
-                          {item.customerId ||
-                            item.loginId ||
-                            item.userId ||
+                          IFSC:{' '}
+                          {item.ifscCode ||
                             '—'}
                         </p>
+
+                        {item.createdAt && (
+                          <p className="mt-1 text-[7px] text-gray-500">
+                            {new Date(
+                              item.createdAt
+                            ).toLocaleString(
+                              'en-IN'
+                            )}
+                          </p>
+                        )}
                       </div>
 
                       <StatusBadge
-                        status={item.status}
+                        status={
+                          item.status
+                        }
                       />
                     </div>
                   </div>
@@ -2080,27 +2333,38 @@ export default function AdminDashboard({
               )
             )}
           </div>
+
+          <p className="mt-5 text-center text-[7px] leading-4 text-gray-500">
+            Deposit and withdrawal records shown here are demonstration records.
+            No real-money payment or transfer is performed by this panel.
+          </p>
         </AdminPage>
       )}
 
-      {activeSection === 'API Settings' && (
+      {activeSection ===
+        'API Settings' && (
         <AdminPage
           title="API Settings"
           icon="🔌"
           onBack={() =>
-            setActiveSection('Dashboard')
+            setActiveSection(
+              'Dashboard'
+            )
           }
         >
           <EmptyState text="API configuration section" />
         </AdminPage>
       )}
 
-      {activeSection === 'Admin Settings' && (
+      {activeSection ===
+        'Admin Settings' && (
         <AdminPage
           title="Admin Settings"
           icon="⚙️"
           onBack={() =>
-            setActiveSection('Dashboard')
+            setActiveSection(
+              'Dashboard'
+            )
           }
         >
           <InfoBox
