@@ -183,6 +183,53 @@ created_at TIMESTAMPTZ
 
 );
 `);
+    /* =========================================================
+     DEMO WITHDRAWAL REQUESTS TABLE
+     ========================================================= */
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS demo_withdrawal_requests (
+      id SERIAL PRIMARY KEY,
+
+      customer_id INTEGER
+        NOT NULL
+        REFERENCES customers(id)
+        ON DELETE CASCADE,
+
+      amount INTEGER
+        NOT NULL,
+
+      account_holder_name TEXT
+        NOT NULL,
+
+      bank_name TEXT
+        NOT NULL,
+
+      account_number TEXT
+        NOT NULL,
+
+      ifsc_code TEXT
+        NOT NULL,
+
+      status VARCHAR(20)
+        NOT NULL
+        DEFAULT 'PENDING',
+
+      created_at TIMESTAMPTZ
+        NOT NULL
+        DEFAULT NOW(),
+
+      updated_at TIMESTAMPTZ
+        NOT NULL
+        DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS
+      demo_withdrawal_customer_index
+    ON demo_withdrawal_requests(customer_id);
+  `);
    /* =====================================================
    DEMO DEPOSIT REQUESTS TABLE
 ===================================================== */
@@ -3311,6 +3358,542 @@ app.patch(
           error:
             'Unable to update request status.',
         });
+    }
+  }
+);
+/* =========================================================
+   DEMO WITHDRAWAL REQUESTS API
+   ========================================================= */
+
+// Customer creates withdrawal request
+app.post('/api/demo-withdrawals', async (req, res) => {
+  try {
+    const {
+      customerId,
+      amount,
+      accountHolderName,
+      bankName,
+      accountNumber,
+      ifscCode,
+    } = req.body || {};
+
+    const cleanCustomerId = Number(customerId);
+    const cleanAmount = Number(amount);
+
+    if (!Number.isInteger(cleanCustomerId) || cleanCustomerId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Valid customer ID is required.',
+      });
+    }
+
+    if (!Number.isInteger(cleanAmount) || cleanAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Valid withdrawal amount is required.',
+      });
+    }
+
+    if (
+      !accountHolderName ||
+      !bankName ||
+      !accountNumber ||
+      !ifscCode
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: 'Complete bank account details are required.',
+      });
+    }
+
+    const customerResult = await pool.query(
+      `
+        SELECT id, name, login_id, status, demo_coin_balance
+        FROM customers
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [cleanCustomerId]
+    );
+
+    if (customerResult.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Customer not found.',
+      });
+    }
+
+    const customer = customerResult.rows[0];
+
+    if (customer.status !== 'ACTIVE') {
+      return res.status(403).json({
+        success: false,
+        error: 'Customer account is not active.',
+      });
+    }
+
+    const result = await pool.query(
+      `
+        INSERT INTO demo_withdrawal_requests (
+          customer_id,
+          amount,
+          account_holder_name,
+          bank_name,
+          account_number,
+          ifsc_code,
+          status
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, 'PENDING')
+        RETURNING *
+      `,
+      [
+        cleanCustomerId,
+        cleanAmount,
+        String(accountHolderName).trim(),
+        String(bankName).trim(),
+        String(accountNumber).trim(),
+        String(ifscCode).trim().toUpperCase(),
+      ]
+    );
+
+    const request = result.rows[0];
+
+    return res.status(201).json({
+      success: true,
+      request: {
+        id: request.id,
+        customerId: request.customer_id,
+        customerName: customer.name,
+        loginId: customer.login_id,
+        amount: request.amount,
+        accountHolderName: request.account_holder_name,
+        bankName: request.bank_name,
+        accountNumber: request.account_number,
+        ifscCode: request.ifsc_code,
+        status: request.status,
+        createdAt: request.created_at,
+        updatedAt: request.updated_at,
+      },
+    });
+  } catch (error) {
+    console.error('Create Demo Withdrawal Error:', error);
+
+    return res.status(500).json({
+      success: false,
+      error: 'Unable to create withdrawal request.',
+    });
+  }
+});
+/* =========================================================
+   DEMO WITHDRAWAL REQUESTS - STEP 2B
+   Customer History + Admin List + Admin Status Update
+========================================================= */
+
+/*
+  CUSTOMER WITHDRAWAL HISTORY
+  GET /api/customers/:id/demo-withdrawals
+*/
+app.get(
+  '/api/customers/:id/demo-withdrawals',
+  async (req, res) => {
+    try {
+      const customerId = Number(req.params.id);
+
+      if (
+        !Number.isInteger(customerId) ||
+        customerId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid customer ID.',
+        });
+      }
+
+      const customerResult = await pool.query(
+        `
+          SELECT id
+          FROM customers
+          WHERE id = $1
+          LIMIT 1
+        `,
+        [customerId]
+      );
+
+      if (customerResult.rowCount === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Customer not found.',
+        });
+      }
+
+      const result = await pool.query(
+        `
+          SELECT
+            id,
+            customer_id,
+            amount,
+            account_holder_name,
+            bank_name,
+            account_number,
+            ifsc_code,
+            status,
+            created_at,
+            updated_at
+          FROM demo_withdrawal_requests
+          WHERE customer_id = $1
+          ORDER BY created_at DESC
+          LIMIT 100
+        `,
+        [customerId]
+      );
+
+      const requests = result.rows.map((request) => ({
+        id: request.id,
+        customerId: request.customer_id,
+        amount: request.amount,
+        accountHolderName:
+          request.account_holder_name,
+        bankName: request.bank_name,
+        accountNumber: request.account_number,
+        ifscCode: request.ifsc_code,
+        status: request.status,
+        createdAt: request.created_at,
+        updatedAt: request.updated_at,
+      }));
+
+      return res.json({
+        success: true,
+        requests,
+      });
+    } catch (error) {
+      console.error(
+        'Customer Demo Withdrawal History Error:',
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: 'Unable to load withdrawal history.',
+      });
+    }
+  }
+);
+
+/*
+  ADMIN - ALL WITHDRAWAL REQUESTS
+  GET /api/admin/demo-withdrawals
+  Optional:
+  ?status=PENDING
+  ?status=APPROVED
+  ?status=REJECTED
+*/
+app.get(
+  '/api/admin/demo-withdrawals',
+  async (req, res) => {
+    try {
+      const requestedStatus = String(
+        req.query.status || ''
+      )
+        .trim()
+        .toUpperCase();
+
+      const allowedStatuses = [
+        'PENDING',
+        'APPROVED',
+        'REJECTED',
+      ];
+
+      let result;
+
+      if (
+        requestedStatus &&
+        allowedStatuses.includes(requestedStatus)
+      ) {
+        result = await pool.query(
+          `
+            SELECT
+              w.id,
+              w.customer_id,
+              w.amount,
+              w.account_holder_name,
+              w.bank_name,
+              w.account_number,
+              w.ifsc_code,
+              w.status,
+              w.created_at,
+              w.updated_at,
+              c.name AS customer_name,
+              c.login_id
+            FROM demo_withdrawal_requests w
+            INNER JOIN customers c
+              ON c.id = w.customer_id
+            WHERE w.status = $1
+            ORDER BY w.created_at DESC
+            LIMIT 200
+          `,
+          [requestedStatus]
+        );
+      } else {
+        result = await pool.query(
+          `
+            SELECT
+              w.id,
+              w.customer_id,
+              w.amount,
+              w.account_holder_name,
+              w.bank_name,
+              w.account_number,
+              w.ifsc_code,
+              w.status,
+              w.created_at,
+              w.updated_at,
+              c.name AS customer_name,
+              c.login_id
+            FROM demo_withdrawal_requests w
+            INNER JOIN customers c
+              ON c.id = w.customer_id
+            ORDER BY w.created_at DESC
+            LIMIT 200
+          `
+        );
+      }
+
+      const requests = result.rows.map((request) => ({
+        id: request.id,
+        customerId: request.customer_id,
+        customerName: request.customer_name,
+        loginId: request.login_id,
+        amount: request.amount,
+        accountHolderName:
+          request.account_holder_name,
+        bankName: request.bank_name,
+        accountNumber: request.account_number,
+        ifscCode: request.ifsc_code,
+        status: request.status,
+        createdAt: request.created_at,
+        updatedAt: request.updated_at,
+      }));
+
+      return res.json({
+        success: true,
+        requests,
+      });
+    } catch (error) {
+      console.error(
+        'Admin Demo Withdrawals Error:',
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: 'Unable to load withdrawal requests.',
+      });
+    }
+  }
+);
+
+/*
+  ADMIN - SINGLE WITHDRAWAL REQUEST
+  GET /api/admin/demo-withdrawals/:id
+*/
+app.get(
+  '/api/admin/demo-withdrawals/:id',
+  async (req, res) => {
+    try {
+      const requestId = Number(req.params.id);
+
+      if (
+        !Number.isInteger(requestId) ||
+        requestId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid withdrawal request ID.',
+        });
+      }
+
+      const result = await pool.query(
+        `
+          SELECT
+            w.id,
+            w.customer_id,
+            w.amount,
+            w.account_holder_name,
+            w.bank_name,
+            w.account_number,
+            w.ifsc_code,
+            w.status,
+            w.created_at,
+            w.updated_at,
+            c.name AS customer_name,
+            c.login_id
+          FROM demo_withdrawal_requests w
+          INNER JOIN customers c
+            ON c.id = w.customer_id
+          WHERE w.id = $1
+          LIMIT 1
+        `,
+        [requestId]
+      );
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Withdrawal request not found.',
+        });
+      }
+
+      const request = result.rows[0];
+
+      return res.json({
+        success: true,
+
+        request: {
+          id: request.id,
+          customerId: request.customer_id,
+          customerName: request.customer_name,
+          loginId: request.login_id,
+          amount: request.amount,
+          accountHolderName:
+            request.account_holder_name,
+          bankName: request.bank_name,
+          accountNumber: request.account_number,
+          ifscCode: request.ifsc_code,
+          status: request.status,
+          createdAt: request.created_at,
+          updatedAt: request.updated_at,
+        },
+      });
+    } catch (error) {
+      console.error(
+        'Admin Single Demo Withdrawal Error:',
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: 'Unable to load withdrawal request.',
+      });
+    }
+  }
+);
+
+/*
+  ADMIN - UPDATE WITHDRAWAL STATUS
+  PATCH /api/admin/demo-withdrawals/:id/status
+
+  Body:
+  {
+    "status": "APPROVED"
+  }
+
+  Allowed:
+  PENDING
+  APPROVED
+  REJECTED
+*/
+app.patch(
+  '/api/admin/demo-withdrawals/:id/status',
+  async (req, res) => {
+    try {
+      const requestId = Number(req.params.id);
+
+      const nextStatus = String(
+        req.body?.status || ''
+      )
+        .trim()
+        .toUpperCase();
+
+      if (
+        !Number.isInteger(requestId) ||
+        requestId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid withdrawal request ID.',
+        });
+      }
+
+      const allowedStatuses = [
+        'PENDING',
+        'APPROVED',
+        'REJECTED',
+      ];
+
+      if (!allowedStatuses.includes(nextStatus)) {
+        return res.status(400).json({
+          success: false,
+          error:
+            'Status must be PENDING, APPROVED or REJECTED.',
+        });
+      }
+
+      const result = await pool.query(
+        `
+          UPDATE demo_withdrawal_requests
+          SET
+            status = $1,
+            updated_at = NOW()
+          WHERE id = $2
+          RETURNING
+            id,
+            customer_id,
+            amount,
+            account_holder_name,
+            bank_name,
+            account_number,
+            ifsc_code,
+            status,
+            created_at,
+            updated_at
+        `,
+        [nextStatus, requestId]
+      );
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Withdrawal request not found.',
+        });
+      }
+
+      const updatedRequest = result.rows[0];
+
+      return res.json({
+        success: true,
+
+        request: {
+          id: updatedRequest.id,
+          customerId:
+            updatedRequest.customer_id,
+          amount: updatedRequest.amount,
+          accountHolderName:
+            updatedRequest.account_holder_name,
+          bankName:
+            updatedRequest.bank_name,
+          accountNumber:
+            updatedRequest.account_number,
+          ifscCode:
+            updatedRequest.ifsc_code,
+          status:
+            updatedRequest.status,
+          createdAt:
+            updatedRequest.created_at,
+          updatedAt:
+            updatedRequest.updated_at,
+        },
+      });
+    } catch (error) {
+      console.error(
+        'Admin Update Demo Withdrawal Status Error:',
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        error:
+          'Unable to update withdrawal request status.',
+      });
     }
   }
 );
