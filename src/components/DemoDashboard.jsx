@@ -23,25 +23,25 @@ const matches = [
   {
     id: 1,
     teams: 'India vs Australia',
-    date: 'Demo Match',
+    date: 'Match',
     odds: ['1.85', '1.90', '3.20', '3.30', '2.10', '2.15'],
   },
   {
     id: 2,
     teams: 'Afghanistan vs Bangladesh',
-    date: 'Demo Match',
+    date: 'Match',
     odds: ['5.70', '5.80', '23.0', '24.0', '1.27', '1.28'],
   },
   {
     id: 3,
     teams: 'South Africa vs England',
-    date: 'Demo Match',
+    date: 'Match',
     odds: ['2.25', '2.30', '3.10', '3.20', '1.75', '1.80'],
   },
   {
     id: 4,
     teams: 'Western Australia vs Queensland Bulls',
-    date: 'Demo Match',
+    date: 'Match',
     odds: ['1.65', '1.70', '3.50', '3.60', '2.40', '2.45'],
   },
 ];
@@ -166,11 +166,11 @@ function NeonScrollingLine() {
     <div className="tsb-neon-area">
       <div className="tsb-neon-track">
         <span className="tsb-neon-text">
-          ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS & ENTERTAINMENT DEMO ✦
+          ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS & ENTERTAINMENT ✦
         </span>
 
         <span className="tsb-neon-text">
-          ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS & ENTERTAINMENT DEMO ✦
+          ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS & ENTERTAINMENT ✦
         </span>
       </div>
     </div>
@@ -212,10 +212,6 @@ function GameSection({
                 alt={game.name}
                 className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
               />
-
-              <span className="absolute right-1 top-1 rounded bg-black/70 px-1.5 py-0.5 text-[6px] font-black text-cyan-300">
-                DEMO
-              </span>
 
               <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-black to-transparent" />
             </div>
@@ -311,7 +307,7 @@ export default function DemoDashboard({
         if (!response.ok) {
           throw new Error(
             data?.error ||
-            'Unable to load Demo Coin balance.'
+            'Unable to load balance.'
           );
         }
 
@@ -320,7 +316,7 @@ export default function DemoDashboard({
         );
       } catch (error) {
         console.error(
-          'Demo Balance Load Error:',
+          'Balance Load Error:',
           error
         );
 
@@ -389,7 +385,6 @@ export default function DemoDashboard({
 
     if (item === 'Rule') {
       setShowRules(true);
-      return;
     }
   };
 
@@ -526,10 +521,6 @@ export default function DemoDashboard({
               🚀 COMING SOON
             </span>
           </div>
-
-          <p className="mt-4 text-xs text-gray-500">
-            Demo preview only
-          </p>
         </div>
       </div>
     );
@@ -646,7 +637,7 @@ export default function DemoDashboard({
                 </h1>
 
                 <p className="mt-0.5 text-[9px] font-black uppercase tracking-[0.24em] text-cyan-400">
-                  BOOK • DEMO
+                  BOOK
                 </p>
               </div>
             </div>
@@ -656,7 +647,7 @@ export default function DemoDashboard({
 
             <div className="rounded-xl border border-amber-400/20 bg-black/20 px-3 py-2">
               <p className="text-[8px] font-bold uppercase tracking-wider text-gray-500">
-                Demo Balance
+                Balance
               </p>
 
               <p className="mt-0.5 text-sm font-black text-amber-300">
@@ -678,7 +669,7 @@ export default function DemoDashboard({
             >
               {user?.name ||
                 user?.identifier ||
-                'Demo User'}{' '}
+                'User'}{' '}
               ▼
             </button>
 
@@ -740,7 +731,7 @@ export default function DemoDashboard({
             </span>
 
             <span className="mt-0.5 block text-[8px] font-bold uppercase tracking-wider text-emerald-400">
-              Demo Credits
+              Credits
             </span>
           </button>
 
@@ -760,7 +751,7 @@ export default function DemoDashboard({
             </span>
 
             <span className="mt-0.5 block text-[8px] font-bold uppercase tracking-wider text-orange-400">
-              Demo Request
+              Request
             </span>
           </button>
 
@@ -772,7 +763,7 @@ export default function DemoDashboard({
           </span>
 
           <p className="text-[9px] font-black uppercase tracking-wider text-amber-300">
-            Our Exchange • Demo Sports Hub
+            Our Exchange • Sports Hub
           </p>
         </div>
 
@@ -861,10 +852,6 @@ export default function DemoDashboard({
                 LIVE SPORTS
               </h2>
             </div>
-
-            <p className="mt-1 text-[9px] font-bold text-gray-600">
-              Demo / mock sports data
-            </p>
           </div>
 
           <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[8px] font-black text-emerald-400">
@@ -923,7 +910,7 @@ export default function DemoDashboard({
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
 
                   <span className="text-[7px] font-black uppercase tracking-wider text-red-400">
-                    Live Demo
+                    LIVE
                   </span>
                 </div>
 
@@ -1054,7 +1041,7 @@ export default function DemoDashboard({
         </p>
 
         <p className="mt-1 text-[8px] font-black uppercase tracking-[0.18em] text-cyan-500">
-          Demo Website
+          SPORTS & ENTERTAINMENT
         </p>
 
         <p className="mx-auto mt-3 max-w-xl text-[9px] leading-5 text-gray-600">
