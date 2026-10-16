@@ -47,30 +47,104 @@ const matches = [
 ];
 
 const featuredGames = [
-  { name: 'CREED ROOMZ', image: '/games/creed-roomz.png' },
-  { name: 'LIGHTNING', image: '/games/lightning.png' },
-  { name: 'INSTA LIVE', image: '/games/insta-live.png' },
-  { name: 'EZUGI', image: '/games/ezugi.png' },
-  { name: 'AVIATOR', image: '/games/aviator.png' },
-  { name: 'MINES', image: '/games/mines.png' },
-  { name: 'BIKINI GAMES', image: '/games/bikini-games.png' },
+  {
+    name: 'CREED ROOMZ',
+    image: '/games/creed-roomz.png',
+  },
+  {
+    name: 'LIGHTNING',
+    image: '/games/lightning.png',
+  },
+  {
+    name: 'INSTA LIVE',
+    image: '/games/insta-live.png',
+  },
+  {
+    name: 'EZUGI',
+    image: '/games/ezugi.png',
+  },
+  {
+    name: 'AVIATOR',
+    image: '/games/aviator.png',
+  },
+  {
+    name: 'MINES',
+    image: '/games/mines.png',
+  },
+  {
+    name: 'BIKINI GAMES',
+    image: '/games/bikini-games.png',
+  },
   {
     name: 'COLOR PREDICTION',
     image: '/games/color-prediction.png',
   },
 ];
 
+const topScrollingGames = [
+  {
+    name: 'AVIATOR',
+    image: '/games/aviator.png',
+  },
+  {
+    name: 'LIGHTNING',
+    image: '/games/lightning.png',
+  },
+  {
+    name: 'MINES',
+    image: '/games/mines.png',
+  },
+  {
+    name: 'CREED ROOMZ',
+    image: '/games/creed-roomz.png',
+  },
+  {
+    name: 'INSTA LIVE',
+    image: '/games/insta-live.png',
+  },
+  {
+    name: 'COLOR PREDICTION',
+    image: '/games/color-prediction.png',
+  },
+  {
+    name: 'EZUGI',
+    image: '/games/ezugi.png',
+  },
+  {
+    name: 'AVIATOR',
+    image: '/games/aviator.png',
+  },
+];
+
 const newLaunch = [
-  { name: 'JILI', image: '/games/jili.png' },
-  { name: 'GOLDEN KICK', image: '/games/golden-kick.png' },
+  {
+    name: 'JILI',
+    image: '/games/jili.png',
+  },
+  {
+    name: 'GOLDEN KICK',
+    image: '/games/golden-kick.png',
+  },
   {
     name: 'SNAKES & LADDERS',
     image: '/games/snakes-ladders.png',
   },
-  { name: 'PREDIX', image: '/games/predix.png' },
-  { name: 'MONEY HEIST', image: '/games/money-heist.png' },
-  { name: 'FOOTBALL X', image: '/games/football-x.png' },
-  { name: 'TWIST X', image: '/games/twist-x.png' },
+  {
+    name: 'PREDIX',
+    image: '/games/predix.png',
+  },
+  {
+    name: 'MONEY HEIST',
+    image: '/games/money-heist.png',
+  },
+  {
+    name: 'FOOTBALL X',
+    image: '/games/football-x.png',
+  },
+  {
+    name: 'TWIST X',
+    image: '/games/twist-x.png',
+  },
   {
     name: 'INSTANT RUMMY',
     image: '/games/instant-rummy.png',
@@ -79,12 +153,18 @@ const newLaunch = [
     name: 'JHANDI MUNDA',
     image: '/games/jhandi-munda.png',
   },
-  { name: 'BLACKJACK', image: '/games/blackjack.png' },
+  {
+    name: 'BLACKJACK',
+    image: '/games/blackjack.png',
+  },
   {
     name: 'DEAL OR NO DEAL',
     image: '/games/deal-or-no-deal.png',
   },
-  { name: 'LOOT BOXES', image: '/games/loot-boxes.png' },
+  {
+    name: 'LOOT BOXES',
+    image: '/games/loot-boxes.png',
+  },
 ];
 
 const favourites = [
@@ -174,6 +254,42 @@ function NeonScrollingLine() {
         </span>
       </div>
     </div>
+  );
+}
+
+function TopGamesSlider({ onGameClick }) {
+  const games = [
+    ...topScrollingGames,
+    ...topScrollingGames,
+  ];
+
+  return (
+    <section className="overflow-hidden border-b border-white/10 bg-[#080d16] py-3">
+      <div className="tsb-game-slider">
+        <div className="tsb-game-slider-track">
+          {games.map((game, index) => (
+            <button
+              key={`${game.name}-${index}`}
+              type="button"
+              onClick={() => onGameClick(game)}
+              className="tsb-top-game-card"
+            >
+              <div className="h-[74px] w-[112px] overflow-hidden rounded-xl border border-cyan-400/20 bg-[#111827] shadow-[0_0_15px_rgba(34,211,238,.08)]">
+                <img
+                  src={game.image}
+                  alt={game.name}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+
+              <span className="mt-1 block max-w-[112px] truncate text-center text-[7px] font-black uppercase tracking-wide text-gray-300">
+                {game.name}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -307,7 +423,7 @@ export default function DemoDashboard({
         if (!response.ok) {
           throw new Error(
             data?.error ||
-            'Unable to load balance.'
+              'Unable to load balance.'
           );
         }
 
@@ -354,7 +470,6 @@ export default function DemoDashboard({
         top: 0,
         behavior: 'smooth',
       });
-
       return;
     }
 
@@ -504,7 +619,7 @@ export default function DemoDashboard({
         </header>
 
         <div className="flex min-h-[75vh] flex-col items-center justify-center px-5 text-center">
-          <div className="w-full max-w-[320px] overflow-hidden rounded-2xl border border-cyan-500/30 bg-[#111827] p-2 shadow-[0_0_35px_rgba(34,211,238,0.12)]">
+          <div className="w-full max-w-[320px] overflow-hidden rounded-2xl border border-cyan-500/30 bg-[#111827] p-2">
             <img
               src={selectedGame.image}
               alt={selectedGame.name}
@@ -528,7 +643,6 @@ export default function DemoDashboard({
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#080d16] text-white">
-
       <style>
         {`
           .tsb-neon-area {
@@ -611,22 +725,54 @@ export default function DemoDashboard({
             background: #0d9488;
             border-radius: 999px;
           }
+
+          .tsb-game-slider {
+            width: 100%;
+            overflow: hidden;
+          }
+
+          .tsb-game-slider-track {
+            display: flex;
+            width: max-content;
+            gap: 10px;
+            padding-left: 10px;
+            animation: tsbGameSlide 30s linear infinite;
+          }
+
+          .tsb-game-slider-track:active {
+            animation-play-state: paused;
+          }
+
+          .tsb-top-game-card {
+            width: 112px;
+            flex-shrink: 0;
+          }
+
+          @keyframes tsbGameSlide {
+            from {
+              transform: translateX(0);
+            }
+
+            to {
+              transform: translateX(-50%);
+            }
+          }
         `}
       </style>
 
-      {/* PREMIUM HEADER */}
+      {/* HEADER */}
 
       <header className="border-b border-[#1f2937] bg-gradient-to-br from-[#0c1727] via-[#0b121e] to-[#111827] px-4 pb-3 pt-4">
 
         <div className="flex items-start justify-between gap-3">
 
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
 
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-amber-400/30 bg-black/20 shadow-[0_0_20px_rgba(245,158,11,.12)]">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-amber-400/30 bg-black shadow-[0_0_20px_rgba(245,158,11,.12)]">
                 <img
                   src="/games/file_0000000092bc82118617f615539c5f17.png"
-                  alt="TSB Logo"
+                  alt="Telugu Sports Book"
                   className="h-full w-full object-contain"
                 />
               </div>
@@ -645,6 +791,7 @@ export default function DemoDashboard({
                   BOOK
                 </p>
               </div>
+
             </div>
           </div>
 
@@ -712,30 +859,18 @@ export default function DemoDashboard({
           </div>
         </div>
 
-        <div className="mt-2 overflow-hidden rounded-lg border border-cyan-500/10 bg-black/20">
-          <NeonScrollingLine />
-        </div>
+        {/* DEPOSIT / WITHDRAWAL COMPACT */}
 
-        <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className="mt-3 flex items-center gap-6 px-1">
 
           <button
             type="button"
             onClick={() =>
               setShowDeposit(true)
             }
-            className="relative overflow-hidden rounded-xl border border-emerald-400/40 bg-gradient-to-br from-emerald-500/25 via-[#10241f] to-[#0d1719] px-3 py-3 text-left shadow-[0_0_20px_rgba(52,211,153,.08)] transition active:scale-[0.98]"
+            className="text-[15px] font-black text-white transition active:scale-95"
           >
-            <span className="block text-xl">
-              💰
-            </span>
-
-            <span className="mt-1 block text-sm font-black text-white">
-              DEPOSIT
-            </span>
-
-            <span className="mt-0.5 block text-[8px] font-bold uppercase tracking-wider text-emerald-400">
-              Credits
-            </span>
+            Deposit
           </button>
 
           <button
@@ -743,24 +878,31 @@ export default function DemoDashboard({
             onClick={() =>
               setShowWithdrawal(true)
             }
-            className="relative overflow-hidden rounded-xl border border-orange-400/40 bg-gradient-to-br from-orange-500/25 via-[#251811] to-[#17120f] px-3 py-3 text-left shadow-[0_0_20px_rgba(251,146,60,.08)] transition active:scale-[0.98]"
+            className="text-[15px] font-black text-white transition active:scale-95"
           >
-            <span className="block text-xl">
-              💸
-            </span>
-
-            <span className="mt-1 block text-sm font-black text-white">
-              WITHDRAWAL
-            </span>
-
-            <span className="mt-0.5 block text-[8px] font-bold uppercase tracking-wider text-orange-400">
-              Request
-            </span>
+            Withdrawal
           </button>
 
         </div>
 
-        <div className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-amber-400/10 bg-amber-400/5 px-3 py-2">
+        {/* NEON */}
+
+        <div className="mt-3 overflow-hidden rounded-lg border border-cyan-500/10 bg-black/20">
+          <NeonScrollingLine />
+        </div>
+
+      </header>
+
+      {/* AUTO SCROLL GAMES */}
+
+      <TopGamesSlider
+        onGameClick={setSelectedGame}
+      />
+
+      {/* EXCHANGE */}
+
+      <div className="bg-[#080d16] px-4 pb-3">
+        <div className="flex items-center justify-center gap-2 rounded-lg border border-amber-400/10 bg-amber-400/5 px-3 py-2">
           <span className="text-xs">
             🏆
           </span>
@@ -769,8 +911,7 @@ export default function DemoDashboard({
             Our Exchange • Sports Hub
           </p>
         </div>
-
-      </header>
+      </div>
 
       {/* MAIN NAV */}
 
@@ -792,7 +933,7 @@ export default function DemoDashboard({
               }
               className={`mr-2 shrink-0 rounded-lg border px-4 py-2 text-[9px] font-black transition ${
                 selectedTab === tab
-                  ? 'border-cyan-400/50 bg-cyan-400/15 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,.08)]'
+                  ? 'border-cyan-400/50 bg-cyan-400/15 text-cyan-300'
                   : 'border-white/10 bg-[#111827] text-gray-400'
               }`}
             >
@@ -842,19 +983,17 @@ export default function DemoDashboard({
         </div>
       </section>
 
-      {/* MATCH SECTION HEADER */}
+      {/* LIVE SPORTS */}
 
       <section className="bg-[#080d16] px-3 pb-2 pt-4">
         <div className="flex items-center justify-between">
 
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500 shadow-[0_0_12px_#ef4444]" />
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500 shadow-[0_0_12px_#ef4444]" />
 
-              <h2 className="text-lg font-black tracking-wide text-white">
-                LIVE SPORTS
-              </h2>
-            </div>
+            <h2 className="text-lg font-black tracking-wide text-white">
+              LIVE SPORTS
+            </h2>
           </div>
 
           <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[8px] font-black text-emerald-400">
@@ -867,7 +1006,6 @@ export default function DemoDashboard({
       {/* FILTER */}
 
       <section className="border-b border-white/10 bg-[#080d16] px-3 py-3">
-
         <div className="flex gap-2">
 
           {[
@@ -892,7 +1030,6 @@ export default function DemoDashboard({
           ))}
 
         </div>
-
       </section>
 
       {/* MATCHES */}
@@ -920,9 +1057,7 @@ export default function DemoDashboard({
                 <button
                   type="button"
                   onClick={() =>
-                    setSelectedMatch(
-                      match
-                    )
+                    setSelectedMatch(match)
                   }
                   className="block w-full text-left"
                 >
@@ -965,9 +1100,7 @@ export default function DemoDashboard({
                       key={`${match.id}-${index}`}
                       type="button"
                       onClick={() =>
-                        setSelectedMatch(
-                          match
-                        )
+                        setSelectedMatch(match)
                       }
                       className={`h-[42px] rounded-lg border text-[9px] font-black ${
                         index % 2 === 0
@@ -1027,10 +1160,10 @@ export default function DemoDashboard({
 
       <footer className="border-t border-white/10 bg-[#050911] px-5 py-8 text-center">
 
-        <div className="mx-auto h-16 w-16 overflow-hidden rounded-xl border border-cyan-400/20 bg-black/20 p-1">
+        <div className="mx-auto flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl border border-cyan-400/20 bg-black">
           <img
             src="/games/file_0000000092bc82118617f615539c5f17.png"
-            alt="TSB Logo"
+            alt="Telugu Sports Book"
             className="h-full w-full object-contain"
           />
         </div>
@@ -1040,8 +1173,8 @@ export default function DemoDashboard({
         </p>
 
         <p className="mx-auto mt-3 max-w-xl text-[9px] leading-5 text-gray-600">
-          For demonstration and informational purposes only.
-          No real-money transactions.
+          Demonstration and informational purposes only.
+          No real-money transactions are processed.
         </p>
 
       </footer>
