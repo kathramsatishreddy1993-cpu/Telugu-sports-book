@@ -1187,42 +1187,6 @@ export default function AdminDashboard({
     );
   }
 };
-      setCoinHistory(
-        (previous) => [
-          record,
-          ...previous,
-        ]
-      );
-
-      window.dispatchEvent(
-        new CustomEvent(
-          'tsb-demo-balance-updated',
-          {
-            detail: {
-              balance:
-                nextBalance,
-            },
-          }
-        )
-      );
-
-      setCoinAmount('');
-
-      setCoinMessage(
-        mode === 'ADD'
-          ? `${amount.toLocaleString(
-              'en-IN'
-            )} demo coins added.`
-          : `${amount.toLocaleString(
-              'en-IN'
-            )} demo coins removed.`
-      );
-    } catch {
-      setCoinMessage(
-        'Unable to update demo coins.'
-      );
-    }
-  };
 
   /* =====================================================
      ADMIN BOXES
