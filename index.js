@@ -97,7 +97,9 @@ async function initializeDatabase() {
         status VARCHAR(20)
           NOT NULL
           DEFAULT 'ACTIVE',
-
+demo_coin_balance INTEGER
+  NOT NULL
+  DEFAULT 0,
         created_at
           TIMESTAMPTZ
           NOT NULL
@@ -124,7 +126,13 @@ async function initializeDatabase() {
         NOT NULL
         DEFAULT TRUE;
     `);
-
+await pool.query(`
+  ALTER TABLE customers
+  ADD COLUMN IF NOT EXISTS
+    demo_coin_balance INTEGER
+    NOT NULL
+    DEFAULT 0;
+`);
     /* =====================================================
        SITE SETTINGS TABLE
     ===================================================== */
@@ -143,7 +151,32 @@ async function initializeDatabase() {
           DEFAULT NOW()
       );
     `);
+/* =====================================================
+   DEMO COIN TRANSACTIONS TABLE
+===================================================== */
 
+await pool.query(`
+  CREATE TABLE IF NOT EXISTS demo_coin_transactions (
+    id SERIAL PRIMARY KEY,
+
+    customer_id INTEGER
+      NOT NULL
+      REFERENCES customers(id)
+      ON DELETE CASCADE,
+
+    amount INTEGER
+      NOT NULL,
+
+    transaction_type VARCHAR(20)
+      NOT NULL,
+
+    note TEXT,
+
+    created_at TIMESTAMPTZ
+      NOT NULL
+      DEFAULT NOW()
+  );
+`);
     /* =====================================================
        DEFAULT WHATSAPP NUMBER
     ===================================================== */
