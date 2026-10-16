@@ -3319,16 +3319,14 @@ API 404
 ========================================================= */
 
 app.all(
-'/api/*',
-
-(req, res) => {
-res
-.status(404)
-.json({
-error:
-API endpoint ${req.originalUrl} not found.,
-});
-}
+  '/api/*',
+  (req, res) => {
+    res
+      .status(404)
+      .json({
+        error: `API endpoint ${req.originalUrl} not found.`,
+      });
+  }
 );
 
 /* =========================================================
