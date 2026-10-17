@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
-const BALANCE_KEY = 'telugu_sports_demo_balance';
 const BETS_KEY = 'telugu_sports_demo_bets';
 
 const defaultQuickStakes = [
@@ -101,28 +100,6 @@ const demoFancyMarkets = [
   },
 ];
 
-function readBalance() {
-  try {
-    const saved = localStorage.getItem(BALANCE_KEY);
-
-    if (saved === null) {
-      localStorage.setItem(BALANCE_KEY, '10000');
-      return 10000;
-    }
-
-    const value = Number(saved);
-
-    if (!Number.isFinite(value)) {
-      localStorage.setItem(BALANCE_KEY, '10000');
-      return 10000;
-    }
-
-    return value;
-  } catch {
-    return 10000;
-  }
-}
-
 function readBets() {
   try {
     const saved = JSON.parse(
@@ -144,13 +121,10 @@ export default function MatchDetailsPage({
   const [stake, setStake] = useState('');
   const [message, setMessage] = useState('');
 
-  const [demoBalance, setDemoBalance] = useState(() =>
-    readBalance()
-  );
+  const [demoBalance, setDemoBalance] = useState(0);
+  const [balanceLoading, setBalanceLoading] = useState(true);
 
-  const [allBets, setAllBets] = useState(() =>
-    readBets()
-  );
+  const [allBets, setAllBets] = useState(() => readBets());
 
   const [showMatchedBets, setShowMatchedBets] =
     useState(false);
@@ -158,7 +132,7 @@ export default function MatchDetailsPage({
   const currentMatch = match || {
     id: 1,
     teams: 'India vs Australia',
-    date: 'Demo Match',
+    date: 'Match',
     odds: [
       '1.85',
       '1.90',
@@ -178,17 +152,73 @@ export default function MatchDetailsPage({
     '2.15',
   ];
 
+  const customerId =
+    user?.id ||
+    user?.customerId ||
+    user?.customer_id;
+
+  const loadServerBalance = useCallback(async () => {
+    if (!customerId) {
+      setDemoBalance(0);
+      setBalanceLoading(false);
+      return;
+    }
+
+    try {
+      setBalanceLoading(true);
+
+      const response = await fetch(
+        `/api/customers/${customerId}/demo-balance`,
+        {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            data?.error ||
+            'Unable to load balance.'
+        );
+      }
+
+      const balance = Number(
+        data?.demoCoinBalance ??
+          data?.balance ??
+          data?.demo_coin_balance ??
+          0
+      );
+
+      setDemoBalance(
+        Number.isFinite(balance) ? balance : 0
+      );
+    } catch (error) {
+      console.error('Balance load error:', error);
+    } finally {
+      setBalanceLoading(false);
+    }
+  }, [customerId]);
+
   useEffect(() => {
     const refreshData = () => {
-      setDemoBalance(readBalance());
+      loadServerBalance();
       setAllBets(readBets());
     };
 
+    refreshData();
+
     window.addEventListener('focus', refreshData);
+
     window.addEventListener(
       'demo-balance-updated',
       refreshData
     );
+
     window.addEventListener(
       'demo-bets-updated',
       refreshData
@@ -196,16 +226,18 @@ export default function MatchDetailsPage({
 
     return () => {
       window.removeEventListener('focus', refreshData);
+
       window.removeEventListener(
         'demo-balance-updated',
         refreshData
       );
+
       window.removeEventListener(
         'demo-bets-updated',
         refreshData
       );
     };
-  }, []);
+  }, [loadServerBalance]);
 
   const matchBets = useMemo(() => {
     return allBets
@@ -284,18 +316,17 @@ export default function MatchDetailsPage({
       return;
     }
 
-    const currentBalance = readBalance();
+    /*
+      IMPORTANT:
+      This page reads the same server balance as the
+      customer dashboard.
 
-    if (amount > currentBalance) {
-      setMessage(
-        `Insufficient demo coins. Available balance: ${currentBalance.toLocaleString(
-          'en-IN'
-        )}`
-      );
-      return;
-    }
+      The selection below is only stored as a local
+      simulation record.
 
-    const newBalance = currentBalance - amount;
+      It does NOT deduct or modify the PostgreSQL
+      customer wallet.
+    */
 
     const newBet = {
       id: `demo-bet-${Date.now()}`,
@@ -318,8 +349,8 @@ export default function MatchDetailsPage({
 
       profitLoss: 0,
 
-      balanceBefore: currentBalance,
-      balanceAfter: newBalance,
+      balanceBefore: demoBalance,
+      balanceAfter: demoBalance,
 
       userName:
         user?.name ||
@@ -337,39 +368,22 @@ export default function MatchDetailsPage({
     ];
 
     localStorage.setItem(
-      BALANCE_KEY,
-      String(newBalance)
-    );
-
-    localStorage.setItem(
       BETS_KEY,
       JSON.stringify(updatedBets)
     );
 
-    setDemoBalance(newBalance);
     setAllBets(updatedBets);
-
-    window.dispatchEvent(
-      new Event('demo-balance-updated')
-    );
 
     window.dispatchEvent(
       new Event('demo-bets-updated')
     );
 
     setMessage(
-      `Demo bet placed successfully • ${amount.toLocaleString(
+      `Demo selection recorded • ${amount.toLocaleString(
         'en-IN'
-      )} demo coins deducted`
+      )} simulated coins`
     );
 
-    /*
-      IMPORTANT:
-      Bet placed తర్వాత Matched Bet page
-      automaticగా open చేయము.
-      Customer స్వయంగా MATCHED BET tab
-      click చేసినప్పుడే open అవుతుంది.
-    */
     setTimeout(() => {
       setSelectedMarket(null);
       setStake('');
@@ -403,7 +417,9 @@ export default function MatchDetailsPage({
           <div className="text-right">
             <p className="text-xs font-black text-amber-300">
               🪙{' '}
-              {demoBalance.toLocaleString('en-IN')}
+              {balanceLoading
+                ? '...'
+                : demoBalance.toLocaleString('en-IN')}
             </p>
 
             <p className="mt-1 max-w-[85px] truncate text-[10px] font-bold">
@@ -442,7 +458,6 @@ export default function MatchDetailsPage({
         </button>
       </div>
 
-      {/* MATCHED BET VIEW */}
       {showMatchedBets ? (
         <section className="bg-[#eeeeee] pb-8">
           <div className="bg-[#0b6259] px-3 py-3 text-white">
@@ -464,15 +479,13 @@ export default function MatchDetailsPage({
               </p>
 
               <p className="mt-2 text-xs leading-5 text-gray-500">
-                Place a demo selection from the
-                Odds or Fancy Market.
+                Place a demo selection from the Odds or
+                Fancy Market.
               </p>
 
               <button
                 type="button"
-                onClick={() =>
-                  setShowMatchedBets(false)
-                }
+                onClick={() => setShowMatchedBets(false)}
                 className="mt-5 rounded-md bg-[#075249] px-6 py-3 text-xs font-black text-white"
               >
                 VIEW ODDS
@@ -527,9 +540,7 @@ export default function MatchDetailsPage({
                         </p>
 
                         <p className="mt-1 text-sm font-black">
-                          {Number(
-                            bet.stake
-                          ).toLocaleString(
+                          {Number(bet.stake).toLocaleString(
                             'en-IN'
                           )}
                         </p>
@@ -540,9 +551,7 @@ export default function MatchDetailsPage({
                       <span className="text-[10px] font-semibold text-gray-500">
                         {new Date(
                           bet.createdAt
-                        ).toLocaleString(
-                          'en-IN'
-                        )}
+                        ).toLocaleString('en-IN')}
                       </span>
 
                       <span className="text-[10px] font-black text-amber-700">
@@ -557,9 +566,7 @@ export default function MatchDetailsPage({
 
           <button
             type="button"
-            onClick={() =>
-              setShowMatchedBets(false)
-            }
+            onClick={() => setShowMatchedBets(false)}
             className="mx-3 w-[calc(100%-24px)] rounded-md bg-[#075249] py-3 text-sm font-black text-white"
           >
             ← BACK TO ODDS
@@ -582,7 +589,7 @@ export default function MatchDetailsPage({
             </p>
           </section>
 
-          {/* BALANCE */}
+          {/* SERVER BALANCE */}
           <section className="mt-2 bg-[#0b6259] px-3 py-4 text-white">
             <p className="text-[10px] font-bold text-teal-100">
               AVAILABLE DEMO BALANCE
@@ -591,10 +598,11 @@ export default function MatchDetailsPage({
             <div className="mt-2 flex items-center justify-between">
               <p className="text-xl font-black text-amber-300">
                 🪙{' '}
-                {demoBalance.toLocaleString(
-                  'en-IN'
-                )}{' '}
-                Demo Coins
+                {balanceLoading
+                  ? 'Loading...'
+                  : `${demoBalance.toLocaleString(
+                      'en-IN'
+                    )} Demo Coins`}
               </p>
 
               <span className="rounded bg-[#06443e] px-2 py-1 text-[9px] font-black">
@@ -851,11 +859,9 @@ export default function MatchDetailsPage({
           {/* DEMO NOTICE */}
           <section className="m-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
             <p className="text-[11px] font-bold leading-5 text-amber-900">
-              DEMO ONLY — Scores, odds,
-              selections and demo coins are
-              simulated for interface testing.
-              No real-money transactions or
-              payouts.
+              DEMO ONLY — Scores, odds and selections
+              are simulated for interface testing.
+              No real-money transactions or payouts.
             </p>
           </section>
 
@@ -888,9 +894,11 @@ export default function MatchDetailsPage({
 
                 <p className="text-[10px] font-bold">
                   Available: 🪙{' '}
-                  {demoBalance.toLocaleString(
-                    'en-IN'
-                  )}
+                  {balanceLoading
+                    ? '...'
+                    : demoBalance.toLocaleString(
+                        'en-IN'
+                      )}
                 </p>
               </div>
 
@@ -952,15 +960,11 @@ export default function MatchDetailsPage({
                   <button
                     key={amount}
                     type="button"
-                    onClick={() =>
-                      addStake(amount)
-                    }
+                    onClick={() => addStake(amount)}
                     className="rounded-md bg-gray-200 py-2 text-[11px] font-black"
                   >
                     +
-                    {amount.toLocaleString(
-                      'en-IN'
-                    )}
+                    {amount.toLocaleString('en-IN')}
                   </button>
                 ))}
               </div>
@@ -987,13 +991,15 @@ export default function MatchDetailsPage({
                   onClick={placeDemoSelection}
                   className="rounded-md bg-[#075249] py-3 text-sm font-black text-white"
                 >
-                  PLACE DEMO BET
+                  SAVE DEMO SELECTION
                 </button>
               </div>
 
               <p className="mt-4 text-center text-[10px] font-semibold leading-4 text-gray-500">
-                Simulated demo coins only.
-                No real-money betting or payouts.
+                Simulation only. Saving a selection
+                does not change the server wallet and
+                no real-money betting or payouts are
+                supported.
               </p>
             </div>
           </div>
