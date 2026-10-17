@@ -270,7 +270,7 @@ return (
 <div className="tsb-game-slider-track">
 {games.map((game, index) => (
 <button
-key={${game.name}-${index}}
+key={`${game.name}-${index}`}
 type="button"
 onClick={() => onGameClick(game)}
 className="tsb-top-game-card"
