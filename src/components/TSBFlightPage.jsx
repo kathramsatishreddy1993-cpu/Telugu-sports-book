@@ -11,6 +11,7 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
     '/api/flight/state',
   );
   const [clock, setClock] = useState(Date.now());
+  const [drafts, setDrafts] = useState({1:'50',2:'50'});
   const alive = useRef(true);
   useEffect(() => {
     alive.current = true;
@@ -50,6 +51,7 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
             ) * 100,
           ) / 100
         : 1;
+  const sound = useFlightSound(phase, round?.id, fresh);
   const shownBalance = data ? Number(data.balance).toLocaleString('en-IN') : 'Loading...';
   const [verified, setVerified] = useState('');
   useEffect(() => {
@@ -108,13 +110,12 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
           <p className="font-black text-amber-300">{shownBalance}</p>
         </div>
       </header>
+      <div className="mx-auto flex max-w-4xl justify-end px-4 pt-2">
+        <button type="button" onClick={sound.toggle} aria-pressed={sound.enabled} className="rounded-lg border border-cyan-400/30 px-3 py-2 text-xs text-cyan-200">
+          {sound.enabled ? '🔊 Sound ON' : '🔇 Sound OFF'}
+        </button>
+      </div>
       <main className="mx-auto max-w-4xl space-y-4 p-4">
-        <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs leading-5 text-amber-100">
-          <strong>Admin-controlled demo test round.</strong> The controller
-          locks the crash point before betting opens. Demo coins only.
-          Closing this page does not cash out; the server must accept your
-          cash-out request before crash.
-        </div>
         {(error || wrongAccount) && (
           <div
             role="alert"
@@ -136,6 +137,7 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
         {[1, 2].map((slot) => (
           <BetBox key={`${customerId}-${round?.id || 'waiting'}-${slot}`} slot={slot}
             round={round} phase={phase} fresh={fresh} multiplier={multiplier}
+            stake={drafts[slot]} setStake={value => setDrafts(previous => ({...previous,[slot]:value}))}
             bets={data?.bets || []} refresh={refresh} />
         ))}
         <section className="rounded-2xl border border-white/10 bg-[#0d192a] p-4">
@@ -186,6 +188,7 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
             </tbody>
           </table>
         </section>
+        <p className="px-1 text-[10px] leading-5 text-slate-400">Demo coins only · Controller fixes the crash before betting opens. Closing the page does not cash out; the server must accept cash out before crash.</p>
         {round && (
           <details className="break-all rounded-xl border border-white/10 p-3 text-[10px] text-slate-400">
             <summary className="cursor-pointer">
@@ -208,8 +211,7 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
 }
 
 
-function BetBox({ slot, round, phase, fresh, multiplier, bets, refresh }) {
-  const [stake, setStake] = useState('50');
+function BetBox({ slot, round, phase, fresh, multiplier, bets, refresh, stake, setStake }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [saved, setSaved] = useState(null);
@@ -220,7 +222,7 @@ function BetBox({ slot, round, phase, fresh, multiplier, bets, refresh }) {
   const remote = bets.find(b => String(b.roundId) === String(round?.id) && Number(b.slot || 1) === slot);
   // A successful mutation is shown immediately, even before the next poll.
   const bet = remote?.status === 'CASHED_OUT' || remote?.status === 'LOST' ? remote : saved || remote;
-  const editable = !busy && !bet && !pending.current;
+  const editable = !busy;
   const cashout = bet?.status === 'PLACED' && phase === 'RUNNING';
   const canBet = !bet && phase === 'COUNTDOWN';
   const change = delta => {
@@ -228,7 +230,12 @@ function BetBox({ slot, round, phase, fresh, multiplier, bets, refresh }) {
     setStake(String(Math.min(25000, Math.max(10, (Number(stake) || 0) + delta))));
   };
   const act = async () => {
-    if (inflight.current || !fresh || (!cashout && !canBet)) return;
+    if (inflight.current) return;
+    if (!fresh) { setMessage('Connection unavailable. Please wait for a fresh server update.'); return; }
+    if (!cashout && !canBet) {
+      setMessage('WAIT FOR NEXT ROUND — amount prepared only. No bet placed and no coins deducted. Press BET again during the next countdown.');
+      return;
+    }
     inflight.current = true;
     setBusy(true); setMessage('');
     try {
@@ -252,7 +259,11 @@ function BetBox({ slot, round, phase, fresh, multiplier, bets, refresh }) {
           : `Box ${slot}: ${result.bet.stake.toLocaleString('en-IN')} demo coins placed.`);
       }
     } catch (error) {
-      if (mounted.current) setMessage(error.message);
+      // A rejected request did not create a bet; keep unknown network outcomes retryable.
+      if ([400,401,403,404,409].includes(error.status)) pending.current = null;
+      if (mounted.current) setMessage(error.status === 409 && !cashout
+        ? 'Betting closed or this box already has a bet. WAIT FOR NEXT ROUND. Your prepared amount is kept.'
+        : error.message);
     } finally {
       inflight.current = false;
       if (mounted.current) setBusy(false);
@@ -265,6 +276,7 @@ function BetBox({ slot, round, phase, fresh, multiplier, bets, refresh }) {
         <h2 className="text-sm font-black text-cyan-200">BET BOX {slot}</h2>
         <span className="text-[10px] text-slate-400">10–25,000 demo coins</span>
       </div>
+      <p className="mb-2 text-[10px] text-slate-400">Prepared amount · editable for your next bet</p>
       <div className="grid grid-cols-2 gap-3">
         <div className="min-w-0">
           <div className="flex items-center rounded-full border border-white/20 bg-[#060d19] p-1">
@@ -278,16 +290,16 @@ function BetBox({ slot, round, phase, fresh, multiplier, bets, refresh }) {
             {[100,500,1000,5000].map(amount => <button key={amount} type="button" disabled={!editable} onClick={() => change(amount)} className="rounded-full bg-white/5 py-2 text-xs font-bold text-slate-300 disabled:opacity-30">+{amount.toLocaleString('en-IN')}</button>)}
           </div>
         </div>
-        <button type="button" disabled={busy || !fresh || (!cashout && !canBet)} onClick={act}
+        <button type="button" disabled={busy || !fresh} onClick={act}
           className={`min-w-0 rounded-2xl px-2 py-3 font-black text-black disabled:opacity-40 ${cashout ? 'bg-amber-300' : 'bg-emerald-400'}`}>
-          <span className="block text-sm">{busy ? 'PROCESSING…' : cashout ? 'CASH OUT' : bet ? bet.status === 'CASHED_OUT' ? 'CASHED OUT' : bet.status === 'LOST' ? 'ROUND LOST' : 'BET PLACED' : pending.current ? 'RETRY SAME BET' : 'BET'}</span>
-          <span className="mt-2 block break-words text-xl">{cashout ? `≈ ${Math.floor(bet.stake * multiplier).toLocaleString('en-IN')}` : Number(bet?.stake ?? stake).toLocaleString('en-IN')}</span>
+          <span className="block text-sm">{busy ? 'PROCESSING…' : cashout ? 'CASH OUT' : !canBet ? 'WAIT FOR NEXT ROUND' : pending.current ? 'RETRY SAME BET' : 'BET'}</span>
+          <span className="mt-2 block break-words text-xl">{cashout ? `≈ ${Math.floor(bet.stake * multiplier).toLocaleString('en-IN')}` : Number(stake || 0).toLocaleString('en-IN')}</span>
           <span className="mt-1 block text-[10px]">DEMO COINS</span>
         </button>
       </div>
       {message && <p role="status" className="mt-3 text-xs leading-5 text-cyan-100">{message}</p>}
-      {bet && <p className="mt-2 text-[10px] text-slate-400">Round #{bet.roundId} · {bet.status}</p>}
-      <p className="mt-3 text-[10px] leading-5 text-slate-400">Bet during countdown. Cash out each box separately before crash. Server timing applies.</p>
+      {bet && <p className="mt-2 text-[10px] text-slate-400">Round #{bet.roundId} · {bet.stake.toLocaleString('en-IN')} coins · {bet.status}</p>}
+      <p className="mt-3 text-[10px] leading-5 text-slate-400">Changing this amount does not change a placed bet. No automatic betting. Press BET during the 10-second countdown. Cash out each box separately before crash.</p>
     </section>
   );
 }
@@ -327,4 +339,69 @@ function FlightScene({round, phase, multiplier, now, start, verified, fresh}) {
     </svg>
     <div className="relative min-h-[30px] px-3 pb-3 text-center text-[10px] text-slate-300">{!fresh && round ? 'Connection unavailable — actions paused; animation is an estimate.' : verified}</div>
   </section>;
+}
+
+// Original synthesized flight audio; no external audio downloads required.
+function useFlightSound(phase, roundId, fresh) {
+  const [enabled, setEnabled] = useState(false);
+  const [visible, setVisible] = useState(() => !document.hidden);
+  const context = useRef(null);
+  const previous = useRef(null);
+  useEffect(() => {
+    const changed = () => setVisible(!document.hidden);
+    document.addEventListener('visibilitychange', changed);
+    return () => document.removeEventListener('visibilitychange', changed);
+  }, []);
+  useEffect(() => () => { context.current?.close().catch(() => {}); }, []);
+  const toggle = async () => {
+    if (enabled) { setEnabled(false); return; }
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      if (!context.current) context.current = new AudioContext();
+      await context.current.resume();
+      setEnabled(true);
+    } catch { setEnabled(false); }
+  };
+  useEffect(() => {
+    const key = `${roundId}:${phase}`;
+    const transitioned = previous.current && previous.current !== key;
+    previous.current = key;
+    const ctx = context.current;
+    if (!enabled || !visible || !fresh || !ctx) return;
+    const nodes = [];
+    const tone = (frequency, duration, type = 'sine', volume = .045, end = frequency) => {
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(end, ctx.currentTime + duration);
+      gain.gain.setValueAtTime(volume, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(.0001, ctx.currentTime + duration);
+      oscillator.connect(gain); gain.connect(ctx.destination);
+      oscillator.start(); oscillator.stop(ctx.currentTime + duration);
+      nodes.push(oscillator, gain);
+    };
+    let timer;
+    if (phase === 'RUNNING') {
+      // A quiet continuous engine with a gentle pulsing pitch.
+      const engine = ctx.createOscillator(), gain = ctx.createGain();
+      const pulse = ctx.createOscillator(), depth = ctx.createGain();
+      engine.type = 'sawtooth'; engine.frequency.value = 75;
+      gain.gain.value = .025; pulse.frequency.value = 7; depth.gain.value = 8;
+      pulse.connect(depth); depth.connect(engine.frequency);
+      engine.connect(gain); gain.connect(ctx.destination);
+      engine.start(); pulse.start(); nodes.push(engine, pulse, gain, depth);
+      if (transitioned) tone(180, .7, 'sine', .035, 480);
+    } else if (phase === 'COUNTDOWN') {
+      tone(660, .09); timer = setInterval(() => tone(660, .09), 1000);
+    } else if (phase === 'CRASHED' && transitioned) {
+      tone(180, .65, 'sawtooth', .06, 35);
+    }
+    return () => {
+      clearInterval(timer);
+      nodes.forEach(node => { try { if (node.stop) node.stop(); node.disconnect(); } catch { /* already stopped */ } });
+    };
+  }, [enabled, visible, fresh, phase, roundId]);
+  return { enabled, toggle };
 }
