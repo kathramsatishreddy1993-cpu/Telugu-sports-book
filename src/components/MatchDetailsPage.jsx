@@ -619,10 +619,29 @@ export default function MatchDetailsPage({
                           )}
                         </p>
                       </div>
-                    </div>
-
-                    
+                    </div>    
+                    {/* AUTO SETTLEMENT SIMULATION BUTTONS */}
+                <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-3">
+                  <span className="text-[10px] font-semibold text-gray-500">
+                    ఆటో సెటిల్‌మెంట్:
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => simulateAutoSettlement(bet.id, 'WON')}
+                      className="rounded bg-green-600 px-3 py-1.5 text-[10px] font-black text-white active:scale-95"
+                    >
+                      WIN (గెలిచింది)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => simulateAutoSettlement(bet.id, 'LOST')}
+                      className="rounded bg-red-600 px-3 py-1.5 text-[10px] font-black text-white active:scale-95"
+                    >
+                      LOST (ఓడిపోయింది)
+                    </button>
                   </div>
+                </div>
                 </div>
               ))}
             </div>
