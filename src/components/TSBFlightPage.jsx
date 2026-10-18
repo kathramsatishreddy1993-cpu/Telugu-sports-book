@@ -13,19 +13,13 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
 
   const [clock, setClock] = useState(Date.now());
   const [drafts, setDrafts] = useState({ 1: '50', 2: '50' });
-  const alive = useRef(true);
 
   useEffect(() => {
-    alive.current = true;
-
     const timer = setInterval(() => {
       setClock(Date.now());
     }, 50);
 
-    return () => {
-      alive.current = false;
-      clearInterval(timer);
-    };
+    return () => clearInterval(timer);
   }, []);
 
   const customerId =
@@ -416,7 +410,6 @@ function BetBox({
         };
 
         pending.current = payload;
-
         result = await flightApi('/api/flight/bets', payload);
         pending.current = null;
       }
@@ -781,7 +774,6 @@ function FlightScene({
   );
 }
 
-// Synthesized Bullet-style engine sound.
 function useFlightSound(phase, roundId, fresh) {
   const [enabled, setEnabled] = useState(false);
 
@@ -853,8 +845,22 @@ function useFlightSound(phase, roundId, fresh) {
     master.ratio.value = 6;
     master.attack.value = 0.005;
     master.release.value = 0.15;
-    master.connect(ctx.destination);
-    nodes.push(master);
+
+    const outputBoost = ctx.createGain();
+    outputBoost.gain.value = 4.5;
+
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -1;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.001;
+    limiter.release.value = 0.08;
+
+    master.connect(outputBoost);
+    outputBoost.connect(limiter);
+    limiter.connect(ctx.destination);
+
+    nodes.push(master, outputBoost, limiter);
 
     const tone = (
       frequency,
@@ -923,7 +929,11 @@ function useFlightSound(phase, roundId, fresh) {
         );
 
         body.gain.setValueAtTime(0.0001, now);
-        body.gain.linearRampToValueAtTime(0.85, now + 0.008);
+
+        body.gain.linearRampToValueAtTime(
+          0.85,
+          now + 0.008,
+        );
 
         body.gain.exponentialRampToValueAtTime(
           0.0001,
