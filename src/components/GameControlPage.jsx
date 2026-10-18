@@ -1,8 +1,4 @@
-import React, {
-  useRef,
-  useState,
-} from 'react';
-
+import React, { useRef, useState } from 'react';
 import {
   flightApi,
   useFlightState,
@@ -44,81 +40,44 @@ export default function GameControlPage() {
     error,
     unauthorized,
     refresh,
-  } = useFlightState(
-    '/api/game-control/state',
-  );
+  } = useFlightState('/api/game-control/state');
 
-  const [id, setId] =
-    useState('');
-
-  const [password, setPassword] =
-    useState('');
-
-  const [multiplier, setMultiplier] =
-    useState('2.00');
-
-  const [message, setMessage] =
-    useState('');
-
-  const [busy, setBusy] =
-    useState(false);
-
-  const [confirmed, setConfirmed] =
-    useState(false);
+  const [id, setId] = useState('');
+  const [password, setPassword] = useState('');
+  const [multiplier, setMultiplier] = useState('2.00');
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
 
   const pending = useRef(false);
 
-  const loggedIn = Boolean(
-    data && !unauthorized,
-  );
+  const loggedIn = Boolean(data && !unauthorized);
 
   const active =
     data?.round &&
     data.round.phase !== 'CRASHED';
 
-  /* LOGIN / LOGOUT / LOCK ROUND */
-
-  const act = async (
-    action,
-    event,
-  ) => {
+  const act = async (action, event) => {
     event?.preventDefault();
 
-    if (pending.current) {
-      return;
-    }
+    if (pending.current) return;
 
     pending.current = true;
-
     setBusy(true);
-
     setMessage('');
 
     try {
       if (action === 'login') {
-        await flightApi(
-          '/api/game-control/login',
-          {
-            id,
-            password,
-          },
-        );
+        await flightApi('/api/game-control/login', {
+          id,
+          password,
+        });
 
         setPassword('');
-
-        setMessage(
-          'Game Controller login successful.',
-        );
+        setMessage('Game Controller login successful.');
       } else if (action === 'logout') {
-        await flightApi(
-          '/api/game-control/logout',
-          {},
-        );
-
-        window.location.assign(
-          '/game-control',
-        );
-
+        await flightApi('/api/game-control/logout', {});
+        window.location.assign('/game-control');
         return;
       } else {
         if (!confirmed) {
@@ -129,9 +88,7 @@ export default function GameControlPage() {
 
         const result = await flightApi(
           '/api/game-control/flight/rounds',
-          {
-            multiplier,
-          },
+          { multiplier },
         );
 
         setMessage(
@@ -146,15 +103,12 @@ export default function GameControlPage() {
       setMessage(error.message);
     } finally {
       pending.current = false;
-
       setBusy(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#080d16] text-white font-sans">
-      {/* HEADER */}
-
+    <div className="min-h-screen bg-[#080d16] font-sans text-white">
       <header className="border-b border-white/10 bg-[#0d1728] p-5">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
           <div>
@@ -171,9 +125,7 @@ export default function GameControlPage() {
             <button
               type="button"
               disabled={busy}
-              onClick={() =>
-                act('logout')
-              }
+              onClick={() => act('logout')}
               className="rounded-lg border border-red-400/30 px-3 py-2 text-xs text-red-200"
             >
               Logout
@@ -191,8 +143,6 @@ export default function GameControlPage() {
 
       <main className="mx-auto max-w-5xl space-y-5 p-4 sm:p-6">
         {!loggedIn ? (
-          /* CONTROLLER LOGIN */
-
           <form
             onSubmit={(event) =>
               act('login', event)
@@ -217,9 +167,7 @@ export default function GameControlPage() {
                 autoComplete="username"
                 value={id}
                 onChange={(event) =>
-                  setId(
-                    event.target.value,
-                  )
+                  setId(event.target.value)
                 }
                 className="mt-2 w-full rounded-lg border border-white/20 bg-[#080d16] p-3 text-sm"
               />
@@ -234,9 +182,7 @@ export default function GameControlPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(event) =>
-                  setPassword(
-                    event.target.value,
-                  )
+                  setPassword(event.target.value)
                 }
                 className="mt-2 w-full rounded-lg border border-white/20 bg-[#080d16] p-3 text-sm"
               />
@@ -247,9 +193,7 @@ export default function GameControlPage() {
               type="submit"
               className="w-full rounded-lg bg-cyan-400 p-3 text-sm font-black text-black disabled:opacity-50"
             >
-              {busy
-                ? 'CHECKING…'
-                : 'LOGIN'}
+              {busy ? 'CHECKING…' : 'LOGIN'}
             </button>
 
             {error && !unauthorized && (
@@ -275,13 +219,9 @@ export default function GameControlPage() {
           <>
             <p className="text-xs text-slate-400">
               Signed in:{' '}
-              {data.controllerName ||
-                data.controllerId}
-              {' · ID: '}
-              {data.controllerId}
+              {data.controllerName || data.controllerId}
+              {' '}· ID: {data.controllerId}
             </p>
-
-            {/* TSB FLIGHT */}
 
             <section className="rounded-2xl border border-cyan-400/25 bg-[#101c2e] p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -291,8 +231,8 @@ export default function GameControlPage() {
                   </h2>
 
                   <p className="mt-1 text-xs text-slate-400">
-                    Admin-controlled demo test mode ·
-                    shared multiplayer rounds
+                    Admin-controlled demo test mode · shared
+                    multiplayer rounds
                   </p>
                 </div>
 
@@ -305,8 +245,6 @@ export default function GameControlPage() {
                   Open customer game
                 </a>
               </div>
-
-              {/* CURRENT ROUND */}
 
               <div className="mt-4 rounded-xl bg-black/20 p-4">
                 <p className="text-xs text-slate-400">
@@ -332,11 +270,9 @@ export default function GameControlPage() {
                 <p className="mt-2 text-xs leading-5 text-slate-400">
                   Locked rounds cannot be edited, cancelled,
                   paused or crashed early from this panel.
-                  Customer bets open only after Confirm &amp; Lock.
+                  Customer bets open only after Confirm & Lock.
                 </p>
               </div>
-
-              {/* CONFIRM AND LOCK */}
 
               <form
                 onSubmit={(event) =>
@@ -355,9 +291,7 @@ export default function GameControlPage() {
                     value={multiplier}
                     disabled={active || busy}
                     onChange={(event) =>
-                      setMultiplier(
-                        event.target.value,
-                      )
+                      setMultiplier(event.target.value)
                     }
                     className="mt-2 block w-full max-w-xs rounded-lg border border-white/20 bg-[#080d16] p-3 text-xl font-black disabled:opacity-40"
                   />
@@ -369,17 +303,15 @@ export default function GameControlPage() {
                     checked={confirmed}
                     disabled={active || busy}
                     onChange={(event) =>
-                      setConfirmed(
-                        event.target.checked,
-                      )
+                      setConfirmed(event.target.checked)
                     }
                     className="mt-1"
                   />
 
-                  I confirm this result is fixed before any
-                  bets are accepted. Locking immediately
-                  opens the 10-second countdown. It cannot
-                  be changed afterward.
+                  I confirm this result is fixed before any bets
+                  are accepted. Locking immediately opens the
+                  10-second countdown. It cannot be changed
+                  afterward.
                 </label>
 
                 <button
@@ -419,8 +351,6 @@ export default function GameControlPage() {
               )}
             </section>
 
-            {/* RESULT HISTORY */}
-
             <section className="overflow-x-auto rounded-2xl border border-white/10 bg-[#101c2e] p-5">
               <h2 className="font-black">
                 Flight result history
@@ -429,17 +359,9 @@ export default function GameControlPage() {
               <table className="mt-3 w-full text-left text-xs">
                 <thead className="text-slate-400">
                   <tr>
-                    <th className="py-2">
-                      Round
-                    </th>
-
-                    <th>
-                      Crash
-                    </th>
-
-                    <th>
-                      Flight started
-                    </th>
+                    <th className="py-2">Round</th>
+                    <th>Crash</th>
+                    <th>Flight started</th>
                   </tr>
                 </thead>
 
@@ -454,8 +376,7 @@ export default function GameControlPage() {
                       </td>
 
                       <td className="text-red-300">
-                        {round.crashMultiplier.toFixed(2)}
-                        ×
+                        {round.crashMultiplier.toFixed(2)}×
                       </td>
 
                       <td>
@@ -468,8 +389,6 @@ export default function GameControlPage() {
                 </tbody>
               </table>
             </section>
-
-            {/* OTHER GAMES */}
 
             <section>
               <h2 className="font-black">
@@ -505,45 +424,30 @@ export default function GameControlPage() {
   );
 }
 
-/* FIRST LOGIN PASSWORD CHANGE */
-
-function ControllerPasswordChange({
+export function ControllerPasswordChange({
   onComplete,
 }) {
-  const [
-    currentPassword,
-    setCurrentPassword,
-  ] = useState('');
-
-  const [
-    newPassword,
-    setNewPassword,
-  ] = useState('');
-
-  const [
-    confirmPassword,
-    setConfirmPassword,
-  ] = useState('');
-
-  const [error, setError] =
+  const [currentPassword, setCurrentPassword] =
     useState('');
 
-  const [busy, setBusy] =
-    useState(false);
+  const [newPassword, setNewPassword] =
+    useState('');
+
+  const [confirmPassword, setConfirmPassword] =
+    useState('');
+
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const pending = useRef(false);
 
   const submit = async (event) => {
     event.preventDefault();
 
-    if (pending.current) {
-      return;
-    }
+    if (pending.current) return;
 
     pending.current = true;
-
     setBusy(true);
-
     setError('');
 
     try {
@@ -557,9 +461,7 @@ function ControllerPasswordChange({
       );
 
       setCurrentPassword('');
-
       setNewPassword('');
-
       setConfirmPassword('');
 
       await onComplete();
@@ -567,7 +469,6 @@ function ControllerPasswordChange({
       setError(error.message);
     } finally {
       pending.current = false;
-
       setBusy(false);
     }
   };
@@ -583,8 +484,8 @@ function ControllerPasswordChange({
 
       <p className="text-xs leading-5 text-slate-400">
         Set your own password before opening game controls.
-        Changing/resetting the password signs out other
-        sessions; ordinary new logins do not.
+        Changing/resetting the password signs out other sessions;
+        ordinary new logins do not.
       </p>
 
       {[
@@ -603,33 +504,29 @@ function ControllerPasswordChange({
           confirmPassword,
           setConfirmPassword,
         ],
-      ].map(
-        ([label, value, setValue]) => (
-          <label
-            key={label}
-            className="block text-xs"
-          >
-            {label}
+      ].map(([label, value, setValue]) => (
+        <label
+          key={label}
+          className="block text-xs"
+        >
+          {label}
 
-            <input
-              required
-              type="password"
-              value={value}
-              onChange={(event) =>
-                setValue(
-                  event.target.value,
-                )
-              }
-              autoComplete={
-                label === 'Current Temporary Password'
-                  ? 'current-password'
-                  : 'new-password'
-              }
-              className="mt-2 w-full rounded-lg border border-white/20 bg-[#080d16] p-3 text-sm"
-            />
-          </label>
-        ),
-      )}
+          <input
+            required
+            type="password"
+            value={value}
+            onChange={(event) =>
+              setValue(event.target.value)
+            }
+            autoComplete={
+              label === 'Current Temporary Password'
+                ? 'current-password'
+                : 'new-password'
+            }
+            className="mt-2 w-full rounded-lg border border-white/20 bg-[#080d16] p-3 text-sm"
+          />
+        </label>
+      ))}
 
       <p className="text-[10px] text-slate-400">
         New password: minimum 12 characters,
