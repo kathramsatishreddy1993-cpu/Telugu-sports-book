@@ -298,9 +298,84 @@ export default function MatchDetailsPage({
   };
 
   const placeDemoSelection = () => {
-    if (!selectedMarket) {
+    if (!selectedMarket) return;
+
+    const amount = Number(stake);
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setMessage('Please enter a valid demo stake.');
       return;
     }
+
+    if (amount > demoBalance) {
+      setMessage('Insufficient Wallet Balance!');
+      return;
+    }
+
+    const newBalance = demoBalance - amount;
+    setDemoBalance(newBalance);
+
+    if (typeof onUpdateWallet === 'function') {
+      onUpdateWallet(newBalance);
+    }
+
+    const newBet = {
+      id: `demo-bet-${Date.now()}`,
+      matchId: currentMatch.id,
+      matchName: currentMatch.teams,
+      matchDate: currentMatch.date,
+      sport: 'CRICKET',
+      market: selectedMarket.market,
+      selection: selectedMarket.selection,
+      type: selectedMarket.type,
+      rate: Number(selectedMarket.rate) || 1.9,
+      stake: amount,
+      status: 'MATCHED',
+      result: 'PENDING',
+      createdAt: new Date().toISOString(),
+    };
+
+    const previousBets = readBets();
+    const updatedBets = [newBet, ...previousBets];
+
+    localStorage.setItem(BETS_KEY, JSON.stringify(updatedBets));
+    setAllBets(updatedBets);
+
+    setMessage(`Bet placed successfully! ₹${amount} deducted from wallet.`);
+
+    setTimeout(() => {
+      setSelectedMarket(null);
+      setStake('');
+      setMessage('');
+    }, 1000);
+  };
+  const simulateAutoSettlement = (betId, outcome) => {
+    const currentList = readBets();
+    const targetBet = currentList.find((b) => b.id === betId);
+    if (!targetBet || targetBet.result !== 'PENDING') return;
+
+    let updatedWallet = demoBalance;
+    const stakeAmount = Number(targetBet.stake) || 0;
+    const rateVal = Number(targetBet.rate) || 2.0;
+
+    if (outcome === 'WON') {
+      const winnings = Math.round(stakeAmount * rateVal);
+      updatedWallet += winnings; 
+    }
+
+    targetBet.status = 'SETTLED';
+    targetBet.result = outcome;
+
+    setDemoBalance(updatedWallet);
+    if (typeof onUpdateWallet === 'function') {
+      onUpdateWallet(updatedWallet);
+    }
+
+    // Settled bet erased from active bets
+    const filteredBets = currentList.filter((b) => b.id !== betId);
+    localStorage.setItem(BETS_KEY, JSON.stringify(filteredBets));
+    setAllBets(filteredBets);
+  };
 
     const amount = Number(stake);
 
