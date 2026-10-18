@@ -613,7 +613,6 @@ export default function MatchDetailsPage({
                         <p className="text-[9px] font-bold text-gray-500">
                           STAKE
                         </p>
-
                         <p className="mt-1 text-sm font-black">
                           {Number(bet.stake).toLocaleString(
                             'en-IN'
@@ -622,17 +621,7 @@ export default function MatchDetailsPage({
                       </div>
                     </div>
 
-                    <div className="mt-3 flex items-center justify-between border-t pt-2">
-                      <span className="text-[10px] font-semibold text-gray-500">
-                        {new Date(
-                          bet.createdAt
-                        ).toLocaleString('en-IN')}
-                      </span>
-
-                      <span className="text-[10px] font-black text-amber-700">
-                        {bet.result || 'PENDING'}
-                      </span>
-                    </div>
+                    
                   </div>
                 </div>
               ))}
