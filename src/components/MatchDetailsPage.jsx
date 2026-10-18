@@ -1,16 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 const BETS_KEY = 'telugu_sports_demo_bets';
 
 const defaultQuickStakes = [
-  100,
-  200,
-  500,
-  1000,
-  2000,
-  5000,
-  10000,
-  25000,
+  100, 200, 500, 1000, 2000, 5000, 10000, 25000,
 ];
 
 const demoFancyMarkets = [
@@ -100,64 +98,62 @@ const demoFancyMarkets = [
   },
 ];
 
+const fallbackMatch = {
+  id: 1,
+  teams: 'India vs Australia',
+  date: 'Match',
+  odds: ['1.85', '1.90', '3.20', '3.30', '2.10', '2.15'],
+};
+
 function readBets() {
   try {
     const saved = JSON.parse(
       localStorage.getItem(BETS_KEY) || '[]'
     );
 
-    return Array.isArray(saved) ? saved : [];
+    return Array.isArray(saved)
+      ? saved.filter((bet) => bet && typeof bet === 'object')
+      : [];
   } catch {
     return [];
   }
+}
+
+function saveBets(bets) {
+  localStorage.setItem(BETS_KEY, JSON.stringify(bets));
+
+  window.dispatchEvent(
+    new Event('demo-bets-updated')
+  );
 }
 
 export default function MatchDetailsPage({
   match,
   user,
   onBack,
+  onUpdateWallet,
 }) {
   const [selectedMarket, setSelectedMarket] = useState(null);
   const [stake, setStake] = useState('');
   const [message, setMessage] = useState('');
-
   const [demoBalance, setDemoBalance] = useState(0);
   const [balanceLoading, setBalanceLoading] = useState(true);
+  const [allBets, setAllBets] = useState(readBets);
+  const [showMatchedBets, setShowMatchedBets] = useState(false);
+  const [selectionSaved, setSelectionSaved] = useState(false);
 
-  const [allBets, setAllBets] = useState(() => readBets());
+  const currentMatch = match || fallbackMatch;
 
-  const [showMatchedBets, setShowMatchedBets] =
-    useState(false);
-
-  const currentMatch = match || {
-    id: 1,
-    teams: 'India vs Australia',
-    date: 'Match',
-    odds: [
-      '1.85',
-      '1.90',
-      '3.20',
-      '3.30',
-      '2.10',
-      '2.15',
-    ],
-  };
-
-  const odds = currentMatch.odds || [
-    '1.85',
-    '1.90',
-    '3.20',
-    '3.30',
-    '2.10',
-    '2.15',
-  ];
+  const odds = Array.isArray(currentMatch.odds)
+    ? currentMatch.odds
+    : fallbackMatch.odds;
 
   const customerId =
-    user?.id ||
-    user?.customerId ||
+    user?.id ??
+    user?.customerId ??
     user?.customer_id;
 
-  const loadServerBalance = useCallback(async () => {
+  const loadServerBalance = useCallback(async (signal) => {
     if (!customerId) {
       setDemoBalance(0);
       setBalanceLoading(false);
@@ -168,12 +164,13 @@ export default function MatchDetailsPage({
       setBalanceLoading(true);
 
       const response = await fetch(
-        `/api/customers/${customerId}/demo-balance`,
+        `/api/customers/${encodeURIComponent(customerId)}/demo-balance`,
         {
           method: 'GET',
           headers: {
             Accept: 'application/json',
           },
+          signal,
         }
       );
 
@@ -182,59 +179,77 @@ export default function MatchDetailsPage({
       if (!response.ok) {
         throw new Error(
           data?.message ||
-            data?.error ||
-            'Unable to load balance.'
+          data?.error ||
+          'Unable to load balance.'
         );
       }
 
       const balance = Number(
         data?.demoCoinBalance ??
-          data?.balance ??
-          data?.demo_coin_balance ??
-          0
+        data?.balance ??
+        data?.demo_coin_balance ??
+        0
       );
 
-      setDemoBalance(
-        Number.isFinite(balance) ? balance : 0
-      );
+      if (!signal?.aborted) {
+        setDemoBalance(
+          Number.isFinite(balance) ? balance : 0
+        );
+      }
     } catch (error) {
-      console.error('Balance load error:', error);
+      if (error.name !== 'AbortError') {
+        console.error('Balance load error:', error);
+      }
     } finally {
-      setBalanceLoading(false);
+      if (!signal?.aborted) {
+        setBalanceLoading(false);
+      }
     }
   }, [customerId]);
 
   useEffect(() => {
-    const refreshData = () => {
-      loadServerBalance();
+    const controller = new AbortController();
+
+    const refreshBalance = () => {
+      loadServerBalance(controller.signal);
+    };
+
+    const refreshBets = () => {
       setAllBets(readBets());
     };
 
-    refreshData();
+    const handleStorage = (event) => {
+      if (event.key === BETS_KEY || event.key === null) {
+        refreshBets();
+      }
+    };
 
-    window.addEventListener('focus', refreshData);
+    refreshBalance();
+    refreshBets();
 
+    window.addEventListener('focus', refreshBets);
+    window.addEventListener('storage', handleStorage);
     window.addEventListener(
       'demo-balance-updated',
-      refreshData
+      refreshBalance
     );
-
     window.addEventListener(
       'demo-bets-updated',
-      refreshData
+      refreshBets
     );
 
     return () => {
-      window.removeEventListener('focus', refreshData);
+      controller.abort();
 
+      window.removeEventListener('focus', refreshBets);
+      window.removeEventListener('storage', handleStorage);
       window.removeEventListener(
         'demo-balance-updated',
-        refreshData
+        refreshBalance
       );
-
       window.removeEventListener(
         'demo-bets-updated',
-        refreshData
+        refreshBets
       );
     };
   }, [loadServerBalance]);
@@ -243,8 +258,7 @@ export default function MatchDetailsPage({
     return allBets
       .filter(
         (bet) =>
-          String(bet.matchId) ===
-          String(currentMatch.id)
+          String(bet.matchId) === String(currentMatch.id)
       )
       .filter(
         (bet) =>
@@ -258,27 +272,32 @@ export default function MatchDetailsPage({
       );
   }, [allBets, currentMatch.id]);
 
-  const openSelection = ({
-    market,
-    selection,
-    rate,
-    type,
-  }) => {
-    setSelectedMarket({
-      market,
-      selection,
-      rate,
-      type,
-    });
+  const notifyWallet = (balance) => {
+    if (typeof onUpdateWallet !== 'function') return;
 
+    try {
+      Promise.resolve(onUpdateWallet(balance)).catch(
+        (error) => {
+          console.error('Wallet update callback failed:', error);
+        }
+      );
+    } catch (error) {
+      console.error('Wallet update callback failed:', error);
+    }
+  };
+
+  const openSelection = (selection) => {
+    setSelectedMarket(selection);
     setStake('');
     setMessage('');
+    setSelectionSaved(false);
   };
 
   const closeBetSlip = () => {
     setSelectedMarket(null);
     setStake('');
     setMessage('');
+    setSelectionSaved(false);
   };
 
   const handleStakeChange = (event) => {
@@ -291,179 +310,154 @@ export default function MatchDetailsPage({
   };
 
   const addStake = (amount) => {
-    const currentStake = Number(stake) || 0;
-
-    setStake(String(currentStake + amount));
+    setStake(String((Number(stake) || 0) + amount));
     setMessage('');
   };
 
   const placeDemoSelection = () => {
-    if (!selectedMarket) return;
+    if (!selectedMarket || selectionSaved) return;
 
-    const amount = Number(stake);
-
-    if (!Number.isFinite(amount) || amount <= 0) {
-      setMessage('Please enter a valid demo stake.');
+    if (balanceLoading) {
+      setMessage('Please wait until the balance loads.');
       return;
     }
 
-    if (amount > demoBalance) {
-      setMessage('Insufficient Wallet Balance!');
-      return;
-    }
-
-    const newBalance = demoBalance - amount;
-    setDemoBalance(newBalance);
-
-    if (typeof onUpdateWallet === 'function') {
-      onUpdateWallet(newBalance);
-    }
-
-    const newBet = {
-      id: `demo-bet-${Date.now()}`,
-      matchId: currentMatch.id,
-      matchName: currentMatch.teams,
-      matchDate: currentMatch.date,
-      sport: 'CRICKET',
-      market: selectedMarket.market,
-      selection: selectedMarket.selection,
-      type: selectedMarket.type,
-      rate: Number(selectedMarket.rate) || 1.9,
-      stake: amount,
-      status: 'MATCHED',
-      result: 'PENDING',
-      createdAt: new Date().toISOString(),
-    };
-
-    const previousBets = readBets();
-    const updatedBets = [newBet, ...previousBets];
-
-    localStorage.setItem(BETS_KEY, JSON.stringify(updatedBets));
-    setAllBets(updatedBets);
-
-    setMessage(`Bet placed successfully! ₹${amount} deducted from wallet.`);
-
-    setTimeout(() => {
-      setSelectedMarket(null);
-      setStake('');
-      setMessage('');
-    }, 1000);
-  };
-  const simulateAutoSettlement = (betId, outcome) => {
-    const currentList = readBets();
-    const targetBet = currentList.find((b) => b.id === betId);
-    if (!targetBet || targetBet.result !== 'PENDING') return;
-
-    let updatedWallet = demoBalance;
-    const stakeAmount = Number(targetBet.stake) || 0;
-    const rateVal = Number(targetBet.rate) || 2.0;
-
-    if (outcome === 'WON') {
-      const winnings = Math.round(stakeAmount * rateVal);
-      updatedWallet += winnings; 
-    }
-
-    targetBet.status = 'SETTLED';
-    targetBet.result = outcome;
-
-    setDemoBalance(updatedWallet);
-    if (typeof onUpdateWallet === 'function') {
-      onUpdateWallet(updatedWallet);
-    }
-
-    // Settled bet erased from active bets
-    const filteredBets = currentList.filter((b) => b.id !== betId);
-    localStorage.setItem(BETS_KEY, JSON.stringify(filteredBets));
-    setAllBets(filteredBets);
-  };
-
     const amount = Number(stake);
 
-    if (!Number.isFinite(amount) || amount <= 0) {
-      setMessage('Please enter a valid demo stake.');
+    if (!Number.isSafeInteger(amount) || amount < 100) {
+      setMessage('Minimum demo stake is 100 demo coins.');
       return;
     }
 
     if (amount > 25000) {
-      setMessage(
-        'Maximum demo stake is 25,000 demo coins.'
-      );
+      setMessage('Maximum demo stake is 25,000 demo coins.');
       return;
     }
 
-    /*
-      IMPORTANT:
-      This page reads the same server balance as the
-      customer dashboard.
+    if (amount > demoBalance) {
+      setMessage('Insufficient demo wallet balance.');
+      return;
+    }
 
-      The selection below is only stored as a local
-      simulation record.
+    const newBalance = demoBalance - amount;
 
-      It does NOT deduct or modify the PostgreSQL
-      customer wallet.
-    */
+    // Fancy values such as 48/49 are session targets,
+    // not decimal payout odds. Use a fixed demo return.
+    const numericRate = Number(selectedMarket.rate);
+    const payoutRate =
+      selectedMarket.type === 'FANCY'
+        ? 2
+        : Number.isFinite(numericRate) && numericRate > 1
+          ? numericRate
+          : 2;
 
     const newBet = {
-      id: `demo-bet-${Date.now()}`,
-
+      id: `demo-bet-${
+        globalThis.crypto?.randomUUID?.() ||
+        `${Date.now()}-${Math.random().toString(36).slice(2)}`
+      }`,
+      customerId: customerId ?? null,
       matchId: currentMatch.id,
       matchName: currentMatch.teams,
       matchDate: currentMatch.date,
-
       sport: 'CRICKET',
-
       market: selectedMarket.market,
       selection: selectedMarket.selection,
       type: selectedMarket.type,
       rate: selectedMarket.rate,
-
+      payoutRate,
       stake: amount,
-
       status: 'MATCHED',
       result: 'PENDING',
-
       profitLoss: 0,
-
       balanceBefore: demoBalance,
-      balanceAfter: demoBalance,
-
-      userName:
-        user?.name ||
-        user?.identifier ||
-        'Demo User',
-
+      balanceAfter: newBalance,
+      userName: user?.name || user?.identifier || 'Demo User',
       createdAt: new Date().toISOString(),
     };
 
-    const previousBets = readBets();
+    const updatedBets = [newBet, ...readBets()];
 
-    const updatedBets = [
-      newBet,
-      ...previousBets,
-    ];
-
-    localStorage.setItem(
-      BETS_KEY,
-      JSON.stringify(updatedBets)
-    );
+    try {
+      saveBets(updatedBets);
+    } catch (error) {
+      console.error('Unable to save demo bet:', error);
+      setMessage('Unable to save. Please check browser storage.');
+      return;
+    }
 
     setAllBets(updatedBets);
-
-    window.dispatchEvent(
-      new Event('demo-bets-updated')
-    );
+    setDemoBalance(newBalance);
+    setSelectionSaved(true);
+    notifyWallet(newBalance);
 
     setMessage(
-      `Demo selection recorded • ${amount.toLocaleString(
+      `Demo selection saved. ${amount.toLocaleString(
         'en-IN'
-      )} simulated coins`
+      )} demo coins deducted from the displayed balance.`
+    );
+  };
+
+  const simulateAutoSettlement = (betId, outcome) => {
+    if (outcome !== 'WON' && outcome !== 'LOST') return;
+
+    const currentList = readBets();
+    const targetBet = currentList.find(
+      (bet) => bet.id === betId
     );
 
-    setTimeout(() => {
-      setSelectedMarket(null);
-      setStake('');
-      setMessage('');
-    }, 700);
+    if (
+      !targetBet ||
+      targetBet.result !== 'PENDING' ||
+      targetBet.status !== 'MATCHED'
+    ) {
+      return;
+    }
+
+    const stakeAmount = Number(targetBet.stake) || 0;
+    const storedRate = Number(
+      targetBet.payoutRate ??
+      (targetBet.type === 'FANCY' ? 2 : targetBet.rate)
+    );
+
+    const payoutRate =
+      Number.isFinite(storedRate) && storedRate > 1
+        ? storedRate
+        : 2;
+
+    const payout =
+      outcome === 'WON'
+        ? Math.round(stakeAmount * payoutRate)
+        : 0;
+
+    const updatedWallet = demoBalance + payout;
+
+    // Retain settled records for history.
+    // The active matched-bets filter hides them.
+    const updatedBets = currentList.map((bet) =>
+      bet.id === betId
+        ? {
+            ...bet,
+            status: 'SETTLED',
+            result: outcome,
+            profitLoss: payout - stakeAmount,
+            payout,
+            balanceAfter: updatedWallet,
+            settledAt: new Date().toISOString(),
+          }
+        : bet
+    );
+
+    try {
+      saveBets(updatedBets);
+    } catch (error) {
+      console.error('Unable to save demo settlement:', error);
+      return;
+    }
+
+    setAllBets(updatedBets);
+    setDemoBalance(updatedWallet);
+    notifyWallet(updatedWallet);
   };
 
   return (
@@ -483,7 +477,6 @@ export default function MatchDetailsPage({
             <p className="truncate text-sm font-black text-amber-400">
               TELUGU SPORTS BOOK
             </p>
-
             <p className="text-[9px] font-bold tracking-[0.25em] text-teal-100">
               • DEMO •
             </p>
@@ -496,11 +489,8 @@ export default function MatchDetailsPage({
                 ? '...'
                 : demoBalance.toLocaleString('en-IN')}
             </p>
-
             <p className="mt-1 max-w-[85px] truncate text-[10px] font-bold">
-              {user?.name ||
-                user?.identifier ||
-                'Demo User'}
+              {user?.name || user?.identifier || 'Demo User'}
             </p>
           </div>
         </div>
@@ -512,9 +502,7 @@ export default function MatchDetailsPage({
           type="button"
           onClick={() => setShowMatchedBets(false)}
           className={`flex-1 border-r border-amber-200/40 px-3 py-3 text-xs font-black ${
-            !showMatchedBets
-              ? 'bg-[#7a4700]'
-              : ''
+            !showMatchedBets ? 'bg-[#7a4700]' : ''
           }`}
         >
           ODDS
@@ -524,9 +512,7 @@ export default function MatchDetailsPage({
           type="button"
           onClick={() => setShowMatchedBets(true)}
           className={`flex-[2] px-3 py-3 text-left text-xs font-black ${
-            showMatchedBets
-              ? 'bg-[#7a4700]'
-              : ''
+            showMatchedBets ? 'bg-[#7a4700]' : ''
           }`}
         >
           MATCHED BET ({matchBets.length})
@@ -539,7 +525,6 @@ export default function MatchDetailsPage({
             <h2 className="text-sm font-black">
               MATCHED DEMO BETS
             </h2>
-
             <p className="mt-1 text-[10px] text-teal-100">
               {currentMatch.teams}
             </p>
@@ -548,16 +533,12 @@ export default function MatchDetailsPage({
           {matchBets.length === 0 ? (
             <div className="m-3 rounded-lg bg-white p-8 text-center shadow">
               <p className="text-4xl">📋</p>
-
               <p className="mt-3 text-base font-black text-gray-800">
                 No Matched Bets
               </p>
-
               <p className="mt-2 text-xs leading-5 text-gray-500">
-                Place a demo selection from the Odds or
-                Fancy Market.
+                Place a demo selection from the Odds or Fancy Market.
               </p>
-
               <button
                 type="button"
                 onClick={() => setShowMatchedBets(false)}
@@ -577,7 +558,6 @@ export default function MatchDetailsPage({
                     <p className="text-xs font-black">
                       {bet.market}
                     </p>
-
                     <span className="rounded bg-green-100 px-2 py-1 text-[9px] font-black text-green-800">
                       {bet.status}
                     </span>
@@ -593,7 +573,6 @@ export default function MatchDetailsPage({
                         <p className="text-[9px] font-bold text-gray-500">
                           SELECTION
                         </p>
-
                         <p className="mt-1 text-sm font-black">
                           {bet.selection}
                         </p>
@@ -603,7 +582,6 @@ export default function MatchDetailsPage({
                         <p className="text-[9px] font-bold text-gray-500">
                           RATE
                         </p>
-
                         <p className="mt-1 text-sm font-black">
                           {bet.rate}
                         </p>
@@ -614,89 +592,81 @@ export default function MatchDetailsPage({
                           STAKE
                         </p>
                         <p className="mt-1 text-sm font-black">
-                          {Number(bet.stake).toLocaleString(
-                            'en-IN'
-                          )}
+                          {Number(bet.stake).toLocaleString('en-IN')}
                         </p>
                       </div>
-                    </div>    
-                    {/* AUTO SETTLEMENT SIMULATION BUTTONS */}
-                <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-3">
-                  <span className="text-[10px] font-semibold text-gray-500">
-                    ఆటో సెటిల్‌మెంట్:
-                  </span>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => simulateAutoSettlement(bet.id, 'WON')}
-                      className="rounded bg-green-600 px-3 py-1.5 text-[10px] font-black text-white active:scale-95"
-                    >
-                      WIN (గెలిచింది)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => simulateAutoSettlement(bet.id, 'LOST')}
-                      className="rounded bg-red-600 px-3 py-1.5 text-[10px] font-black text-white active:scale-95"
-                    >
-                      LOST (ఓడిపోయింది)
-                    </button>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 pt-3">
+                      <span className="text-[10px] font-semibold text-gray-500">
+                        డెమో సెటిల్‌మెంట్:
+                      </span>
+
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={balanceLoading}
+                          onClick={() =>
+                            simulateAutoSettlement(bet.id, 'WON')
+                          }
+                          className="rounded bg-green-600 px-3 py-1.5 text-[10px] font-black text-white disabled:opacity-50"
+                        >
+                          WIN (గెలిచింది)
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={balanceLoading}
+                          onClick={() =>
+                            simulateAutoSettlement(bet.id, 'LOST')
+                          }
+                          className="rounded bg-red-600 px-3 py-1.5 text-[10px] font-black text-white disabled:opacity-50"
+                        >
+                          LOST (ఓడిపోయింది)
+                        </button>
+                      </div>
+                    </div>
                   </div>
-              </div>
+                </div>
+              ))}
             </div>
-</div>
-        ))}
-      </div>
+          )}
 
-      <button
-        type="button"
-        onClick={() => setShowMatchedBets(false)}
-        className="mx-3 w-[calc(100%-24px)] rounded-md bg-[#075249] py-3 text-sm font-black text-white"
-      >
-        ← BACK TO ODDS
-      </button>
-    </section>
-  ) : (
-    <>
-      {/* MATCH TITLE */}
-      <section className="bg-white px-3 py-4 shadow-sm">
-        <p className="text-[10px] font-black uppercase tracking-wide text-red-600">
-          ● DEMO MATCH
-        </p>
-
-        <h1 className="mt-1 text-xl font-black text-gray-900">
-          {currentMatch.teams}
-        </h1>
-
-        <p className="mt-1 text-xs font-semibold text-gray-500">
-          {currentMatch.date}
-        </p>
-      </section>
-
+          <button
+            type="button"
+            onClick={() => setShowMatchedBets(false)}
+            className="mx-3 mt-3 w-[calc(100%-24px)] rounded-md bg-[#075249] py-3 text-sm font-black text-white"
+          >
+            ← BACK TO ODDS
+          </button>
+        </section>
+      ) : (
+        <>
+          {/* MATCH TITLE */}
+          <section className="bg-white px-3 py-4 shadow-sm">
+            <p className="text-[10px] font-black uppercase tracking-wide text-red-600">
+              ● DEMO MATCH
+            </p>
             <h1 className="mt-1 text-xl font-black text-gray-900">
               {currentMatch.teams}
             </h1>
-
             <p className="mt-1 text-xs font-semibold text-gray-500">
               {currentMatch.date}
             </p>
           </section>
 
-          {/* SERVER BALANCE */}
+          {/* BALANCE */}
           <section className="mt-2 bg-[#0b6259] px-3 py-4 text-white">
             <p className="text-[10px] font-bold text-teal-100">
               AVAILABLE DEMO BALANCE
             </p>
-
             <div className="mt-2 flex items-center justify-between">
               <p className="text-xl font-black text-amber-300">
                 🪙{' '}
                 {balanceLoading
                   ? 'Loading...'
-                  : `${demoBalance.toLocaleString(
-                      'en-IN'
-                    )} Demo Coins`}
+                  : `${demoBalance.toLocaleString('en-IN')} Demo Coins`}
               </p>
-
               <span className="rounded bg-[#06443e] px-2 py-1 text-[9px] font-black">
                 DEMO
               </span>
@@ -710,21 +680,17 @@ export default function MatchDetailsPage({
                 <p className="text-xs font-bold text-teal-200">
                   DEMO LIVE SCORE
                 </p>
-
                 <p className="mt-1 text-lg font-black">
                   India 82/2
                 </p>
-
                 <p className="text-xs text-gray-300">
                   9.4 Overs
                 </p>
               </div>
-
               <div className="text-right">
                 <p className="text-xs text-teal-200">
                   Current Run Rate
                 </p>
-
                 <p className="text-xl font-black text-amber-400">
                   8.48
                 </p>
@@ -739,73 +705,42 @@ export default function MatchDetailsPage({
             </div>
 
             <div className="grid grid-cols-2 gap-[1px] bg-gray-200">
-              <div className="bg-white p-3">
-                <p className="text-xs font-bold text-gray-500">
-                  BATSMAN
-                </p>
-
-                <p className="mt-1 text-sm font-black">
-                  R. Sharma *
-                </p>
-
-                <p className="mt-1 text-xs">
-                  34 Runs • 21 Balls
-                </p>
-              </div>
-
-              <div className="bg-white p-3">
-                <p className="text-xs font-bold text-gray-500">
-                  BATSMAN
-                </p>
-
-                <p className="mt-1 text-sm font-black">
-                  V. Kohli
-                </p>
-
-                <p className="mt-1 text-xs">
-                  21 Runs • 16 Balls
-                </p>
-              </div>
+              {[
+                { name: 'R. Sharma *', score: '34 Runs • 21 Balls' },
+                { name: 'V. Kohli', score: '21 Runs • 16 Balls' },
+              ].map((batsman) => (
+                <div key={batsman.name} className="bg-white p-3">
+                  <p className="text-xs font-bold text-gray-500">
+                    BATSMAN
+                  </p>
+                  <p className="mt-1 text-sm font-black">
+                    {batsman.name}
+                  </p>
+                  <p className="mt-1 text-xs">
+                    {batsman.score}
+                  </p>
+                </div>
+              ))}
             </div>
           </section>
 
           {/* MATCH ODDS */}
           <section className="mt-2 bg-white">
             <div className="flex items-center justify-between bg-[#0b6259] px-3 py-2 text-white">
-              <h2 className="text-sm font-black">
-                MATCH ODDS
-              </h2>
-
-              <span className="text-[10px] font-bold">
-                DEMO
-              </span>
+              <h2 className="text-sm font-black">MATCH ODDS</h2>
+              <span className="text-[10px] font-bold">DEMO</span>
             </div>
 
             <div className="grid grid-cols-[1fr_72px_72px] border-b bg-gray-100 px-2 py-2 text-center text-[10px] font-black text-gray-600">
-              <span className="text-left">
-                SELECTION
-              </span>
-
+              <span className="text-left">SELECTION</span>
               <span>BACK</span>
               <span>LAY</span>
             </div>
 
             {[
-              {
-                name: 'India',
-                back: odds[0],
-                lay: odds[1],
-              },
-              {
-                name: 'Draw',
-                back: odds[2],
-                lay: odds[3],
-              },
-              {
-                name: 'Australia',
-                back: odds[4],
-                lay: odds[5],
-              },
+              { name: 'India', back: odds[0], lay: odds[1] },
+              { name: 'Draw', back: odds[2], lay: odds[3] },
+              { name: 'Australia', back: odds[4], lay: odds[5] },
             ].map((team) => (
               <div
                 key={team.name}
@@ -828,10 +763,7 @@ export default function MatchDetailsPage({
                   className="min-h-12 bg-sky-300 text-sm font-black"
                 >
                   {team.back}
-
-                  <span className="block text-[8px]">
-                    BACK
-                  </span>
+                  <span className="block text-[8px]">BACK</span>
                 </button>
 
                 <button
@@ -847,10 +779,7 @@ export default function MatchDetailsPage({
                   className="min-h-12 bg-pink-300 text-sm font-black"
                 >
                   {team.lay}
-
-                  <span className="block text-[8px]">
-                    LAY
-                  </span>
+                  <span className="block text-[8px]">LAY</span>
                 </button>
               </div>
             ))}
@@ -863,29 +792,19 @@ export default function MatchDetailsPage({
                 <h2 className="text-base font-black">
                   FANCY MARKET
                 </h2>
-
                 <p className="text-[9px] text-teal-100">
                   Demo Sessions
                 </p>
               </div>
-
               <span className="rounded bg-amber-400 px-2 py-1 text-[9px] font-black text-black">
                 DEMO
               </span>
             </div>
 
             <div className="grid grid-cols-[1fr_78px_78px] bg-gray-100 px-2 py-2 text-center text-[10px] font-black">
-              <span className="text-left">
-                MARKET
-              </span>
-
-              <span className="text-pink-700">
-                NO
-              </span>
-
-              <span className="text-sky-700">
-                YES
-              </span>
+              <span className="text-left">MARKET</span>
+              <span className="text-pink-700">NO</span>
+              <span className="text-sky-700">YES</span>
             </div>
 
             {demoFancyMarkets.map((market) => (
@@ -897,7 +816,6 @@ export default function MatchDetailsPage({
                   <p className="break-words text-[13px] font-black">
                     {market.title}
                   </p>
-
                   <p className="mt-1 text-[9px] font-semibold text-gray-500">
                     {market.subtitle}
                   </p>
@@ -918,7 +836,6 @@ export default function MatchDetailsPage({
                   <span className="block text-base font-black">
                     {market.no}
                   </span>
-
                   <span className="block text-[9px] font-bold">
                     NO
                   </span>
@@ -939,7 +856,6 @@ export default function MatchDetailsPage({
                   <span className="block text-base font-black">
                     {market.yes}
                   </span>
-
                   <span className="block text-[9px] font-bold">
                     YES
                   </span>
@@ -948,12 +864,12 @@ export default function MatchDetailsPage({
             ))}
           </section>
 
-          {/* DEMO NOTICE */}
           <section className="m-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
             <p className="text-[11px] font-bold leading-5 text-amber-900">
-              DEMO ONLY — Scores, odds and selections
-              are simulated for interface testing.
-              No real-money transactions or payouts.
+              DEMO ONLY — Scores, odds and selections are
+              simulated for interface testing. WIN / LOST
+              buttons manually simulate results. No real-money
+              transactions or payouts.
             </p>
           </section>
 
@@ -970,7 +886,12 @@ export default function MatchDetailsPage({
       {/* BET SLIP */}
       {selectedMarket && (
         <div className="fixed inset-0 z-[100] flex items-end bg-black/60">
-          <div className="max-h-[88vh] w-full overflow-y-auto rounded-t-2xl bg-white shadow-2xl">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Demo bet slip"
+            className="max-h-[88vh] w-full overflow-y-auto rounded-t-2xl bg-white shadow-2xl"
+          >
             <div
               className={`flex items-center justify-between px-4 py-3 ${
                 selectedMarket.selection === 'NO' ||
@@ -983,19 +904,17 @@ export default function MatchDetailsPage({
                 <p className="text-sm font-black">
                   DEMO BET SLIP
                 </p>
-
                 <p className="text-[10px] font-bold">
                   Available: 🪙{' '}
                   {balanceLoading
                     ? '...'
-                    : demoBalance.toLocaleString(
-                        'en-IN'
-                      )}
+                    : demoBalance.toLocaleString('en-IN')}
                 </p>
               </div>
 
               <button
                 type="button"
+                aria-label="Close bet slip"
                 onClick={closeBetSlip}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-black/20 text-xl font-black"
               >
@@ -1007,7 +926,6 @@ export default function MatchDetailsPage({
               <p className="text-xs font-bold text-gray-500">
                 {currentMatch.teams}
               </p>
-
               <h3 className="mt-1 text-lg font-black">
                 {selectedMarket.market}
               </h3>
@@ -1017,7 +935,6 @@ export default function MatchDetailsPage({
                   <p className="text-[10px] font-bold text-gray-500">
                     SELECTION
                   </p>
-
                   <p className="mt-1 text-base font-black">
                     {selectedMarket.selection}
                   </p>
@@ -1025,26 +942,30 @@ export default function MatchDetailsPage({
 
                 <div className="rounded-md bg-amber-100 p-3">
                   <p className="text-[10px] font-bold text-gray-500">
-                    DEMO RATE
+                    DEMO RATE / TARGET
                   </p>
-
                   <p className="mt-1 text-base font-black">
                     {selectedMarket.rate}
                   </p>
                 </div>
               </div>
 
-              <label className="mt-4 block text-xs font-black text-gray-700">
-                Demo Stake
+              <label
+                htmlFor="demo-stake"
+                className="mt-4 block text-xs font-black text-gray-700"
+              >
+                Demo Stake — Minimum 100 / Maximum 25,000
               </label>
 
               <input
+                id="demo-stake"
                 type="text"
                 inputMode="numeric"
                 value={stake}
+                disabled={selectionSaved}
                 onChange={handleStakeChange}
                 placeholder="Enter demo coins"
-                className="mt-2 w-full rounded-md border-2 border-gray-300 px-3 py-3 text-lg font-black outline-none focus:border-teal-700"
+                className="mt-2 w-full rounded-md border-2 border-gray-300 px-3 py-3 text-lg font-black outline-none focus:border-teal-700 disabled:opacity-50"
               />
 
               <div className="mt-3 grid grid-cols-4 gap-2">
@@ -1052,17 +973,20 @@ export default function MatchDetailsPage({
                   <button
                     key={amount}
                     type="button"
+                    disabled={selectionSaved}
                     onClick={() => addStake(amount)}
-                    className="rounded-md bg-gray-200 py-2 text-[11px] font-black"
+                    className="rounded-md bg-gray-200 py-2 text-[11px] font-black disabled:opacity-50"
                   >
-                    +
-                    {amount.toLocaleString('en-IN')}
+                    +{amount.toLocaleString('en-IN')}
                   </button>
                 ))}
               </div>
 
               {message && (
-                <div className="mt-4 rounded-md border border-teal-200 bg-teal-50 p-3">
+                <div
+                  role="status"
+                  className="mt-4 rounded-md border border-teal-200 bg-teal-50 p-3"
+                >
                   <p className="text-xs font-bold leading-5 text-teal-900">
                     {message}
                   </p>
@@ -1075,23 +999,24 @@ export default function MatchDetailsPage({
                   onClick={closeBetSlip}
                   className="rounded-md border border-gray-400 py-3 text-sm font-black"
                 >
-                  CANCEL
+                  {selectionSaved ? 'CLOSE' : 'CANCEL'}
                 </button>
 
                 <button
                   type="button"
+                  disabled={balanceLoading || selectionSaved}
                   onClick={placeDemoSelection}
-                  className="rounded-md bg-[#075249] py-3 text-sm font-black text-white"
+                  className="rounded-md bg-[#075249] py-3 text-sm font-black text-white disabled:opacity-50"
                 >
-                  SAVE DEMO SELECTION
+                  {selectionSaved ? 'SAVED ✓' : 'SAVE DEMO SELECTION'}
                 </button>
               </div>
 
               <p className="mt-4 text-center text-[10px] font-semibold leading-4 text-gray-500">
-                Simulation only. Saving a selection
-                does not change the server wallet and
-                no real-money betting or payouts are
-                supported.
+                Simulation only. Fancy markets use a fixed
+                2× demo return including stake. Wallet changes
+                on this page are simulated; no real-money
+                betting or payouts.
               </p>
             </div>
           </div>
