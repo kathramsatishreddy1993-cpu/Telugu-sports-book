@@ -659,12 +659,18 @@ export default function MatchDetailsPage({
     <>
       {/* MATCH TITLE */}
       <section className="bg-white px-3 py-4 shadow-sm">
-        <>
-          {/* MATCH TITLE */}
-          <section className="bg-white px-3 py-4 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-wide text-red-600">
-              ● DEMO MATCH
-            </p>
+        <p className="text-[10px] font-black uppercase tracking-wide text-red-600">
+          ● DEMO MATCH
+        </p>
+
+        <h1 className="mt-1 text-xl font-black text-gray-900">
+          {currentMatch.teams}
+        </h1>
+
+        <p className="mt-1 text-xs font-semibold text-gray-500">
+          {currentMatch.date}
+        </p>
+      </section>
 
             <h1 className="mt-1 text-xl font-black text-gray-900">
               {currentMatch.teams}
