@@ -46,199 +46,78 @@ const matches = [
   },
 ];
 
+const flight = {
+  name: 'AVIATOR',
+  image: '/games/aviator.png',
+  href: '/games/tsb-flight',
+};
+
+const roulette = {
+  name: 'ROULETTE',
+  image: '/games/roulette.png',
+  href: '/games/roulette',
+};
+
 const featuredGames = [
-  {
-    name: 'CREED ROOMZ',
-    image: '/games/creed-roomz.png',
-  },
-  {
-    name: 'LIGHTNING',
-    image: '/games/lightning.png',
-  },
-  {
-    name: 'INSTA LIVE',
-    image: '/games/insta-live.png',
-  },
-  {
-    name: 'EZUGI',
-    image: '/games/ezugi.png',
-  },
-  {
-    name: 'AVIATOR',
-    image: '/games/aviator.png',
-  },
-  {
-    name: 'MINES',
-    image: '/games/mines.png',
-  },
-  {
-    name: 'BIKINI GAMES',
-    image: '/games/bikini-games.png',
-  },
-  {
-    name: 'COLOR PREDICTION',
-    image: '/games/color-prediction.png',
-  },
+  roulette,
+  { name: 'CREED ROOMZ', image: '/games/creed-roomz.png' },
+  { name: 'LIGHTNING', image: '/games/lightning.png' },
+  { name: 'INSTA LIVE', image: '/games/insta-live.png' },
+  { name: 'EZUGI', image: '/games/ezugi.png' },
+  flight,
+  { name: 'MINES', image: '/games/mines.png' },
+  { name: 'BIKINI GAMES', image: '/games/bikini-games.png' },
+  { name: 'COLOR PREDICTION', image: '/games/color-prediction.png' },
 ];
 
 const topScrollingGames = [
-  {
-    name: 'AVIATOR',
-    image: '/games/aviator.png',
-  },
-  {
-    name: 'LIGHTNING',
-    image: '/games/lightning.png',
-  },
-  {
-    name: 'MINES',
-    image: '/games/mines.png',
-  },
-  {
-    name: 'CREED ROOMZ',
-    image: '/games/creed-roomz.png',
-  },
-  {
-    name: 'INSTA LIVE',
-    image: '/games/insta-live.png',
-  },
-  {
-    name: 'COLOR PREDICTION',
-    image: '/games/color-prediction.png',
-  },
-  {
-    name: 'EZUGI',
-    image: '/games/ezugi.png',
-  },
-  {
-    name: 'AVIATOR',
-    image: '/games/aviator.png',
-  },
+  roulette,
+  flight,
+  { name: 'LIGHTNING', image: '/games/lightning.png' },
+  { name: 'MINES', image: '/games/mines.png' },
+  { name: 'CREED ROOMZ', image: '/games/creed-roomz.png' },
+  { name: 'INSTA LIVE', image: '/games/insta-live.png' },
+  { name: 'COLOR PREDICTION', image: '/games/color-prediction.png' },
+  { name: 'EZUGI', image: '/games/ezugi.png' },
+  flight,
 ];
 
 const newLaunch = [
-  {
-    name: 'JILI',
-    image: '/games/jili.png',
-  },
-  {
-    name: 'GOLDEN KICK',
-    image: '/games/golden-kick.png',
-  },
-  {
-    name: 'SNAKES & LADDERS',
-    image: '/games/snakes-ladders.png',
-  },
-  {
-    name: 'PREDIX',
-    image: '/games/predix.png',
-  },
-  {
-    name: 'MONEY HEIST',
-    image: '/games/money-heist.png',
-  },
-  {
-    name: 'FOOTBALL X',
-    image: '/games/football-x.png',
-  },
-  {
-    name: 'TWIST X',
-    image: '/games/twist-x.png',
-  },
-  {
-    name: 'INSTANT RUMMY',
-    image: '/games/instant-rummy.png',
-  },
-  {
-    name: 'JHANDI MUNDA',
-    image: '/games/jhandi-munda.png',
-  },
-  {
-    name: 'BLACKJACK',
-    image: '/games/blackjack.png',
-  },
-  {
-    name: 'DEAL OR NO DEAL',
-    image: '/games/deal-or-no-deal.png',
-  },
-  {
-    name: 'LOOT BOXES',
-    image: '/games/loot-boxes.png',
-  },
+  { name: 'JILI', image: '/games/jili.png' },
+  { name: 'GOLDEN KICK', image: '/games/golden-kick.png' },
+  { name: 'SNAKES & LADDERS', image: '/games/snakes-ladders.png' },
+  { name: 'PREDIX', image: '/games/predix.png' },
+  { name: 'MONEY HEIST', image: '/games/money-heist.png' },
+  { name: 'FOOTBALL X', image: '/games/football-x.png' },
+  { name: 'TWIST X', image: '/games/twist-x.png' },
+  { name: 'INSTANT RUMMY', image: '/games/instant-rummy.png' },
+  { name: 'JHANDI MUNDA', image: '/games/jhandi-munda.png' },
+  { name: 'BLACKJACK', image: '/games/blackjack.png' },
+  { name: 'DEAL OR NO DEAL', image: '/games/deal-or-no-deal.png' },
+  { name: 'LOOT BOXES', image: '/games/loot-boxes.png' },
 ];
 
 const favourites = [
-  {
-    name: 'AVIATOR X',
-    image: '/games/aviator-x.png',
-  },
-  {
-    name: 'FANTASY 11',
-    image: '/games/fantasy-11.png',
-  },
-  {
-    name: 'CRICKET BATTLE',
-    image: '/games/cricket-battle.png',
-  },
-  {
-    name: 'LIGHTNING ROULETTE',
-    image: '/games/lightning-roulette.png',
-  },
-  {
-    name: 'DRAGON TIGER',
-    image: '/games/dragon-tiger.png',
-  },
-  {
-    name: 'BACCARAT',
-    image: '/games/baccarat.png',
-  },
-  {
-    name: 'ROULETTE',
-    image: '/games/roulette.png',
-  },
-  {
-    name: 'TEEN PATTI',
-    image: '/games/teen-patti.png',
-  },
+  { name: 'AVIATOR X', image: '/games/aviator-x.png' },
+  { name: 'FANTASY 11', image: '/games/fantasy-11.png' },
+  { name: 'CRICKET BATTLE', image: '/games/cricket-battle.png' },
+  { name: 'LIGHTNING ROULETTE', image: '/games/lightning-roulette.png' },
+  { name: 'DRAGON TIGER', image: '/games/dragon-tiger.png' },
+  { name: 'BACCARAT', image: '/games/baccarat.png' },
+  roulette,
+  { name: 'TEEN PATTI', image: '/games/teen-patti.png' },
 ];
 
 const providers = [
-  {
-    name: 'MAC88',
-    image: '/games/mac88.png',
-  },
-  {
-    name: 'EZUGI',
-    image: '/games/ezugi-provider.png',
-  },
-  {
-    name: 'SMARTSOFT',
-    image: '/games/smartsoft.png',
-  },
-  {
-    name: 'SPRIBE',
-    image: '/games/spribe.png',
-  },
-  {
-    name: 'EVOLUTION',
-    image: '/games/evolution.png',
-  },
-  {
-    name: 'JILI',
-    image: '/games/jili-provider.png',
-  },
-  {
-    name: 'TURBO GAMES',
-    image: '/games/turbo-games.png',
-  },
-  {
-    name: 'GAMZIX',
-    image: '/games/gamzix.png',
-  },
-  {
-    name: 'KING MIDAS',
-    image: '/games/king-midas.png',
-  },
+  { name: 'MAC88', image: '/games/mac88.png' },
+  { name: 'EZUGI', image: '/games/ezugi-provider.png' },
+  { name: 'SMARTSOFT', image: '/games/smartsoft.png' },
+  { name: 'SPRIBE', image: '/games/spribe.png' },
+  { name: 'EVOLUTION', image: '/games/evolution.png' },
+  { name: 'JILI', image: '/games/jili-provider.png' },
+  { name: 'TURBO GAMES', image: '/games/turbo-games.png' },
+  { name: 'GAMZIX', image: '/games/gamzix.png' },
+  { name: 'KING MIDAS', image: '/games/king-midas.png' },
 ];
 
 function NeonScrollingLine() {
@@ -248,7 +127,6 @@ function NeonScrollingLine() {
         <span className="tsb-neon-text">
           ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS & ENTERTAINMENT ✦
         </span>
-
         <span className="tsb-neon-text">
           ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS & ENTERTAINMENT ✦
         </span>
@@ -258,46 +136,39 @@ function NeonScrollingLine() {
 }
 
 function TopGamesSlider({ onGameClick }) {
-  const games = [
-    ...topScrollingGames,
-    ...topScrollingGames,
-  ];
-
   return (
     <section className="overflow-hidden border-b border-white/10 bg-[#080d16] py-3">
       <div className="tsb-game-slider">
         <div className="tsb-game-slider-track">
-          {games.map((game, index) => (
-            <button
-              key={`${game.name}-${index}`}
-              type="button"
-              onClick={() => onGameClick(game)}
-              className="tsb-top-game-card"
-            >
-              <div className="h-[74px] w-[112px] overflow-hidden rounded-xl border border-cyan-400/20 bg-[#111827] shadow-[0_0_15px_rgba(34,211,238,.08)]">
-                <img
-                  src={game.image}
-                  alt={game.name}
-                  className="h-full w-full object-cover"
-                />
-              </div>
+          {[...topScrollingGames, ...topScrollingGames].map(
+            (game, index) => (
+              <button
+                key={`${game.name}-${index}`}
+                type="button"
+                onClick={() => onGameClick(game)}
+                className="tsb-top-game-card"
+              >
+                <div className="h-[74px] w-[112px] overflow-hidden rounded-xl border border-cyan-400/20 bg-[#111827] shadow-[0_0_15px_rgba(34,211,238,.08)]">
+                  <img
+                    src={game.image}
+                    alt={game.name}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
 
-              <span className="mt-1 block max-w-[112px] truncate text-center text-[7px] font-black uppercase tracking-wide text-gray-300">
-                {game.name}
-              </span>
-            </button>
-          ))}
+                <span className="mt-1 block max-w-[112px] truncate text-center text-[7px] font-black uppercase tracking-wide text-gray-300">
+                  {game.name}
+                </span>
+              </button>
+            ),
+          )}
         </div>
       </div>
     </section>
   );
 }
 
-function GameSection({
-  title,
-  games,
-  onGameClick,
-}) {
+function GameSection({ title, games, onGameClick }) {
   return (
     <section className="border-t border-[#1e293b] bg-[#080d16] px-3 py-4">
       <div className="mb-3 flex items-center justify-between">
@@ -328,7 +199,6 @@ function GameSection({
                 alt={game.name}
                 className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
               />
-
               <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-black to-transparent" />
             </div>
 
@@ -344,122 +214,95 @@ function GameSection({
   );
 }
 
-export default function DemoDashboard({
-  user,
-  onLogout,
-}) {
-  const [selectedSport, setSelectedSport] =
-    useState('CRICKET');
+export default function DemoDashboard({ user, onLogout }) {
+  const [selectedSport, setSelectedSport] = useState('CRICKET');
+  const [selectedTab, setSelectedTab] = useState('INPLAY');
+  const [matchFilter, setMatchFilter] = useState('LIVE');
 
-  const [selectedTab, setSelectedTab] =
-    useState('INPLAY');
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [showWithdrawal, setShowWithdrawal] = useState(false);
+  const [showAccountStatement, setShowAccountStatement] = useState(false);
+  const [showBetHistory, setShowBetHistory] = useState(false);
+  const [showUnsettledBet, setShowUnsettledBet] = useState(false);
+  const [showSetButtonValues, setShowSetButtonValues] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showRules, setShowRules] = useState(false);
+  const [showCustomerMenu, setShowCustomerMenu] = useState(false);
 
-  const [matchFilter, setMatchFilter] =
-    useState('LIVE');
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [selectedGame, setSelectedGame] = useState(null);
 
-  const [showDeposit, setShowDeposit] =
-    useState(false);
-
-  const [showWithdrawal, setShowWithdrawal] =
-    useState(false);
-
-  const [
-    showAccountStatement,
-    setShowAccountStatement,
-  ] = useState(false);
-
-  const [showBetHistory, setShowBetHistory] =
-    useState(false);
-
-  const [
-    showUnsettledBet,
-    setShowUnsettledBet,
-  ] = useState(false);
-
-  const [
-    showSetButtonValues,
-    setShowSetButtonValues,
-  ] = useState(false);
-
-  const [
-    showChangePassword,
-    setShowChangePassword,
-  ] = useState(false);
-
-  const [showRules, setShowRules] =
-    useState(false);
-
-  const [
-    showCustomerMenu,
-    setShowCustomerMenu,
-  ] = useState(false);
-
-  const [selectedMatch, setSelectedMatch] =
-    useState(null);
-
-  const [selectedGame, setSelectedGame] =
-    useState(null);
-
-  const [demoBalance, setDemoBalance] =
-    useState(0);
+  const [demoBalance, setDemoBalance] = useState(0);
+  const [balanceError, setBalanceError] = useState('');
 
   useEffect(() => {
+    let active = true;
+
     const loadDemoBalance = async () => {
       try {
         const customerId =
-          user?.id || user?.customerId;
+          user?.id || user?.customerId || user?.customer_id;
 
         if (!customerId) {
-          setDemoBalance(0);
+          if (active) {
+            setDemoBalance(0);
+            setBalanceError(
+              'Customer ID is missing. Please login again.',
+            );
+          }
           return;
         }
 
         const response = await fetch(
           `/api/customers/${customerId}/demo-balance`,
+          { cache: 'no-store' },
         );
 
         const data = await response.json();
 
         if (!response.ok) {
           throw new Error(
-            data?.error ||
-              'Unable to load balance.',
+            data?.error || 'Unable to load balance.',
           );
         }
 
-        setDemoBalance(
-          Number(data.balance) || 0,
-        );
+        if (active) {
+          setDemoBalance(Number(data.balance) || 0);
+          setBalanceError('');
+        }
       } catch (error) {
-        console.error(
-          'Balance Load Error:',
-          error,
-        );
+        console.error('Balance Load Error:', error);
 
-        setDemoBalance(0);
+        if (active) {
+          setBalanceError(error.message);
+        }
       }
     };
 
     loadDemoBalance();
-  }, [user?.id, user?.customerId]);
 
-  /* AVIATOR CARD → TSB FLIGHT */
+    window.addEventListener('focus', loadDemoBalance);
+    window.addEventListener(
+      'demo-balance-updated',
+      loadDemoBalance,
+    );
 
-  const handleGameClick = (game) => {
-    if (
-      String(game?.name || '')
-        .trim()
-        .toUpperCase() === 'AVIATOR'
-    ) {
-      window.location.assign(
-        '/games/tsb-flight',
+    return () => {
+      active = false;
+      window.removeEventListener('focus', loadDemoBalance);
+      window.removeEventListener(
+        'demo-balance-updated',
+        loadDemoBalance,
       );
-
-      return;
-    }
-
-    setSelectedGame(game);
-  };
+    };
+  }, [
+    user?.id,
+    user?.customerId,
+    user?.customer_id,
+    selectedMatch,
+    showDeposit,
+    showWithdrawal,
+  ]);
 
   const tabs = [
     'INPLAY',
@@ -484,42 +327,25 @@ export default function DemoDashboard({
     setShowCustomerMenu(false);
 
     if (item === 'Home') {
-      window.scrollTo({
-        top: 0,
-        behavior: 'smooth',
-      });
-
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
-    if (item === 'Account Statement') {
-      setShowAccountStatement(true);
+    if (item === 'Account Statement') setShowAccountStatement(true);
+    if (item === 'Bet History') setShowBetHistory(true);
+    if (item === 'Unsettled Bet') setShowUnsettledBet(true);
+    if (item === 'Set Button Values') setShowSetButtonValues(true);
+    if (item === 'Change Password') setShowChangePassword(true);
+    if (item === 'Rule') setShowRules(true);
+  };
+
+  const handleGameClick = (game) => {
+    if (game.href) {
+      window.location.assign(game.href);
       return;
     }
 
-    if (item === 'Bet History') {
-      setShowBetHistory(true);
-      return;
-    }
-
-    if (item === 'Unsettled Bet') {
-      setShowUnsettledBet(true);
-      return;
-    }
-
-    if (item === 'Set Button Values') {
-      setShowSetButtonValues(true);
-      return;
-    }
-
-    if (item === 'Change Password') {
-      setShowChangePassword(true);
-      return;
-    }
-
-    if (item === 'Rule') {
-      setShowRules(true);
-    }
+    setSelectedGame(game);
   };
 
   if (showDeposit) {
@@ -544,9 +370,7 @@ export default function DemoDashboard({
     return (
       <AccountStatementPage
         user={user}
-        onBack={() =>
-          setShowAccountStatement(false)
-        }
+        onBack={() => setShowAccountStatement(false)}
       />
     );
   }
@@ -555,9 +379,7 @@ export default function DemoDashboard({
     return (
       <BetHistoryPage
         user={user}
-        onBack={() =>
-          setShowBetHistory(false)
-        }
+        onBack={() => setShowBetHistory(false)}
       />
     );
   }
@@ -566,9 +388,7 @@ export default function DemoDashboard({
     return (
       <UnsettledBetPage
         user={user}
-        onBack={() =>
-          setShowUnsettledBet(false)
-        }
+        onBack={() => setShowUnsettledBet(false)}
       />
     );
   }
@@ -577,9 +397,7 @@ export default function DemoDashboard({
     return (
       <SetButtonValuesPage
         user={user}
-        onBack={() =>
-          setShowSetButtonValues(false)
-        }
+        onBack={() => setShowSetButtonValues(false)}
       />
     );
   }
@@ -588,9 +406,7 @@ export default function DemoDashboard({
     return (
       <ChangePasswordPage
         user={user}
-        onBack={() =>
-          setShowChangePassword(false)
-        }
+        onBack={() => setShowChangePassword(false)}
       />
     );
   }
@@ -599,9 +415,7 @@ export default function DemoDashboard({
     return (
       <RulesPage
         user={user}
-        onBack={() =>
-          setShowRules(false)
-        }
+        onBack={() => setShowRules(false)}
       />
     );
   }
@@ -611,9 +425,7 @@ export default function DemoDashboard({
       <MatchDetailsPage
         match={selectedMatch}
         user={user}
-        onBack={() =>
-          setSelectedMatch(null)
-        }
+        onBack={() => setSelectedMatch(null)}
       />
     );
   }
@@ -624,9 +436,7 @@ export default function DemoDashboard({
         <header className="sticky top-0 z-40 flex items-center border-b border-cyan-500/20 bg-[#0b121e] px-4 py-3">
           <button
             type="button"
-            onClick={() =>
-              setSelectedGame(null)
-            }
+            onClick={() => setSelectedGame(null)}
             className="mr-3 rounded-lg border border-cyan-400/40 bg-[#111827] px-3 py-2 text-xs font-black text-cyan-300"
           >
             ‹ BACK
@@ -662,124 +472,101 @@ export default function DemoDashboard({
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#080d16] text-white">
-      <style>
-        {`
-          .tsb-neon-area {
-            width: 100%;
-            height: 30px;
-            overflow: hidden;
-            position: relative;
-            white-space: nowrap;
-            display: flex;
-            align-items: center;
-          }
+      <style>{`
+        .tsb-neon-area {
+          width: 100%;
+          height: 30px;
+          overflow: hidden;
+          position: relative;
+          white-space: nowrap;
+          display: flex;
+          align-items: center;
+        }
 
-          .tsb-neon-track {
-            position: absolute;
-            display: flex;
-            width: max-content;
-            align-items: center;
-            animation: tsbScroll 14s linear infinite;
-          }
+        .tsb-neon-track {
+          position: absolute;
+          display: flex;
+          width: max-content;
+          align-items: center;
+          animation: tsbScroll 14s linear infinite;
+        }
 
-          .tsb-neon-text {
-            display: inline-block;
-            padding-right: 70px;
-            font-size: 12px;
-            line-height: 30px;
-            font-weight: 900;
-            letter-spacing: 1px;
+        .tsb-neon-text {
+          display: inline-block;
+          padding-right: 70px;
+          font-size: 12px;
+          line-height: 30px;
+          font-weight: 900;
+          letter-spacing: 1px;
+          background: linear-gradient(
+            90deg,
+            #22d3ee,
+            #34d399,
+            #fbbf24,
+            #fb7185,
+            #a78bfa,
+            #22d3ee
+          );
+          background-size: 300% 100%;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          animation: tsbColor 3s linear infinite;
+          filter:
+            drop-shadow(0 0 2px rgba(34,211,238,.7))
+            drop-shadow(0 0 5px rgba(52,211,153,.35));
+        }
 
-            background: linear-gradient(
-              90deg,
-              #22d3ee,
-              #34d399,
-              #fbbf24,
-              #fb7185,
-              #a78bfa,
-              #22d3ee
-            );
+        @keyframes tsbScroll {
+          0% { transform: translateX(100vw); }
+          100% { transform: translateX(-100%); }
+        }
 
-            background-size: 300% 100%;
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
+        @keyframes tsbColor {
+          0% { background-position: 0% 50%; }
+          100% { background-position: 300% 50%; }
+        }
 
-            animation: tsbColor 3s linear infinite;
+        .tsb-scrollbar::-webkit-scrollbar {
+          height: 3px;
+        }
 
-            filter:
-              drop-shadow(0 0 2px rgba(34,211,238,.7))
-              drop-shadow(0 0 5px rgba(52,211,153,.35));
-          }
+        .tsb-scrollbar::-webkit-scrollbar-track {
+          background: #020617;
+        }
 
-          @keyframes tsbScroll {
-            0% {
-              transform: translateX(100vw);
-            }
+        .tsb-scrollbar::-webkit-scrollbar-thumb {
+          background: #0d9488;
+          border-radius: 999px;
+        }
 
-            100% {
-              transform: translateX(-100%);
-            }
-          }
+        .tsb-game-slider {
+          width: 100%;
+          overflow: hidden;
+        }
 
-          @keyframes tsbColor {
-            0% {
-              background-position: 0% 50%;
-            }
+        .tsb-game-slider-track {
+          display: flex;
+          width: max-content;
+          gap: 10px;
+          padding-left: 10px;
+          animation: tsbGameSlide 30s linear infinite;
+        }
 
-            100% {
-              background-position: 300% 50%;
-            }
-          }
+        .tsb-game-slider-track:active {
+          animation-play-state: paused;
+        }
 
-          .tsb-scrollbar::-webkit-scrollbar {
-            height: 3px;
-          }
+        .tsb-top-game-card {
+          width: 112px;
+          flex-shrink: 0;
+        }
 
-          .tsb-scrollbar::-webkit-scrollbar-track {
-            background: #020617;
-          }
-
-          .tsb-scrollbar::-webkit-scrollbar-thumb {
-            background: #0d9488;
-            border-radius: 999px;
-          }
-
-          .tsb-game-slider {
-            width: 100%;
-            overflow: hidden;
-          }
-
-          .tsb-game-slider-track {
-            display: flex;
-            width: max-content;
-            gap: 10px;
-            padding-left: 10px;
-            animation: tsbGameSlide 30s linear infinite;
-          }
-
-          .tsb-game-slider-track:active {
-            animation-play-state: paused;
-          }
-
-          .tsb-top-game-card {
-            width: 112px;
-            flex-shrink: 0;
-          }
-
-          @keyframes tsbGameSlide {
-            from {
-              transform: translateX(0);
-            }
-
-            to {
-              transform: translateX(-50%);
-            }
-          }
-        `}
-      </style>
-
-      {/* HEADER */}
+        @keyframes tsbGameSlide {
+          from { transform: translateX(0); }
+          to { transform: translateX(-50%); }
+        }
+      `}</style>
 
       <header className="border-b border-[#1f2937] bg-gradient-to-br from-[#0c1727] via-[#0b121e] to-[#111827] px-4 pb-3 pt-4">
         <div className="flex items-start justify-between gap-3">
@@ -817,24 +604,18 @@ export default function DemoDashboard({
               </p>
 
               <p className="mt-0.5 text-sm font-black text-amber-300">
-                🪙{' '}
-                {demoBalance.toLocaleString('en-IN')}
+                🪙 {demoBalance.toLocaleString('en-IN')}
               </p>
             </div>
 
             <button
               type="button"
               onClick={() =>
-                setShowCustomerMenu(
-                  (value) => !value,
-                )
+                setShowCustomerMenu((value) => !value)
               }
               className="mt-2 max-w-[135px] truncate rounded-lg border border-cyan-400/30 bg-[#111827] px-3 py-2 text-[10px] font-black text-cyan-200"
             >
-              {user?.name ||
-                user?.identifier ||
-                'User'}{' '}
-              ▼
+              {user?.name || user?.identifier || 'User'} ▼
             </button>
 
             {showCustomerMenu && (
@@ -843,9 +624,7 @@ export default function DemoDashboard({
                   <button
                     key={item}
                     type="button"
-                    onClick={() =>
-                      handleCustomerMenu(item)
-                    }
+                    onClick={() => handleCustomerMenu(item)}
                     className="block w-full border-b border-white/5 px-4 py-3 text-left text-[11px] font-bold transition hover:bg-white/5"
                   >
                     {item}
@@ -864,7 +643,14 @@ export default function DemoDashboard({
           </div>
         </div>
 
-        {/* DEPOSIT / WITHDRAWAL */}
+        {balanceError && (
+          <p
+            role="alert"
+            className="mt-2 text-[10px] text-amber-300"
+          >
+            {balanceError}
+          </p>
+        )}
 
         <div className="mt-4 grid grid-cols-2 gap-3">
           <button
@@ -899,9 +685,7 @@ export default function DemoDashboard({
 
           <button
             type="button"
-            onClick={() =>
-              setShowWithdrawal(true)
-            }
+            onClick={() => setShowWithdrawal(true)}
             className="group relative overflow-hidden rounded-2xl border border-orange-400/50 bg-gradient-to-br from-[#2a1809] via-[#20150c] to-[#171008] px-3 py-3 text-left shadow-[0_0_8px_rgba(251,146,60,.35),inset_0_0_18px_rgba(251,146,60,.08)] transition active:scale-[0.97]"
           >
             <div className="absolute -left-5 top-1/2 h-16 w-16 -translate-y-1/2 rounded-full bg-orange-400/10 blur-xl" />
@@ -935,27 +719,17 @@ export default function DemoDashboard({
         </div>
       </header>
 
-      {/* AUTO SCROLL GAMES */}
-
-      <TopGamesSlider
-        onGameClick={handleGameClick}
-      />
-
-      {/* EXCHANGE */}
+      <TopGamesSlider onGameClick={handleGameClick} />
 
       <div className="bg-[#080d16] px-4 pb-3">
         <div className="flex items-center justify-center gap-2 rounded-lg border border-amber-400/10 bg-amber-400/5 px-3 py-2">
-          <span className="text-xs">
-            🏆
-          </span>
+          <span className="text-xs">🏆</span>
 
           <p className="text-[9px] font-black uppercase tracking-wider text-amber-300">
             Our Exchange • Sports Hub
           </p>
         </div>
       </div>
-
-      {/* MAIN NAV */}
 
       <nav
         className="tsb-scrollbar w-full overflow-x-auto border-b border-white/10 bg-[#0d1523]"
@@ -969,9 +743,7 @@ export default function DemoDashboard({
             <button
               key={tab}
               type="button"
-              onClick={() =>
-                setSelectedTab(tab)
-              }
+              onClick={() => setSelectedTab(tab)}
               className={`mr-2 shrink-0 rounded-lg border px-4 py-2 text-[9px] font-black transition ${
                 selectedTab === tab
                   ? 'border-cyan-400/50 bg-cyan-400/15 text-cyan-300'
@@ -983,8 +755,6 @@ export default function DemoDashboard({
           ))}
         </div>
       </nav>
-
-      {/* SPORTS */}
 
       <section
         className="tsb-scrollbar w-full overflow-x-auto border-b border-white/10 bg-[#0a101b]"
@@ -998,9 +768,7 @@ export default function DemoDashboard({
             <button
               key={sport.name}
               type="button"
-              onClick={() =>
-                setSelectedSport(sport.name)
-              }
+              onClick={() => setSelectedSport(sport.name)}
               className={`w-[90px] shrink-0 rounded-xl border px-2 py-2 text-center transition ${
                 selectedSport === sport.name
                   ? 'border-amber-400/50 bg-gradient-to-br from-amber-400/20 to-orange-500/10 text-white'
@@ -1019,8 +787,6 @@ export default function DemoDashboard({
         </div>
       </section>
 
-      {/* LIVE SPORTS */}
-
       <section className="bg-[#080d16] px-3 pb-2 pt-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -1037,21 +803,13 @@ export default function DemoDashboard({
         </div>
       </section>
 
-      {/* FILTER */}
-
       <section className="border-b border-white/10 bg-[#080d16] px-3 py-3">
         <div className="flex gap-2">
-          {[
-            'LIVE',
-            'VIRTUAL',
-            'PREMIUM',
-          ].map((filter) => (
+          {['LIVE', 'VIRTUAL', 'PREMIUM'].map((filter) => (
             <button
               key={filter}
               type="button"
-              onClick={() =>
-                setMatchFilter(filter)
-              }
+              onClick={() => setMatchFilter(filter)}
               className={`rounded-lg border px-4 py-2 text-[8px] font-black ${
                 matchFilter === filter
                   ? 'border-red-400/40 bg-red-500/15 text-red-300'
@@ -1063,8 +821,6 @@ export default function DemoDashboard({
           ))}
         </div>
       </section>
-
-      {/* MATCHES */}
 
       <section className="bg-[#080d16] px-3 pb-4">
         {matches.map((match) => (
@@ -1084,9 +840,7 @@ export default function DemoDashboard({
 
                 <button
                   type="button"
-                  onClick={() =>
-                    setSelectedMatch(match)
-                  }
+                  onClick={() => setSelectedMatch(match)}
                   className="block w-full text-left"
                 >
                   <h2 className="truncate text-[13px] font-black text-white">
@@ -1101,9 +855,7 @@ export default function DemoDashboard({
 
               <button
                 type="button"
-                onClick={() =>
-                  setSelectedMatch(match)
-                }
+                onClick={() => setSelectedMatch(match)}
                 className="shrink-0 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-[8px] font-black text-cyan-300"
               >
                 OPEN ›
@@ -1122,9 +874,7 @@ export default function DemoDashboard({
                   <button
                     key={`${match.id}-${index}`}
                     type="button"
-                    onClick={() =>
-                      setSelectedMatch(match)
-                    }
+                    onClick={() => setSelectedMatch(match)}
                     className={`h-[42px] rounded-lg border text-[9px] font-black ${
                       index % 2 === 0
                         ? 'border-cyan-400/20 bg-cyan-400/15 text-cyan-200'
@@ -1138,9 +888,7 @@ export default function DemoDashboard({
 
               <button
                 type="button"
-                onClick={() =>
-                  setSelectedMatch(match)
-                }
+                onClick={() => setSelectedMatch(match)}
                 className="mt-3 h-[34px] w-full rounded-lg border border-cyan-400/20 bg-[#0b1c24] text-[8px] font-black uppercase tracking-wider text-cyan-300"
               >
                 View Match Details ›
@@ -1173,8 +921,6 @@ export default function DemoDashboard({
         games={providers}
         onGameClick={handleGameClick}
       />
-
-      {/* FOOTER */}
 
       <footer className="border-t border-white/10 bg-[#050911] px-5 py-8 text-center">
         <div className="mx-auto flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl border border-cyan-400/20 bg-black">
