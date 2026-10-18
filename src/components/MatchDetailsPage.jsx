@@ -642,10 +642,11 @@ export default function MatchDetailsPage({
                     </button>
                   </div>
                 </div>
-                </div>
-              ))}
+              </div>
             </div>
-          )}
+          ))}
+        </div>
+      )}
 
           <button
             type="button"
