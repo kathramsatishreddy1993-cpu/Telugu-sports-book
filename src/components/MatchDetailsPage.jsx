@@ -641,13 +641,22 @@ export default function MatchDetailsPage({
                       LOST (ఓడిపోయింది)
                     </button>
                   </div>
-                </div>
               </div>
             </div>
           ))}
         </div>
-      )}
 
+        <button
+          type="button"
+          onClick={() => setShowMatchedBets(false)}
+          className="mx-3 w-[calc(100%-24px)] rounded-md bg-[#075249] py-3 text-sm font-black text-white"
+        >
+          ← BACK TO ODDS
+        </button>
+      </section>
+    ) : (
+      <>
+                
           <button
             type="button"
             onClick={() => setShowMatchedBets(false)}
