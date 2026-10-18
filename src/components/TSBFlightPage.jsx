@@ -11,6 +11,401 @@ import {
   notifyFlightWallet,
 } from './flightClient';
 
+/* MOVING FLIGHT DISPLAY */
+
+function FlightScene({
+  round,
+  phase,
+  multiplier,
+  serverNow,
+  start,
+  fresh,
+  verified,
+}) {
+  const running = phase === 'RUNNING';
+  const crashed = phase === 'CRASHED';
+
+  const seconds = Math.max(
+    0,
+    (serverNow - start) / 1000,
+  );
+
+  const flightSeconds = crashed
+    ? Math.log(
+        Math.max(1, Number(round?.crashMultiplier || 1)),
+      ) / 0.085
+    : seconds;
+
+  /*
+    Visual progress does not reveal the crash point.
+    The plane approaches the upper right as time passes.
+  */
+  const progress =
+    running || crashed
+      ? 1 - Math.exp(-flightSeconds / 15)
+      : 0;
+
+  const bob = running
+    ? Math.sin(seconds * 2) * 4 * progress
+    : 0;
+
+  const x = 45 + 450 * progress;
+
+  const y =
+    270 -
+    185 * Math.pow(progress, 1.35) +
+    bob;
+
+  const controlX = 45 + (x - 45) * 0.55;
+
+  const curve =
+    `M 45 270 Q ${controlX} 270 ${x} ${y}`;
+
+  const area =
+    `${curve} L ${x} 285 L 45 285 Z`;
+
+  const countdown = Math.max(
+    0,
+    Math.ceil((start - serverNow) / 1000),
+  );
+
+  return (
+    <section className="tsb-flight-scene">
+      <style>{`
+        .tsb-flight-scene {
+          position: relative;
+          overflow: hidden;
+          border: 1px solid rgba(34,211,238,.25);
+          border-radius: 24px;
+          background:
+            radial-gradient(
+              ellipse at 65% 65%,
+              rgba(8,145,178,.18),
+              transparent 65%
+            ),
+            #070f1d;
+        }
+
+        .tsb-flight-grid {
+          position: absolute;
+          inset: 0;
+          opacity: .18;
+          background-image:
+            linear-gradient(
+              rgba(56,189,248,.35) 1px,
+              transparent 1px
+            ),
+            linear-gradient(
+              90deg,
+              rgba(56,189,248,.35) 1px,
+              transparent 1px
+            );
+          background-size: 36px 36px;
+        }
+
+        .tsb-flight-grid-running {
+          animation: tsbFlightGridMove 2s linear infinite;
+        }
+
+        @keyframes tsbFlightGridMove {
+          from {
+            background-position: 0 0;
+          }
+          to {
+            background-position: -36px 36px;
+          }
+        }
+
+        .tsb-flight-art {
+          display: block;
+          width: 100%;
+          height: auto;
+        }
+
+        .tsb-flight-plane {
+          filter:
+            drop-shadow(0 0 5px rgba(34,211,238,.7));
+        }
+
+        .tsb-flight-engine {
+          transform-box: fill-box;
+          transform-origin: right center;
+          animation: tsbFlightEngine .18s ease-in-out infinite alternate;
+        }
+
+        @keyframes tsbFlightEngine {
+          from {
+            opacity: .55;
+            transform: scaleX(.7);
+          }
+          to {
+            opacity: 1;
+            transform: scaleX(1.2);
+          }
+        }
+
+        .tsb-flight-departure {
+          transform-box: fill-box;
+          animation: tsbFlightDeparture .7s ease-in forwards;
+        }
+
+        @keyframes tsbFlightDeparture {
+          from {
+            opacity: 1;
+            transform: translate(0, 0);
+          }
+          to {
+            opacity: 0;
+            transform: translate(200px, -120px);
+          }
+        }
+
+        .tsb-flight-crash-flash {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          animation: tsbFlightCrashFlash .7s ease-out forwards;
+        }
+
+        @keyframes tsbFlightCrashFlash {
+          from {
+            background: rgba(248,113,113,.25);
+          }
+          to {
+            background: transparent;
+          }
+        }
+      `}</style>
+
+      <div
+        className={`tsb-flight-grid ${
+          running
+            ? 'tsb-flight-grid-running'
+            : ''
+        }`}
+      />
+
+      <div className="absolute inset-x-0 top-5 z-10 px-3 text-center">
+        <p className="text-[10px] font-bold tracking-[0.25em] text-slate-400">
+          {round
+            ? `ROUND #${round.id}`
+            : 'TSB FLIGHT'}
+        </p>
+
+        {phase === 'WAITING' ? (
+          <>
+            <p className="mt-5 text-2xl font-black text-white">
+              Waiting for next round
+            </p>
+
+            <p className="mt-2 text-xs text-slate-400">
+              Waiting for the controller to lock a round
+            </p>
+          </>
+        ) : phase === 'COUNTDOWN' ? (
+          <>
+            <p className="mt-3 text-6xl font-black text-cyan-300">
+              {countdown}
+            </p>
+
+            <p className="mt-2 text-[11px] font-black text-cyan-100">
+              BETTING OPEN · RESULT LOCKED
+            </p>
+          </>
+        ) : (
+          <>
+            <p
+              className={`mt-4 text-5xl font-black sm:text-7xl ${
+                crashed
+                  ? 'text-red-400'
+                  : 'text-emerald-300'
+              }`}
+            >
+              {multiplier.toFixed(2)}×
+            </p>
+
+            <p className="mt-2 text-xs font-black tracking-widest text-white">
+              {crashed
+                ? 'ROUND CRASHED'
+                : 'FLIGHT RUNNING'}
+            </p>
+          </>
+        )}
+      </div>
+
+      <svg
+        className="tsb-flight-art relative"
+        viewBox="0 0 600 330"
+        role="img"
+        aria-label={
+          crashed
+            ? 'Flight round ended'
+            : running
+              ? 'Plane flying upward'
+              : 'Plane waiting for takeoff'
+        }
+      >
+        <defs>
+          <linearGradient
+            id="tsb-flight-area"
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="1"
+          >
+            <stop
+              offset="0%"
+              stopColor={crashed ? '#f87171' : '#22d3ee'}
+              stopOpacity=".35"
+            />
+
+            <stop
+              offset="100%"
+              stopColor={crashed ? '#f87171' : '#22d3ee'}
+              stopOpacity="0"
+            />
+          </linearGradient>
+        </defs>
+
+        <path
+          d="M 30 285 H 570"
+          stroke="#334155"
+          strokeWidth="1"
+        />
+
+        <path
+          d="M 30 285 V 35"
+          stroke="#334155"
+          strokeWidth="1"
+        />
+
+        {[90, 150, 210, 270, 330, 390, 450, 510].map(
+          (position) => (
+            <circle
+              key={position}
+              cx={position}
+              cy="285"
+              r="2"
+              fill="#64748b"
+            />
+          ),
+        )}
+
+        {(running || crashed) && (
+          <>
+            <path
+              d={area}
+              fill="url(#tsb-flight-area)"
+            />
+
+            <path
+              d={curve}
+              fill="none"
+              stroke={crashed ? '#f87171' : '#22d3ee'}
+              strokeWidth="4"
+              strokeLinecap="round"
+            />
+          </>
+        )}
+
+        <g
+          transform={`translate(${x} ${y})`}
+        >
+          <g
+            key={`${round?.id || 'waiting'}-${crashed}`}
+            className={
+              crashed
+                ? 'tsb-flight-departure'
+                : undefined
+            }
+          >
+            <g
+              transform={`rotate(${
+                running || crashed
+                  ? -12 - progress * 15
+                  : -5
+              })`}
+              className="tsb-flight-plane"
+            >
+              {running && (
+                <path
+                  className="tsb-flight-engine"
+                  d="M -35 -4 L -65 0 L -35 5 Z"
+                  fill="#fbbf24"
+                />
+              )}
+
+              <path
+                d="
+                  M -36 -5
+                  L -14 -6
+                  L -5 -26
+                  L 5 -26
+                  L 4 -6
+                  L 25 -5
+                  Q 42 -3 44 1
+                  Q 39 6 25 7
+                  L 3 7
+                  L -14 25
+                  L -24 25
+                  L -14 6
+                  L -34 6
+                  L -45 15
+                  L -51 15
+                  L -44 2
+                  L -51 -11
+                  L -44 -11
+                  Z
+                "
+                fill="#67e8f9"
+                stroke="#ecfeff"
+                strokeWidth="1.3"
+                strokeLinejoin="round"
+              />
+
+              <path
+                d="M 18 -4 L 28 -3 L 32 0 L 18 0 Z"
+                fill="#0c4a6e"
+              />
+
+              <path
+                d="M -30 1 H 12"
+                stroke="#0891b2"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </g>
+          </g>
+        </g>
+      </svg>
+
+      {crashed && (
+        <div
+          key={`flash-${round?.id}`}
+          className="tsb-flight-crash-flash"
+        />
+      )}
+
+      <div className="relative z-10 min-h-[34px] px-4 pb-3 text-center">
+        {!fresh && round && (
+          <p className="text-[10px] text-amber-300">
+            Connection unavailable — actions paused;
+            animation is an estimate.
+          </p>
+        )}
+
+        {verified && (
+          <p className="text-[10px] text-slate-300">
+            {verified}
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* CUSTOMER GAME */
+
 export default function TSBFlightPage({
   user,
   onBack,
@@ -27,6 +422,7 @@ export default function TSBFlightPage({
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [clock, setClock] = useState(Date.now());
+  const [verified, setVerified] = useState('');
 
   const busyRef = useRef(false);
   const pendingRef = useRef(null);
@@ -42,7 +438,6 @@ export default function TSBFlightPage({
 
     return () => {
       alive.current = false;
-
       clearInterval(timer);
     };
   }, []);
@@ -197,13 +592,12 @@ export default function TSBFlightPage({
 
       if (alive.current) {
         setBusy(false);
-
         refresh();
       }
     }
   };
 
-  const [verified, setVerified] = useState('');
+  /* VERIFY LOCKED RESULT */
 
   useEffect(() => {
     let active = true;
@@ -226,11 +620,8 @@ export default function TSBFlightPage({
         .then((hash) => {
           const result = Array.from(
             new Uint8Array(hash),
-
             (value) =>
-              value
-                .toString(16)
-                .padStart(2, '0'),
+              value.toString(16).padStart(2, '0'),
           ).join('');
 
           if (active) {
@@ -298,10 +689,10 @@ export default function TSBFlightPage({
           <strong>
             Admin-controlled demo test round.
           </strong>{' '}
-          The controller locks the crash point before betting
-          opens. Demo coins only. Closing this page does not
-          cash out; the server must accept your cash-out
-          request before crash.
+          The controller locks the crash point before
+          betting opens. Demo coins only. Closing this
+          page does not cash out; the server must accept
+          your cash-out request before crash.
         </div>
 
         {(error || wrongAccount) && (
@@ -323,97 +714,15 @@ export default function TSBFlightPage({
           </div>
         )}
 
-        {/* FLIGHT DISPLAY */}
-
-        <section className="relative flex min-h-[310px] flex-col items-center justify-center overflow-hidden rounded-3xl border border-cyan-400/20 bg-gradient-to-br from-[#0b2039] to-[#080e1b] p-6">
-          <div
-            className="absolute inset-0 opacity-10"
-            style={{
-              backgroundImage:
-                'linear-gradient(#38bdf8 1px,transparent 1px),linear-gradient(90deg,#38bdf8 1px,transparent 1px)',
-
-              backgroundSize: '40px 40px',
-            }}
-          />
-
-          <div className="relative w-full text-center">
-            <p className="text-xs font-bold tracking-[0.25em] text-slate-400">
-              {round
-                ? `ROUND #${round.id}`
-                : 'TSB FLIGHT'}
-            </p>
-
-            {phase === 'WAITING' ? (
-              <>
-                <p className="mt-6 text-3xl font-black">
-                  Waiting for next round
-                </p>
-
-                <p className="mt-3 text-sm text-slate-400">
-                  The controller must confirm and lock
-                  a test round.
-                </p>
-              </>
-            ) : phase === 'COUNTDOWN' ? (
-              <>
-                <p className="mt-5 text-7xl font-black text-cyan-300">
-                  {Math.max(
-                    0,
-                    Math.ceil(
-                      (start - serverNow) / 1000,
-                    ),
-                  )}
-                </p>
-
-                <p className="mt-3 text-sm font-bold text-cyan-100">
-                  BETTING OPEN · RESULT LOCKED
-                </p>
-              </>
-            ) : (
-              <>
-                <p
-                  className={`mt-6 text-6xl font-black sm:text-8xl ${
-                    phase === 'CRASHED'
-                      ? 'text-red-400'
-                      : 'text-emerald-300'
-                  }`}
-                >
-                  {multiplier.toFixed(2)}×
-                </p>
-
-                <p className="mt-4 text-sm font-black tracking-widest">
-                  {phase === 'CRASHED'
-                    ? 'ROUND CRASHED'
-                    : 'FLIGHT RUNNING'}
-                </p>
-              </>
-            )}
-
-            <div
-              className={`mt-6 text-5xl ${
-                phase === 'RUNNING'
-                  ? 'animate-pulse'
-                  : ''
-              }`}
-              aria-hidden="true"
-            >
-              ✈
-            </div>
-
-            {!fresh && data && (
-              <p className="mt-3 text-xs text-amber-300">
-                Connection unavailable — actions paused;
-                displayed animation is an estimate.
-              </p>
-            )}
-
-            {verified && (
-              <p className="mt-3 text-xs text-slate-300">
-                {verified}
-              </p>
-            )}
-          </div>
-        </section>
+        <FlightScene
+          round={round}
+          phase={phase}
+          multiplier={multiplier}
+          serverNow={serverNow}
+          start={start}
+          fresh={fresh}
+          verified={verified}
+        />
 
         {/* BET AND CASH OUT */}
 
@@ -450,9 +759,7 @@ export default function TSBFlightPage({
               <button
                 type="button"
                 disabled={busy || !fresh}
-                onClick={() =>
-                  doAction('cashout')
-                }
+                onClick={() => doAction('cashout')}
                 className="rounded-xl bg-amber-300 px-4 py-3 font-black text-black disabled:opacity-40"
               >
                 {busy
@@ -468,9 +775,7 @@ export default function TSBFlightPage({
                   phase !== 'COUNTDOWN' ||
                   Boolean(currentBet)
                 }
-                onClick={() =>
-                  doAction('bet')
-                }
+                onClick={() => doAction('bet')}
                 className="rounded-xl bg-cyan-400 px-4 py-3 font-black text-[#06101b] disabled:opacity-40"
               >
                 {busy
@@ -503,10 +808,10 @@ export default function TSBFlightPage({
           )}
 
           <p className="mt-3 text-[11px] leading-5 text-slate-400">
-            Cash-out timing and payout are decided by the
-            server when it processes the request. A round
-            can crash at 1.00× immediately. No new bets are
-            accepted after flight starts.
+            Cash-out timing and payout are decided by
+            the server when it processes the request.
+            A round can crash at 1.00× immediately.
+            No new bets are accepted after flight starts.
           </p>
         </section>
 
@@ -518,14 +823,14 @@ export default function TSBFlightPage({
           </h2>
 
           <div className="mt-3 flex flex-wrap gap-2">
-            {data?.history?.map((round) => (
+            {data?.history?.map((item) => (
               <span
-                key={round.id}
+                key={item.id}
                 className="rounded-full border border-red-400/20 bg-red-400/10 px-3 py-1 text-xs text-red-200"
               >
-                #{round.id}
+                #{item.id}
                 {' · '}
-                {round.crashMultiplier.toFixed(2)}×
+                {item.crashMultiplier.toFixed(2)}×
               </span>
             ))}
 
@@ -539,86 +844,4 @@ export default function TSBFlightPage({
 
         {/* CUSTOMER HISTORY */}
 
-        <section className="overflow-x-auto rounded-2xl border border-white/10 bg-[#0d192a] p-4">
-          <h2 className="font-black">
-            Your flight history
-          </h2>
-
-          <table className="mt-3 w-full text-left text-xs">
-            <thead className="text-slate-400">
-              <tr>
-                <th className="py-2">
-                  Round
-                </th>
-
-                <th>Stake</th>
-
-                <th>Result</th>
-
-                <th>Returned</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {data?.bets?.map((bet) => (
-                <tr
-                  key={bet.id}
-                  className="border-t border-white/5"
-                >
-                  <td className="py-3">
-                    #{bet.roundId}
-                  </td>
-
-                  <td>
-                    {bet.stake}
-                  </td>
-
-                  <td>
-                    {bet.status}
-
-                    {bet.cashoutMultiplier
-                      ? ` · ${bet.cashoutMultiplier.toFixed(2)}×`
-                      : ''}
-                  </td>
-
-                  <td>
-                    {bet.payout}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-
-        {/* LOCK VERIFICATION */}
-
-        {round && (
-          <details className="break-all rounded-xl border border-white/10 p-3 text-[10px] text-slate-400">
-            <summary className="cursor-pointer">
-              Locked round verification
-            </summary>
-
-            <p className="mt-2">
-              SHA-256 commitment:{' '}
-              {round.commitment}
-            </p>
-
-            {round.seed && (
-              <p className="mt-2">
-                Revealed seed:{' '}
-                {round.seed}
-              </p>
-            )}
-
-            <p className="mt-2">
-              Commitment input: round ID : crash
-              multiplier × 100 : seed. This verifies
-              the locked result; this test mode is
-              admin-selected, not random.
-            </p>
-          </details>
-        )}
-      </main>
-    </div>
-  );
-}
+        <section className="overflow-x-auto rounded-2xl border border-white/
