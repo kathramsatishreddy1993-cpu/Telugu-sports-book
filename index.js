@@ -1,4 +1,9 @@
 import {
+  initializeRoulette,
+  registerRouletteRoutes,
+} from './rouletteRoutes.js';
+
+import {
   initializeControllerAccounts,
   registerControllerAccountRoutes,
   requireOldAdmin,
@@ -10,6 +15,7 @@ import https from 'https';
 import bcrypt from 'bcryptjs';
 import pg from 'pg';
 import { fileURLToPath } from 'url';
+
 import { sportsService } from './sportsService.js';
 
 import {
@@ -30,20 +36,10 @@ const __dirname = path.dirname(
 );
 
 const app = express();
-
 const PORT = process.env.PORT || 10000;
+const DEFAULT_ADMIN_WHATSAPP_NUMBER = '919346824432';
 
-const DEFAULT_ADMIN_WHATSAPP_NUMBER =
-  '919346824432';
-
-/* MIDDLEWARE */
-
-app.use(
-  express.json({
-    limit: '2mb',
-  }),
-);
-
+app.use(express.json({ limit: '2mb' }));
 app.use(
   express.urlencoded({
     extended: true,
@@ -51,35 +47,22 @@ app.use(
   }),
 );
 
-/* POSTGRESQL */
-
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-
   ssl:
     process.env.NODE_ENV === 'production'
-      ? {
-          rejectUnauthorized: false,
-        }
+      ? { rejectUnauthorized: false }
       : false,
 });
 
-/* HELPERS */
-
 const wrap = (fn) => (req, res, next) =>
-  Promise.resolve(
-    fn(req, res, next),
-  ).catch(next);
+  Promise.resolve(fn(req, res, next)).catch(next);
 
 const normalizeLoginId = (value) =>
-  String(value || '')
-    .trim()
-    .toLowerCase();
+  String(value || '').trim().toLowerCase();
 
 const normalizeWhatsAppNumber = (value) =>
-  String(value || '')
-    .replace(/\D/g, '')
-    .trim();
+  String(value || '').replace(/\D/g, '').trim();
 
 const isValidWhatsAppNumber = (value) =>
   /^[1-9][0-9]{9,14}$/.test(value);
@@ -91,261 +74,143 @@ const positiveInteger = (value) =>
 
 const publicCustomer = (customer) => ({
   id: customer.id,
-
   name: customer.name,
-
   loginId: customer.login_id,
-
   mustChangePassword: Boolean(
     customer.must_change_password,
   ),
-
   mustChangeWithdrawalPassword: Boolean(
     customer.must_change_withdrawal_password,
   ),
-
   withdrawalPasswordConfigured: Boolean(
     customer.withdrawal_password_hash,
   ),
-
   status: customer.status,
-
   createdAt: customer.created_at,
-
   demoCoinBalance: Number(
     customer.demo_coin_balance || 0,
   ),
-
   demo_coin_balance: Number(
     customer.demo_coin_balance || 0,
   ),
 });
 
-/* DATABASE INITIALIZATION */
-
 async function initializeDatabase() {
   if (!process.env.DATABASE_URL) {
-    throw new Error(
-      'DATABASE_URL is not configured.',
-    );
+    throw new Error('DATABASE_URL is not configured.');
   }
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS customers (
       id SERIAL PRIMARY KEY,
-
       name VARCHAR(120) NOT NULL,
-
-      login_id VARCHAR(60)
-        UNIQUE
-        NOT NULL,
-
+      login_id VARCHAR(60) UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
-
-      must_change_password BOOLEAN
-        NOT NULL
-        DEFAULT TRUE,
-
+      must_change_password BOOLEAN NOT NULL DEFAULT TRUE,
       withdrawal_password_hash TEXT,
-
-      must_change_withdrawal_password BOOLEAN
-        NOT NULL
-        DEFAULT TRUE,
-
-      status VARCHAR(20)
-        NOT NULL
-        DEFAULT 'ACTIVE',
-
-      demo_coin_balance INTEGER
-        NOT NULL
-        DEFAULT 0,
-
-      created_at TIMESTAMPTZ
-        NOT NULL
-        DEFAULT NOW(),
-
-      updated_at TIMESTAMPTZ
-        NOT NULL
-        DEFAULT NOW()
+      must_change_withdrawal_password BOOLEAN NOT NULL DEFAULT TRUE,
+      status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+      demo_coin_balance INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     ALTER TABLE customers
-      ADD COLUMN IF NOT EXISTS
-        withdrawal_password_hash TEXT;
+      ADD COLUMN IF NOT EXISTS withdrawal_password_hash TEXT;
 
     ALTER TABLE customers
-      ADD COLUMN IF NOT EXISTS
-        must_change_withdrawal_password BOOLEAN
-        NOT NULL
-        DEFAULT TRUE;
+      ADD COLUMN IF NOT EXISTS must_change_withdrawal_password
+      BOOLEAN NOT NULL DEFAULT TRUE;
 
     ALTER TABLE customers
-      ADD COLUMN IF NOT EXISTS
-        demo_coin_balance INTEGER
-        NOT NULL
-        DEFAULT 0;
+      ADD COLUMN IF NOT EXISTS demo_coin_balance
+      INTEGER NOT NULL DEFAULT 0;
 
     CREATE TABLE IF NOT EXISTS site_settings (
       setting_key VARCHAR(100) PRIMARY KEY,
-
       setting_value TEXT NOT NULL,
-
-      updated_at TIMESTAMPTZ
-        NOT NULL
-        DEFAULT NOW()
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS demo_coin_transactions (
       id SERIAL PRIMARY KEY,
-
-      customer_id INTEGER
-        NOT NULL
-        REFERENCES customers(id)
-        ON DELETE CASCADE,
-
+      customer_id INTEGER NOT NULL
+        REFERENCES customers(id) ON DELETE CASCADE,
       amount INTEGER NOT NULL,
-
       transaction_type VARCHAR(20) NOT NULL,
-
       note TEXT,
-
-      created_at TIMESTAMPTZ
-        NOT NULL
-        DEFAULT NOW()
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS demo_withdrawal_requests (
       id SERIAL PRIMARY KEY,
-
-      customer_id INTEGER
-        NOT NULL
-        REFERENCES customers(id)
-        ON DELETE CASCADE,
-
+      customer_id INTEGER NOT NULL
+        REFERENCES customers(id) ON DELETE CASCADE,
       amount INTEGER NOT NULL,
-
       account_holder_name TEXT NOT NULL,
-
       bank_name TEXT NOT NULL,
-
       account_number TEXT NOT NULL,
-
       ifsc_code TEXT NOT NULL,
-
-      status VARCHAR(20)
-        NOT NULL
-        DEFAULT 'PENDING',
-
-      created_at TIMESTAMPTZ
-        NOT NULL
-        DEFAULT NOW(),
-
-      updated_at TIMESTAMPTZ
-        NOT NULL
-        DEFAULT NOW()
+      status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
-    CREATE INDEX IF NOT EXISTS
-      demo_withdrawal_customer_index
+    CREATE INDEX IF NOT EXISTS demo_withdrawal_customer_index
       ON demo_withdrawal_requests(customer_id);
 
     ALTER TABLE demo_withdrawal_requests
-      ADD COLUMN IF NOT EXISTS
-        coins_held BOOLEAN
-        NOT NULL
-        DEFAULT FALSE;
+      ADD COLUMN IF NOT EXISTS coins_held
+      BOOLEAN NOT NULL DEFAULT FALSE;
 
     ALTER TABLE demo_withdrawal_requests
-      ADD COLUMN IF NOT EXISTS
-        coins_restored BOOLEAN
-        NOT NULL
-        DEFAULT FALSE;
+      ADD COLUMN IF NOT EXISTS coins_restored
+      BOOLEAN NOT NULL DEFAULT FALSE;
 
     CREATE TABLE IF NOT EXISTS demo_deposit_requests (
       id SERIAL PRIMARY KEY,
-
-      customer_id INTEGER
-        NOT NULL
-        REFERENCES customers(id)
-        ON DELETE CASCADE,
-
-      reference_number VARCHAR(12)
-        NOT NULL
-        UNIQUE,
-
+      customer_id INTEGER NOT NULL
+        REFERENCES customers(id) ON DELETE CASCADE,
+      reference_number VARCHAR(12) NOT NULL UNIQUE,
       amount INTEGER NOT NULL,
-
       payment_method VARCHAR(30) NOT NULL,
-
       proof_name TEXT,
-
-      status VARCHAR(20)
-        NOT NULL
-        DEFAULT 'PENDING',
-
-      created_at TIMESTAMPTZ
-        NOT NULL
-        DEFAULT NOW(),
-
-      updated_at TIMESTAMPTZ
-        NOT NULL
-        DEFAULT NOW()
+      status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
-    CREATE UNIQUE INDEX IF NOT EXISTS
-      demo_deposit_reference_unique
+    CREATE UNIQUE INDEX IF NOT EXISTS demo_deposit_reference_unique
       ON demo_deposit_requests(reference_number);
   `);
 
   await pool.query(
-    `
-      INSERT INTO site_settings (
-        setting_key,
-        setting_value
-      )
-
-      VALUES (
-        'admin_whatsapp_number',
-        $1
-      )
-
-      ON CONFLICT (setting_key)
-      DO NOTHING
-    `,
+    `INSERT INTO site_settings(setting_key,setting_value)
+     VALUES('admin_whatsapp_number',$1)
+     ON CONFLICT(setting_key) DO NOTHING`,
     [DEFAULT_ADMIN_WHATSAPP_NUMBER],
   );
 
   await initializeDemoBets(pool);
-
   await initializeControllerAccounts(pool);
-
   await initializeFlight(pool);
+  await initializeRoulette(pool);
 
   console.log(
     'Database ready; persistent demo bets and wallet transactions enabled.',
   );
 }
 
-/* CONTROLLER ACCOUNTS AND ADMIN AUTHORIZATION */
-
 registerControllerAccountRoutes(app, pool);
-
-app.use(
-  '/api/admin',
-  requireOldAdmin(pool),
-);
-
-/* WHATSAPP SETTINGS */
+app.use('/api/admin', requireOldAdmin(pool));
 
 async function getAdminWhatsAppNumber() {
   try {
     const result = await pool.query(
-      `
-        SELECT setting_value
-        FROM site_settings
-        WHERE setting_key = $1
-        LIMIT 1
-      `,
+      `SELECT setting_value
+       FROM site_settings
+       WHERE setting_key=$1
+       LIMIT 1`,
       ['admin_whatsapp_number'],
     );
 
@@ -370,9 +235,7 @@ for (const route of [
     wrap(async (req, res) => {
       res.json({
         success: true,
-
-        whatsappNumber:
-          await getAdminWhatsAppNumber(),
+        whatsappNumber: await getAdminWhatsAppNumber(),
       });
     }),
   );
@@ -382,8 +245,7 @@ app.put(
   '/api/admin/settings/whatsapp',
   wrap(async (req, res) => {
     const number = normalizeWhatsAppNumber(
-      req.body.whatsappNumber ||
-        req.body.number,
+      req.body.whatsappNumber || req.body.number,
     );
 
     if (!isValidWhatsAppNumber(number)) {
@@ -394,56 +256,32 @@ app.put(
     }
 
     const result = await pool.query(
-      `
-        INSERT INTO site_settings (
-          setting_key,
-          setting_value,
-          updated_at
-        )
-
-        VALUES (
-          'admin_whatsapp_number',
-          $1,
-          NOW()
-        )
-
-        ON CONFLICT (setting_key)
-
-        DO UPDATE SET
-          setting_value = EXCLUDED.setting_value,
-          updated_at = NOW()
-
-        RETURNING *
-      `,
+      `INSERT INTO site_settings(
+        setting_key,setting_value,updated_at
+      )
+      VALUES('admin_whatsapp_number',$1,NOW())
+      ON CONFLICT(setting_key)
+      DO UPDATE SET
+        setting_value=EXCLUDED.setting_value,
+        updated_at=NOW()
+      RETURNING *`,
       [number],
     );
 
     res.json({
       success: true,
-
-      message:
-        'WhatsApp number updated successfully.',
-
+      message: 'WhatsApp number updated successfully.',
       whatsappNumber: number,
-
-      updatedAt:
-        result.rows[0].updated_at,
+      updatedAt: result.rows[0].updated_at,
     });
   }),
 );
 
-/* CREATE CUSTOMER */
-
 app.post(
   '/api/admin/customers',
   wrap(async (req, res) => {
-    const name = String(
-      req.body.name || '',
-    ).trim();
-
-    const loginId = normalizeLoginId(
-      req.body.loginId,
-    );
+    const name = String(req.body.name || '').trim();
+    const loginId = normalizeLoginId(req.body.loginId);
 
     const password = String(
       req.body.temporaryPassword || '',
@@ -460,19 +298,14 @@ app.post(
       });
     }
 
-    if (
-      !/^[a-z0-9._-]{4,30}$/.test(loginId)
-    ) {
+    if (!/^[a-z0-9._-]{4,30}$/.test(loginId)) {
       return res.status(400).json({
         error:
           'Login ID must be 4-30 characters: letters, numbers, dot, underscore or hyphen.',
       });
     }
 
-    if (
-      password.length < 6 ||
-      withdrawal.length < 6
-    ) {
+    if (password.length < 6 || withdrawal.length < 6) {
       return res.status(400).json({
         error:
           'Both temporary passwords must contain at least 6 characters.',
@@ -492,70 +325,43 @@ app.post(
     ]);
 
     const result = await pool.query(
-      `
-        INSERT INTO customers (
-          name,
-          login_id,
-          password_hash,
-          withdrawal_password_hash
-        )
-
-        VALUES ($1, $2, $3, $4)
-
-        RETURNING *
-      `,
+      `INSERT INTO customers(
+        name,login_id,password_hash,withdrawal_password_hash
+      )
+      VALUES($1,$2,$3,$4)
+      RETURNING *`,
       [name, loginId, ...hashes],
     );
 
     res.status(201).json({
       success: true,
-
-      message:
-        'Customer created successfully.',
-
-      customer:
-        publicCustomer(result.rows[0]),
+      message: 'Customer created successfully.',
+      customer: publicCustomer(result.rows[0]),
     });
   }),
 );
-
-/* LIST CUSTOMERS */
 
 app.get(
   '/api/admin/customers',
   wrap(async (req, res) => {
     const result = await pool.query(
-      `
-        SELECT *
-        FROM customers
-        ORDER BY id DESC
-      `,
+      'SELECT * FROM customers ORDER BY id DESC',
     );
 
     res.json({
       success: true,
-
-      customers:
-        result.rows.map(publicCustomer),
+      customers: result.rows.map(publicCustomer),
     });
   }),
 );
-
-/* ADD DEMO COINS */
 
 app.post(
   '/api/admin/customers/:id/add-demo-coins',
   wrap(async (req, res) => {
     const id = Number(req.params.id);
+    const amount = Number(req.body.amount);
 
-    const amount = Number(
-      req.body.amount,
-    );
-
-    if (
-      !positiveInteger(id) ||
-      !positiveInteger(amount)
-    ) {
+    if (!positiveInteger(id) || !positiveInteger(amount)) {
       return res.status(400).json({
         error:
           'Valid customer ID and positive whole coin amount are required.',
@@ -568,24 +374,11 @@ app.post(
       await client.query('BEGIN');
 
       const result = await client.query(
-        `
-          UPDATE customers
-
-          SET
-            demo_coin_balance =
-              demo_coin_balance + $1,
-
-            updated_at = NOW()
-
-          WHERE id = $2
-
-          RETURNING
-            id,
-            name,
-            login_id,
-            demo_coin_balance,
-            status
-        `,
+        `UPDATE customers
+         SET demo_coin_balance=demo_coin_balance+$1,
+             updated_at=NOW()
+         WHERE id=$2
+         RETURNING id,name,login_id,demo_coin_balance,status`,
         [amount, id],
       );
 
@@ -593,33 +386,20 @@ app.post(
         await client.query('ROLLBACK');
 
         return res.status(404).json({
-          error:
-            'Customer account not found.',
+          error: 'Customer account not found.',
         });
       }
 
       await client.query(
-        `
-          INSERT INTO demo_coin_transactions (
-            customer_id,
-            amount,
-            transaction_type,
-            note
-          )
-
-          VALUES (
-            $1,
-            $2,
-            'ADMIN_CREDIT',
-            $3
-          )
-        `,
+        `INSERT INTO demo_coin_transactions(
+          customer_id,amount,transaction_type,note
+        )
+        VALUES($1,$2,'ADMIN_CREDIT',$3)`,
         [
           id,
           amount,
           String(
-            req.body.note ||
-              'Demo Coins added by Admin',
+            req.body.note || 'Demo Coins added by Admin',
           ).trim(),
         ],
       );
@@ -628,10 +408,7 @@ app.post(
 
       res.json({
         success: true,
-
-        message:
-          `${amount} Demo Coins added successfully.`,
-
+        message: `${amount} Demo Coins added successfully.`,
         customer: result.rows[0],
       });
     } catch (error) {
@@ -643,77 +420,45 @@ app.post(
   }),
 );
 
-/* CUSTOMER BALANCE */
-
 app.get(
   '/api/customers/:id/demo-balance',
   wrap(async (req, res) => {
-    if (
-      !positiveInteger(req.params.id)
-    ) {
+    if (!positiveInteger(req.params.id)) {
       return res.status(400).json({
         error: 'Invalid customer ID.',
       });
     }
 
     const result = await pool.query(
-      `
-        SELECT
-          id,
-          login_id,
-          demo_coin_balance
-
-        FROM customers
-
-        WHERE id = $1
-      `,
+      `SELECT id,login_id,demo_coin_balance
+       FROM customers WHERE id=$1`,
       [Number(req.params.id)],
     );
 
     if (!result.rows.length) {
       return res.status(404).json({
-        error:
-          'Customer account not found.',
+        error: 'Customer account not found.',
       });
     }
 
-    res.set(
-      'Cache-Control',
-      'no-store',
-    );
+    res.set('Cache-Control', 'no-store');
 
     res.json({
       success: true,
-
-      customerId:
-        result.rows[0].id,
-
-      loginId:
-        result.rows[0].login_id,
-
-      balance: Number(
-        result.rows[0].demo_coin_balance,
-      ),
+      customerId: result.rows[0].id,
+      loginId: result.rows[0].login_id,
+      balance: Number(result.rows[0].demo_coin_balance),
     });
   }),
 );
 
-/* ADMIN CUSTOMER PASSWORD RESET */
-
-for (const kind of [
-  'login',
-  'withdrawal',
-]) {
-  const withdrawal =
-    kind === 'withdrawal';
+for (const kind of ['login', 'withdrawal']) {
+  const withdrawal = kind === 'withdrawal';
 
   app.post(
     `/api/admin/customers/:id/reset-${kind}-password`,
-
     wrap(async (req, res) => {
-      if (
-        !positiveInteger(req.params.id)
-      ) {
+      if (!positiveInteger(req.params.id)) {
         return res.status(400).json({
           error: 'Invalid customer ID.',
         });
@@ -721,14 +466,14 @@ for (const kind of [
 
       const password = String(
         req.body.password ||
-          req.body.newPassword ||
-          req.body.temporaryPassword ||
-          (
-            withdrawal
-              ? req.body.temporaryWithdrawalPassword
-              : ''
-          ) ||
-          '',
+        req.body.newPassword ||
+        req.body.temporaryPassword ||
+        (
+          withdrawal
+            ? req.body.temporaryWithdrawalPassword
+            : ''
+        ) ||
+        '',
       );
 
       if (password.length < 6) {
@@ -739,21 +484,15 @@ for (const kind of [
       }
 
       const result = await pool.query(
-        `
-          SELECT *
-          FROM customers
-          WHERE id = $1
-        `,
+        'SELECT * FROM customers WHERE id=$1',
         [Number(req.params.id)],
       );
 
-      const customer =
-        result.rows[0];
+      const customer = result.rows[0];
 
       if (!customer) {
         return res.status(404).json({
-          error:
-            'Customer account not found.',
+          error: 'Customer account not found.',
         });
       }
 
@@ -763,10 +502,7 @@ for (const kind of [
 
       if (
         otherHash &&
-        await bcrypt.compare(
-          password,
-          otherHash,
-        )
+        await bcrypt.compare(password, otherHash)
       ) {
         return res.status(400).json({
           error:
@@ -774,184 +510,114 @@ for (const kind of [
         });
       }
 
-      const newHash =
-        await bcrypt.hash(password, 12);
+      const newHash = await bcrypt.hash(password, 12);
 
       const query = withdrawal
-        ? `
-            UPDATE customers
+        ? `UPDATE customers
+           SET withdrawal_password_hash=$1,
+               must_change_withdrawal_password=TRUE,
+               updated_at=NOW()
+           WHERE id=$2 RETURNING *`
+        : `UPDATE customers
+           SET password_hash=$1,
+               must_change_password=TRUE,
+               updated_at=NOW()
+           WHERE id=$2 RETURNING *`;
 
-            SET
-              withdrawal_password_hash = $1,
-              must_change_withdrawal_password = TRUE,
-              updated_at = NOW()
-
-            WHERE id = $2
-
-            RETURNING *
-          `
-        : `
-            UPDATE customers
-
-            SET
-              password_hash = $1,
-              must_change_password = TRUE,
-              updated_at = NOW()
-
-            WHERE id = $2
-
-            RETURNING *
-          `;
-
-      const updated = await pool.query(
-        query,
-        [newHash, customer.id],
-      );
+      const updated = await pool.query(query, [
+        newHash,
+        customer.id,
+      ]);
 
       if (!withdrawal) {
         await pool.query(
-          `
-            DELETE FROM demo_customer_sessions
-            WHERE customer_id = $1
-          `,
+          `DELETE FROM demo_customer_sessions
+           WHERE customer_id=$1`,
           [customer.id],
         );
       }
 
       res.json({
         success: true,
-
         message:
           'Password reset successfully. Customer must change it before use.',
-
-        customer:
-          publicCustomer(updated.rows[0]),
+        customer: publicCustomer(updated.rows[0]),
       });
     }),
   );
 }
 
-/* CUSTOMER LOGIN */
-
 app.post(
   '/api/auth/customer-login',
   wrap(async (req, res) => {
     const loginId = normalizeLoginId(
-      req.body.loginId ||
-        req.body.identifier,
+      req.body.loginId || req.body.identifier,
     );
 
-    const password = String(
-      req.body.password || '',
-    );
+    const password = String(req.body.password || '');
 
     if (!loginId || !password) {
       return res.status(400).json({
-        error:
-          'Login ID and Password are required.',
+        error: 'Login ID and Password are required.',
       });
     }
 
     const result = await pool.query(
-      `
-        SELECT *
-        FROM customers
-        WHERE login_id = $1
-        LIMIT 1
-      `,
+      `SELECT * FROM customers
+       WHERE login_id=$1 LIMIT 1`,
       [loginId],
     );
 
-    const customer =
-      result.rows[0];
+    const customer = result.rows[0];
 
     if (
       !customer ||
-      !await bcrypt.compare(
+      !(await bcrypt.compare(
         password,
         customer.password_hash,
-      )
+      ))
     ) {
       return res.status(401).json({
-        error:
-          'Invalid Login ID or Password.',
+        error: 'Invalid Login ID or Password.',
       });
     }
 
-    if (
-      String(customer.status)
-        .toUpperCase() !== 'ACTIVE'
-    ) {
+    if (String(customer.status).toUpperCase() !== 'ACTIVE') {
       return res.status(403).json({
-        error:
-          'This customer account is not active.',
+        error: 'This customer account is not active.',
       });
     }
 
-    await issueCustomerSession(
-      pool,
-      res,
-      customer.id,
-    );
+    await issueCustomerSession(pool, res, customer.id);
 
-    const output =
-      publicCustomer(customer);
+    const output = publicCustomer(customer);
 
     res.json({
       success: true,
-
-      mustChangePassword:
-        output.mustChangePassword,
-
+      mustChangePassword: output.mustChangePassword,
       mustChangeWithdrawalPassword:
         output.mustChangeWithdrawalPassword,
-
       withdrawalPasswordConfigured:
         output.withdrawalPasswordConfigured,
-
       customer: output,
     });
   }),
 );
 
-/* CUSTOMER PASSWORD CHANGE */
-
-for (const kind of [
-  'customer',
-  'withdrawal',
-]) {
-  const withdrawal =
-    kind === 'withdrawal';
+for (const kind of ['customer', 'withdrawal']) {
+  const withdrawal = kind === 'withdrawal';
 
   app.post(
     `/api/auth/change-${kind}-password`,
-
     wrap(async (req, res) => {
-      const loginId = normalizeLoginId(
-        req.body.loginId,
-      );
+      const loginId = normalizeLoginId(req.body.loginId);
+      const current = String(req.body.currentPassword || '');
+      const password = String(req.body.newPassword || '');
+      const confirm = String(req.body.confirmPassword || '');
 
-      const current = String(
-        req.body.currentPassword || '',
-      );
-
-      const password = String(
-        req.body.newPassword || '',
-      );
-
-      const confirm = String(
-        req.body.confirmPassword || '',
-      );
-
-      if (
-        !loginId ||
-        !current ||
-        !password ||
-        !confirm
-      ) {
+      if (!loginId || !current || !password || !confirm) {
         return res.status(400).json({
-          error:
-            'Please complete all password fields.',
+          error: 'Please complete all password fields.',
         });
       }
 
@@ -967,22 +633,16 @@ for (const kind of [
       }
 
       const result = await pool.query(
-        `
-          SELECT *
-          FROM customers
-          WHERE login_id = $1
-          LIMIT 1
-        `,
+        `SELECT * FROM customers
+         WHERE login_id=$1 LIMIT 1`,
         [loginId],
       );
 
-      const customer =
-        result.rows[0];
+      const customer = result.rows[0];
 
       if (!customer) {
         return res.status(404).json({
-          error:
-            'Customer account not found.',
+          error: 'Customer account not found.',
         });
       }
 
@@ -992,10 +652,7 @@ for (const kind of [
 
       if (
         !currentHash ||
-        !await bcrypt.compare(
-          current,
-          currentHash,
-        )
+        !(await bcrypt.compare(current, currentHash))
       ) {
         return res.status(401).json({
           error:
@@ -1009,10 +666,7 @@ for (const kind of [
 
       if (
         otherHash &&
-        await bcrypt.compare(
-          password,
-          otherHash,
-        )
+        await bcrypt.compare(password, otherHash)
       ) {
         return res.status(400).json({
           error:
@@ -1020,46 +674,29 @@ for (const kind of [
         });
       }
 
-      const newHash =
-        await bcrypt.hash(password, 12);
+      const newHash = await bcrypt.hash(password, 12);
 
       const query = withdrawal
-        ? `
-            UPDATE customers
+        ? `UPDATE customers
+           SET withdrawal_password_hash=$1,
+               must_change_withdrawal_password=FALSE,
+               updated_at=NOW()
+           WHERE id=$2 RETURNING *`
+        : `UPDATE customers
+           SET password_hash=$1,
+               must_change_password=FALSE,
+               updated_at=NOW()
+           WHERE id=$2 RETURNING *`;
 
-            SET
-              withdrawal_password_hash = $1,
-              must_change_withdrawal_password = FALSE,
-              updated_at = NOW()
-
-            WHERE id = $2
-
-            RETURNING *
-          `
-        : `
-            UPDATE customers
-
-            SET
-              password_hash = $1,
-              must_change_password = FALSE,
-              updated_at = NOW()
-
-            WHERE id = $2
-
-            RETURNING *
-          `;
-
-      const updated = await pool.query(
-        query,
-        [newHash, customer.id],
-      );
+      const updated = await pool.query(query, [
+        newHash,
+        customer.id,
+      ]);
 
       if (!withdrawal) {
         await pool.query(
-          `
-            DELETE FROM demo_customer_sessions
-            WHERE customer_id = $1
-          `,
+          `DELETE FROM demo_customer_sessions
+           WHERE customer_id=$1`,
           [customer.id],
         );
 
@@ -1072,135 +709,98 @@ for (const kind of [
 
       res.json({
         success: true,
-
-        message:
-          'Password changed successfully.',
-
-        customer:
-          publicCustomer(updated.rows[0]),
-
-        mustChangeWithdrawalPassword:
-          withdrawal
-            ? false
-            : Boolean(
-                customer.must_change_withdrawal_password,
-              ),
+        message: 'Password changed successfully.',
+        customer: publicCustomer(updated.rows[0]),
+        mustChangeWithdrawalPassword: withdrawal
+          ? false
+          : Boolean(
+              customer.must_change_withdrawal_password,
+            ),
       });
     }),
   );
 }
 
-/* OTP */
-
 const otpStore = new Map();
 
 function sendFast2SMS(mobile, otp) {
-  return new Promise(
-    (resolve, reject) => {
-      const key =
-        process.env.FAST2SMS_API_KEY ||
-        process.env.SMS_API_KEY;
+  return new Promise((resolve, reject) => {
+    const key =
+      process.env.FAST2SMS_API_KEY ||
+      process.env.SMS_API_KEY;
 
-      if (!key) {
-        return reject(
-          new Error(
-            'FAST2SMS_API_KEY environment variable is not configured on Render.',
-          ),
-        );
-      }
-
-      const params = new URLSearchParams({
-        authorization: key,
-        variables_values: otp,
-        route: 'otp',
-        numbers: mobile,
-      });
-
-      const request = https.request(
-        {
-          hostname:
-            'www.fast2sms.com',
-
-          path:
-            `/dev/bulkV2?${params}`,
-
-          method: 'GET',
-
-          headers: {
-            'cache-control': 'no-cache',
-          },
-        },
-
-        (response) => {
-          let data = '';
-
-          response.on(
-            'data',
-            (chunk) => {
-              data += chunk;
-            },
-          );
-
-          response.on(
-            'error',
-            reject,
-          );
-
-          response.on(
-            'end',
-            () => {
-              try {
-                const result =
-                  JSON.parse(data);
-
-                if (
-                  result.return === true ||
-                  result.status_code === 200
-                ) {
-                  resolve(result);
-                } else {
-                  reject(
-                    new Error(
-                      Array.isArray(
-                        result.message,
-                      )
-                        ? result.message.join(', ')
-                        : result.message ||
-                            'SMS delivery failed.',
-                    ),
-                  );
-                }
-              } catch {
-                reject(
-                  new Error(
-                    'Failed to parse Fast2SMS response.',
-                  ),
-                );
-              }
-            },
-          );
-        },
+    if (!key) {
+      return reject(
+        new Error(
+          'FAST2SMS_API_KEY environment variable is not configured on Render.',
+        ),
       );
+    }
 
-      request.setTimeout(
-        15000,
-        () => {
-          request.destroy(
-            new Error(
-              'SMS request timed out.',
-            ),
-          );
+    const params = new URLSearchParams({
+      authorization: key,
+      variables_values: otp,
+      route: 'otp',
+      numbers: mobile,
+    });
+
+    const request = https.request(
+      {
+        hostname: 'www.fast2sms.com',
+        path: `/dev/bulkV2?${params}`,
+        method: 'GET',
+        headers: {
+          'cache-control': 'no-cache',
         },
-      );
+      },
+      (response) => {
+        let data = '';
 
-      request.on(
-        'error',
-        reject,
-      );
+        response.on('data', (chunk) => {
+          data += chunk;
+        });
 
-      request.end();
-    },
-  );
+        response.on('error', reject);
+
+        response.on('end', () => {
+          try {
+            const result = JSON.parse(data);
+
+            if (
+              result.return === true ||
+              result.status_code === 200
+            ) {
+              resolve(result);
+            } else {
+              reject(
+                new Error(
+                  Array.isArray(result.message)
+                    ? result.message.join(', ')
+                    : result.message ||
+                      'SMS delivery failed.',
+                ),
+              );
+            }
+          } catch {
+            reject(
+              new Error(
+                'Failed to parse Fast2SMS response.',
+              ),
+            );
+          }
+        });
+      },
+    );
+
+    request.setTimeout(15000, () => {
+      request.destroy(
+        new Error('SMS request timed out.'),
+      );
+    });
+
+    request.on('error', reject);
+    request.end();
+  });
 }
 
 app.post(
@@ -1210,9 +810,7 @@ app.post(
       req.body.mobile || '',
     ).replace(/\D/g, '');
 
-    if (
-      !/^\d{10}$/.test(mobile)
-    ) {
+    if (!/^\d{10}$/.test(mobile)) {
       return res.status(400).json({
         error:
           'Please enter a valid 10-digit mobile number.',
@@ -1220,28 +818,19 @@ app.post(
     }
 
     const otp = Math.floor(
-      100000 +
-        Math.random() * 900000,
+      100000 + Math.random() * 900000,
     ).toString();
 
-    await sendFast2SMS(
-      mobile,
-      otp,
-    );
+    await sendFast2SMS(mobile, otp);
 
     otpStore.set(mobile, {
       otp,
-
-      expiresAt:
-        Date.now() +
-        10 * 60 * 1000,
+      expiresAt: Date.now() + 10 * 60 * 1000,
     });
 
     res.json({
       success: true,
-
-      message:
-        'OTP sent successfully.',
+      message: 'OTP sent successfully.',
     });
   }),
 );
@@ -1253,9 +842,7 @@ app.post(
       req.body.mobile || '',
     ).replace(/\D/g, '');
 
-    const otp = String(
-      req.body.otp || '',
-    ).trim();
+    const otp = String(req.body.otp || '').trim();
 
     if (
       !/^\d{10}$/.test(mobile) ||
@@ -1267,31 +854,25 @@ app.post(
       });
     }
 
-    const record =
-      otpStore.get(mobile);
+    const record = otpStore.get(mobile);
 
     if (!record) {
       return res.status(400).json({
-        error:
-          'No active OTP found.',
+        error: 'No active OTP found.',
       });
     }
 
-    if (
-      Date.now() > record.expiresAt
-    ) {
+    if (Date.now() > record.expiresAt) {
       otpStore.delete(mobile);
 
       return res.status(400).json({
-        error:
-          'OTP has expired.',
+        error: 'OTP has expired.',
       });
     }
 
     if (record.otp !== otp) {
       return res.status(400).json({
-        error:
-          'Invalid OTP code.',
+        error: 'Invalid OTP code.',
       });
     }
 
@@ -1299,14 +880,10 @@ app.post(
 
     res.json({
       success: true,
-
-      message:
-        'Mobile number verified successfully.',
+      message: 'Mobile number verified successfully.',
     });
   }),
 );
-
-/* HEALTH */
 
 app.get(
   '/api/health',
@@ -1316,14 +893,12 @@ app.get(
 
     try {
       await pool.query('SELECT 1');
-
       databaseConnected = true;
     } catch {}
 
     try {
       apiConnected =
-        typeof sportsService.isApiConnected ===
-        'function'
+        typeof sportsService.isApiConnected === 'function'
           ? Boolean(
               await sportsService.isApiConnected(),
             )
@@ -1339,8 +914,6 @@ app.get(
   }),
 );
 
-/* SPORTS EVENTS */
-
 app.get(
   '/api/sports/events',
   wrap(async (req, res) => {
@@ -1353,167 +926,85 @@ app.get(
   }),
 );
 
-/* SPORTS STREAM */
+app.get('/api/sports/stream', (req, res) => {
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+  });
 
-app.get(
-  '/api/sports/stream',
-  (req, res) => {
-    res.set({
-      'Content-Type':
-        'text/event-stream',
+  res.flushHeaders();
 
-      'Cache-Control':
-        'no-cache',
+  if (typeof sportsService.addClient === 'function') {
+    sportsService.addClient(res);
+  }
 
-      Connection:
-        'keep-alive',
-    });
-
-    res.flushHeaders();
-
-    if (
-      typeof sportsService.addClient ===
-      'function'
-    ) {
-      sportsService.addClient(res);
+  req.on('close', () => {
+    if (typeof sportsService.removeClient === 'function') {
+      sportsService.removeClient(res);
     }
-
-    req.on('close', () => {
-      if (
-        typeof sportsService.removeClient ===
-        'function'
-      ) {
-        sportsService.removeClient(res);
-      }
-    });
-  },
-);
-
-/* RESPONSE SERIALIZERS */
+  });
+});
 
 const depositJSON = (request) => ({
   id: request.id,
-
-  customerId:
-    request.customer_id,
-
-  customerName:
-    request.customer_name,
-
-  loginId:
-    request.login_id,
-
-  referenceNumber:
-    request.reference_number,
-
-  reference:
-    request.reference_number,
-
-  amount:
-    Number(request.amount),
-
-  paymentMethod:
-    request.payment_method,
-
-  method:
-    request.payment_method,
-
-  proofName:
-    request.proof_name,
-
-  status:
-    request.status,
-
-  createdAt:
-    request.created_at,
-
-  updatedAt:
-    request.updated_at,
+  customerId: request.customer_id,
+  customerName: request.customer_name,
+  loginId: request.login_id,
+  referenceNumber: request.reference_number,
+  reference: request.reference_number,
+  amount: Number(request.amount),
+  paymentMethod: request.payment_method,
+  method: request.payment_method,
+  proofName: request.proof_name,
+  status: request.status,
+  createdAt: request.created_at,
+  updatedAt: request.updated_at,
 });
 
 const withdrawalJSON = (request) => ({
   id: request.id,
-
-  customerId:
-    request.customer_id,
-
-  customerName:
-    request.customer_name,
-
-  loginId:
-    request.login_id,
-
-  amount:
-    Number(request.amount),
-
-  accountHolderName:
-    request.account_holder_name,
-
-  bankName:
-    request.bank_name,
-
-  accountNumber:
-    request.account_number,
-
-  ifscCode:
-    request.ifsc_code,
-
-  status:
-    request.status,
-
-  coinsHeld:
-    request.coins_held,
-
-  coinsRestored:
-    request.coins_restored,
-
-  createdAt:
-    request.created_at,
-
-  updatedAt:
-    request.updated_at,
+  customerId: request.customer_id,
+  customerName: request.customer_name,
+  loginId: request.login_id,
+  amount: Number(request.amount),
+  accountHolderName: request.account_holder_name,
+  bankName: request.bank_name,
+  accountNumber: request.account_number,
+  ifscCode: request.ifsc_code,
+  status: request.status,
+  coinsHeld: request.coins_held,
+  coinsRestored: request.coins_restored,
+  createdAt: request.created_at,
+  updatedAt: request.updated_at,
 });
-
-/* SUBMIT DEMO DEPOSIT */
 
 app.post(
   '/api/demo-deposits',
   wrap(async (req, res) => {
-    const id = Number(
-      req.body.customerId,
-    );
-
-    const amount = Number(
-      req.body.amount,
-    );
+    const id = Number(req.body.customerId);
+    const amount = Number(req.body.amount);
 
     const reference = String(
       req.body.referenceNumber ||
-        req.body.reference ||
-        '',
+      req.body.reference ||
+      '',
     ).trim();
 
     const method = String(
       req.body.paymentMethod ||
-        req.body.method ||
-        'ACCOUNT',
-    )
-      .trim()
-      .toUpperCase();
+      req.body.method ||
+      'ACCOUNT',
+    ).trim().toUpperCase();
 
-    if (
-      !positiveInteger(id) ||
-      !positiveInteger(amount)
-    ) {
+    if (!positiveInteger(id) || !positiveInteger(amount)) {
       return res.status(400).json({
         error:
           'Valid customer ID and whole-number amount are required.',
       });
     }
 
-    if (
-      !/^\d{12}$/.test(reference)
-    ) {
+    if (!/^\d{12}$/.test(reference)) {
       return res.status(400).json({
         error:
           'Reference number must contain exactly 12 digits.',
@@ -1522,98 +1013,60 @@ app.post(
 
     if (method.length > 30) {
       return res.status(400).json({
-        error:
-          'Invalid payment method.',
+        error: 'Invalid payment method.',
       });
     }
 
     const result = await pool.query(
-      `
-        SELECT *
-        FROM customers
-        WHERE id = $1
-      `,
+      'SELECT * FROM customers WHERE id=$1',
       [id],
     );
 
-    const customer =
-      result.rows[0];
+    const customer = result.rows[0];
 
     if (!customer) {
       return res.status(404).json({
-        error:
-          'Customer account not found.',
+        error: 'Customer account not found.',
       });
     }
 
-    if (
-      customer.status !== 'ACTIVE'
-    ) {
+    if (customer.status !== 'ACTIVE') {
       return res.status(403).json({
-        error:
-          'Customer account is not active.',
+        error: 'Customer account is not active.',
       });
     }
 
     try {
       const saved = await pool.query(
-        `
-          INSERT INTO demo_deposit_requests (
-            customer_id,
-            reference_number,
-            amount,
-            payment_method,
-            proof_name
-          )
-
-          VALUES (
-            $1,
-            $2,
-            $3,
-            $4,
-            $5
-          )
-
-          RETURNING *
-        `,
+        `INSERT INTO demo_deposit_requests(
+          customer_id,reference_number,amount,
+          payment_method,proof_name
+        )
+        VALUES($1,$2,$3,$4,$5)
+        RETURNING *`,
         [
           id,
           reference,
           amount,
           method,
-
-          String(
-            req.body.proofName || '',
-          ).trim() || null,
+          String(req.body.proofName || '').trim() || null,
         ],
       );
 
       res.status(201).json({
         success: true,
-
-        message:
-          'Demo request submitted successfully.',
-
+        message: 'Demo request submitted successfully.',
         request: depositJSON({
           ...saved.rows[0],
-
-          customer_name:
-            customer.name,
-
-          login_id:
-            customer.login_id,
+          customer_name: customer.name,
+          login_id: customer.login_id,
         }),
       });
     } catch (error) {
-      if (
-        error.code === '23505'
-      ) {
+      if (error.code === '23505') {
         return res.status(409).json({
           success: false,
-
-          code:
-            'REPEATED_REFERENCE',
-
+          code: 'REPEATED_REFERENCE',
           error:
             'REPEATED REFERENCE — This reference number has already been submitted.',
         });
@@ -1624,12 +1077,7 @@ app.post(
   }),
 );
 
-/* CUSTOMER AND ADMIN REQUEST HISTORIES */
-
-for (const kind of [
-  'deposits',
-  'withdrawals',
-]) {
+for (const kind of ['deposits', 'withdrawals']) {
   const table =
     kind === 'deposits'
       ? 'demo_deposit_requests'
@@ -1642,80 +1090,52 @@ for (const kind of [
 
   app.get(
     `/api/customers/:id/demo-${kind}`,
-
     wrap(async (req, res) => {
-      if (
-        !positiveInteger(req.params.id)
-      ) {
+      if (!positiveInteger(req.params.id)) {
         return res.status(400).json({
-          error:
-            'Invalid customer ID.',
+          error: 'Invalid customer ID.',
         });
       }
 
       const customer = await pool.query(
-        `
-          SELECT
-            id,
-            name,
-            login_id
-
-          FROM customers
-
-          WHERE id = $1
-        `,
+        `SELECT id,name,login_id
+         FROM customers WHERE id=$1`,
         [Number(req.params.id)],
       );
 
-      if (
-        !customer.rows.length
-      ) {
+      if (!customer.rows.length) {
         return res.status(404).json({
-          error:
-            'Customer not found.',
+          error: 'Customer not found.',
         });
       }
 
       const result = await pool.query(
-        `
-          SELECT *
-          FROM ${table}
-          WHERE customer_id = $1
-          ORDER BY id DESC
-          LIMIT 100
-        `,
+        `SELECT *
+         FROM ${table}
+         WHERE customer_id=$1
+         ORDER BY id DESC
+         LIMIT 100`,
         [Number(req.params.id)],
       );
 
       res.json({
         success: true,
-
         customer: {
-          id:
-            customer.rows[0].id,
-
-          name:
-            customer.rows[0].name,
-
-          loginId:
-            customer.rows[0].login_id,
+          id: customer.rows[0].id,
+          name: customer.rows[0].name,
+          loginId: customer.rows[0].login_id,
         },
-
-        requests:
-          result.rows.map(serialize),
+        requests: result.rows.map(serialize),
       });
     }),
   );
 
   app.get(
     `/api/admin/demo-${kind}`,
-
     wrap(async (req, res) => {
       const status = String(
         req.query.status || '',
-      )
-        .trim()
-        .toUpperCase();
+      ).trim().toUpperCase();
 
       const filter = [
         'PENDING',
@@ -1724,180 +1144,103 @@ for (const kind of [
       ].includes(status);
 
       const result = await pool.query(
-        `
-          SELECT
-            d.*,
-            c.name AS customer_name,
-            c.login_id
-
-          FROM ${table} d
-
-          JOIN customers c
-            ON c.id = d.customer_id
-
-          ${
-            filter
-              ? 'WHERE d.status = $1'
-              : ''
-          }
-
-          ORDER BY d.id DESC
-
-          LIMIT 200
-        `,
+        `SELECT d.*,c.name AS customer_name,c.login_id
+         FROM ${table} d
+         JOIN customers c ON c.id=d.customer_id
+         ${filter ? 'WHERE d.status=$1' : ''}
+         ORDER BY d.id DESC
+         LIMIT 200`,
         filter ? [status] : [],
       );
 
       res.json({
         success: true,
-
-        requests:
-          result.rows.map(serialize),
+        requests: result.rows.map(serialize),
       });
     }),
   );
 
   app.get(
     `/api/admin/demo-${kind}/:id`,
-
     wrap(async (req, res) => {
-      if (
-        !positiveInteger(req.params.id)
-      ) {
+      if (!positiveInteger(req.params.id)) {
         return res.status(400).json({
-          error:
-            'Invalid request ID.',
+          error: 'Invalid request ID.',
         });
       }
 
       const result = await pool.query(
-        `
-          SELECT
-            d.*,
-            c.name AS customer_name,
-            c.login_id
-
-          FROM ${table} d
-
-          JOIN customers c
-            ON c.id = d.customer_id
-
-          WHERE d.id = $1
-
-          LIMIT 1
-        `,
+        `SELECT d.*,c.name AS customer_name,c.login_id
+         FROM ${table} d
+         JOIN customers c ON c.id=d.customer_id
+         WHERE d.id=$1
+         LIMIT 1`,
         [Number(req.params.id)],
       );
 
-      if (
-        !result.rows.length
-      ) {
+      if (!result.rows.length) {
         return res.status(404).json({
-          error:
-            'Request not found.',
+          error: 'Request not found.',
         });
       }
 
       res.json({
         success: true,
-
-        request:
-          serialize(result.rows[0]),
+        request: serialize(result.rows[0]),
       });
     }),
   );
 }
 
-/*
-  Existing deposit behavior:
-  approval changes request status only.
-*/
-
 app.patch(
   '/api/admin/demo-deposits/:id/status',
-
   wrap(async (req, res) => {
-    const id = Number(
-      req.params.id,
-    );
+    const id = Number(req.params.id);
 
     const status = String(
       req.body.status || '',
-    )
-      .trim()
-      .toUpperCase();
+    ).trim().toUpperCase();
 
     if (
       !positiveInteger(id) ||
-      ![
-        'PENDING',
-        'APPROVED',
-        'REJECTED',
-      ].includes(status)
+      !['PENDING', 'APPROVED', 'REJECTED'].includes(status)
     ) {
       return res.status(400).json({
-        error:
-          'Invalid request ID or status.',
+        error: 'Invalid request ID or status.',
       });
     }
 
     const result = await pool.query(
-      `
-        UPDATE demo_deposit_requests
-
-        SET
-          status = $1,
-          updated_at = NOW()
-
-        WHERE id = $2
-
-        RETURNING *
-      `,
+      `UPDATE demo_deposit_requests
+       SET status=$1,updated_at=NOW()
+       WHERE id=$2 RETURNING *`,
       [status, id],
     );
 
     if (!result.rows.length) {
       return res.status(404).json({
-        error:
-          'Request not found.',
+        error: 'Request not found.',
       });
     }
 
     res.json({
       success: true,
-
-      message:
-        'Request status updated successfully.',
-
-      request:
-        depositJSON(result.rows[0]),
+      message: 'Request status updated successfully.',
+      request: depositJSON(result.rows[0]),
     });
   }),
 );
 
-/* SUBMIT DEMO WITHDRAWAL */
-
 app.post(
   '/api/demo-withdrawals',
-
   wrap(async (req, res) => {
     const body = req.body || {};
+    const id = Number(body.customerId);
+    const amount = Number(body.amount);
 
-    const id = Number(
-      body.customerId,
-    );
-
-    const amount = Number(
-      body.amount,
-    );
-
-    if (
-      !positiveInteger(id) ||
-      !positiveInteger(amount)
-    ) {
+    if (!positiveInteger(id) || !positiveInteger(amount)) {
       return res.status(400).json({
         success: false,
-
         error:
           'Valid customer ID and withdrawal amount are required.',
       });
@@ -1908,158 +1251,76 @@ app.post(
       body.bankName,
       body.accountNumber,
       body.ifscCode,
-    ].map(
-      (value) =>
-        String(value || '').trim(),
-    );
+    ].map((value) => String(value || '').trim());
 
-    if (
-      details.some(
-        (value) => !value,
-      )
-    ) {
+    if (details.some((value) => !value)) {
       return res.status(400).json({
         success: false,
-
-        error:
-          'Complete bank account details are required.',
+        error: 'Complete bank account details are required.',
       });
     }
 
-    details[3] =
-      details[3].toUpperCase();
+    details[3] = details[3].toUpperCase();
 
-    const client =
-      await pool.connect();
+    const client = await pool.connect();
 
     try {
       await client.query('BEGIN');
 
       const result = await client.query(
-        `
-          SELECT *
-          FROM customers
-          WHERE id = $1
-          FOR UPDATE
-        `,
+        `SELECT * FROM customers
+         WHERE id=$1 FOR UPDATE`,
         [id],
       );
 
-      const customer =
-        result.rows[0];
+      const customer = result.rows[0];
 
-      if (
-        !customer ||
-        customer.status !== 'ACTIVE'
-      ) {
-        await client.query(
-          'ROLLBACK',
-        );
+      if (!customer || customer.status !== 'ACTIVE') {
+        await client.query('ROLLBACK');
 
-        return res
-          .status(customer ? 403 : 404)
-          .json({
-            success: false,
-
-            error:
-              'Customer not found or inactive.',
-          });
+        return res.status(customer ? 403 : 404).json({
+          success: false,
+          error: 'Customer not found or inactive.',
+        });
       }
 
-      if (
-        amount >
-        Number(
-          customer.demo_coin_balance,
-        )
-      ) {
-        await client.query(
-          'ROLLBACK',
-        );
+      if (amount > Number(customer.demo_coin_balance)) {
+        await client.query('ROLLBACK');
 
         return res.status(400).json({
           success: false,
-
-          code:
-            'LOW_BALANCE',
-
-          error:
-            'LOW BALANCE',
-
-          balance: Number(
-            customer.demo_coin_balance,
-          ),
+          code: 'LOW_BALANCE',
+          error: 'LOW BALANCE',
+          balance: Number(customer.demo_coin_balance),
         });
       }
 
       const saved = await client.query(
-        `
-          INSERT INTO demo_withdrawal_requests (
-            customer_id,
-            amount,
-            account_holder_name,
-            bank_name,
-            account_number,
-            ifsc_code,
-            status,
-            coins_held,
-            coins_restored
-          )
-
-          VALUES (
-            $1,
-            $2,
-            $3,
-            $4,
-            $5,
-            $6,
-            'PENDING',
-            TRUE,
-            FALSE
-          )
-
-          RETURNING *
-        `,
-        [
-          id,
-          amount,
-          ...details,
-        ],
+        `INSERT INTO demo_withdrawal_requests(
+          customer_id,amount,account_holder_name,
+          bank_name,account_number,ifsc_code,
+          status,coins_held,coins_restored
+        )
+        VALUES($1,$2,$3,$4,$5,$6,'PENDING',TRUE,FALSE)
+        RETURNING *`,
+        [id, amount, ...details],
       );
 
       const balance =
-        Number(
-          customer.demo_coin_balance,
-        ) - amount;
+        Number(customer.demo_coin_balance) - amount;
 
       await client.query(
-        `
-          UPDATE customers
-
-          SET
-            demo_coin_balance = $1,
-            updated_at = NOW()
-
-          WHERE id = $2
-        `,
+        `UPDATE customers
+         SET demo_coin_balance=$1,updated_at=NOW()
+         WHERE id=$2`,
         [balance, id],
       );
 
       await client.query(
-        `
-          INSERT INTO demo_coin_transactions (
-            customer_id,
-            amount,
-            transaction_type,
-            note
-          )
-
-          VALUES (
-            $1,
-            $2,
-            'WITHDRAWAL_HOLD',
-            $3
-          )
-        `,
+        `INSERT INTO demo_coin_transactions(
+          customer_id,amount,transaction_type,note
+        )
+        VALUES($1,$2,'WITHDRAWAL_HOLD',$3)`,
         [
           id,
           -amount,
@@ -2071,27 +1332,17 @@ app.post(
 
       res.status(201).json({
         success: true,
-
         message:
           'Demo withdrawal request submitted successfully.',
-
         balance,
-
         request: withdrawalJSON({
           ...saved.rows[0],
-
-          customer_name:
-            customer.name,
-
-          login_id:
-            customer.login_id,
+          customer_name: customer.name,
+          login_id: customer.login_id,
         }),
       });
     } catch (error) {
-      await client.query(
-        'ROLLBACK',
-      );
-
+      await client.query('ROLLBACK');
       throw error;
     } finally {
       client.release();
@@ -2099,79 +1350,53 @@ app.post(
   }),
 );
 
-/* ADMIN WITHDRAWAL STATUS */
-
 app.patch(
   '/api/admin/demo-withdrawals/:id/status',
-
   wrap(async (req, res) => {
-    const id = Number(
-      req.params.id,
-    );
+    const id = Number(req.params.id);
 
     const status = String(
       req.body.status || '',
-    )
-      .trim()
-      .toUpperCase();
+    ).trim().toUpperCase();
 
     if (
       !positiveInteger(id) ||
-      ![
-        'APPROVED',
-        'REJECTED',
-      ].includes(status)
+      !['APPROVED', 'REJECTED'].includes(status)
     ) {
       return res.status(400).json({
         success: false,
-
         error:
           'Valid ID and APPROVED or REJECTED status are required.',
       });
     }
 
-    const client =
-      await pool.connect();
+    const client = await pool.connect();
 
     try {
       await client.query('BEGIN');
 
       const result = await client.query(
-        `
-          SELECT *
-          FROM demo_withdrawal_requests
-          WHERE id = $1
-          FOR UPDATE
-        `,
+        `SELECT * FROM demo_withdrawal_requests
+         WHERE id=$1 FOR UPDATE`,
         [id],
       );
 
-      const request =
-        result.rows[0];
+      const request = result.rows[0];
 
       if (!request) {
-        await client.query(
-          'ROLLBACK',
-        );
+        await client.query('ROLLBACK');
 
         return res.status(404).json({
           success: false,
-
-          error:
-            'Withdrawal request not found.',
+          error: 'Withdrawal request not found.',
         });
       }
 
-      if (
-        request.status !== 'PENDING'
-      ) {
-        await client.query(
-          'ROLLBACK',
-        );
+      if (request.status !== 'PENDING') {
+        await client.query('ROLLBACK');
 
         return res.status(409).json({
           success: false,
-
           error:
             `Withdrawal request is already ${request.status}.`,
         });
@@ -2183,17 +1408,11 @@ app.patch(
         !request.coins_restored
       ) {
         await client.query(
-          `
-            UPDATE customers
-
-            SET
-              demo_coin_balance =
-                demo_coin_balance + $1::INTEGER,
-
-              updated_at = NOW()
-
-            WHERE id = $2::INTEGER
-          `,
+          `UPDATE customers
+           SET demo_coin_balance=
+             demo_coin_balance+$1::INTEGER,
+             updated_at=NOW()
+           WHERE id=$2::INTEGER`,
           [
             Number(request.amount),
             request.customer_id,
@@ -2201,62 +1420,36 @@ app.patch(
         );
 
         await client.query(
-          `
-            INSERT INTO demo_coin_transactions (
-              customer_id,
-              amount,
-              transaction_type,
-              note
-            )
-
-            VALUES (
-              $1,
-              $2,
-              'WITHDRAWAL_RESTORE',
-              $3
-            )
-          `,
+          `INSERT INTO demo_coin_transactions(
+            customer_id,amount,transaction_type,note
+          )
+          VALUES($1,$2,'WITHDRAWAL_RESTORE',$3)`,
           [
             request.customer_id,
-
             Number(request.amount),
-
             `Withdrawal request #${id} rejected - demo coins restored`,
           ],
         );
       }
 
       const updated = await client.query(
-        `
-          UPDATE demo_withdrawal_requests
-
-          SET
-            status = $1::VARCHAR(20),
-
-            coins_restored =
-              CASE
-                WHEN
-                  $1::VARCHAR(20) = 'REJECTED'
-                  AND coins_held = TRUE
-                THEN TRUE
-                ELSE coins_restored
-              END,
-
-            updated_at = NOW()
-
-          WHERE id = $2::INTEGER
-
-          RETURNING *
-        `,
+        `UPDATE demo_withdrawal_requests
+         SET status=$1::VARCHAR(20),
+             coins_restored=CASE
+               WHEN $1::VARCHAR(20)='REJECTED'
+                 AND coins_held=TRUE
+               THEN TRUE
+               ELSE coins_restored
+             END,
+             updated_at=NOW()
+         WHERE id=$2::INTEGER
+         RETURNING *`,
         [status, id],
       );
 
       const balance = await client.query(
-        `
-          SELECT demo_coin_balance
-          FROM customers
-          WHERE id = $1
-        `,
+        `SELECT demo_coin_balance
+         FROM customers WHERE id=$1`,
         [request.customer_id],
       );
 
@@ -2264,22 +1457,13 @@ app.patch(
 
       res.json({
         success: true,
-
-        request:
-          withdrawalJSON(
-            updated.rows[0],
-          ),
-
+        request: withdrawalJSON(updated.rows[0]),
         demoCoinBalance: Number(
-          balance.rows[0]
-            ?.demo_coin_balance || 0,
+          balance.rows[0]?.demo_coin_balance || 0,
         ),
       });
     } catch (error) {
-      await client.query(
-        'ROLLBACK',
-      );
-
+      await client.query('ROLLBACK');
       throw error;
     } finally {
       client.release();
@@ -2287,107 +1471,58 @@ app.patch(
   }),
 );
 
-/* PERSISTENT DEMO BETS AND FLIGHT */
-
 registerDemoBetRoutes(app, pool);
-
 registerFlightRoutes(app, pool);
+registerRouletteRoutes(app, pool);
 
-/* API 404 */
+app.all('/api/*', (req, res) =>
+  res.status(404).json({
+    error: `API endpoint ${req.originalUrl} not found.`,
+  }),
+);
 
-app.all(
-  '/api/*',
-  (req, res) => {
-    res.status(404).json({
-      error:
-        `API endpoint ${req.originalUrl} not found.`,
+app.use((error, req, res, next) => {
+  console.error('API error:', error);
+
+  if (res.headersSent) {
+    return next(error);
+  }
+
+  if (error.code === '23505') {
+    return res.status(409).json({
+      success: false,
+      error: 'This record already exists.',
     });
-  },
-);
+  }
 
-/* ERROR HANDLER */
-
-app.use(
-  (error, req, res, next) => {
-    console.error(
-      'API error:',
-      error,
-    );
-
-    if (res.headersSent) {
-      return next(error);
-    }
-
-    if (
-      error.code === '23505'
-    ) {
-      return res.status(409).json({
-        success: false,
-
-        error:
-          'This record already exists.',
-      });
-    }
-
-    res
-      .status(error.status || 500)
-      .json({
-        success: false,
-
-        error:
-          error.status
-            ? error.message
-            : 'Unable to complete request. Please try again.',
-      });
-  },
-);
-
-/* FRONTEND */
+  res.status(error.status || 500).json({
+    success: false,
+    error: error.status
+      ? error.message
+      : 'Unable to complete request. Please try again.',
+  });
+});
 
 app.use(
-  express.static(
-    path.join(
-      __dirname,
-      'dist',
-    ),
+  express.static(path.join(__dirname, 'dist')),
+);
+
+app.get('*', (req, res) =>
+  res.sendFile(
+    path.join(__dirname, 'dist', 'index.html'),
   ),
 );
-
-app.get(
-  '*',
-  (req, res) => {
-    res.sendFile(
-      path.join(
-        __dirname,
-        'dist',
-        'index.html',
-      ),
-    );
-  },
-);
-
-/* START SERVER */
 
 async function startServer() {
   await initializeDatabase();
 
-  app.listen(
-    PORT,
-    () => {
-      console.log(
-        `Server listening on port ${PORT}`,
-      );
-    },
-  );
+  app.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
+  });
 }
 
 startServer().catch((error) => {
-  console.error(
-    'Server startup failed:',
-    error,
-  );
-
+  console.error('Server startup failed:', error);
   process.exitCode = 1;
-
   pool.end();
 });
