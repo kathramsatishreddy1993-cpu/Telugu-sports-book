@@ -643,29 +643,22 @@ export default function MatchDetailsPage({
                   </div>
               </div>
             </div>
-          ))}
-        </div>
+</div>
+        ))}
+      </div>
 
-        <button
-          type="button"
-          onClick={() => setShowMatchedBets(false)}
-          className="mx-3 w-[calc(100%-24px)] rounded-md bg-[#075249] py-3 text-sm font-black text-white"
-        >
-          ← BACK TO ODDS
-        </button>
-      </section>
-    ) : (
-      <>
-                
-          <button
-            type="button"
-            onClick={() => setShowMatchedBets(false)}
-            className="mx-3 w-[calc(100%-24px)] rounded-md bg-[#075249] py-3 text-sm font-black text-white"
-          >
-            ← BACK TO ODDS
-          </button>
-        </section>
-      ) : (
+      <button
+        type="button"
+        onClick={() => setShowMatchedBets(false)}
+        className="mx-3 w-[calc(100%-24px)] rounded-md bg-[#075249] py-3 text-sm font-black text-white"
+      >
+        ← BACK TO ODDS
+      </button>
+    </section>
+  ) : (
+    <>
+      {/* MATCH TITLE */}
+      <section className="bg-white px-3 py-4 shadow-sm">
         <>
           {/* MATCH TITLE */}
           <section className="bg-white px-3 py-4 shadow-sm">
