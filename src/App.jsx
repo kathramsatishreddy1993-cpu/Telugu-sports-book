@@ -1,4 +1,7 @@
-import React, { useState } from 'react';
+import React, {
+  useEffect,
+  useState,
+} from 'react';
 
 import Header from './components/Header';
 import HeroBanner from './components/HeroBanner';
@@ -9,15 +12,38 @@ import SportsSections from './components/SportsSections';
 import DemoDashboard from './components/DemoDashboard';
 import ChangePasswordPage from './components/ChangePasswordPage';
 
-/* ADMIN */
 import AdminLoginPage from './components/AdminLoginPage';
-import AdminDashboard from './components/AdminDashboard';
+import AdminManagementShell from './components/AdminManagementShell';
+
+import GameControlPage from './components/GameControlPage';
+import TSBFlightPage from './components/TSBFlightPage';
 
 const AUTH_KEY =
   'telugu_sports_auth_user';
 
 const ADMIN_AUTH_KEY =
   'telugu_sports_demo_admin';
+
+/* RESTORE SAVED SESSION */
+
+function restoredSession(key) {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem(key) || 'null',
+    );
+
+    return saved?.isAuthenticated
+      ? saved
+      : null;
+  } catch (error) {
+    console.error(
+      'Unable to restore session:',
+      error,
+    );
+
+    return null;
+  }
+}
 
 export default function App() {
   const [view, setView] =
@@ -26,165 +52,119 @@ export default function App() {
   const [authMode, setAuthMode] =
     useState(null);
 
-  /*
-    This stores the game/match
-    selected before login.
-
-    We are not changing the current
-    login system. It is only useful
-    for future demo navigation.
-  */
   const [
     selectedPublicItem,
     setSelectedPublicItem,
   ] = useState(null);
 
-  /* =========================================
-     CUSTOMER LOGIN
-  ========================================= */
+  const [user, setUser] = useState(
+    () => restoredSession(AUTH_KEY),
+  );
 
-  const [user, setUser] =
-    useState(() => {
-      try {
-        const savedUser =
-          localStorage.getItem(
-            AUTH_KEY
-          );
+  const [admin, setAdmin] = useState(
+    () => restoredSession(ADMIN_AUTH_KEY),
+  );
 
-        if (!savedUser) {
-          return null;
-        }
-
-        const parsedUser =
-          JSON.parse(savedUser);
-
-        return parsedUser
-          ?.isAuthenticated
-          ? parsedUser
-          : null;
-      } catch (error) {
-        console.error(
-          'Unable to restore login:',
-          error
-        );
-
-        return null;
-      }
-    });
-
-  /* =========================================
-     ADMIN LOGIN
-  ========================================= */
-
-  const [admin, setAdmin] =
-    useState(() => {
-      try {
-        const savedAdmin =
-          localStorage.getItem(
-            ADMIN_AUTH_KEY
-          );
-
-        if (!savedAdmin) {
-          return null;
-        }
-
-        const parsedAdmin =
-          JSON.parse(savedAdmin);
-
-        return parsedAdmin
-          ?.isAuthenticated
-          ? parsedAdmin
-          : null;
-      } catch (error) {
-        console.error(
-          'Unable to restore admin login:',
-          error
-        );
-
-        return null;
-      }
-    });
-
-  /* =========================================
-     ROUTE CHECK
-  ========================================= */
+  /* ROUTES */
 
   const cleanPath =
     window.location.pathname
       .replace(/\/+$/, '')
       .toLowerCase();
 
-  /*
-    CUSTOMER:
-    /
-
-    ADMIN:
-    /admin
-  */
-
   const isAdminMode =
     cleanPath === '/admin';
 
-  /* =========================================
-     SAVE CUSTOMER SESSION
-  ========================================= */
+  const isGameControl =
+    cleanPath === '/game-control';
+
+  const isFlight =
+    cleanPath === '/games/tsb-flight';
+
+  const [
+    adminChecking,
+    setAdminChecking,
+  ] = useState(isAdminMode);
+
+  /* VERIFY ADMIN SESSION WITH SERVER */
+
+  useEffect(() => {
+    if (!isAdminMode) {
+      return;
+    }
+
+    let active = true;
+
+    fetch('/api/auth/admin-session', {
+      credentials: 'same-origin',
+      cache: 'no-store',
+    })
+      .then(async (response) => {
+        const data =
+          await response.json();
+
+        if (active) {
+          setAdmin(
+            response.ok
+              ? data.admin
+              : null,
+          );
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setAdmin(null);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setAdminChecking(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isAdminMode]);
+
+  /* SAVE CUSTOMER SESSION */
 
   const saveCustomerSession = (
-    customer
+    customer,
   ) => {
     try {
       localStorage.setItem(
         AUTH_KEY,
-        JSON.stringify(customer)
+        JSON.stringify(customer),
       );
     } catch (error) {
       console.error(
         'Unable to save customer session:',
-        error
+        error,
       );
     }
   };
 
-  /* =========================================
-     PUBLIC GAME / MATCH CLICK
-  ========================================= */
+  /* PUBLIC ITEM CLICK */
 
   const handlePublicItemClick = (
     mode = 'login',
-    item = null
+    item = null,
   ) => {
-    setSelectedPublicItem(
-      item
-    );
+    setSelectedPublicItem(item);
 
-    /*
-      Public homepage is shown only
-      while customer is logged out.
-
-      Reuse the existing AuthModal.
-    */
     setAuthMode(
       mode === 'signup'
         ? 'signup'
-        : 'login'
+        : 'login',
     );
   };
 
-  /* =========================================
-     CUSTOMER LOGIN SUCCESS
-  ========================================= */
+  /* CUSTOMER LOGIN SUCCESS */
 
   const handleLoginSuccess = (
-    loggedInUser
+    loggedInUser,
   ) => {
-    /*
-      AuthModal returns the
-      database login result.
-
-      These flags decide whether
-      Security Setup must appear.
-    */
-
     const normalizedUser = {
       ...loggedInUser,
 
@@ -202,7 +182,7 @@ export default function App() {
     };
 
     saveCustomerSession(
-      normalizedUser
+      normalizedUser,
     );
 
     setUser(normalizedUser);
@@ -211,49 +191,38 @@ export default function App() {
 
     setView('home');
 
-    /*
-      Keep the selected demo item
-      available for future navigation.
-
-      Current working dashboard flow
-      remains unchanged.
-    */
-
     if (selectedPublicItem) {
       try {
         sessionStorage.setItem(
           'telugu_sports_selected_demo_item',
+
           JSON.stringify(
-            selectedPublicItem
-          )
+            selectedPublicItem,
+          ),
         );
       } catch (error) {
         console.error(
           'Unable to save selected demo item:',
-          error
+          error,
         );
       }
     }
 
-    setSelectedPublicItem(
-      null
-    );
+    setSelectedPublicItem(null);
   };
 
-  /* =========================================
-     SECURITY SETUP COMPLETE
-  ========================================= */
+  /* CUSTOMER SECURITY SETUP COMPLETE */
 
   const handleSecurityComplete = (
-    updatedUser
+    updatedUser,
   ) => {
     const completedUser = {
+      ...user,
       ...updatedUser,
 
       isAuthenticated: true,
 
-      mustChangePassword:
-        false,
+      mustChangePassword: false,
 
       mustChangeWithdrawalPassword:
         false,
@@ -263,7 +232,7 @@ export default function App() {
     };
 
     saveCustomerSession(
-      completedUser
+      completedUser,
     );
 
     setUser(completedUser);
@@ -271,23 +240,21 @@ export default function App() {
     setView('home');
   };
 
-  /* =========================================
-     CUSTOMER LOGOUT
-  ========================================= */
+  /* CUSTOMER LOGOUT */
 
   const handleLogout = () => {
     try {
       localStorage.removeItem(
-        AUTH_KEY
+        AUTH_KEY,
       );
 
       sessionStorage.removeItem(
-        'telugu_sports_selected_demo_item'
+        'telugu_sports_selected_demo_item',
       );
     } catch (error) {
       console.error(
         'Unable to logout:',
-        error
+        error,
       );
     }
 
@@ -295,130 +262,187 @@ export default function App() {
 
     setAuthMode(null);
 
-    setSelectedPublicItem(
-      null
-    );
+    setSelectedPublicItem(null);
 
     setView('home');
   };
 
-  /* =========================================
-     ADMIN LOGIN SUCCESS
-  ========================================= */
+  /* ADMIN LOGOUT */
 
-  const handleAdminLogin = (
-    loggedInAdmin
-  ) => {
-    setAdmin(
-      loggedInAdmin
-    );
-  };
+  const handleAdminLogout =
+    async () => {
+      try {
+        await fetch(
+          '/api/auth/admin-logout',
+          {
+            method: 'POST',
 
-  /* =========================================
-     ADMIN LOGOUT
-  ========================================= */
+            credentials:
+              'same-origin',
+          },
+        );
+      } catch (error) {
+        console.error(
+          'Server logout failed:',
+          error,
+        );
+      }
 
-  const handleAdminLogout = () => {
-    try {
-      localStorage.removeItem(
-        ADMIN_AUTH_KEY
-      );
-    } catch (error) {
-      console.error(
-        'Unable to logout admin:',
-        error
+      try {
+        localStorage.removeItem(
+          ADMIN_AUTH_KEY,
+        );
+      } catch (error) {
+        console.error(
+          'Unable to logout admin:',
+          error,
+        );
+      }
+
+      setAdmin(null);
+    };
+
+  /* SEPARATE GAME CONTROL PANEL */
+
+  if (isGameControl) {
+    return <GameControlPage />;
+  }
+
+  /* MAIN ADMIN PANEL */
+
+  if (isAdminMode) {
+    if (adminChecking) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-[#061c1a] text-sm text-amber-200">
+          Checking Admin session…
+        </div>
       );
     }
 
-    setAdmin(null);
-  };
+    return admin?.isAuthenticated ? (
+      <AdminManagementShell
+        admin={admin}
+        onLogout={
+          handleAdminLogout
+        }
+      />
+    ) : (
+      <AdminLoginPage
+        onLogin={setAdmin}
 
-  /* =========================================
-     EXIT ADMIN
-  ========================================= */
+        onBack={() => {
+          window.location.href = '/';
+        }}
+      />
+    );
+  }
 
-  const handleExitAdmin = () => {
-    window.location.href = '/';
-  };
+  /* CUSTOMER SECURITY CHECK */
 
-  /* =========================================
-     ADMIN BLOCK
-  ========================================= */
+  const requiresSecuritySetup =
+    Boolean(
+      user?.isAuthenticated &&
+        (
+          user.mustChangePassword === true ||
+          user.mustChangeWithdrawalPassword === true
+        ),
+    );
 
-  if (isAdminMode) {
-    if (
-      admin?.isAuthenticated
-    ) {
+  if (requiresSecuritySetup) {
+    return (
+      <ChangePasswordPage
+        user={user}
+
+        onComplete={
+          handleSecurityComplete
+        }
+
+        onLogout={
+          handleLogout
+        }
+      />
+    );
+  }
+
+  /* TSB FLIGHT CUSTOMER PAGE */
+
+  if (isFlight) {
+    if (user?.isAuthenticated) {
       return (
-        <AdminDashboard
-          admin={admin}
+        <TSBFlightPage
+          user={user}
+
+          onBack={() =>
+            window.location.assign('/')
+          }
+
           onLogout={
-            handleAdminLogout
+            handleLogout
           }
         />
       );
     }
 
     return (
-      <AdminLoginPage
-        onLogin={
-          handleAdminLogin
-        }
-        onBack={
-          handleExitAdmin
-        }
-      />
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#080d16] p-5 text-center text-white">
+        <h1 className="text-3xl font-black text-cyan-300">
+          TSB FLIGHT
+        </h1>
+
+        <p className="mt-4 max-w-md text-sm leading-6 text-slate-300">
+          Admin-controlled multiplayer demo.
+          Login with your customer ID to
+          use your demo coins.
+        </p>
+
+        <button
+          type="button"
+
+          onClick={() =>
+            setAuthMode('login')
+          }
+
+          className="mt-6 rounded-xl bg-cyan-400 px-8 py-3 font-black text-black"
+        >
+          CUSTOMER LOGIN
+        </button>
+
+        <a
+          href="/"
+
+          className="mt-5 text-sm text-slate-400"
+        >
+          ← Customer home
+        </a>
+
+        <AuthModal
+          isOpen={
+            Boolean(authMode)
+          }
+
+          initialMode={
+            authMode || 'login'
+          }
+
+          onClose={() =>
+            setAuthMode(null)
+          }
+
+          onLoginSuccess={
+            handleLoginSuccess
+          }
+        />
+      </div>
     );
   }
 
-  /* =========================================
-     CUSTOMER SECURITY CHECK
-  ========================================= */
+  /* CUSTOMER DASHBOARD */
 
-  const requiresSecuritySetup =
-    Boolean(
-      user?.isAuthenticated &&
-        (
-          user?.mustChangePassword ===
-            true ||
-          user
-            ?.mustChangeWithdrawalPassword ===
-            true
-        )
-    );
-
-  /*
-    IMPORTANT:
-
-    If either temporary password
-    still needs to be changed,
-    customer cannot enter Dashboard.
-  */
-
-  if (requiresSecuritySetup) {
-    return (
-      <ChangePasswordPage
-        user={user}
-        onComplete={
-          handleSecurityComplete
-        }
-        onLogout={
-          handleLogout
-        }
-      />
-    );
-  }
-
-  /* =========================================
-     CUSTOMER DASHBOARD
-  ========================================= */
-
-  if (
-    user?.isAuthenticated
-  ) {
+  if (user?.isAuthenticated) {
     return (
       <DemoDashboard
         user={user}
+
         onLogout={
           handleLogout
         }
@@ -426,21 +450,21 @@ export default function App() {
     );
   }
 
-  /* =========================================
-     PUBLIC CUSTOMER HOME
-  ========================================= */
+  /* PUBLIC CUSTOMER HOME */
 
   return (
     <div className="min-h-screen bg-[#080d16] text-white flex flex-col font-sans">
-
       <Header
-        onOpenAuth={(mode) =>
-          setAuthMode(mode)
+        onOpenAuth={
+          setAuthMode
         }
+
         user={user}
+
         isAuthenticated={
-          !!user
+          Boolean(user)
         }
+
         onLogout={
           handleLogout
         }
@@ -448,39 +472,21 @@ export default function App() {
 
       {view === 'home' ? (
         <main className="flex-1 pb-16">
-
-          {/* =================================
-              GAMES + TODAY LIVE MATCHES
-          ================================= */}
-
           <HeroBanner
             onRequireAuth={
               handlePublicItemClick
             }
           />
 
-          {/* =================================
-              BONUS
-          ================================= */}
-
           <div className="max-w-xl mx-auto px-4 my-4">
-
             <HeroBonusCard
               onOpenBonus={() =>
-                setView(
-                  'bonus'
-                )
+                setView('bonus')
               }
             />
-
           </div>
 
-          {/* =================================
-              SPORTS
-          ================================= */}
-
           <SportsSections />
-
         </main>
       ) : (
         <BonusPage
@@ -490,30 +496,25 @@ export default function App() {
         />
       )}
 
-      {/* =====================================
-          EXISTING CUSTOMER AUTH MODAL
-      ===================================== */}
-
       <AuthModal
         isOpen={
-          !!authMode
+          Boolean(authMode)
         }
+
         initialMode={
-          authMode ||
-          'login'
+          authMode || 'login'
         }
+
         onClose={() => {
           setAuthMode(null);
 
-          setSelectedPublicItem(
-            null
-          );
+          setSelectedPublicItem(null);
         }}
+
         onLoginSuccess={
           handleLoginSuccess
         }
       />
-
     </div>
   );
 }
