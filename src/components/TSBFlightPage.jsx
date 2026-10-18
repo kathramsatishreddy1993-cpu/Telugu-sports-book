@@ -844,4 +844,77 @@ export default function TSBFlightPage({
 
         {/* CUSTOMER HISTORY */}
 
-        <section className="overflow-x-auto rounded-2xl border border-white/
+        <section className="overflow-x-auto rounded-2xl border border-white/10 bg-[#0d192a] p-4">
+          <h2 className="font-black">
+            Your flight history
+          </h2>
+
+          <table className="mt-3 w-full text-left text-xs">
+            <thead className="text-slate-400">
+              <tr>
+                <th className="py-2">Round</th>
+                <th>Stake</th>
+                <th>Result</th>
+                <th>Returned</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {data?.bets?.map((bet) => (
+                <tr
+                  key={bet.id}
+                  className="border-t border-white/5"
+                >
+                  <td className="py-3">
+                    #{bet.roundId}
+                  </td>
+
+                  <td>{bet.stake}</td>
+
+                  <td>
+                    {bet.status}
+
+                    {bet.cashoutMultiplier
+                      ? ` · ${bet.cashoutMultiplier.toFixed(2)}×`
+                      : ''}
+                  </td>
+
+                  <td>{bet.payout}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+
+        {/* ROUND VERIFICATION */}
+
+        {round && (
+          <details className="break-all rounded-xl border border-white/10 p-3 text-[10px] text-slate-400">
+            <summary className="cursor-pointer">
+              Locked round verification
+            </summary>
+
+            <p className="mt-2">
+              SHA-256 commitment:{' '}
+              {round.commitment}
+            </p>
+
+            {round.seed && (
+              <p className="mt-2">
+                Revealed seed:{' '}
+                {round.seed}
+              </p>
+            )}
+
+            <p className="mt-2">
+              Commitment input: round ID : crash
+              multiplier × 100 : seed. This verifies
+              the locked result; this test mode is
+              admin-selected, not random.
+            </p>
+          </details>
+        )}
+      </main>
+    </div>
+  );
+}
