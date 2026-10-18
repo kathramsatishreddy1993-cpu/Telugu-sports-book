@@ -1,57 +1,106 @@
-import React, { useState } from 'react';
+import React, {
+  useRef,
+  useState,
+} from 'react';
 
 export default function AdminLoginPage({
   onLogin,
   onBack,
 }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [username, setUsername] =
+    useState('');
 
-  const handleSubmit = (event) => {
+  const [password, setPassword] =
+    useState('');
+
+  const [error, setError] =
+    useState('');
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const busy = useRef(false);
+
+  /* SERVER ADMIN LOGIN */
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
+
+    if (busy.current) {
+      return;
+    }
+
     setError('');
 
-    // DEMO ADMIN LOGIN ONLY
-    if (
-      username.trim() === 'admin' &&
-      password === 'admin123'
-    ) {
-      const admin = {
-        username: 'admin',
-        role: 'DEMO_ADMIN',
-        isAuthenticated: true,
-      };
+    busy.current = true;
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(
+        '/api/auth/admin-login',
+        {
+          method: 'POST',
+
+          credentials: 'same-origin',
+
+          cache: 'no-store',
+
+          headers: {
+            'Content-Type':
+              'application/json',
+
+            Accept:
+              'application/json',
+          },
+
+          body: JSON.stringify({
+            username: username.trim(),
+            password,
+          }),
+        },
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            'Unable to login.',
+        );
+      }
 
       try {
         localStorage.setItem(
           'telugu_sports_demo_admin',
-          JSON.stringify(admin)
+          JSON.stringify(data.admin),
         );
       } catch {
-        // localStorage unavailable
+        // Server cookie remains the authentication source.
       }
 
-      if (onLogin) {
-        onLogin(admin);
-      }
+      setPassword('');
 
-      return;
+      onLogin?.(data.admin);
+    } catch (error) {
+      setError(
+        error.message ||
+          'Admin login failed.',
+      );
+    } finally {
+      busy.current = false;
+
+      setLoading(false);
     }
-
-    setError(
-      'Invalid demo admin username or password.'
-    );
   };
 
   return (
     <div className="min-h-screen bg-[#061c1a] text-white">
-
       {/* TOP BAR */}
 
       <header className="border-b border-amber-500/30 bg-[#9a5a00] px-4 py-4">
         <div className="mx-auto flex max-w-md items-center justify-between">
-
           <button
             type="button"
             onClick={onBack}
@@ -69,20 +118,16 @@ export default function AdminLoginPage({
               ADMIN
             </h1>
           </div>
-
         </div>
       </header>
 
       {/* LOGIN AREA */}
 
       <main className="flex min-h-[80vh] items-center justify-center px-4 py-8">
-
         <div className="w-full max-w-sm">
-
           {/* TITLE */}
 
           <div className="mb-6 text-center">
-
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-amber-400 bg-[#9a5a00] text-3xl shadow-lg">
               🛡️
             </div>
@@ -92,68 +137,67 @@ export default function AdminLoginPage({
             </h2>
 
             <p className="mt-2 text-[11px] text-gray-400">
-              Demo Management Panel
+              Management Panel
             </p>
-
           </div>
 
-          {/* LOGIN CARD */}
+          {/* LOGIN FORM */}
 
           <form
             onSubmit={handleSubmit}
             className="rounded-2xl border border-[#27645d] bg-[#083d37] p-5 shadow-2xl"
           >
-
             {/* USERNAME */}
 
             <label className="block">
-
               <span className="text-[10px] font-black text-gray-300">
                 ADMIN USERNAME
               </span>
 
               <input
                 type="text"
+                required
                 value={username}
                 onChange={(event) =>
                   setUsername(
-                    event.target.value
+                    event.target.value,
                   )
                 }
                 placeholder="Enter username"
                 autoComplete="username"
                 className="mt-2 h-[46px] w-full rounded-md border border-[#39756f] bg-[#062f2b] px-3 text-sm font-bold text-white outline-none focus:border-amber-400"
               />
-
             </label>
 
             {/* PASSWORD */}
 
             <label className="mt-4 block">
-
               <span className="text-[10px] font-black text-gray-300">
                 PASSWORD
               </span>
 
               <input
                 type="password"
+                required
                 value={password}
                 onChange={(event) =>
                   setPassword(
-                    event.target.value
+                    event.target.value,
                   )
                 }
                 placeholder="Enter password"
                 autoComplete="current-password"
                 className="mt-2 h-[46px] w-full rounded-md border border-[#39756f] bg-[#062f2b] px-3 text-sm font-bold text-white outline-none focus:border-amber-400"
               />
-
             </label>
 
             {/* ERROR */}
 
             {error && (
-              <div className="mt-4 rounded-md border border-red-500/40 bg-red-500/10 p-3">
+              <div
+                role="alert"
+                className="mt-4 rounded-md border border-red-500/40 bg-red-500/10 p-3"
+              >
                 <p className="text-[10px] font-bold text-red-300">
                   {error}
                 </p>
@@ -164,56 +208,23 @@ export default function AdminLoginPage({
 
             <button
               type="submit"
-              className="mt-5 h-[46px] w-full rounded-md border border-amber-300 bg-gradient-to-r from-amber-500 to-orange-600 text-sm font-black text-black shadow-lg"
+              disabled={loading}
+              className="mt-5 h-[46px] w-full rounded-md border border-amber-300 bg-gradient-to-r from-amber-500 to-orange-600 text-sm font-black text-black shadow-lg disabled:opacity-50"
             >
-              LOGIN TO ADMIN
+              {loading
+                ? 'CHECKING…'
+                : 'LOGIN TO ADMIN'}
             </button>
-
           </form>
 
-          {/* DEMO CREDENTIALS */}
-
-          <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
-
-            <p className="text-[9px] font-black text-amber-300">
-              DEMO ADMIN ACCESS
-            </p>
-
-            <div className="mt-2 flex items-center justify-between text-[10px]">
-
-              <span className="text-gray-400">
-                Username
-              </span>
-
-              <span className="font-black">
-                admin
-              </span>
-
-            </div>
-
-            <div className="mt-2 flex items-center justify-between text-[10px]">
-
-              <span className="text-gray-400">
-                Password
-              </span>
-
-              <span className="font-black">
-                admin123
-              </span>
-
-            </div>
-
-          </div>
-
           <p className="mt-5 text-center text-[9px] leading-4 text-gray-500">
-            Demo administration interface only.
-            No real-money transactions.
+            Use the Admin credentials configured on your server.
+            Customer and Game Controller credentials do not
+            grant Admin access. Demo administration only;
+            no real-money transactions.
           </p>
-
         </div>
-
       </main>
-
     </div>
   );
 }
