@@ -8,26 +8,17 @@ import {
 export async function flightApi(url, body) {
   const response = await fetch(url, {
     method: body === undefined ? 'GET' : 'POST',
-
     credentials: 'same-origin',
-
     cache: 'no-store',
-
     headers: {
       Accept: 'application/json',
-
       ...(body === undefined
         ? {}
-        : {
-            'Content-Type': 'application/json',
-          }),
+        : { 'Content-Type': 'application/json' }),
     },
-
     ...(body === undefined
       ? {}
-      : {
-          body: JSON.stringify(body),
-        }),
+      : { body: JSON.stringify(body) }),
   });
 
   let result;
@@ -46,7 +37,6 @@ export async function flightApi(url, body) {
     );
 
     error.status = response.status;
-
     throw error;
   }
 
@@ -64,12 +54,9 @@ export function useFlightState(url) {
   const version = useRef(0);
 
   const refresh = useCallback(async () => {
-    if (pending.current) {
-      return;
-    }
+    if (pending.current) return;
 
     pending.current = true;
-
     const current = ++version.current;
 
     try {
@@ -99,7 +86,6 @@ export function useFlightState(url) {
 
   useEffect(() => {
     alive.current = true;
-
     refresh();
 
     const timer = setInterval(refresh, 1000);
@@ -107,7 +93,6 @@ export function useFlightState(url) {
     return () => {
       alive.current = false;
       version.current++;
-
       clearInterval(timer);
     };
   }, [refresh]);
@@ -124,7 +109,9 @@ export function useFlightState(url) {
 export function flightRequestKey() {
   return (
     globalThis.crypto?.randomUUID?.() ||
-    `flight-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    `flight-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}`
   );
 }
 
