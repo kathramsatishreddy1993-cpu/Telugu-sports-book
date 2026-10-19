@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-
 import AdminDashboard from "./AdminDashboard";
 import AdminControllerAccounts from "./AdminControllerAccounts";
 import AutoGameControls from "./AutoGameControls";
+import ManualSuperOverControls from "./ManualSuperOverControls";
 
 export default function AdminManagementShell({
   admin,
@@ -10,9 +10,15 @@ export default function AdminManagementShell({
 }) {
   const [view, setView] = useState("HOME");
 
-  if (
-    ["AVIATOR", "ROULETTE"].includes(view)
-  ) {
+  if (view === "CONTROLLED_SO") {
+    return (
+      <ManualSuperOverControls
+        onBack={() => setView("GAMES")}
+      />
+    );
+  }
+
+  if (["AVIATOR", "ROULETTE"].includes(view)) {
     return (
       <AdminControllerAccounts
         key={view}
@@ -42,8 +48,8 @@ export default function AdminManagementShell({
 
           <p className="mb-5 text-sm text-slate-300">
             Manage Aviator/Roulette Controller IDs,
-            or use PLAY / PAUSE for the four
-            automatic games below.
+            or use PLAY / PAUSE for the four automatic
+            games below.
           </p>
 
           <div className="grid grid-cols-2 gap-4">
@@ -72,6 +78,20 @@ export default function AdminManagementShell({
             ))}
           </div>
 
+          <button
+            type="button"
+            onClick={() => setView("CONTROLLED_SO")}
+            className="mt-6 w-full rounded-2xl border border-teal-700 bg-[#083d37] p-6 text-left"
+          >
+            <span className="block text-lg font-black text-amber-200">
+              🏏 SUPER OVER · ADMIN CONTROL
+            </span>
+
+            <span className="mt-2 block text-sm text-cyan-100">
+              Ball queue · Live rates · Publish match ›
+            </span>
+          </button>
+
           <AutoGameControls />
         </div>
       </main>
@@ -92,8 +112,8 @@ export default function AdminManagementShell({
             </span>
 
             <span className="mt-1 block text-xs text-cyan-100">
-              Six games · Controller IDs ·
-              Automatic PLAY / PAUSE ›
+              Six games · Controller IDs · Automatic
+              PLAY / PAUSE ›
             </span>
           </button>
         </div>
