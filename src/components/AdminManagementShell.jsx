@@ -1,32 +1,36 @@
-import React, { useState } from 'react';
-import AdminDashboard from './AdminDashboard';
-import AdminControllerAccounts from './AdminControllerAccounts';
+import React, { useState } from "react";
+
+import AdminDashboard from "./AdminDashboard";
+import AdminControllerAccounts from "./AdminControllerAccounts";
+import AutoGameControls from "./AutoGameControls";
 
 export default function AdminManagementShell({
   admin,
   onLogout,
 }) {
-  const [view, setView] = useState('HOME');
+  const [view, setView] = useState("HOME");
 
-  if (['AVIATOR', 'ROULETTE'].includes(view)) {
+  if (
+    ["AVIATOR", "ROULETTE"].includes(view)
+  ) {
     return (
       <AdminControllerAccounts
         key={view}
         game={view}
         admin={admin}
-        onBack={() => setView('GAMES')}
+        onBack={() => setView("GAMES")}
         onLogout={onLogout}
       />
     );
   }
 
-  if (view === 'GAMES') {
+  if (view === "GAMES") {
     return (
       <main className="min-h-screen bg-[#061c1a] p-4 text-white">
         <div className="mx-auto max-w-5xl">
           <button
             type="button"
-            onClick={() => setView('HOME')}
+            onClick={() => setView("HOME")}
             className="rounded-lg border border-white/20 px-4 py-2 text-sm"
           >
             ‹ ADMIN DASHBOARD
@@ -37,13 +41,15 @@ export default function AdminManagementShell({
           </h1>
 
           <p className="mb-5 text-sm text-slate-300">
-            Select a game to create or manage its Controller IDs.
+            Manage Aviator/Roulette Controller IDs,
+            or use PLAY / PAUSE for the four
+            automatic games below.
           </p>
 
           <div className="grid grid-cols-2 gap-4">
             {[
-              ['AVIATOR', '✈️'],
-              ['ROULETTE', '🎡'],
+              ["AVIATOR", "✈️"],
+              ["ROULETTE", "🎡"],
             ].map(([game, icon]) => (
               <button
                 key={game}
@@ -65,6 +71,8 @@ export default function AdminManagementShell({
               </button>
             ))}
           </div>
+
+          <AutoGameControls />
         </div>
       </main>
     );
@@ -76,7 +84,7 @@ export default function AdminManagementShell({
         <div className="mx-auto max-w-5xl">
           <button
             type="button"
-            onClick={() => setView('GAMES')}
+            onClick={() => setView("GAMES")}
             className="w-full rounded-xl border border-teal-700 bg-[#083d37] p-4 text-left"
           >
             <span className="block font-black text-amber-300">
@@ -84,7 +92,8 @@ export default function AdminManagementShell({
             </span>
 
             <span className="mt-1 block text-xs text-cyan-100">
-              Aviator · Roulette · Controller account management ›
+              Six games · Controller IDs ·
+              Automatic PLAY / PAUSE ›
             </span>
           </button>
         </div>
