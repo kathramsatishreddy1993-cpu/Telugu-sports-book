@@ -1,4 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from 'react';
 
 import {
   flightApi,
@@ -21,10 +26,10 @@ const wheel = [
   29, 7, 28, 12, 35, 3, 26,
 ];
 
-const color = (number) =>
-  number === 0
+const color = (n) =>
+  n === 0
     ? '#169c53'
-    : red.has(number)
+    : red.has(n)
       ? '#d52e36'
       : '#252b35';
 
@@ -52,11 +57,12 @@ export default function RoulettePage({
   const [password, setPassword] = useState('');
   const [number, setNumber] = useState('9');
   const [confirmed, setConfirmed] = useState(false);
-
   const [chip, setChip] = useState(50);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [pendingPayload, setPendingPayload] = useState(null);
+
+  const [pendingPayload, setPendingPayload] =
+    useState(null);
 
   const [advanced, setAdvanced] = useState(false);
   const [type, setType] = useState('S');
@@ -167,8 +173,8 @@ export default function RoulettePage({
       }
 
       await refresh();
-    } catch (error) {
-      setMessage(error.message);
+    } catch (e) {
+      setMessage(e.message);
     } finally {
       pending.current = false;
       setBusy(false);
@@ -228,10 +234,10 @@ export default function RoulettePage({
       setPendingPayload(null);
       notifyFlightWallet();
       await refresh();
-    } catch (error) {
-      setMessage(error.message);
+    } catch (e) {
+      setMessage(e.message);
 
-      if (error.status) {
+      if (e.status) {
         setPendingPayload(null);
         await refresh();
       }
@@ -250,24 +256,19 @@ export default function RoulettePage({
   const cell = (
     key,
     label,
-    background = '#fff1a8',
+    bg = '#fff1a8',
     extra = {},
   ) => (
     <button
       key={key}
       type="button"
       disabled={
-        busy ||
-        !open ||
-        Boolean(pendingPayload)
+        busy || !open || Boolean(pendingPayload)
       }
       onClick={() => add(key)}
       style={{
-        background,
-        color:
-          background === '#fff1a8'
-            ? '#b5262c'
-            : 'white',
+        background: bg,
+        color: bg === '#fff1a8' ? '#b5262c' : 'white',
         ...extra,
       }}
       className="relative min-w-0 border border-black/80 p-1 text-center font-black disabled:opacity-70"
@@ -323,9 +324,7 @@ export default function RoulettePage({
 
         {controller && (!data || unauthorized) ? (
           <form
-            onSubmit={(event) =>
-              action('login', event)
-            }
+            onSubmit={(e) => action('login', e)}
             className="space-y-3 rounded-xl bg-[#142c31] p-4"
           >
             <h2 className="font-black">
@@ -338,9 +337,7 @@ export default function RoulettePage({
                 required
                 className={field}
                 value={login}
-                onChange={(event) =>
-                  setLogin(event.target.value)
-                }
+                onChange={(e) => setLogin(e.target.value)}
               />
             </label>
 
@@ -351,8 +348,8 @@ export default function RoulettePage({
                 type="password"
                 className={field}
                 value={password}
-                onChange={(event) =>
-                  setPassword(event.target.value)
+                onChange={(e) =>
+                  setPassword(e.target.value)
                 }
               />
             </label>
@@ -382,9 +379,7 @@ export default function RoulettePage({
                 </button>
 
                 <form
-                  onSubmit={(event) =>
-                    action('lock', event)
-                  }
+                  onSubmit={(e) => action('lock', e)}
                   className="space-y-3 rounded-xl bg-[#142c31] p-4"
                 >
                   <h2 className="font-black">
@@ -405,8 +400,8 @@ export default function RoulettePage({
                       }
                       className={field}
                       value={number}
-                      onChange={(event) =>
-                        setNumber(event.target.value)
+                      onChange={(e) =>
+                        setNumber(e.target.value)
                       }
                     />
                   </label>
@@ -433,14 +428,12 @@ export default function RoulettePage({
                     <input
                       type="checkbox"
                       checked={confirmed}
-                      onChange={(event) =>
-                        setConfirmed(event.target.checked)
+                      onChange={(e) =>
+                        setConfirmed(e.target.checked)
                       }
                     />
-
                     I confirm this result is fixed before
-                    bets open and cannot be changed after
-                    locking.
+                    bets open and cannot be changed after locking.
                   </label>
 
                   <button
@@ -486,20 +479,20 @@ export default function RoulettePage({
             </div>
 
             <div className="flex gap-2 overflow-x-auto">
-              {data?.history?.map((item) => (
+              {data?.history?.map((r) => (
                 <span
-                  key={item.id}
+                  key={r.id}
                   style={{
                     color:
-                      item.number === 0
+                      r.number === 0
                         ? '#4ade80'
-                        : red.has(item.number)
+                        : red.has(r.number)
                           ? '#fb7185'
                           : '#cbd5e1',
                   }}
                   className="rounded bg-black px-3 py-1 font-bold"
                 >
-                  {item.number}
+                  {r.number}
                 </span>
               ))}
             </div>
@@ -507,7 +500,7 @@ export default function RoulettePage({
             {(phase === 'SPINNING' ||
               phase === 'RESULT') && (
               <Wheel
-                key={`${round?.id}-${phase}`}
+                key={round?.id}
                 phase={phase}
                 number={round?.number}
                 roundId={round?.id}
@@ -521,22 +514,20 @@ export default function RoulettePage({
             {!controller && (
               <>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs">
-                    Chip
-                  </span>
+                  <span className="text-xs">Chip</span>
 
                   {[10, 50, 100, 500, 1000, 5000].map(
-                    (amount) => (
+                    (n) => (
                       <button
-                        key={amount}
-                        onClick={() => setChip(amount)}
+                        key={n}
+                        onClick={() => setChip(n)}
                         className={`rounded-full border px-3 py-2 text-xs ${
-                          chip === amount
+                          chip === n
                             ? 'border-amber-200 bg-amber-300 text-black'
                             : 'border-white/20'
                         }`}
                       >
-                        {amount}
+                        {n}
                       </button>
                     ),
                   )}
@@ -557,15 +548,10 @@ export default function RoulettePage({
                         '48px repeat(12,44px) 44px',
                     }}
                   >
-                    {cell(
-                      'N:0',
-                      '0',
-                      '#169c53',
-                      {
-                        gridColumn: '3 / 6',
-                        gridRow: '1',
-                      },
-                    )}
+                    {cell('N:0', '0', '#169c53', {
+                      gridColumn: '3 / 6',
+                      gridRow: '1',
+                    })}
 
                     {[
                       'LOW',
@@ -574,7 +560,7 @@ export default function RoulettePage({
                       'BLACK',
                       'ODD',
                       'HIGH',
-                    ].map((key, index) =>
+                    ].map((key, i) =>
                       cell(
                         key,
                         [
@@ -584,7 +570,7 @@ export default function RoulettePage({
                           'BLACK',
                           'ODD',
                           '19–36',
-                        ][index],
+                        ][i],
                         key === 'RED'
                           ? '#d52e36'
                           : key === 'BLACK'
@@ -593,19 +579,19 @@ export default function RoulettePage({
                         {
                           gridColumn: '1',
                           gridRow:
-                            `${2 + index * 2} / span 2`,
+                            `${2 + i * 2} / span 2`,
                           writingMode: 'vertical-rl',
                         },
                       ),
                     )}
 
-                    {[1, 2, 3].map((value, index) =>
+                    {[1, 2, 3].map((n, i) =>
                       cell(
-                        `D:${value}`,
+                        `D:${n}`,
                         `${
-                          value === 1
+                          n === 1
                             ? '1st'
-                            : value === 2
+                            : n === 2
                               ? '2nd'
                               : '3rd'
                         } 12`,
@@ -613,7 +599,7 @@ export default function RoulettePage({
                         {
                           gridColumn: '2',
                           gridRow:
-                            `${2 + index * 4} / span 4`,
+                            `${2 + i * 4} / span 4`,
                           writingMode: 'vertical-rl',
                         },
                       ),
@@ -621,31 +607,26 @@ export default function RoulettePage({
 
                     {Array.from(
                       { length: 36 },
-                      (_, index) => index + 1,
-                    ).map((value) =>
-                      cell(
-                        `N:${value}`,
-                        value,
-                        color(value),
-                        {
-                          gridColumn: String(
-                            3 + (value - 1) % 3,
-                          ),
-                          gridRow: String(
-                            2 + Math.floor((value - 1) / 3),
-                          ),
-                          fontSize: '22px',
-                        },
-                      ),
+                      (_, i) => i + 1,
+                    ).map((n) =>
+                      cell(`N:${n}`, n, color(n), {
+                        gridColumn: String(
+                          3 + (n - 1) % 3,
+                        ),
+                        gridRow: String(
+                          2 + Math.floor((n - 1) / 3),
+                        ),
+                        fontSize: '22px',
+                      }),
                     )}
 
-                    {[1, 2, 3].map((value) =>
+                    {[1, 2, 3].map((n) =>
                       cell(
-                        `C:${value}`,
+                        `C:${n}`,
                         '2 to 1',
                         '#fff1a8',
                         {
-                          gridColumn: String(value + 2),
+                          gridColumn: String(n + 2),
                           gridRow: '14',
                           fontSize: '12px',
                         },
@@ -656,83 +637,63 @@ export default function RoulettePage({
                   <div className="flex w-16 flex-col gap-3 text-[10px]">
                     <button
                       disabled={
-                        busy ||
-                        !open ||
+                        busy || !open ||
                         Boolean(pendingPayload)
                       }
                       onClick={() => update({})}
                     >
-                      ✕
-                      <br />
-                      CLEAR
+                      ✕<br />CLEAR
                     </button>
 
                     <button
                       disabled={
-                        busy ||
-                        !open ||
+                        busy || !open ||
                         Boolean(pendingPayload) ||
                         !undo.current.length
                       }
                       onClick={() =>
-                        update(
-                          undo.current.at(-1),
-                          true,
-                        )
+                        update(undo.current.at(-1), true)
                       }
                     >
-                      ↶
-                      <br />
-                      UNDO
+                      ↶<br />UNDO
                     </button>
 
                     <button
                       disabled={
-                        busy ||
-                        !open ||
+                        busy || !open ||
                         Boolean(pendingPayload)
                       }
                       onClick={() =>
                         update(
                           Object.fromEntries(
                             Object.entries(bets).map(
-                              ([key, value]) => [
-                                key,
-                                value * 2,
-                              ],
+                              ([k, v]) => [k, v * 2],
                             ),
                           ),
                         )
                       }
                     >
-                      2×
-                      <br />
-                      DOUBLE
+                      2×<br />DOUBLE
                     </button>
 
                     <button
                       disabled={
-                        busy ||
-                        !open ||
+                        busy || !open ||
                         Boolean(pendingPayload)
                       }
                       onClick={() =>
                         update(previous.current)
                       }
                     >
-                      ↻
-                      <br />
-                      REBET
+                      ↻<br />REBET
                     </button>
 
                     <button
                       onClick={() =>
-                        setAdvanced((value) => !value)
+                        setAdvanced((v) => !v)
                       }
                     >
-                      ▦
-                      <br />
-                      INSIDE BETS
+                      ▦<br />INSIDE BETS
                     </button>
                   </div>
                 </div>
@@ -747,26 +708,15 @@ export default function RoulettePage({
                     <select
                       aria-label="Inside bet type"
                       value={type}
-                      onChange={(event) =>
-                        setType(event.target.value)
+                      onChange={(e) =>
+                        setType(e.target.value)
                       }
                       className={field}
                     >
-                      <option value="S">
-                        Split (17:1)
-                      </option>
-
-                      <option value="T">
-                        Street (11:1)
-                      </option>
-
-                      <option value="K">
-                        Corner (8:1)
-                      </option>
-
-                      <option value="L">
-                        Six Line (5:1)
-                      </option>
+                      <option value="S">Split (17:1)</option>
+                      <option value="T">Street (11:1)</option>
+                      <option value="K">Corner (8:1)</option>
+                      <option value="L">Six Line (5:1)</option>
                     </select>
 
                     <input
@@ -775,8 +725,8 @@ export default function RoulettePage({
                       min="0"
                       max="36"
                       value={first}
-                      onChange={(event) =>
-                        setFirst(event.target.value)
+                      onChange={(e) =>
+                        setFirst(e.target.value)
                       }
                       className={field}
                     />
@@ -788,8 +738,8 @@ export default function RoulettePage({
                         min="0"
                         max="36"
                         value={second}
-                        onChange={(event) =>
-                          setSecond(event.target.value)
+                        onChange={(e) =>
+                          setSecond(e.target.value)
                         }
                         className={field}
                       />
@@ -797,8 +747,7 @@ export default function RoulettePage({
 
                     <button
                       disabled={
-                        !open ||
-                        busy ||
+                        !open || busy ||
                         Boolean(pendingPayload)
                       }
                       onClick={() =>
@@ -883,109 +832,508 @@ export default function RoulettePage({
   );
 }
 
-function Wheel({
-  phase,
-  number,
-  roundId,
-  elapsed,
-}) {
-  const joinedAt = useRef(
-    Math.min(elapsed || 0, 15),
+function Wheel({ phase, number, elapsed }) {
+  const uid = useId().replace(/:/g, '');
+
+  const spinning = phase === 'SPINNING';
+
+  const progress = Math.min(
+    1,
+    Math.max(0, elapsed / 15),
   );
+
+  const wheelAngle =
+    2160 * (1 - Math.pow(1 - progress, 2));
+
+  const ballAngle =
+    -3960 * (1 - Math.pow(1 - progress, 3));
+
+  const last = useRef({
+    wheel: 2160,
+    ball: -3960,
+  });
+
+  if (spinning) {
+    last.current = {
+      wheel: wheelAngle,
+      ball: ballAngle,
+    };
+  }
+
+  const valid =
+    Number.isInteger(number) &&
+    number >= 0 &&
+    number <= 36;
 
   const step = 360 / 37;
 
-  const gradient = wheel
-    .map(
-      (value, index) =>
-        `${color(value)} ${index * step}deg ${
-          (index + 1) * step
-        }deg`,
-    )
-    .join(',');
+  const target = valid
+    ? wheel.indexOf(number) * step + last.current.wheel
+    : last.current.ball;
 
-  const rotation =
-    number === null || number === undefined
-      ? 0
-      : -(wheel.indexOf(number) + 0.5) * step;
+  const modulo = (value) =>
+    ((value % 360) + 360) % 360;
+
+  const finalBall =
+    last.current.ball -
+    modulo(last.current.ball - target);
+
+  const point = (radius, degrees) => {
+    const radians = degrees * Math.PI / 180;
+
+    return [
+      300 + radius * Math.sin(radians),
+      300 - radius * Math.cos(radians),
+    ];
+  };
+
+  const sector = (inner, outer, start, end) => {
+    const a = point(outer, start);
+    const b = point(outer, end);
+    const c = point(inner, end);
+    const d = point(inner, start);
+
+    return (
+      `M ${a} ` +
+      `A ${outer} ${outer} 0 0 1 ${b} ` +
+      `L ${c} ` +
+      `A ${inner} ${inner} 0 0 0 ${d} Z`
+    );
+  };
+
+  const id = (name) => `${uid}-${name}`;
+  const paint = (name) => `url(#${id(name)})`;
 
   return (
-    <div
-      className="relative mx-auto h-64 w-64 rounded-full border-8 border-amber-600 bg-black p-2"
+    <section
+      className="overflow-hidden rounded-2xl border border-amber-200/20 bg-[#080d11] p-2 shadow-2xl"
       aria-label={
-        phase === 'SPINNING'
+        spinning
           ? 'Roulette wheel spinning'
           : `Roulette result ${number}`
       }
     >
-      <style>{`
-        @keyframes tsb-wheel-spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
+      <div className="flex justify-between px-3 pt-2 text-[9px] font-bold tracking-widest text-amber-200/70">
+        <span>TSB · EUROPEAN ROULETTE</span>
+        <span>{spinning ? 'SPINNING' : 'RESULT'}</span>
+      </div>
 
-        @keyframes tsb-ball-spin {
-          to {
-            transform: rotate(-1440deg);
-          }
+      <svg
+        viewBox="0 0 600 560"
+        className="mx-auto block w-full max-w-[620px]"
+        role="img"
+        aria-label={
+          spinning
+            ? 'Gold roulette wheel and ivory ball rotating'
+            : `Ball in the ${number} inner pocket`
         }
-      `}</style>
-
-      <div
-        key={`${roundId}-${phase}`}
-        className="absolute inset-2 rounded-full"
-        style={{
-          background: `conic-gradient(${gradient})`,
-          transform: `rotate(${rotation}deg)`,
-          animation:
-            phase === 'SPINNING'
-              ? 'tsb-wheel-spin 2.5s linear 6 forwards'
-              : undefined,
-          animationDelay:
-            phase === 'SPINNING'
-              ? `-${joinedAt.current}s`
-              : undefined,
-        }}
       >
-        {wheel.map((value, index) => (
-          <span
-            key={value}
-            className="absolute left-1/2 top-1/2 text-[9px] font-bold"
+        <defs>
+          <linearGradient
+            id={id('gold')}
+            x1="0" y1="0" x2="1" y2="1"
+          >
+            <stop stopColor="#44230c" />
+            <stop offset=".18" stopColor="#d69c37" />
+            <stop offset=".34" stopColor="#fff1b8" />
+            <stop offset=".48" stopColor="#9a5b17" />
+            <stop offset=".65" stopColor="#f5d47e" />
+            <stop offset=".85" stopColor="#96601f" />
+            <stop offset="1" stopColor="#39200b" />
+          </linearGradient>
+
+          <radialGradient
+            id={id('wood')}
+            cx="35%" cy="25%"
+          >
+            <stop stopColor="#82411e" />
+            <stop offset=".35" stopColor="#431b0d" />
+            <stop offset=".7" stopColor="#602811" />
+            <stop offset="1" stopColor="#170b08" />
+          </radialGradient>
+
+          <radialGradient
+            id={id('bowl')}
+            cx="35%" cy="20%"
+          >
+            <stop stopColor="#b17b44" />
+            <stop offset=".25" stopColor="#4b2515" />
+            <stop offset=".65" stopColor="#24130f" />
+            <stop offset="1" stopColor="#080707" />
+          </radialGradient>
+
+          <linearGradient
+            id={id('red')}
+            x1="0" y1="0" x2="0" y2="1"
+          >
+            <stop stopColor="#ff3e45" />
+            <stop offset=".5" stopColor="#b60e21" />
+            <stop offset="1" stopColor="#4b050c" />
+          </linearGradient>
+
+          <linearGradient
+            id={id('black')}
+            x1="0" y1="0" x2="0" y2="1"
+          >
+            <stop stopColor="#50565d" />
+            <stop offset=".5" stopColor="#15191e" />
+            <stop offset="1" stopColor="#030405" />
+          </linearGradient>
+
+          <linearGradient
+            id={id('green')}
+            x1="0" y1="0" x2="0" y2="1"
+          >
+            <stop stopColor="#32df8a" />
+            <stop offset=".5" stopColor="#078748" />
+            <stop offset="1" stopColor="#023d20" />
+          </linearGradient>
+
+          <radialGradient
+            id={id('ball')}
+            cx="30%" cy="25%"
+          >
+            <stop stopColor="#ffffff" />
+            <stop offset=".45" stopColor="#fff8df" />
+            <stop offset=".8" stopColor="#d4c8a9" />
+            <stop offset="1" stopColor="#938365" />
+          </radialGradient>
+
+          <radialGradient
+            id={id('hub')}
+            cx="30%" cy="20%"
+          >
+            <stop stopColor="#fff8ce" />
+            <stop offset=".3" stopColor="#e4bd58" />
+            <stop offset=".6" stopColor="#7e4814" />
+            <stop offset=".78" stopColor="#f2cf73" />
+            <stop offset="1" stopColor="#35200d" />
+          </radialGradient>
+
+          <filter
+            id={id('shadow')}
+            x="-50%" y="-50%"
+            width="200%" height="200%"
+          >
+            <feDropShadow
+              dx="0"
+              dy="5"
+              stdDeviation="4"
+              floodColor="#000"
+              floodOpacity=".75"
+            />
+          </filter>
+        </defs>
+
+        <ellipse
+          cx="300" cy="495"
+          rx="252" ry="28"
+          fill="#000"
+          opacity=".7"
+        />
+
+        <g transform="translate(0 12) scale(1 .86)">
+          <circle
+            cx="300" cy="307" r="286"
+            fill="#170c09"
+            stroke="#4d2b16"
+            strokeWidth="8"
+          />
+
+          <circle
+            cx="300" cy="300" r="286"
+            fill={paint('wood')}
+            stroke={paint('gold')}
+            strokeWidth="5"
+          />
+
+          {[278, 273, 266].map((radius) => (
+            <circle
+              key={radius}
+              cx="300" cy="300"
+              r={radius}
+              fill="none"
+              stroke={
+                radius === 266
+                  ? paint('gold')
+                  : '#ac7040'
+              }
+              strokeWidth={radius === 266 ? 10 : 1}
+              opacity={radius === 266 ? 1 : .4}
+            />
+          ))}
+
+          {Array.from(
+            { length: 8 },
+            (_, i) => (
+              <path
+                key={i}
+                d="M 300 20 l 3 6 -3 6 -3 -6 Z"
+                fill={paint('gold')}
+                transform={`rotate(${i * 45} 300 300)`}
+              />
+            ),
+          )}
+
+          <circle
+            cx="300" cy="300" r="255"
+            fill="#0a0806"
+            stroke="#f0c86f"
+            strokeWidth="2"
+          />
+
+          <g
             style={{
-              transform:
-                'translate(-50%,-50%) ' +
-                `rotate(${(index + 0.5) * step}deg) ` +
-                'translateY(-99px) rotate(180deg)',
+              transformOrigin: '300px 300px',
+              transform: `rotate(${
+                spinning
+                  ? wheelAngle
+                  : last.current.wheel
+              }deg)`,
             }}
           >
-            {value}
-          </span>
-        ))}
+            {wheel.map((value, index) => {
+              const angle = index * step;
+              const start = angle - step / 2;
+              const end = angle + step / 2;
+
+              const fill = paint(
+                value === 0
+                  ? 'green'
+                  : red.has(value)
+                    ? 'red'
+                    : 'black',
+              );
+
+              const label = point(225, angle);
+              const inner = point(159, start);
+              const outer = point(205, start);
+
+              return (
+                <g key={value}>
+                  <path
+                    d={sector(207, 247, start, end)}
+                    fill={color(value)}
+                    stroke="#e5be72"
+                    strokeWidth=".8"
+                  />
+
+                  <text
+                    x={label[0]}
+                    y={label[1]}
+                    dy=".35em"
+                    textAnchor="middle"
+                    fill="#fff6dc"
+                    fontFamily="Georgia,serif"
+                    fontSize="19"
+                    fontWeight="bold"
+                    transform={
+                      `rotate(${angle} ` +
+                      `${label[0]} ${label[1]})`
+                    }
+                  >
+                    {value}
+                  </text>
+
+                  <path
+                    d={sector(159, 204, start, end)}
+                    fill={fill}
+                    stroke="#69421c"
+                    strokeWidth="1"
+                  />
+
+                  <path
+                    d={`M ${inner} L ${outer}`}
+                    stroke={paint('gold')}
+                    strokeWidth="2.4"
+                  />
+
+                  <path
+                    d={sector(
+                      160,
+                      166,
+                      start + .6,
+                      end - .6,
+                    )}
+                    fill="#000"
+                    opacity=".38"
+                  />
+
+                  {!spinning && value === number && (
+                    <path
+                      d={sector(159, 204, start, end)}
+                      fill="none"
+                      stroke="#fff0a1"
+                      strokeWidth="2.5"
+                    />
+                  )}
+                </g>
+              );
+            })}
+
+            {[248, 206, 158].map((radius) => (
+              <circle
+                key={radius}
+                cx="300" cy="300"
+                r={radius}
+                fill="none"
+                stroke={paint('gold')}
+                strokeWidth={radius === 206 ? 4 : 3}
+              />
+            ))}
+          </g>
+
+          <circle
+            cx="300" cy="300" r="155"
+            fill={paint('bowl')}
+            stroke="#b88843"
+            strokeWidth="2"
+          />
+
+          {[0, 90, 180, 270].map((angle) => (
+            <path
+              key={angle}
+              d="M 300 156 L 300 300"
+              stroke="#ca9a50"
+              strokeWidth="1"
+              opacity=".28"
+              transform={`rotate(${angle} 300 300)`}
+            />
+          ))}
+
+          <circle
+            cx="300" cy="300" r="81"
+            fill={paint('wood')}
+            stroke={paint('gold')}
+            strokeWidth="5"
+          />
+
+          <g filter={paint('shadow')}>
+            <ellipse
+              cx="300" cy="307"
+              rx="48" ry="25"
+              fill={paint('gold')}
+            />
+
+            <path
+              d="M 270 299 Q 284 277 286 244 L 314 244 Q 316 277 330 299 Z"
+              fill={paint('gold')}
+              stroke="#e8c472"
+            />
+
+            <ellipse
+              cx="300" cy="245"
+              rx="31" ry="12"
+              fill={paint('gold')}
+              stroke="#f8df9a"
+            />
+
+            <path
+              d="M 289 242 L 291 213 L 309 213 L 311 242 Z"
+              fill={paint('gold')}
+            />
+
+            <ellipse
+              cx="300" cy="212"
+              rx="27" ry="9"
+              fill={paint('gold')}
+              stroke="#fce8ad"
+            />
+
+            <path
+              d="M 292 210 L 293 195 L 307 195 L 308 210 Z"
+              fill={paint('gold')}
+            />
+
+            <circle
+              cx="300" cy="190" r="13"
+              fill={paint('hub')}
+            />
+
+            <path
+              d="M 289 257 L 237 240 M 311 257 L 363 240"
+              fill="none"
+              stroke="#6b4219"
+              strokeWidth="9"
+              strokeLinecap="round"
+            />
+
+            <path
+              d="M 289 255 L 237 238 M 311 255 L 363 238"
+              fill="none"
+              stroke={paint('gold')}
+              strokeWidth="6"
+              strokeLinecap="round"
+            />
+
+            <circle
+              cx="235" cy="238" r="7"
+              fill={paint('hub')}
+            />
+
+            <circle
+              cx="365" cy="238" r="7"
+              fill={paint('hub')}
+            />
+          </g>
+
+          <g
+            style={{
+              transformOrigin: '300px 300px',
+              transform: `rotate(${
+                spinning ? ballAngle : finalBall
+              }deg)`,
+              transition: spinning
+                ? 'none'
+                : 'transform .75s ease-out',
+            }}
+          >
+            <g
+              style={{
+                transform: `translateY(${
+                  spinning ? -245 : -182
+                }px)`,
+                transition: 'transform .75s ease-in',
+              }}
+            >
+              <ellipse
+                cx="302" cy="305"
+                rx="10" ry="6"
+                fill="#000"
+                opacity=".65"
+              />
+
+              <circle
+                cx="300" cy="300" r="8.5"
+                fill={paint('ball')}
+                stroke="#e8ddbf"
+                strokeWidth=".7"
+                filter={paint('shadow')}
+              />
+
+              <circle
+                cx="297" cy="297" r="2"
+                fill="#fff"
+                opacity=".85"
+              />
+            </g>
+          </g>
+        </g>
+      </svg>
+
+      <div className="pb-3 text-center">
+        <span className="rounded-full border border-amber-300/25 bg-black/40 px-4 py-2 text-xs font-bold text-amber-100">
+          {spinning
+            ? 'BALL IN MOTION'
+            : `${number} · ${
+                number === 0
+                  ? 'GREEN'
+                  : red.has(number)
+                    ? 'RED'
+                    : 'BLACK'
+              } · RESULT`}
+        </span>
       </div>
-
-      <div className="absolute inset-8 rounded-full border-4 border-amber-700 bg-[#15231f]" />
-
-      <div
-        key={`${roundId}-ball-${phase}`}
-        className="absolute inset-3"
-        style={{
-          animation:
-            phase === 'SPINNING'
-              ? 'tsb-ball-spin 15s cubic-bezier(.15,.65,.35,1) 1 forwards'
-              : undefined,
-          animationDelay:
-            phase === 'SPINNING'
-              ? `-${joinedAt.current}s`
-              : undefined,
-        }}
-      >
-        <span className="absolute left-1/2 top-0 h-3 w-3 rounded-full bg-white shadow" />
-      </div>
-
-      <strong className="absolute inset-0 flex items-center justify-center text-4xl">
-        {phase === 'RESULT' ? number : '●'}
-      </strong>
-    </div>
+    </section>
   );
 }
