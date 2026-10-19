@@ -1,10 +1,17 @@
-import { createHash, randomInt } from "node:crypto";
+import { createHash } from "node:crypto";
 
 export const INTERVAL_MS = 15 * 60 * 1000;
-export const MATCH_MS = 180000;
-export const BALL_MS = 15000;
-export const WINDOW_MS = 5000;
-export const PREBET_MS = 60000;
+export const MATCH_MS = 120000;
+export const BALL_MS = 10000;
+export const WINDOW_MS = 8000;
+export const PREBET_MS = 300000;
+
+export const INITIAL_RATES = [
+  { back: 95, lay: 105 },
+  { back: 95, lay: 105 },
+];
+
+export const ALLOWED_BALLS = [0, 1, 2, 3, 4, 6, "W"];
 
 export const TEAMS = [
   "RCB SO",
@@ -19,34 +26,14 @@ export const TEAMS = [
   "LSG SO",
 ];
 
-// Demo probabilities, independent of bets and wallet balances.
-export const WEIGHTS = [
-  [0, 25],
-  [1, 28],
-  [2, 12],
-  [3, 2],
-  [4, 15],
-  [6, 10],
-  ["W", 8],
-];
-
-export function randomBall(draw = randomInt) {
-  let value = draw(100);
-
-  for (const [result, weight] of WEIGHTS) {
-    if (value < weight) return result;
-    value -= weight;
-  }
-
-  throw new Error("Invalid random draw");
-}
-
 export function teamsAt(start) {
-  // 45 unique pairings per cycle.
-  // Next cycle changes round order and reverses batting order.
+  // 9 rounds × 5 pairings = 45 unique matches.
+  // Next cycle changes batting order and round order.
   const slot = Math.floor(start / INTERVAL_MS);
-  const cycle = Math.floor(slot / 45);
-  const position = ((slot % 45) + 45) % 45;
+
+  const cycle = Math.floor(slot / 45),
+    position = ((slot % 45) + 45) % 45;
+
   const round = (Math.floor(position / 5) + cycle) % 9;
 
   const rotation = [
@@ -65,68 +52,6 @@ export function teamsAt(start) {
   if ((cycle + round) % 2) pair.reverse();
 
   return pair.map((i) => TEAMS[i]);
-}
-
-export function createMatch(start, draw = randomBall) {
-  const innings = [];
-  const events = [];
-
-  for (let team = 0; team < 2; team++) {
-    const score = {
-      runs: 0,
-      wickets: 0,
-      balls: [],
-    };
-
-    for (let ball = 0; ball < 6; ball++) {
-      const value = draw();
-
-      if (![0, 1, 2, 3, 4, 6, "W"].includes(value)) {
-        throw new Error("Invalid ball result");
-      }
-
-      score.balls.push(value);
-
-      if (value === "W") {
-        score.wickets++;
-      } else {
-        score.runs += value;
-      }
-
-      events.push({
-        index: events.length,
-        team,
-        ball: ball + 1,
-        value,
-        at: events.length * BALL_MS + WINDOW_MS,
-        runs: score.runs,
-        wickets: score.wickets,
-      });
-
-      if (
-        score.wickets === 2 ||
-        (team === 1 && score.runs > innings[0].runs)
-      ) {
-        break;
-      }
-    }
-
-    innings.push(score);
-  }
-
-  const winner =
-    innings[0].runs === innings[1].runs
-      ? "TIE"
-      : innings[0].runs > innings[1].runs
-        ? 0
-        : 1;
-
-  return {
-    teams: teamsAt(start),
-    innings,
-    events,
-    winner,
-  };
 }
 
 export function canonicalOutcome(value) {
@@ -152,85 +77,184 @@ export const commitment = (outcome, seed) =>
     .update(canonicalOutcome(outcome) + ":" + seed)
     .digest("hex");
 
-// Profit points per 100 stake; Back/Lay spread stays at 10.
-export function ratesAt(events) {
-  let first = 90;
+export function winnerMarketLock(scores) {
+  const first = scores[0],
+    chase = scores[1];
 
-  for (const event of events) {
-    const movement =
-      event.value === 6
-        ? -10
-        : event.value === 4
-          ? -5
-          : event.value === "W"
-            ? 20
-            : 0;
+  const firstFinished =
+    first.balls.length === 6 || first.wickets === 2;
 
-    first = Math.max(
-      10,
-      Math.min(
-        190,
-        first + (event.team === 0 ? movement : -movement),
-      ),
-    );
+  if (!firstFinished) return null;
+
+  const chaseFinished =
+    chase.balls.length === 6 || chase.wickets === 2;
+
+  if (chase.runs > first.runs) {
+    return "Target passed. Waiting for final settlement.";
   }
 
-  return [
-    { back: first, lay: first + 10 },
-    { back: 200 - first, lay: 210 - first },
-  ];
+  if (chaseFinished) {
+    return "Innings complete. Waiting for final settlement.";
+  }
+
+  // A tie refunds the held coins.
+  // Close selections that can only win or refund.
+  if (chase.runs === first.runs) {
+    return "Scores level. Only a chasing-team win or a tie is possible.";
+  }
+
+  const remaining = 6 - chase.balls.length;
+
+  if (chase.runs + remaining * 6 <= first.runs) {
+    return "The chasing team cannot win with the balls remaining.";
+  }
+
+  return null;
 }
 
-export function viewMatch(row, now) {
-  const start = Number(row.start_ms);
-  const outcome = row.outcome;
-  const delta = now - start;
+export function scoresFrom(balls) {
+  return [0, 1].map((team) => {
+    const rows = balls.filter((b) => b.team === team);
 
-  const events = outcome.events.filter(
-    (event) => event.at <= delta,
+    const values = rows.map((b) =>
+      b.value === "W" ? "W" : Number(b.value),
+    );
+
+    return {
+      runs: values.reduce(
+        (s, v) => s + (typeof v === "number" ? v : 0),
+        0,
+      ),
+      wickets: values.filter((v) => v === "W").length,
+      balls: values,
+      overs:
+        values.length === 6
+          ? "1.0"
+          : `0.${values.length}`,
+    };
+  });
+}
+
+export function nextDelivery(balls) {
+  const s = scoresFrom(balls),
+    first = s[0],
+    chase = s[1];
+
+  const firstDone =
+    first.balls.length === 6 || first.wickets === 2;
+
+  if (!firstDone) {
+    return {
+      team: 0,
+      teamBall: first.balls.length + 1,
+      planIndex: first.balls.length,
+    };
+  }
+
+  if (
+    chase.balls.length === 6 ||
+    chase.wickets === 2 ||
+    chase.runs > first.runs
+  ) {
+    return null;
+  }
+
+  return {
+    team: 1,
+    teamBall: chase.balls.length + 1,
+    planIndex: 6 + chase.balls.length,
+  };
+}
+
+export function matchWinner(balls) {
+  const s = scoresFrom(balls);
+
+  return s[0].runs === s[1].runs
+    ? "TIE"
+    : s[0].runs > s[1].runs
+      ? 0
+      : 1;
+}
+
+export function publicControlledMatch(row, balls, now) {
+  const start = Number(row.start_ms),
+    delta = now - start;
+
+  const visible = balls.filter(
+    (b) => now >= Number(b.reveals_ms),
   );
 
-  const end = start + outcome.events.length * BALL_MS;
-  const complete = now >= end;
-  const index = Math.max(0, Math.floor(delta / BALL_MS));
-  const within = ((delta % BALL_MS) + BALL_MS) % BALL_MS;
+  const terminal =
+    balls.length > 0 && !nextDelivery(balls);
 
-  let phase = "WAITING";
-  let closesAt = null;
-  let windowId = null;
+  const end = terminal
+    ? Number(balls.at(-1).opens_ms) + BALL_MS
+    : start + MATCH_MS;
 
-  if (now >= start - PREBET_MS && now < start) {
+  const complete = terminal && now >= end;
+
+  const scores = scoresFrom(visible),
+    automatic = complete
+      ? "Match complete."
+      : winnerMarketLock(scores);
+
+  const manual = row.market_closed
+    ? "Market closed by Admin."
+    : null;
+
+  let phase = "WAITING",
+    windowId = null,
+    closesAt = null;
+
+  if (
+    now >= start - PREBET_MS &&
+    now < start
+  ) {
     phase = "BETTING";
-    closesAt = start;
     windowId = "PRE";
+    closesAt = start;
   } else if (delta >= 0 && !complete) {
-    phase = within < WINDOW_MS ? "BETTING" : "LOCKED";
-    closesAt = start + index * BALL_MS + WINDOW_MS;
-    windowId = String(index);
+    const seq = Math.floor(delta / BALL_MS),
+      within = delta % BALL_MS;
+
+    phase = within < WINDOW_MS
+      ? "BETTING"
+      : "LOCKED";
+
+    windowId = String(seq);
+    closesAt = start + seq * BALL_MS + WINDOW_MS;
+  }
+
+  const lockReason = automatic || manual;
+
+  if (lockReason && !complete) {
+    phase = "SUSPENDED";
+    windowId = null;
+    closesAt = null;
   }
 
   if (complete) phase = "RESULT";
 
-  const scores = [0, 1].map((team) => {
-    const balls = events.filter(
-      (event) => event.team === team,
-    );
-
-    return {
-      runs: balls.at(-1)?.runs || 0,
-      wickets: balls.at(-1)?.wickets || 0,
-      balls: balls.map((event) => event.value),
-      overs:
-        balls.length === 6 ? "1.0" : `0.${balls.length}`,
-    };
-  });
+  const events = visible.map((b) => ({
+    index: b.seq,
+    team: b.team,
+    ball: b.team_ball,
+    value:
+      b.value === "W" ? "W" : Number(b.value),
+    at: Number(b.reveals_ms) - start,
+  }));
 
   return {
-    id: String(row.id),
-    teams: outcome.teams,
+    id: `M${row.id}`,
+    mode: "ADMIN_CONTROLLED",
+    teams: row.teams,
     startAt: new Date(start).toISOString(),
-    latestEndAt: new Date(start + MATCH_MS).toISOString(),
-    nextAt: new Date(start + INTERVAL_MS).toISOString(),
+    latestEndAt: new Date(
+      start + MATCH_MS,
+    ).toISOString(),
+    nextAt: new Date(
+      start + INTERVAL_MS,
+    ).toISOString(),
     phase,
     windowId,
     closesAt: closesAt
@@ -238,19 +262,54 @@ export function viewMatch(row, now) {
       : null,
     scores,
     events,
-    rates: ratesAt(events),
-    commitment: row.commitment,
-    result: complete ? { winner: outcome.winner } : null,
-    seed: complete ? row.seed : null,
-    outcome: complete ? outcome : null,
+
+    rates: lockReason
+      ? [
+          { back: 0, lay: 0 },
+          { back: 0, lay: 0 },
+        ]
+      : row.rates,
+
+    quoteVersion: row.quote_version,
+    lockReason,
+
+    result: complete
+      ? { winner: matchWinner(balls) }
+      : null,
+
+    verification: balls.map((b) => ({
+      index: b.seq,
+      matchId: `M${row.id}`,
+      seq: b.seq,
+      team: b.team,
+      teamBall: b.team_ball,
+      commitment: b.commitment,
+
+      value:
+        now >= Number(b.reveals_ms)
+          ? b.value === "W"
+            ? "W"
+            : Number(b.value)
+          : null,
+
+      seed:
+        now >= Number(b.reveals_ms)
+          ? b.seed
+          : null,
+    })),
   };
 }
 
 export function betAmounts(amount, direction, points) {
-  const liability = Math.ceil((amount * points) / 100);
+  const liability = Math.ceil(
+    (amount * points) / 100,
+  );
 
   return {
-    hold: direction === "BACK" ? amount : liability,
+    hold: direction === "BACK"
+      ? amount
+      : liability,
+
     winReturn:
       amount +
       (direction === "BACK"
