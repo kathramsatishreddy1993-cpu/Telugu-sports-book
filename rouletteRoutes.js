@@ -1,17 +1,16 @@
 import { randomBytes, createHash } from 'node:crypto';
-
 import {
   requireControllerAccount,
   verifyControllerForMutation,
 } from './controllerAccounts.js';
 
-const hash = (value) =>
+const hash = value =>
   createHash('sha256').update(value).digest('hex');
 
 const fail = (status, message) =>
   Object.assign(new Error(message), { status });
 
-const wrap = (fn) => (req, res, next) =>
+const wrap = fn => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 
 export const RED = new Set([
@@ -20,16 +19,13 @@ export const RED = new Set([
 ]);
 
 export function market(key) {
-  let match;
+  let m;
 
-  if ((match = /^N:(\d{1,2})$/.exec(key))) {
-    const number = Number(match[1]);
+  if ((m = /^N:(\d{1,2})$/.exec(key))) {
+    const n = Number(m[1]);
 
-    if (number <= 36) {
-      return {
-        numbers: [number],
-        returns: 36,
-      };
+    if (n <= 36) {
+      return { numbers: [n], returns: 36 };
     }
   }
 
@@ -37,10 +33,8 @@ export function market(key) {
     return {
       numbers: Array.from(
         { length: 36 },
-        (_, index) => index + 1,
-      ).filter(
-        (number) => RED.has(number) === (key === 'RED'),
-      ),
+        (_, i) => i + 1,
+      ).filter(n => RED.has(n) === (key === 'RED')),
       returns: 2,
     };
   }
@@ -49,10 +43,8 @@ export function market(key) {
     return {
       numbers: Array.from(
         { length: 36 },
-        (_, index) => index + 1,
-      ).filter(
-        (number) => number % 2 === (key === 'ODD' ? 1 : 0),
-      ),
+        (_, i) => i + 1,
+      ).filter(n => n % 2 === (key === 'ODD' ? 1 : 0)),
       returns: 2,
     };
   }
@@ -61,98 +53,88 @@ export function market(key) {
     return {
       numbers: Array.from(
         { length: 18 },
-        (_, index) => index + (key === 'LOW' ? 1 : 19),
+        (_, i) => i + (key === 'LOW' ? 1 : 19),
       ),
       returns: 2,
     };
   }
 
-  if ((match = /^D:([123])$/.exec(key))) {
+  if ((m = /^D:([123])$/.exec(key))) {
     return {
       numbers: Array.from(
         { length: 12 },
-        (_, index) =>
-          index + 1 + (Number(match[1]) - 1) * 12,
+        (_, i) => i + 1 + (Number(m[1]) - 1) * 12,
       ),
       returns: 3,
     };
   }
 
-  if ((match = /^C:([123])$/.exec(key))) {
+  if ((m = /^C:([123])$/.exec(key))) {
     return {
       numbers: Array.from(
         { length: 12 },
-        (_, index) => index * 3 + Number(match[1]),
+        (_, i) => i * 3 + Number(m[1]),
       ),
       returns: 3,
     };
   }
 
-  if ((match = /^S:(\d{1,2}):(\d{1,2})$/.exec(key))) {
-    const first = Number(match[1]);
-    const second = Number(match[2]);
+  if ((m = /^S:(\d{1,2}):(\d{1,2})$/.exec(key))) {
+    const a = Number(m[1]);
+    const b = Number(m[2]);
 
-    if (
-      first >= 0 &&
-      second <= 36 &&
-      first < second &&
+    const adjacent =
+      (a === 0 && b <= 3) ||
       (
-        (first === 0 && second <= 3) ||
+        a > 0 &&
         (
-          first > 0 &&
+          b - a === 3 ||
           (
-            second - first === 3 ||
-            (
-              second - first === 1 &&
-              Math.floor((first - 1) / 3) ===
-                Math.floor((second - 1) / 3)
-            )
+            b - a === 1 &&
+            Math.floor((a - 1) / 3) ===
+              Math.floor((b - 1) / 3)
           )
         )
-      )
-    ) {
+      );
+
+    if (a >= 0 && b <= 36 && a < b && adjacent) {
       return {
-        numbers: [first, second],
+        numbers: [a, b],
         returns: 18,
       };
     }
   }
 
-  if ((match = /^T:(\d{1,2})$/.exec(key))) {
-    const first = Number(match[1]);
+  if ((m = /^T:(\d{1,2})$/.exec(key))) {
+    const a = Number(m[1]);
 
-    if (first >= 1 && first <= 34 && first % 3 === 1) {
+    if (a >= 1 && a <= 34 && a % 3 === 1) {
       return {
-        numbers: [first, first + 1, first + 2],
+        numbers: [a, a + 1, a + 2],
         returns: 12,
       };
     }
   }
 
-  if ((match = /^K:(\d{1,2})$/.exec(key))) {
-    const first = Number(match[1]);
+  if ((m = /^K:(\d{1,2})$/.exec(key))) {
+    const a = Number(m[1]);
 
-    if (first >= 1 && first <= 32 && first % 3 !== 0) {
+    if (a >= 1 && a <= 32 && a % 3 !== 0) {
       return {
-        numbers: [
-          first,
-          first + 1,
-          first + 3,
-          first + 4,
-        ],
+        numbers: [a, a + 1, a + 3, a + 4],
         returns: 9,
       };
     }
   }
 
-  if ((match = /^L:(\d{1,2})$/.exec(key))) {
-    const first = Number(match[1]);
+  if ((m = /^L:(\d{1,2})$/.exec(key))) {
+    const a = Number(m[1]);
 
-    if (first >= 1 && first <= 31 && first % 3 === 1) {
+    if (a >= 1 && a <= 31 && a % 3 === 1) {
       return {
         numbers: Array.from(
           { length: 6 },
-          (_, index) => first + index,
+          (_, i) => a + i,
         ),
         returns: 6,
       };
@@ -242,10 +224,8 @@ export async function initializeRoulette(pool) {
       WHERE status='LOCKED';
 
     CREATE TABLE IF NOT EXISTS tsb_roulette_bets (
-      round_id BIGINT
-        REFERENCES tsb_roulette_rounds(id),
-      customer_id INTEGER
-        REFERENCES customers(id),
+      round_id BIGINT REFERENCES tsb_roulette_rounds(id),
+      customer_id INTEGER REFERENCES customers(id),
       bets JSONB NOT NULL,
       total INTEGER NOT NULL,
       payout INTEGER NOT NULL DEFAULT 0,
@@ -263,7 +243,7 @@ export async function initializeRoulette(pool) {
     );
 
     CREATE OR REPLACE FUNCTION tsb_roulette_protect()
-    RETURNS trigger AS $$
+      RETURNS trigger AS $$
     BEGIN
       IF TG_OP='DELETE' THEN
         RAISE EXCEPTION
@@ -301,29 +281,30 @@ export async function initializeRoulette(pool) {
 }
 
 async function tx(pool, fn) {
-  const client = await pool.connect();
+  const connection = await pool.connect();
 
   try {
-    await client.query('BEGIN');
+    await connection.query('BEGIN');
 
-    await client.query(
+    await connection.query(
       'SELECT pg_advisory_xact_lock(746220)',
     );
 
-    const result = await fn(client);
+    const result = await fn(connection);
 
-    await client.query('COMMIT');
+    await connection.query('COMMIT');
+
     return result;
   } catch (error) {
-    await client.query('ROLLBACK');
+    await connection.query('ROLLBACK');
     throw error;
   } finally {
-    client.release();
+    connection.release();
   }
 }
 
-async function now(client) {
-  const result = await client.query(
+async function now(connection) {
+  const result = await connection.query(
     'SELECT clock_timestamp() AS now',
     [],
   );
@@ -331,15 +312,14 @@ async function now(client) {
   return new Date(result.rows[0].now).getTime();
 }
 
-async function settle(client) {
-  const time = await now(client);
+async function settle(connection) {
+  const time = await now(connection);
 
   const rounds = (
-    await client.query(
+    await connection.query(
       `SELECT *
        FROM tsb_roulette_rounds
-       WHERE status='LOCKED'
-         AND reveals_at<=$1
+       WHERE status='LOCKED' AND reveals_at<=$1
        FOR UPDATE`,
       [new Date(time)],
     )
@@ -347,30 +327,29 @@ async function settle(client) {
 
   for (const round of rounds) {
     const entries = (
-      await client.query(
+      await connection.query(
         `SELECT *
          FROM tsb_roulette_bets
-         WHERE round_id=$1
-           AND status='PLACED'
+         WHERE round_id=$1 AND status='PLACED'
          ORDER BY customer_id
          FOR UPDATE`,
         [round.id],
       )
     ).rows;
 
-    for (const bet of entries) {
-      const win = payout(bet.bets, round.number);
+    for (const entry of entries) {
+      const win = payout(entry.bets, round.number);
 
       if (win) {
-        await client.query(
+        await connection.query(
           `UPDATE customers
            SET demo_coin_balance=demo_coin_balance+$1,
                updated_at=NOW()
            WHERE id=$2`,
-          [win, bet.customer_id],
+          [win, entry.customer_id],
         );
 
-        await client.query(
+        await connection.query(
           `INSERT INTO demo_coin_transactions(
             customer_id,
             amount,
@@ -379,22 +358,22 @@ async function settle(client) {
           )
           VALUES($1,$2,'ROULETTE_RETURN',$3)`,
           [
-            bet.customer_id,
+            entry.customer_id,
             win,
             `Roulette #${round.id}; result ${round.number}; stake included`,
           ],
         );
       }
 
-      await client.query(
+      await connection.query(
         `UPDATE tsb_roulette_bets
          SET status='SETTLED',payout=$1
          WHERE round_id=$2 AND customer_id=$3`,
-        [win, round.id, bet.customer_id],
+        [win, round.id, entry.customer_id],
       );
     }
 
-    await client.query(
+    await connection.query(
       `UPDATE tsb_roulette_rounds
        SET status='SETTLED'
        WHERE id=$1`,
@@ -408,16 +387,25 @@ function view(round, time, controller = false) {
 
   const done = round.status === 'SETTLED';
 
+  const bettingClosed =
+    time >= new Date(round.closes_at).getTime();
+
   return {
     id: String(round.id),
+
     phase: done
       ? 'RESULT'
-      : time < new Date(round.closes_at).getTime()
-        ? 'BETTING'
-        : 'SPINNING',
+      : bettingClosed
+        ? 'SPINNING'
+        : 'BETTING',
+
     closesAt: round.closes_at,
     revealsAt: round.reveals_at,
     commitment: round.commitment,
+
+    // Animation target is available only after betting closes.
+    landingNumber: bettingClosed ? round.number : null,
+
     number: done || controller ? round.number : null,
     seed: done ? round.seed : null,
   };
@@ -443,12 +431,13 @@ export function registerRouletteRoutes(app, pool) {
 
       const mode = String(
         process.env.SPORTS_API_MODE || 'demo',
-      ).trim().toLowerCase();
+      )
+        .trim()
+        .toLowerCase();
 
       if (mode !== 'demo') {
         return res.status(409).json({
-          error:
-            'Roulette is available in demo mode only.',
+          error: 'Roulette is available in demo mode only.',
         });
       }
 
@@ -460,8 +449,8 @@ export function registerRouletteRoutes(app, pool) {
     const token =
       String(req.headers.cookie || '')
         .split(';')
-        .map((value) => value.trim())
-        .find((value) =>
+        .map(value => value.trim())
+        .find(value =>
           value.startsWith('tsb_demo_session='),
         )
         ?.slice(17) || '';
@@ -489,13 +478,13 @@ export function registerRouletteRoutes(app, pool) {
   });
 
   async function state(customerId, account) {
-    return tx(pool, async (client) => {
-      await settle(client);
+    return tx(pool, async connection => {
+      await settle(connection);
 
-      const time = await now(client);
+      const time = await now(connection);
 
       const round = (
-        await client.query(
+        await connection.query(
           `SELECT *
            FROM tsb_roulette_rounds
            ORDER BY id DESC
@@ -505,7 +494,7 @@ export function registerRouletteRoutes(app, pool) {
       ).rows[0];
 
       const history = (
-        await client.query(
+        await connection.query(
           `SELECT id,number
            FROM tsb_roulette_rounds
            WHERE status='SETTLED'
@@ -525,15 +514,14 @@ export function registerRouletteRoutes(app, pool) {
         Object.assign(result, {
           controllerId: account.login_id,
           controllerName: account.name,
-          mustChangePassword:
-            account.must_change_password,
+          mustChangePassword: account.must_change_password,
         });
       }
 
       if (customerId) {
         result.customerId = customerId;
 
-        const wallet = await client.query(
+        const wallet = await connection.query(
           `SELECT demo_coin_balance
            FROM customers
            WHERE id=$1`,
@@ -544,22 +532,22 @@ export function registerRouletteRoutes(app, pool) {
           wallet.rows[0].demo_coin_balance,
         );
 
-        const entries = await client.query(
-          `SELECT b.*,r.number
-           FROM tsb_roulette_bets b
-           JOIN tsb_roulette_rounds r
-             ON r.id=b.round_id
-           WHERE b.customer_id=$1
-           ORDER BY b.round_id DESC
-           LIMIT 30`,
-          [customerId],
-        );
-
-        result.entries = entries.rows.map((bet) => ({
-          ...bet,
+        result.entries = (
+          await connection.query(
+            `SELECT b.*,r.number
+             FROM tsb_roulette_bets b
+             JOIN tsb_roulette_rounds r
+               ON r.id=b.round_id
+             WHERE b.customer_id=$1
+             ORDER BY b.round_id DESC
+             LIMIT 30`,
+            [customerId],
+          )
+        ).rows.map(entry => ({
+          ...entry,
           number:
-            bet.status === 'SETTLED'
-              ? bet.number
+            entry.status === 'SETTLED'
+              ? entry.number
               : null,
         }));
       }
@@ -598,16 +586,16 @@ export function registerRouletteRoutes(app, pool) {
 
       const result = await tx(
         pool,
-        async (client) => {
+        async connection => {
           await verifyControllerForMutation(
-            client,
+            connection,
             req.controllerAccount,
             'ROULETTE',
           );
 
-          await settle(client);
+          await settle(connection);
 
-          const active = await client.query(
+          const active = await connection.query(
             `SELECT id
              FROM tsb_roulette_rounds
              WHERE status='LOCKED'`,
@@ -621,36 +609,35 @@ export function registerRouletteRoutes(app, pool) {
             );
           }
 
-          const time = await now(client);
+          const time = await now(connection);
           const seed = randomBytes(32).toString('hex');
+          const commitment = hash(`${number}:${seed}`);
 
-          const commitment = hash(
-            `${number}:${seed}`,
-          );
-
-          const saved = await client.query(
-            `INSERT INTO tsb_roulette_rounds(
-              number,
-              seed,
-              commitment,
-              controller_id,
-              closes_at,
-              reveals_at
+          const round = (
+            await connection.query(
+              `INSERT INTO tsb_roulette_rounds(
+                number,
+                seed,
+                commitment,
+                controller_id,
+                closes_at,
+                reveals_at
+              )
+              VALUES($1,$2,$3,$4,$5,$6)
+              RETURNING *`,
+              [
+                number,
+                seed,
+                commitment,
+                req.controllerId,
+                new Date(time + 30000),
+                new Date(time + 45000),
+              ],
             )
-            VALUES($1,$2,$3,$4,$5,$6)
-            RETURNING *`,
-            [
-              number,
-              seed,
-              commitment,
-              req.controllerId,
-              new Date(time + 30000),
-              new Date(time + 45000),
-            ],
-          );
+          ).rows[0];
 
           return {
-            round: view(saved.rows[0], time, true),
+            round: view(round, time, true),
             serverTime: new Date(time).toISOString(),
           };
         },
@@ -676,19 +663,13 @@ export function registerRouletteRoutes(app, pool) {
         req.body?.bets,
       );
 
-      const roundId = String(
-        req.body?.roundId || '',
-      );
-
-      const requestKey = String(
-        req.body?.requestKey || '',
-      );
-
+      const id = String(req.body?.roundId || '');
+      const key = String(req.body?.requestKey || '');
       const revision = req.body?.revision;
 
       if (
-        !/^\d{1,18}$/.test(roundId) ||
-        !/^[a-zA-Z0-9_-]{16,100}$/.test(requestKey) ||
+        !/^\d{1,18}$/.test(id) ||
+        !/^[a-zA-Z0-9_-]{16,100}$/.test(key) ||
         !Number.isInteger(revision) ||
         revision < 0
       ) {
@@ -699,7 +680,7 @@ export function registerRouletteRoutes(app, pool) {
       }
 
       const payload = JSON.stringify({
-        id: roundId,
+        id,
         revision,
         bets: Object.fromEntries(
           Object.entries(bets).sort(),
@@ -708,11 +689,11 @@ export function registerRouletteRoutes(app, pool) {
 
       const result = await tx(
         pool,
-        async (client) => {
-          await settle(client);
+        async connection => {
+          await settle(connection);
 
           const wallet = (
-            await client.query(
+            await connection.query(
               `SELECT demo_coin_balance,status
                FROM customers
                WHERE id=$1
@@ -726,12 +707,11 @@ export function registerRouletteRoutes(app, pool) {
           }
 
           const prior = (
-            await client.query(
+            await connection.query(
               `SELECT *
                FROM tsb_roulette_requests
-               WHERE customer_id=$1
-                 AND request_key=$2`,
-              [req.customerId, requestKey],
+               WHERE customer_id=$1 AND request_key=$2`,
+              [req.customerId, key],
             )
           ).rows[0];
 
@@ -747,19 +727,19 @@ export function registerRouletteRoutes(app, pool) {
           }
 
           const round = (
-            await client.query(
+            await connection.query(
               `SELECT *
                FROM tsb_roulette_rounds
                WHERE id=$1
                FOR UPDATE`,
-              [roundId],
+              [id],
             )
           ).rows[0];
 
           if (
             !round ||
             round.status !== 'LOCKED' ||
-            await now(client) >=
+            (await now(connection)) >=
               new Date(round.closes_at).getTime()
           ) {
             throw fail(
@@ -769,13 +749,12 @@ export function registerRouletteRoutes(app, pool) {
           }
 
           const old = (
-            await client.query(
+            await connection.query(
               `SELECT *
                FROM tsb_roulette_bets
-               WHERE round_id=$1
-                 AND customer_id=$2
+               WHERE round_id=$1 AND customer_id=$2
                FOR UPDATE`,
-              [roundId, req.customerId],
+              [id, req.customerId],
             )
           ).rows[0];
 
@@ -800,7 +779,7 @@ export function registerRouletteRoutes(app, pool) {
             );
           }
 
-          await client.query(
+          await connection.query(
             `UPDATE customers
              SET demo_coin_balance=$1,
                  updated_at=NOW()
@@ -809,7 +788,7 @@ export function registerRouletteRoutes(app, pool) {
           );
 
           if (difference) {
-            await client.query(
+            await connection.query(
               `INSERT INTO demo_coin_transactions(
                 customer_id,
                 amount,
@@ -820,12 +799,12 @@ export function registerRouletteRoutes(app, pool) {
               [
                 req.customerId,
                 -difference,
-                `Roulette #${roundId}; stake reservation adjusted`,
+                `Roulette #${id}; stake reservation adjusted`,
               ],
             );
           }
 
-          await client.query(
+          await connection.query(
             `INSERT INTO tsb_roulette_bets(
               round_id,
               customer_id,
@@ -840,7 +819,7 @@ export function registerRouletteRoutes(app, pool) {
               total=$4,
               revision=tsb_roulette_bets.revision+1`,
             [
-              roundId,
+              id,
               req.customerId,
               JSON.stringify(bets),
               total,
@@ -855,7 +834,7 @@ export function registerRouletteRoutes(app, pool) {
             balance,
           };
 
-          await client.query(
+          await connection.query(
             `INSERT INTO tsb_roulette_requests(
               customer_id,
               request_key,
@@ -865,7 +844,7 @@ export function registerRouletteRoutes(app, pool) {
             VALUES($1,$2,$3,$4)`,
             [
               req.customerId,
-              requestKey,
+              key,
               payload,
               JSON.stringify(response),
             ],
