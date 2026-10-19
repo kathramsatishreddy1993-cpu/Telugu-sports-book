@@ -1,8 +1,4 @@
-import React, {
-  useEffect,
-  useState,
-} from "react";
-
+import React, { useEffect, useState } from "react";
 import DepositPage from "./DepositPage";
 import WithdrawalPage from "./WithdrawalPage";
 import AccountStatementPage from "./AccountStatementPage";
@@ -12,10 +8,8 @@ import SetButtonValuesPage from "./SetButtonValuesPage";
 import ChangePasswordPage from "./ChangePasswordPage";
 import MatchDetailsPage from "./MatchDetailsPage";
 import RulesPage from "./RulesPage";
-
-import GameArtwork, {
-  ACTIVE_GAMES,
-} from "./GameArtwork";
+import { AnimatedSuperOverLobby } from "./AnimatedSuperOverPage";
+import GameArtwork, { ACTIVE_GAMES } from "./GameArtwork";
 
 const sports = [
   { icon: "🏏", name: "CRICKET" },
@@ -31,171 +25,72 @@ const matches = [
     id: 1,
     teams: "India vs Australia",
     date: "Match",
-    odds: [
-      "1.85", "1.90", "3.20",
-      "3.30", "2.10", "2.15",
-    ],
+    odds: ["1.85", "1.90", "3.20", "3.30", "2.10", "2.15"],
   },
   {
     id: 2,
     teams: "Afghanistan vs Bangladesh",
     date: "Match",
-    odds: [
-      "5.70", "5.80", "23.0",
-      "24.0", "1.27", "1.28",
-    ],
+    odds: ["5.70", "5.80", "23.0", "24.0", "1.27", "1.28"],
   },
   {
     id: 3,
     teams: "South Africa vs England",
     date: "Match",
-    odds: [
-      "2.25", "2.30", "3.10",
-      "3.20", "1.75", "1.80",
-    ],
+    odds: ["2.25", "2.30", "3.10", "3.20", "1.75", "1.80"],
   },
   {
     id: 4,
-    teams:
-      "Western Australia vs Queensland Bulls",
+    teams: "Western Australia vs Queensland Bulls",
     date: "Match",
-    odds: [
-      "1.65", "1.70", "3.50",
-      "3.60", "2.40", "2.45",
-    ],
+    odds: ["1.65", "1.70", "3.50", "3.60", "2.40", "2.45"],
   },
 ];
 
-const featuredGames =
-  ACTIVE_GAMES.slice(0, 3);
-
-const secondGames =
-  ACTIVE_GAMES.slice(3, 6);
-
+const featuredGames = ACTIVE_GAMES.slice(0, 3);
+const secondGames = ACTIVE_GAMES.slice(3, 6);
 const topScrollingGames = ACTIVE_GAMES;
-
 const roulette = ACTIVE_GAMES[1];
 
 const newLaunch = [
-  {
-    name: "JILI",
-    image: "/games/jili.png",
-  },
-  {
-    name: "GOLDEN KICK",
-    image: "/games/golden-kick.png",
-  },
-  {
-    name: "SNAKES & LADDERS",
-    image: "/games/snakes-ladders.png",
-  },
-  {
-    name: "PREDIX",
-    image: "/games/predix.png",
-  },
-  {
-    name: "MONEY HEIST",
-    image: "/games/money-heist.png",
-  },
-  {
-    name: "FOOTBALL X",
-    image: "/games/football-x.png",
-  },
-  {
-    name: "TWIST X",
-    image: "/games/twist-x.png",
-  },
-  {
-    name: "INSTANT RUMMY",
-    image: "/games/instant-rummy.png",
-  },
-  {
-    name: "JHANDI MUNDA",
-    image: "/games/jhandi-munda.png",
-  },
-  {
-    name: "BLACKJACK",
-    image: "/games/blackjack.png",
-  },
-  {
-    name: "DEAL OR NO DEAL",
-    image: "/games/deal-or-no-deal.png",
-  },
-  {
-    name: "LOOT BOXES",
-    image: "/games/loot-boxes.png",
-  },
+  { name: "JILI", image: "/games/jili.png" },
+  { name: "GOLDEN KICK", image: "/games/golden-kick.png" },
+  { name: "SNAKES & LADDERS", image: "/games/snakes-ladders.png" },
+  { name: "PREDIX", image: "/games/predix.png" },
+  { name: "MONEY HEIST", image: "/games/money-heist.png" },
+  { name: "FOOTBALL X", image: "/games/football-x.png" },
+  { name: "TWIST X", image: "/games/twist-x.png" },
+  { name: "INSTANT RUMMY", image: "/games/instant-rummy.png" },
+  { name: "JHANDI MUNDA", image: "/games/jhandi-munda.png" },
+  { name: "BLACKJACK", image: "/games/blackjack.png" },
+  { name: "DEAL OR NO DEAL", image: "/games/deal-or-no-deal.png" },
+  { name: "LOOT BOXES", image: "/games/loot-boxes.png" },
 ];
 
 const favourites = [
-  {
-    name: "AVIATOR X",
-    image: "/games/aviator-x.png",
-  },
-  {
-    name: "FANTASY 11",
-    image: "/games/fantasy-11.png",
-  },
-  {
-    name: "CRICKET BATTLE",
-    image: "/games/cricket-battle.png",
-  },
+  { name: "AVIATOR X", image: "/games/aviator-x.png" },
+  { name: "FANTASY 11", image: "/games/fantasy-11.png" },
+  { name: "CRICKET BATTLE", image: "/games/cricket-battle.png" },
   {
     name: "LIGHTNING ROULETTE",
     image: "/games/lightning-roulette.png",
   },
-  {
-    name: "DRAGON TIGER",
-    image: "/games/dragon-tiger.png",
-  },
-  {
-    name: "BACCARAT",
-    image: "/games/baccarat.png",
-  },
+  { name: "DRAGON TIGER", image: "/games/dragon-tiger.png" },
+  { name: "BACCARAT", image: "/games/baccarat.png" },
   roulette,
-  {
-    name: "TEEN PATTI",
-    image: "/games/teen-patti.png",
-  },
+  { name: "TEEN PATTI", image: "/games/teen-patti.png" },
 ];
 
 const providers = [
-  {
-    name: "MAC88",
-    image: "/games/mac88.png",
-  },
-  {
-    name: "EZUGI",
-    image: "/games/ezugi-provider.png",
-  },
-  {
-    name: "SMARTSOFT",
-    image: "/games/smartsoft.png",
-  },
-  {
-    name: "SPRIBE",
-    image: "/games/spribe.png",
-  },
-  {
-    name: "EVOLUTION",
-    image: "/games/evolution.png",
-  },
-  {
-    name: "JILI",
-    image: "/games/jili-provider.png",
-  },
-  {
-    name: "TURBO GAMES",
-    image: "/games/turbo-games.png",
-  },
-  {
-    name: "GAMZIX",
-    image: "/games/gamzix.png",
-  },
-  {
-    name: "KING MIDAS",
-    image: "/games/king-midas.png",
-  },
+  { name: "MAC88", image: "/games/mac88.png" },
+  { name: "EZUGI", image: "/games/ezugi-provider.png" },
+  { name: "SMARTSOFT", image: "/games/smartsoft.png" },
+  { name: "SPRIBE", image: "/games/spribe.png" },
+  { name: "EVOLUTION", image: "/games/evolution.png" },
+  { name: "JILI", image: "/games/jili-provider.png" },
+  { name: "TURBO GAMES", image: "/games/turbo-games.png" },
+  { name: "GAMZIX", image: "/games/gamzix.png" },
+  { name: "KING MIDAS", image: "/games/king-midas.png" },
 ];
 
 function NeonScrollingLine() {
@@ -203,50 +98,40 @@ function NeonScrollingLine() {
     <div className="tsb-neon-area">
       <div className="tsb-neon-track">
         <span className="tsb-neon-text">
-          ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS
-          & ENTERTAINMENT ✦
+          ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS & ENTERTAINMENT ✦
         </span>
-
         <span className="tsb-neon-text">
-          ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS
-          & ENTERTAINMENT ✦
+          ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS & ENTERTAINMENT ✦
         </span>
       </div>
     </div>
   );
 }
 
-function TopGamesSlider({
-  onGameClick,
-}) {
+function TopGamesSlider({ onGameClick }) {
   return (
     <section className="overflow-hidden border-b border-white/10 bg-[#080d16] py-3">
       <div className="tsb-game-slider">
         <div className="tsb-game-slider-track">
-          {[
-            ...topScrollingGames,
-            ...topScrollingGames,
-          ].map((game, index) => (
-            <button
-              key={`${game.name}-${index}`}
-              type="button"
-              aria-label={game.name}
-              onClick={() =>
-                onGameClick(game)
-              }
-              className="tsb-top-game-card"
-            >
-              <div className="h-[74px] w-[112px] overflow-hidden rounded-xl border border-cyan-400/20 bg-[#111827] shadow-[0_0_15px_rgba(34,211,238,.08)]">
-                <GameArtwork
-                  game={game.id}
-                />
-              </div>
+          {[...topScrollingGames, ...topScrollingGames].map(
+            (game, index) => (
+              <button
+                key={`${game.name}-${index}`}
+                type="button"
+                aria-label={game.name}
+                onClick={() => onGameClick(game)}
+                className="tsb-top-game-card"
+              >
+                <div className="h-[74px] w-[112px] overflow-hidden rounded-xl border border-cyan-400/20 bg-[#111827] shadow-[0_0_15px_rgba(34,211,238,.08)]">
+                  <GameArtwork game={game.id} />
+                </div>
 
-              <span className="mt-1 block max-w-[112px] truncate text-center text-[7px] font-black uppercase tracking-wide text-gray-300">
-                {game.name}
-              </span>
-            </button>
-          ))}
+                <span className="mt-1 block max-w-[112px] truncate text-center text-[7px] font-black uppercase tracking-wide text-gray-300">
+                  {game.name}
+                </span>
+              </button>
+            ),
+          )}
         </div>
       </div>
     </section>
@@ -277,26 +162,20 @@ function GameSection({
 
       <div
         className={`grid gap-2 ${
-          active
-            ? "grid-cols-3"
-            : "grid-cols-4"
+          active ? "grid-cols-3" : "grid-cols-4"
         }`}
       >
-        {games.map(game => (
+        {games.map((game) => (
           <button
             key={game.name}
             type="button"
             aria-label={game.name}
-            onClick={() =>
-              onGameClick(game)
-            }
+            onClick={() => onGameClick(game)}
             className="group min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#111827] text-white shadow-lg transition active:scale-[0.97]"
           >
             <div className="relative aspect-square w-full overflow-hidden bg-black">
               {game.id ? (
-                <GameArtwork
-                  game={game.id}
-                />
+                <GameArtwork game={game.id} />
               ) : (
                 <img
                   src={game.image}
@@ -320,89 +199,26 @@ function GameSection({
   );
 }
 
-export default function DemoDashboard({
-  user,
-  onLogout,
-}) {
-  const [
-    selectedSport,
-    setSelectedSport,
-  ] = useState("CRICKET");
-
-  const [
-    selectedTab,
-    setSelectedTab,
-  ] = useState("INPLAY");
-
-  const [
-    matchFilter,
-    setMatchFilter,
-  ] = useState("LIVE");
-
-  const [
-    showDeposit,
-    setShowDeposit,
-  ] = useState(false);
-
-  const [
-    showWithdrawal,
-    setShowWithdrawal,
-  ] = useState(false);
-
-  const [
-    showAccountStatement,
-    setShowAccountStatement,
-  ] = useState(false);
-
-  const [
-    showBetHistory,
-    setShowBetHistory,
-  ] = useState(false);
-
-  const [
-    showUnsettledBet,
-    setShowUnsettledBet,
-  ] = useState(false);
-
-  const [
-    showSetButtonValues,
-    setShowSetButtonValues,
-  ] = useState(false);
-
-  const [
-    showChangePassword,
-    setShowChangePassword,
-  ] = useState(false);
-
-  const [
-    showRules,
-    setShowRules,
-  ] = useState(false);
-
-  const [
-    showCustomerMenu,
-    setShowCustomerMenu,
-  ] = useState(false);
-
-  const [
-    selectedMatch,
-    setSelectedMatch,
-  ] = useState(null);
-
-  const [
-    selectedGame,
-    setSelectedGame,
-  ] = useState(null);
-
-  const [
-    demoBalance,
-    setDemoBalance,
-  ] = useState(0);
-
-  const [
-    balanceError,
-    setBalanceError,
-  ] = useState("");
+export default function DemoDashboard({ user, onLogout }) {
+  const [selectedSport, setSelectedSport] = useState("CRICKET");
+  const [selectedTab, setSelectedTab] = useState("INPLAY");
+  const [matchFilter, setMatchFilter] = useState("LIVE");
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [showWithdrawal, setShowWithdrawal] = useState(false);
+  const [showAccountStatement, setShowAccountStatement] =
+    useState(false);
+  const [showBetHistory, setShowBetHistory] = useState(false);
+  const [showUnsettledBet, setShowUnsettledBet] = useState(false);
+  const [showSetButtonValues, setShowSetButtonValues] =
+    useState(false);
+  const [showChangePassword, setShowChangePassword] =
+    useState(false);
+  const [showRules, setShowRules] = useState(false);
+  const [showCustomerMenu, setShowCustomerMenu] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [demoBalance, setDemoBalance] = useState(0);
+  const [balanceError, setBalanceError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -410,67 +226,45 @@ export default function DemoDashboard({
     const loadDemoBalance = async () => {
       try {
         const customerId =
-          user?.id ||
-          user?.customerId ||
-          user?.customer_id;
+          user?.id || user?.customerId || user?.customer_id;
 
         if (!customerId) {
           if (active) {
             setDemoBalance(0);
-
             setBalanceError(
               "Customer ID is missing. Please login again.",
             );
           }
-
           return;
         }
 
         const response = await fetch(
           `/api/customers/${customerId}/demo-balance`,
-          {
-            cache: "no-store",
-          },
+          { cache: "no-store" },
         );
 
-        const data =
-          await response.json();
+        const data = await response.json();
 
         if (!response.ok) {
           throw new Error(
-            data?.error ||
-              "Unable to load balance.",
+            data?.error || "Unable to load balance.",
           );
         }
 
         if (active) {
-          setDemoBalance(
-            Number(data.balance) || 0,
-          );
-
+          setDemoBalance(Number(data.balance) || 0);
           setBalanceError("");
         }
       } catch (error) {
-        console.error(
-          "Balance Load Error:",
-          error,
-        );
+        console.error("Balance Load Error:", error);
 
-        if (active) {
-          setBalanceError(
-            error.message,
-          );
-        }
+        if (active) setBalanceError(error.message);
       }
     };
 
     loadDemoBalance();
 
-    window.addEventListener(
-      "focus",
-      loadDemoBalance,
-    );
-
+    window.addEventListener("focus", loadDemoBalance);
     window.addEventListener(
       "demo-balance-updated",
       loadDemoBalance,
@@ -479,11 +273,7 @@ export default function DemoDashboard({
     return () => {
       active = false;
 
-      window.removeEventListener(
-        "focus",
-        loadDemoBalance,
-      );
-
+      window.removeEventListener("focus", loadDemoBalance);
       window.removeEventListener(
         "demo-balance-updated",
         loadDemoBalance,
@@ -517,41 +307,26 @@ export default function DemoDashboard({
     "Rule",
   ];
 
-  const handleCustomerMenu = item => {
+  const handleCustomerMenu = (item) => {
     setShowCustomerMenu(false);
 
     if (item === "Home") {
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
     if (item === "Account Statement") {
       setShowAccountStatement(true);
     }
-
-    if (item === "Bet History") {
-      setShowBetHistory(true);
-    }
-
-    if (item === "Unsettled Bet") {
-      setShowUnsettledBet(true);
-    }
-
+    if (item === "Bet History") setShowBetHistory(true);
+    if (item === "Unsettled Bet") setShowUnsettledBet(true);
     if (item === "Set Button Values") {
       setShowSetButtonValues(true);
     }
-
     if (item === "Change Password") {
       setShowChangePassword(true);
     }
-
-    if (item === "Rule") {
-      setShowRules(true);
-    }
+    if (item === "Rule") setShowRules(true);
   };
 
   useEffect(() => {
@@ -560,28 +335,19 @@ export default function DemoDashboard({
     const timer = setTimeout(() => {
       setSelectedGame(null);
       setSelectedTab("INPLAY");
-
-      window.scrollTo({
-        top: 0,
-        behavior: "auto",
-      });
+      window.scrollTo({ top: 0, behavior: "auto" });
     }, 650);
 
     return () => clearTimeout(timer);
   }, [selectedGame]);
 
-  const handleGameClick = game => {
+  const handleGameClick = (game) => {
     const active = ACTIVE_GAMES.find(
-      item =>
-        item.id === game.id ||
-        item.name === game.name,
+      (item) => item.id === game.id || item.name === game.name,
     );
 
     if (active) {
-      window.location.assign(
-        active.href,
-      );
-
+      window.location.assign(active.href);
       return;
     }
 
@@ -592,9 +358,7 @@ export default function DemoDashboard({
     return (
       <DepositPage
         user={user}
-        onBack={() =>
-          setShowDeposit(false)
-        }
+        onBack={() => setShowDeposit(false)}
       />
     );
   }
@@ -603,9 +367,7 @@ export default function DemoDashboard({
     return (
       <WithdrawalPage
         user={user}
-        onBack={() =>
-          setShowWithdrawal(false)
-        }
+        onBack={() => setShowWithdrawal(false)}
       />
     );
   }
@@ -614,9 +376,7 @@ export default function DemoDashboard({
     return (
       <AccountStatementPage
         user={user}
-        onBack={() =>
-          setShowAccountStatement(false)
-        }
+        onBack={() => setShowAccountStatement(false)}
       />
     );
   }
@@ -625,9 +385,7 @@ export default function DemoDashboard({
     return (
       <BetHistoryPage
         user={user}
-        onBack={() =>
-          setShowBetHistory(false)
-        }
+        onBack={() => setShowBetHistory(false)}
       />
     );
   }
@@ -636,9 +394,7 @@ export default function DemoDashboard({
     return (
       <UnsettledBetPage
         user={user}
-        onBack={() =>
-          setShowUnsettledBet(false)
-        }
+        onBack={() => setShowUnsettledBet(false)}
       />
     );
   }
@@ -647,9 +403,7 @@ export default function DemoDashboard({
     return (
       <SetButtonValuesPage
         user={user}
-        onBack={() =>
-          setShowSetButtonValues(false)
-        }
+        onBack={() => setShowSetButtonValues(false)}
       />
     );
   }
@@ -658,9 +412,7 @@ export default function DemoDashboard({
     return (
       <ChangePasswordPage
         user={user}
-        onBack={() =>
-          setShowChangePassword(false)
-        }
+        onBack={() => setShowChangePassword(false)}
       />
     );
   }
@@ -669,9 +421,7 @@ export default function DemoDashboard({
     return (
       <RulesPage
         user={user}
-        onBack={() =>
-          setShowRules(false)
-        }
+        onBack={() => setShowRules(false)}
       />
     );
   }
@@ -681,9 +431,7 @@ export default function DemoDashboard({
       <MatchDetailsPage
         match={selectedMatch}
         user={user}
-        onBack={() =>
-          setSelectedMatch(null)
-        }
+        onBack={() => setSelectedMatch(null)}
       />
     );
   }
@@ -740,12 +488,8 @@ export default function DemoDashboard({
           color: transparent;
           animation: tsbColor 3s linear infinite;
           filter:
-            drop-shadow(
-              0 0 2px rgba(34,211,238,.7)
-            )
-            drop-shadow(
-              0 0 5px rgba(52,211,153,.35)
-            );
+            drop-shadow(0 0 2px rgba(34,211,238,.7))
+            drop-shadow(0 0 5px rgba(52,211,153,.35));
         }
 
         @keyframes tsbScroll {
@@ -779,482 +523,4 @@ export default function DemoDashboard({
           border-radius: 999px;
         }
 
-        .tsb-game-slider {
-          width: 100%;
-          overflow: hidden;
-        }
-
-        .tsb-game-slider-track {
-          display: flex;
-          width: max-content;
-          gap: 10px;
-          padding-left: 10px;
-          animation:
-            tsbGameSlide 30s linear infinite;
-        }
-
-        .tsb-game-slider-track:active {
-          animation-play-state: paused;
-        }
-
-        .tsb-top-game-card {
-          width: 112px;
-          flex-shrink: 0;
-        }
-
-        @keyframes tsbGameSlide {
-          from {
-            transform: translateX(0);
-          }
-          to {
-            transform: translateX(-50%);
-          }
-        }
-      `}</style>
-
-      <header className="border-b border-[#1f2937] bg-gradient-to-br from-[#0c1727] via-[#0b121e] to-[#111827] px-4 pb-3 pt-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-3">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-amber-400/30 bg-black shadow-[0_0_20px_rgba(245,158,11,.12)]">
-                <img
-                  src="/games/file_0000000092bc82118617f615539c5f17.png"
-                  alt="Telugu Sports Book"
-                  className="h-full w-full object-contain"
-                />
-              </div>
-
-              <div>
-                <h1 className="text-lg font-black tracking-wide">
-                  <span className="text-amber-400">
-                    TELUGU
-                  </span>{" "}
-                  <span className="text-white">
-                    SPORTS
-                  </span>
-                </h1>
-
-                <p className="mt-0.5 text-[9px] font-black uppercase tracking-[0.24em] text-cyan-400">
-                  BOOK
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative shrink-0 text-right">
-            <div className="rounded-xl border border-amber-400/20 bg-black/20 px-3 py-2">
-              <p className="text-[8px] font-bold uppercase tracking-wider text-gray-500">
-                Balance
-              </p>
-
-              <p className="mt-0.5 text-sm font-black text-amber-300">
-                🪙{" "}
-                {demoBalance.toLocaleString(
-                  "en-IN",
-                )}
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                setShowCustomerMenu(
-                  value => !value,
-                )
-              }
-              className="mt-2 max-w-[135px] truncate rounded-lg border border-cyan-400/30 bg-[#111827] px-3 py-2 text-[10px] font-black text-cyan-200"
-            >
-              {user?.name ||
-                user?.identifier ||
-                "User"}{" "}
-              ▼
-            </button>
-
-            {showCustomerMenu && (
-              <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-white/10 bg-[#111827] text-left text-gray-100 shadow-2xl">
-                {customerMenuItems.map(
-                  item => (
-                    <button
-                      key={item}
-                      type="button"
-                      onClick={() =>
-                        handleCustomerMenu(
-                          item,
-                        )
-                      }
-                      className="block w-full border-b border-white/5 px-4 py-3 text-left text-[11px] font-bold transition hover:bg-white/5"
-                    >
-                      {item}
-                    </button>
-                  ),
-                )}
-
-                <button
-                  type="button"
-                  onClick={onLogout}
-                  className="block w-full bg-red-500/10 px-4 py-3 text-left text-[11px] font-black text-red-400"
-                >
-                  Logout
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {balanceError && (
-          <p
-            role="alert"
-            className="mt-2 text-[10px] text-amber-300"
-          >
-            {balanceError}
-          </p>
-        )}
-
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() =>
-              setShowDeposit(true)
-            }
-            className="group relative overflow-hidden rounded-2xl border border-emerald-400/50 bg-gradient-to-br from-[#08251f] via-[#0b1f1c] to-[#071713] px-3 py-3 text-left shadow-[0_0_8px_rgba(52,211,153,.35),inset_0_0_18px_rgba(52,211,153,.08)] transition active:scale-[0.97]"
-          >
-            <div className="absolute -left-5 top-1/2 h-16 w-16 -translate-y-1/2 rounded-full bg-emerald-400/10 blur-xl" />
-
-            <div className="relative flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-300/30 bg-emerald-400/10 text-xl shadow-[0_0_14px_rgba(52,211,153,.25)]">
-                  💰
-                </div>
-
-                <div className="min-w-0">
-                  <p className="text-[12px] font-black uppercase tracking-[0.08em] text-emerald-300">
-                    DEPOSIT
-                  </p>
-
-                  <p className="mt-0.5 text-[8px] font-black uppercase tracking-[0.18em] text-emerald-100/60">
-                    CREDITS
-                  </p>
-                </div>
-              </div>
-
-              <span className="shrink-0 text-xl font-black text-emerald-300">
-                ›
-              </span>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              setShowWithdrawal(true)
-            }
-            className="group relative overflow-hidden rounded-2xl border border-orange-400/50 bg-gradient-to-br from-[#2a1809] via-[#20150c] to-[#171008] px-3 py-3 text-left shadow-[0_0_8px_rgba(251,146,60,.35),inset_0_0_18px_rgba(251,146,60,.08)] transition active:scale-[0.97]"
-          >
-            <div className="absolute -left-5 top-1/2 h-16 w-16 -translate-y-1/2 rounded-full bg-orange-400/10 blur-xl" />
-
-            <div className="relative flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-orange-300/30 bg-orange-400/10 text-xl shadow-[0_0_14px_rgba(251,146,60,.25)]">
-                  💵
-                </div>
-
-                <div className="min-w-0">
-                  <p className="text-[12px] font-black uppercase tracking-[0.06em] text-orange-300">
-                    WITHDRAWAL
-                  </p>
-
-                  <p className="mt-0.5 text-[8px] font-black uppercase tracking-[0.16em] text-orange-100/60">
-                    REQUEST
-                  </p>
-                </div>
-              </div>
-
-              <span className="shrink-0 text-xl font-black text-orange-300">
-                ›
-              </span>
-            </div>
-          </button>
-        </div>
-
-        <div className="mt-3 overflow-hidden rounded-lg border border-cyan-500/10 bg-black/20">
-          <NeonScrollingLine />
-        </div>
-      </header>
-
-      <TopGamesSlider
-        onGameClick={handleGameClick}
-      />
-
-      <div className="bg-[#080d16] px-4 pb-3">
-        <div className="flex items-center justify-center gap-2 rounded-lg border border-amber-400/10 bg-amber-400/5 px-3 py-2">
-          <span className="text-xs">
-            🏆
-          </span>
-
-          <p className="text-[9px] font-black uppercase tracking-wider text-amber-300">
-            Our Exchange • Sports Hub
-          </p>
-        </div>
-      </div>
-
-      <nav
-        className="tsb-scrollbar w-full overflow-x-auto border-b border-white/10 bg-[#0d1523]"
-        style={{
-          WebkitOverflowScrolling:
-            "touch",
-          touchAction: "pan-x",
-        }}
-      >
-        <div className="flex w-max min-w-full px-2 py-2">
-          {tabs.map(tab => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() =>
-                setSelectedTab(tab)
-              }
-              className={`mr-2 shrink-0 rounded-lg border px-4 py-2 text-[9px] font-black transition ${
-                selectedTab === tab
-                  ? "border-cyan-400/50 bg-cyan-400/15 text-cyan-300"
-                  : "border-white/10 bg-[#111827] text-gray-400"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-      </nav>
-
-      <section
-        className="tsb-scrollbar w-full overflow-x-auto border-b border-white/10 bg-[#0a101b]"
-        style={{
-          WebkitOverflowScrolling:
-            "touch",
-          touchAction: "pan-x",
-        }}
-      >
-        <div className="flex w-max gap-2 px-3 py-3">
-          {sports.map(sport => (
-            <button
-              key={sport.name}
-              type="button"
-              onClick={() =>
-                setSelectedSport(
-                  sport.name,
-                )
-              }
-              className={`w-[90px] shrink-0 rounded-xl border px-2 py-2 text-center transition ${
-                selectedSport ===
-                sport.name
-                  ? "border-amber-400/50 bg-gradient-to-br from-amber-400/20 to-orange-500/10 text-white"
-                  : "border-white/10 bg-[#111827] text-gray-400"
-              }`}
-            >
-              <span className="block text-xl leading-none">
-                {sport.icon}
-              </span>
-
-              <span className="mt-2 block whitespace-nowrap text-[7px] font-black leading-none">
-                {sport.name}
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="bg-[#080d16] px-3 pb-2 pt-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500 shadow-[0_0_12px_#ef4444]" />
-
-            <h2 className="text-lg font-black tracking-wide text-white">
-              LIVE SPORTS
-            </h2>
-          </div>
-
-          <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[8px] font-black text-emerald-400">
-            ● CONNECTED
-          </span>
-        </div>
-      </section>
-
-      <section className="border-b border-white/10 bg-[#080d16] px-3 py-3">
-        <div className="flex gap-2">
-          {[
-            "LIVE",
-            "VIRTUAL",
-            "PREMIUM",
-          ].map(filter => (
-            <button
-              key={filter}
-              type="button"
-              onClick={() =>
-                setMatchFilter(filter)
-              }
-              className={`rounded-lg border px-4 py-2 text-[8px] font-black ${
-                matchFilter === filter
-                  ? "border-red-400/40 bg-red-500/15 text-red-300"
-                  : "border-white/10 bg-[#111827] text-gray-500"
-              }`}
-            >
-              {filter}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="bg-[#080d16] px-3 pb-4">
-        {matches.map(match => (
-          <article
-            key={match.id}
-            className="mb-3 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#111827] to-[#0c1320] shadow-xl"
-          >
-            <div className="flex items-start justify-between gap-2 border-b border-white/5 px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <div className="mb-1 flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
-
-                  <span className="text-[7px] font-black uppercase tracking-wider text-red-400">
-                    Live
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSelectedMatch(
-                      match,
-                    )
-                  }
-                  className="block w-full text-left"
-                >
-                  <h2 className="truncate text-[13px] font-black text-white">
-                    {match.teams}
-                  </h2>
-                </button>
-
-                <p className="mt-1 text-[8px] font-bold text-gray-500">
-                  {match.date}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setSelectedMatch(
-                    match,
-                  )
-                }
-                className="shrink-0 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-[8px] font-black text-cyan-300"
-              >
-                OPEN ›
-              </button>
-            </div>
-
-            <div className="px-3 py-3">
-              <div className="grid grid-cols-3 text-center text-[8px] font-black text-gray-500">
-                <span>1</span>
-                <span>X</span>
-                <span>2</span>
-              </div>
-
-              <div className="mt-2 grid grid-cols-6 gap-1">
-                {match.odds.map(
-                  (odd, index) => (
-                    <button
-                      key={`${match.id}-${index}`}
-                      type="button"
-                      onClick={() =>
-                        setSelectedMatch(
-                          match,
-                        )
-                      }
-                      className={`h-[42px] rounded-lg border text-[9px] font-black ${
-                        index % 2 === 0
-                          ? "border-cyan-400/20 bg-cyan-400/15 text-cyan-200"
-                          : "border-pink-400/20 bg-pink-400/15 text-pink-200"
-                      }`}
-                    >
-                      {odd}
-                    </button>
-                  ),
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setSelectedMatch(
-                    match,
-                  )
-                }
-                className="mt-3 h-[34px] w-full rounded-lg border border-cyan-400/20 bg-[#0b1c24] text-[8px] font-black uppercase tracking-wider text-cyan-300"
-              >
-                View Match Details ›
-              </button>
-            </div>
-          </article>
-        ))}
-      </section>
-
-      <GameSection
-        title="FEATURED GAMES"
-        active
-        games={featuredGames}
-        onGameClick={handleGameClick}
-      />
-
-      <GameSection
-        title="CARD GAMES"
-        active
-        games={secondGames}
-        onGameClick={handleGameClick}
-      />
-
-      <GameSection
-        title="NEW LAUNCH"
-        games={newLaunch}
-        onGameClick={handleGameClick}
-      />
-
-      <GameSection
-        title="MY FAVOURITES"
-        games={favourites.filter(
-          game =>
-            !ACTIVE_GAMES.some(
-              item =>
-                item.name ===
-                game.name,
-            ),
-        )}
-        onGameClick={handleGameClick}
-      />
-
-      <GameSection
-        title="OUR PROVIDERS"
-        games={providers}
-        onGameClick={handleGameClick}
-      />
-
-      <footer className="border-t border-white/10 bg-[#050911] px-5 py-8 text-center">
-        <div className="mx-auto flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl border border-cyan-400/20 bg-black">
-          <img
-            src="/games/file_0000000092bc82118617f615539c5f17.png"
-            alt="Telugu Sports Book"
-            className="h-full w-full object-contain"
-          />
-        </div>
-
-        <p className="mt-3 text-sm font-black text-white">
-          TELUGU SPORTS BOOK
-        </p>
-
-        <p className="mx-auto mt-3 max-w-xl text-[9px] leading-5 text-gray-600">
-          Demonstration and informational
-          purposes only. No real-money
-          transactions are processed.
-        </p>
-      </footer>
-    </div>
-  );
-}
+        .tsb-game
