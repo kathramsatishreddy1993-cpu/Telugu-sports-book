@@ -8,7 +8,7 @@ import SetButtonValuesPage from "./SetButtonValuesPage";
 import ChangePasswordPage from "./ChangePasswordPage";
 import MatchDetailsPage from "./MatchDetailsPage";
 import RulesPage from "./RulesPage";
-import { AnimatedSuperOverLobby } from "./AnimatedSuperOverPage";
+import CricketMatchList from "./CricketMatchList";
 import GameArtwork, { ACTIVE_GAMES } from "./GameArtwork";
 
 const sports = [
@@ -20,33 +20,6 @@ const sports = [
   { icon: "🏇", name: "HORSE RACING" },
 ];
 
-const matches = [
-  {
-    id: 1,
-    teams: "India vs Australia",
-    date: "Match",
-    odds: ["1.85", "1.90", "3.20", "3.30", "2.10", "2.15"],
-  },
-  {
-    id: 2,
-    teams: "Afghanistan vs Bangladesh",
-    date: "Match",
-    odds: ["5.70", "5.80", "23.0", "24.0", "1.27", "1.28"],
-  },
-  {
-    id: 3,
-    teams: "South Africa vs England",
-    date: "Match",
-    odds: ["2.25", "2.30", "3.10", "3.20", "1.75", "1.80"],
-  },
-  {
-    id: 4,
-    teams: "Western Australia vs Queensland Bulls",
-    date: "Match",
-    odds: ["1.65", "1.70", "3.50", "3.60", "2.40", "2.45"],
-  },
-];
-
 const featuredGames = ACTIVE_GAMES.slice(0, 3);
 const secondGames = ACTIVE_GAMES.slice(3, 6);
 const topScrollingGames = ACTIVE_GAMES;
@@ -55,7 +28,10 @@ const roulette = ACTIVE_GAMES[1];
 const newLaunch = [
   { name: "JILI", image: "/games/jili.png" },
   { name: "GOLDEN KICK", image: "/games/golden-kick.png" },
-  { name: "SNAKES & LADDERS", image: "/games/snakes-ladders.png" },
+  {
+    name: "SNAKES & LADDERS",
+    image: "/games/snakes-ladders.png",
+  },
   { name: "PREDIX", image: "/games/predix.png" },
   { name: "MONEY HEIST", image: "/games/money-heist.png" },
   { name: "FOOTBALL X", image: "/games/football-x.png" },
@@ -63,14 +39,20 @@ const newLaunch = [
   { name: "INSTANT RUMMY", image: "/games/instant-rummy.png" },
   { name: "JHANDI MUNDA", image: "/games/jhandi-munda.png" },
   { name: "BLACKJACK", image: "/games/blackjack.png" },
-  { name: "DEAL OR NO DEAL", image: "/games/deal-or-no-deal.png" },
+  {
+    name: "DEAL OR NO DEAL",
+    image: "/games/deal-or-no-deal.png",
+  },
   { name: "LOOT BOXES", image: "/games/loot-boxes.png" },
 ];
 
 const favourites = [
   { name: "AVIATOR X", image: "/games/aviator-x.png" },
   { name: "FANTASY 11", image: "/games/fantasy-11.png" },
-  { name: "CRICKET BATTLE", image: "/games/cricket-battle.png" },
+  {
+    name: "CRICKET BATTLE",
+    image: "/games/cricket-battle.png",
+  },
   {
     name: "LIGHTNING ROULETTE",
     image: "/games/lightning-roulette.png",
@@ -125,6 +107,7 @@ function TopGamesSlider({ onGameClick }) {
                 <div className="h-[74px] w-[112px] overflow-hidden rounded-xl border border-cyan-400/20 bg-[#111827] shadow-[0_0_15px_rgba(34,211,238,.08)]">
                   <GameArtwork game={game.id} />
                 </div>
+
                 <span className="mt-1 block max-w-[112px] truncate text-center text-[7px] font-black uppercase tracking-wide text-gray-300">
                   {game.name}
                 </span>
@@ -148,10 +131,12 @@ function GameSection({
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]" />
+
           <h2 className="text-sm font-black uppercase tracking-[0.08em] text-white">
             {title}
           </h2>
         </div>
+
         <span className="text-[8px] font-black uppercase tracking-wider text-gray-600">
           Explore
         </span>
@@ -180,6 +165,7 @@ function GameSection({
                   className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                 />
               )}
+
               <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-black to-transparent" />
             </div>
 
@@ -199,6 +185,7 @@ export default function DemoDashboard({ user, onLogout }) {
   const [selectedSport, setSelectedSport] = useState("CRICKET");
   const [selectedTab, setSelectedTab] = useState("INPLAY");
   const [matchFilter, setMatchFilter] = useState("LIVE");
+
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdrawal, setShowWithdrawal] = useState(false);
   const [showAccountStatement, setShowAccountStatement] =
@@ -211,8 +198,10 @@ export default function DemoDashboard({ user, onLogout }) {
     useState(false);
   const [showRules, setShowRules] = useState(false);
   const [showCustomerMenu, setShowCustomerMenu] = useState(false);
+
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [selectedGame, setSelectedGame] = useState(null);
+
   const [demoBalance, setDemoBalance] = useState(0);
   const [balanceError, setBalanceError] = useState("");
 
@@ -231,6 +220,7 @@ export default function DemoDashboard({ user, onLogout }) {
               "Customer ID is missing. Please login again.",
             );
           }
+
           return;
         }
 
@@ -253,6 +243,7 @@ export default function DemoDashboard({ user, onLogout }) {
         }
       } catch (error) {
         console.error("Balance Load Error:", error);
+
         if (active) setBalanceError(error.message);
       }
     };
@@ -267,6 +258,7 @@ export default function DemoDashboard({ user, onLogout }) {
 
     return () => {
       active = false;
+
       window.removeEventListener("focus", loadDemoBalance);
       window.removeEventListener(
         "demo-balance-updated",
@@ -305,21 +297,29 @@ export default function DemoDashboard({ user, onLogout }) {
     setShowCustomerMenu(false);
 
     if (item === "Home") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+
       return;
     }
 
     if (item === "Account Statement") {
       setShowAccountStatement(true);
     }
+
     if (item === "Bet History") setShowBetHistory(true);
     if (item === "Unsettled Bet") setShowUnsettledBet(true);
+
     if (item === "Set Button Values") {
       setShowSetButtonValues(true);
     }
+
     if (item === "Change Password") {
       setShowChangePassword(true);
     }
+
     if (item === "Rule") setShowRules(true);
   };
 
@@ -329,7 +329,11 @@ export default function DemoDashboard({ user, onLogout }) {
     const timer = setTimeout(() => {
       setSelectedGame(null);
       setSelectedTab("INPLAY");
-      window.scrollTo({ top: 0, behavior: "auto" });
+
+      window.scrollTo({
+        top: 0,
+        behavior: "auto",
+      });
     }, 650);
 
     return () => clearTimeout(timer);
@@ -444,31 +448,31 @@ export default function DemoDashboard({ user, onLogout }) {
     <div className="min-h-screen overflow-x-hidden bg-[#080d16] text-white">
       <style>{`
         .tsb-neon-area {
-          width:100%;
-          height:30px;
-          overflow:hidden;
-          position:relative;
-          white-space:nowrap;
-          display:flex;
-          align-items:center;
+          width: 100%;
+          height: 30px;
+          overflow: hidden;
+          position: relative;
+          white-space: nowrap;
+          display: flex;
+          align-items: center;
         }
 
         .tsb-neon-track {
-          position:absolute;
-          display:flex;
-          width:max-content;
-          align-items:center;
-          animation:tsbScroll 14s linear infinite;
+          position: absolute;
+          display: flex;
+          width: max-content;
+          align-items: center;
+          animation: tsbScroll 14s linear infinite;
         }
 
         .tsb-neon-text {
-          display:inline-block;
-          padding-right:70px;
-          font-size:12px;
-          line-height:30px;
-          font-weight:900;
-          letter-spacing:1px;
-          background:linear-gradient(
+          display: inline-block;
+          padding-right: 70px;
+          font-size: 12px;
+          line-height: 30px;
+          font-weight: 900;
+          letter-spacing: 1px;
+          background: linear-gradient(
             90deg,
             #22d3ee,
             #34d399,
@@ -477,64 +481,76 @@ export default function DemoDashboard({ user, onLogout }) {
             #a78bfa,
             #22d3ee
           );
-          background-size:300% 100%;
-          -webkit-background-clip:text;
-          background-clip:text;
-          color:transparent;
-          animation:tsbColor 3s linear infinite;
+          background-size: 300% 100%;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          animation: tsbColor 3s linear infinite;
           filter:
             drop-shadow(0 0 2px rgba(34,211,238,.7))
             drop-shadow(0 0 5px rgba(52,211,153,.35));
         }
 
         @keyframes tsbScroll {
-          0% { transform:translateX(100vw); }
-          100% { transform:translateX(-100%); }
+          0% {
+            transform: translateX(100vw);
+          }
+          100% {
+            transform: translateX(-100%);
+          }
         }
 
         @keyframes tsbColor {
-          0% { background-position:0% 50%; }
-          100% { background-position:300% 50%; }
+          0% {
+            background-position: 0% 50%;
+          }
+          100% {
+            background-position: 300% 50%;
+          }
         }
 
         .tsb-scrollbar::-webkit-scrollbar {
-          height:3px;
+          height: 3px;
         }
 
         .tsb-scrollbar::-webkit-scrollbar-track {
-          background:#020617;
+          background: #020617;
         }
 
         .tsb-scrollbar::-webkit-scrollbar-thumb {
-          background:#0d9488;
-          border-radius:999px;
+          background: #0d9488;
+          border-radius: 999px;
         }
 
         .tsb-game-slider {
-          width:100%;
-          overflow:hidden;
+          width: 100%;
+          overflow: hidden;
         }
 
         .tsb-game-slider-track {
-          display:flex;
-          width:max-content;
-          gap:10px;
-          padding-left:10px;
-          animation:tsbGameSlide 30s linear infinite;
+          display: flex;
+          width: max-content;
+          gap: 10px;
+          padding-left: 10px;
+          animation: tsbGameSlide 30s linear infinite;
         }
 
         .tsb-game-slider-track:active {
-          animation-play-state:paused;
+          animation-play-state: paused;
         }
 
         .tsb-top-game-card {
-          width:112px;
-          flex-shrink:0;
+          width: 112px;
+          flex-shrink: 0;
         }
 
         @keyframes tsbGameSlide {
-          from { transform:translateX(0); }
-          to { transform:translateX(-50%); }
+          from {
+            transform: translateX(0);
+          }
+          to {
+            transform: translateX(-50%);
+          }
         }
       `}</style>
 
@@ -552,8 +568,12 @@ export default function DemoDashboard({ user, onLogout }) {
 
               <div>
                 <h1 className="text-lg font-black tracking-wide">
-                  <span className="text-amber-400">TELUGU</span>{" "}
-                  <span className="text-white">SPORTS</span>
+                  <span className="text-amber-400">
+                    TELUGU
+                  </span>{" "}
+                  <span className="text-white">
+                    SPORTS
+                  </span>
                 </h1>
 
                 <p className="mt-0.5 text-[9px] font-black uppercase tracking-[0.24em] text-cyan-400">
@@ -568,6 +588,7 @@ export default function DemoDashboard({ user, onLogout }) {
               <p className="text-[8px] font-bold uppercase tracking-wider text-gray-500">
                 Balance
               </p>
+
               <p className="mt-0.5 text-sm font-black text-amber-300">
                 🪙 {demoBalance.toLocaleString("en-IN")}
               </p>
@@ -635,6 +656,7 @@ export default function DemoDashboard({ user, onLogout }) {
                   <p className="text-[12px] font-black uppercase tracking-[0.08em] text-emerald-300">
                     DEPOSIT
                   </p>
+
                   <p className="mt-0.5 text-[8px] font-black uppercase tracking-[0.18em] text-emerald-100/60">
                     CREDITS
                   </p>
@@ -664,6 +686,7 @@ export default function DemoDashboard({ user, onLogout }) {
                   <p className="text-[12px] font-black uppercase tracking-[0.06em] text-orange-300">
                     WITHDRAWAL
                   </p>
+
                   <p className="mt-0.5 text-[8px] font-black uppercase tracking-[0.16em] text-orange-100/60">
                     REQUEST
                   </p>
@@ -687,6 +710,7 @@ export default function DemoDashboard({ user, onLogout }) {
       <div className="bg-[#080d16] px-4 pb-3">
         <div className="flex items-center justify-center gap-2 rounded-lg border border-amber-400/10 bg-amber-400/5 px-3 py-2">
           <span className="text-xs">🏆</span>
+
           <p className="text-[9px] font-black uppercase tracking-wider text-amber-300">
             Our Exchange • Sports Hub
           </p>
@@ -740,6 +764,7 @@ export default function DemoDashboard({ user, onLogout }) {
               <span className="block text-xl leading-none">
                 {sport.icon}
               </span>
+
               <span className="mt-2 block whitespace-nowrap text-[7px] font-black leading-none">
                 {sport.name}
               </span>
@@ -752,6 +777,7 @@ export default function DemoDashboard({ user, onLogout }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500 shadow-[0_0_12px_#ef4444]" />
+
             <h2 className="text-lg font-black tracking-wide text-white">
               LIVE SPORTS
             </h2>
@@ -784,81 +810,10 @@ export default function DemoDashboard({ user, onLogout }) {
 
       <section className="bg-[#080d16] px-3 pb-4">
         {selectedSport === "CRICKET" && (
-          <AnimatedSuperOverLobby />
+          <CricketMatchList
+            onOpenMatch={setSelectedMatch}
+          />
         )}
-
-        {matches.map((match) => (
-          <article
-            key={match.id}
-            className="mb-3 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#111827] to-[#0c1320] shadow-xl"
-          >
-            <div className="flex items-start justify-between gap-2 border-b border-white/5 px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <div className="mb-1 flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
-                  <span className="text-[7px] font-black uppercase tracking-wider text-red-400">
-                    Live
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedMatch(match)}
-                  className="block w-full text-left"
-                >
-                  <h2 className="truncate text-[13px] font-black text-white">
-                    {match.teams}
-                  </h2>
-                </button>
-
-                <p className="mt-1 text-[8px] font-bold text-gray-500">
-                  {match.date}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setSelectedMatch(match)}
-                className="shrink-0 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-[8px] font-black text-cyan-300"
-              >
-                OPEN ›
-              </button>
-            </div>
-
-            <div className="px-3 py-3">
-              <div className="grid grid-cols-3 text-center text-[8px] font-black text-gray-500">
-                <span>1</span>
-                <span>X</span>
-                <span>2</span>
-              </div>
-
-              <div className="mt-2 grid grid-cols-6 gap-1">
-                {match.odds.map((odd, index) => (
-                  <button
-                    key={`${match.id}-${index}`}
-                    type="button"
-                    onClick={() => setSelectedMatch(match)}
-                    className={`h-[42px] rounded-lg border text-[9px] font-black ${
-                      index % 2 === 0
-                        ? "border-cyan-400/20 bg-cyan-400/15 text-cyan-200"
-                        : "border-pink-400/20 bg-pink-400/15 text-pink-200"
-                    }`}
-                  >
-                    {odd}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setSelectedMatch(match)}
-                className="mt-3 h-[34px] w-full rounded-lg border border-cyan-400/20 bg-[#0b1c24] text-[8px] font-black uppercase tracking-wider text-cyan-300"
-              >
-                View Match Details ›
-              </button>
-            </div>
-          </article>
-        ))}
       </section>
 
       <GameSection
