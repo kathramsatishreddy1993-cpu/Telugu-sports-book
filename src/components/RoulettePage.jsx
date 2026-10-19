@@ -20,16 +20,16 @@ const red = new Set([
 ]);
 
 const wheel = [
-  0, 32, 15, 19, 4, 21, 2, 25, 17, 34,
-  6, 27, 13, 36, 11, 30, 8, 23, 10, 5,
-  24, 16, 33, 1, 20, 14, 31, 9, 22, 18,
-  29, 7, 28, 12, 35, 3, 26,
+  0, 32, 15, 19, 4, 21, 2, 25, 17,
+  34, 6, 27, 13, 36, 11, 30, 8, 23,
+  10, 5, 24, 16, 33, 1, 20, 14, 31,
+  9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
 ];
 
-const color = (n) =>
-  n === 0
+const color = number =>
+  number === 0
     ? '#169c53'
-    : red.has(n)
+    : red.has(number)
       ? '#d52e36'
       : '#252b35';
 
@@ -57,6 +57,7 @@ export default function RoulettePage({
   const [password, setPassword] = useState('');
   const [number, setNumber] = useState('9');
   const [confirmed, setConfirmed] = useState(false);
+
   const [chip, setChip] = useState(50);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -109,7 +110,7 @@ export default function RoulettePage({
   const open = fresh && phase === 'BETTING';
 
   const entry = data?.entries?.find(
-    (item) =>
+    item =>
       String(item.round_id) === String(round?.id),
   );
 
@@ -117,7 +118,13 @@ export default function RoulettePage({
   const total = entry?.total || 0;
 
   const current = useRef({});
-  current.current = { bets, total, entry, round };
+
+  current.current = {
+    bets,
+    total,
+    entry,
+    round,
+  };
 
   useEffect(() => {
     if (lastRound.current !== round?.id) {
@@ -155,7 +162,11 @@ export default function RoulettePage({
       }
 
       if (kind === 'logout') {
-        await flightApi('/api/game-control/logout', {});
+        await flightApi(
+          '/api/game-control/logout',
+          {},
+        );
+
         window.location.reload();
         return;
       }
@@ -173,8 +184,8 @@ export default function RoulettePage({
       }
 
       await refresh();
-    } catch (e) {
-      setMessage(e.message);
+    } catch (requestError) {
+      setMessage(requestError.message);
     } finally {
       pending.current = false;
       setBusy(false);
@@ -234,10 +245,10 @@ export default function RoulettePage({
       setPendingPayload(null);
       notifyFlightWallet();
       await refresh();
-    } catch (e) {
-      setMessage(e.message);
+    } catch (requestError) {
+      setMessage(requestError.message);
 
-      if (e.status) {
+      if (requestError.status) {
         setPendingPayload(null);
         await refresh();
       }
@@ -247,7 +258,7 @@ export default function RoulettePage({
     }
   };
 
-  const add = (key) =>
+  const add = key =>
     update({
       ...bets,
       [key]: (bets[key] || 0) + chip,
@@ -256,19 +267,24 @@ export default function RoulettePage({
   const cell = (
     key,
     label,
-    bg = '#fff1a8',
+    background = '#fff1a8',
     extra = {},
   ) => (
     <button
       key={key}
       type="button"
       disabled={
-        busy || !open || Boolean(pendingPayload)
+        busy ||
+        !open ||
+        Boolean(pendingPayload)
       }
       onClick={() => add(key)}
       style={{
-        background: bg,
-        color: bg === '#fff1a8' ? '#b5262c' : 'white',
+        background,
+        color:
+          background === '#fff1a8'
+            ? '#b5262c'
+            : 'white',
         ...extra,
       }}
       className="relative min-w-0 border border-black/80 p-1 text-center font-black disabled:opacity-70"
@@ -309,8 +325,8 @@ export default function RoulettePage({
         </header>
 
         <p className="text-[10px] text-slate-400">
-          Controller-selected demo · Demo coins only ·
-          Standard payouts
+          Controller-selected demo · Demo coins only
+          {' · '}Standard payouts
         </p>
 
         {(error || message) && (
@@ -324,7 +340,9 @@ export default function RoulettePage({
 
         {controller && (!data || unauthorized) ? (
           <form
-            onSubmit={(e) => action('login', e)}
+            onSubmit={event =>
+              action('login', event)
+            }
             className="space-y-3 rounded-xl bg-[#142c31] p-4"
           >
             <h2 className="font-black">
@@ -337,7 +355,9 @@ export default function RoulettePage({
                 required
                 className={field}
                 value={login}
-                onChange={(e) => setLogin(e.target.value)}
+                onChange={event =>
+                  setLogin(event.target.value)
+                }
               />
             </label>
 
@@ -348,8 +368,8 @@ export default function RoulettePage({
                 type="password"
                 className={field}
                 value={password}
-                onChange={(e) =>
-                  setPassword(e.target.value)
+                onChange={event =>
+                  setPassword(event.target.value)
                 }
               />
             </label>
@@ -361,7 +381,8 @@ export default function RoulettePage({
               LOGIN
             </button>
           </form>
-        ) : controller && data?.mustChangePassword ? (
+        ) : controller &&
+          data?.mustChangePassword ? (
           <ControllerPasswordChange
             onComplete={refresh}
           />
@@ -379,7 +400,9 @@ export default function RoulettePage({
                 </button>
 
                 <form
-                  onSubmit={(e) => action('lock', e)}
+                  onSubmit={event =>
+                    action('lock', event)
+                  }
                   className="space-y-3 rounded-xl bg-[#142c31] p-4"
                 >
                   <h2 className="font-black">
@@ -400,8 +423,10 @@ export default function RoulettePage({
                       }
                       className={field}
                       value={number}
-                      onChange={(e) =>
-                        setNumber(e.target.value)
+                      onChange={event =>
+                        setNumber(
+                          event.target.value,
+                        )
                       }
                     />
                   </label>
@@ -417,9 +442,9 @@ export default function RoulettePage({
                           Number(number) % 2
                             ? 'ODD'
                             : 'EVEN'
-                        } · Dozen ${
-                          Math.ceil(Number(number) / 12)
-                        } · Column ${
+                        } · Dozen ${Math.ceil(
+                          Number(number) / 12,
+                        )} · Column ${
                           (Number(number) - 1) % 3 + 1
                         }`}
                   </p>
@@ -428,12 +453,15 @@ export default function RoulettePage({
                     <input
                       type="checkbox"
                       checked={confirmed}
-                      onChange={(e) =>
-                        setConfirmed(e.target.checked)
+                      onChange={event =>
+                        setConfirmed(
+                          event.target.checked,
+                        )
                       }
                     />
-                    I confirm this result is fixed before
-                    bets open and cannot be changed after locking.
+                    I confirm this result is fixed
+                    before bets open and cannot be
+                    changed after locking.
                   </label>
 
                   <button
@@ -451,7 +479,8 @@ export default function RoulettePage({
 
                   {round && (
                     <p className="text-xs text-cyan-200">
-                      Round #{round.id} · Locked number{' '}
+                      Round #{round.id}
+                      {' · '}Locked number{' '}
                       {round.number}
                     </p>
                   )}
@@ -463,7 +492,9 @@ export default function RoulettePage({
               {phase === 'BETTING'
                 ? `Bets closing ${Math.max(
                     0,
-                    Math.ceil((close - now) / 1000),
+                    Math.ceil(
+                      (close - now) / 1000,
+                    ),
                   )}`
                 : phase === 'SPINNING'
                   ? 'WAIT FOR NEXT GAME · SPINNING'
@@ -479,20 +510,20 @@ export default function RoulettePage({
             </div>
 
             <div className="flex gap-2 overflow-x-auto">
-              {data?.history?.map((r) => (
+              {data?.history?.map(item => (
                 <span
-                  key={r.id}
+                  key={item.id}
                   style={{
                     color:
-                      r.number === 0
+                      item.number === 0
                         ? '#4ade80'
-                        : red.has(r.number)
+                        : red.has(item.number)
                           ? '#fb7185'
                           : '#cbd5e1',
                   }}
                   className="rounded bg-black px-3 py-1 font-bold"
                 >
-                  {r.number}
+                  {item.number}
                 </span>
               ))}
             </div>
@@ -503,7 +534,9 @@ export default function RoulettePage({
                 key={round?.id}
                 phase={phase}
                 number={round?.number}
-                roundId={round?.id}
+                landingNumber={
+                  round?.landingNumber
+                }
                 elapsed={Math.max(
                   0,
                   (now - close) / 1000,
@@ -514,30 +547,34 @@ export default function RoulettePage({
             {!controller && (
               <>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs">Chip</span>
+                  <span className="text-xs">
+                    Chip
+                  </span>
 
-                  {[10, 50, 100, 500, 1000, 5000].map(
-                    (n) => (
-                      <button
-                        key={n}
-                        onClick={() => setChip(n)}
-                        className={`rounded-full border px-3 py-2 text-xs ${
-                          chip === n
-                            ? 'border-amber-200 bg-amber-300 text-black'
-                            : 'border-white/20'
-                        }`}
-                      >
-                        {n}
-                      </button>
-                    ),
-                  )}
+                  {[
+                    10, 50, 100,
+                    500, 1000, 5000,
+                  ].map(value => (
+                    <button
+                      key={value}
+                      onClick={() => setChip(value)}
+                      className={`rounded-full border px-3 py-2 text-xs ${
+                        chip === value
+                          ? 'border-amber-200 bg-amber-300 text-black'
+                          : 'border-white/20'
+                      }`}
+                    >
+                      {value}
+                    </button>
+                  ))}
                 </div>
 
                 <p className="text-xs">
-                  Bet: {total.toLocaleString('en-IN')} ·
-                  Chips reserve demo coins immediately;
-                  clear or undo before betting closes
-                  to release them.
+                  Bet:{' '}
+                  {total.toLocaleString('en-IN')}
+                  {' · '}Chips reserve demo coins
+                  immediately; clear or undo before
+                  betting closes to release them.
                 </p>
 
                 <div className="flex gap-2">
@@ -548,10 +585,15 @@ export default function RoulettePage({
                         '48px repeat(12,44px) 44px',
                     }}
                   >
-                    {cell('N:0', '0', '#169c53', {
-                      gridColumn: '3 / 6',
-                      gridRow: '1',
-                    })}
+                    {cell(
+                      'N:0',
+                      '0',
+                      '#169c53',
+                      {
+                        gridColumn: '3 / 6',
+                        gridRow: '1',
+                      },
+                    )}
 
                     {[
                       'LOW',
@@ -560,7 +602,7 @@ export default function RoulettePage({
                       'BLACK',
                       'ODD',
                       'HIGH',
-                    ].map((key, i) =>
+                    ].map((key, index) =>
                       cell(
                         key,
                         [
@@ -570,7 +612,7 @@ export default function RoulettePage({
                           'BLACK',
                           'ODD',
                           '19–36',
-                        ][i],
+                        ][index],
                         key === 'RED'
                           ? '#d52e36'
                           : key === 'BLACK'
@@ -578,55 +620,70 @@ export default function RoulettePage({
                             : '#fff1a8',
                         {
                           gridColumn: '1',
-                          gridRow:
-                            `${2 + i * 2} / span 2`,
-                          writingMode: 'vertical-rl',
+                          gridRow: `${
+                            2 + index * 2
+                          } / span 2`,
+                          writingMode:
+                            'vertical-rl',
                         },
                       ),
                     )}
 
-                    {[1, 2, 3].map((n, i) =>
-                      cell(
-                        `D:${n}`,
-                        `${
-                          n === 1
-                            ? '1st'
-                            : n === 2
-                              ? '2nd'
-                              : '3rd'
-                        } 12`,
-                        '#fff1a8',
-                        {
-                          gridColumn: '2',
-                          gridRow:
-                            `${2 + i * 4} / span 4`,
-                          writingMode: 'vertical-rl',
-                        },
-                      ),
+                    {[1, 2, 3].map(
+                      (value, index) =>
+                        cell(
+                          `D:${value}`,
+                          `${
+                            value === 1
+                              ? '1st'
+                              : value === 2
+                                ? '2nd'
+                                : '3rd'
+                          } 12`,
+                          '#fff1a8',
+                          {
+                            gridColumn: '2',
+                            gridRow: `${
+                              2 + index * 4
+                            } / span 4`,
+                            writingMode:
+                              'vertical-rl',
+                          },
+                        ),
                     )}
 
                     {Array.from(
                       { length: 36 },
-                      (_, i) => i + 1,
-                    ).map((n) =>
-                      cell(`N:${n}`, n, color(n), {
-                        gridColumn: String(
-                          3 + (n - 1) % 3,
-                        ),
-                        gridRow: String(
-                          2 + Math.floor((n - 1) / 3),
-                        ),
-                        fontSize: '22px',
-                      }),
+                      (_, index) => index + 1,
+                    ).map(value =>
+                      cell(
+                        `N:${value}`,
+                        value,
+                        color(value),
+                        {
+                          gridColumn: String(
+                            3 + (value - 1) % 3,
+                          ),
+                          gridRow: String(
+                            2 +
+                              Math.floor(
+                                (value - 1) / 3,
+                              ),
+                          ),
+                          fontSize: '22px',
+                        },
+                      ),
                     )}
 
-                    {[1, 2, 3].map((n) =>
+                    {[1, 2, 3].map(value =>
                       cell(
-                        `C:${n}`,
+                        `C:${value}`,
                         '2 to 1',
                         '#fff1a8',
                         {
-                          gridColumn: String(n + 2),
+                          gridColumn: String(
+                            value + 2,
+                          ),
                           gridRow: '14',
                           fontSize: '12px',
                         },
@@ -637,63 +694,85 @@ export default function RoulettePage({
                   <div className="flex w-16 flex-col gap-3 text-[10px]">
                     <button
                       disabled={
-                        busy || !open ||
+                        busy ||
+                        !open ||
                         Boolean(pendingPayload)
                       }
                       onClick={() => update({})}
                     >
-                      ✕<br />CLEAR
+                      ✕
+                      <br />
+                      CLEAR
                     </button>
 
                     <button
                       disabled={
-                        busy || !open ||
+                        busy ||
+                        !open ||
                         Boolean(pendingPayload) ||
                         !undo.current.length
                       }
                       onClick={() =>
-                        update(undo.current.at(-1), true)
+                        update(
+                          undo.current.at(-1),
+                          true,
+                        )
                       }
                     >
-                      ↶<br />UNDO
+                      ↶
+                      <br />
+                      UNDO
                     </button>
 
                     <button
                       disabled={
-                        busy || !open ||
+                        busy ||
+                        !open ||
                         Boolean(pendingPayload)
                       }
                       onClick={() =>
                         update(
                           Object.fromEntries(
-                            Object.entries(bets).map(
-                              ([k, v]) => [k, v * 2],
+                            Object.entries(
+                              bets,
+                            ).map(
+                              ([key, value]) => [
+                                key,
+                                value * 2,
+                              ],
                             ),
                           ),
                         )
                       }
                     >
-                      2×<br />DOUBLE
+                      2×
+                      <br />
+                      DOUBLE
                     </button>
 
                     <button
                       disabled={
-                        busy || !open ||
+                        busy ||
+                        !open ||
                         Boolean(pendingPayload)
                       }
                       onClick={() =>
                         update(previous.current)
                       }
                     >
-                      ↻<br />REBET
+                      ↻
+                      <br />
+                      REBET
                     </button>
 
                     <button
                       onClick={() =>
-                        setAdvanced((v) => !v)
+                        setAdvanced(value => !value)
                       }
                     >
-                      ▦<br />INSIDE BETS
+                      ▦
+                      <br />
+                      INSIDE BETS
                     </button>
                   </div>
                 </div>
@@ -702,21 +781,30 @@ export default function RoulettePage({
                   <section className="space-y-2 rounded-lg bg-white/5 p-3">
                     <p className="text-xs">
                       Split: two adjacent numbers.
-                      Street/Corner/Line: enter the first number.
+                      Street/Corner/Line: enter the
+                      first number.
                     </p>
 
                     <select
                       aria-label="Inside bet type"
                       value={type}
-                      onChange={(e) =>
-                        setType(e.target.value)
+                      onChange={event =>
+                        setType(event.target.value)
                       }
                       className={field}
                     >
-                      <option value="S">Split (17:1)</option>
-                      <option value="T">Street (11:1)</option>
-                      <option value="K">Corner (8:1)</option>
-                      <option value="L">Six Line (5:1)</option>
+                      <option value="S">
+                        Split (17:1)
+                      </option>
+                      <option value="T">
+                        Street (11:1)
+                      </option>
+                      <option value="K">
+                        Corner (8:1)
+                      </option>
+                      <option value="L">
+                        Six Line (5:1)
+                      </option>
                     </select>
 
                     <input
@@ -725,8 +813,8 @@ export default function RoulettePage({
                       min="0"
                       max="36"
                       value={first}
-                      onChange={(e) =>
-                        setFirst(e.target.value)
+                      onChange={event =>
+                        setFirst(event.target.value)
                       }
                       className={field}
                     />
@@ -738,8 +826,10 @@ export default function RoulettePage({
                         min="0"
                         max="36"
                         value={second}
-                        onChange={(e) =>
-                          setSecond(e.target.value)
+                        onChange={event =>
+                          setSecond(
+                            event.target.value,
+                          )
                         }
                         className={field}
                       />
@@ -747,7 +837,8 @@ export default function RoulettePage({
 
                     <button
                       disabled={
-                        !open || busy ||
+                        !open ||
+                        busy ||
                         Boolean(pendingPayload)
                       }
                       onClick={() =>
@@ -760,7 +851,9 @@ export default function RoulettePage({
                                 Number(first),
                                 Number(second),
                               )}`
-                            : `${type}:${Number(first)}`,
+                            : `${type}:${Number(
+                                first,
+                              )}`,
                         )
                       }
                       className="rounded-lg bg-amber-300 p-3 text-black"
@@ -787,12 +880,14 @@ export default function RoulettePage({
                     Your roulette history
                   </h2>
 
-                  {data?.entries?.map((item) => (
+                  {data?.entries?.map(item => (
                     <p
                       key={item.round_id}
                       className="mt-2 text-xs"
                     >
-                      #{item.round_id} · Bet {item.total} ·{' '}
+                      #{item.round_id}
+                      {' · '}Bet {item.total}
+                      {' · '}
                       {item.status === 'SETTLED'
                         ? `Result ${item.number} · Returned ${item.payout}`
                         : 'PLACED'}
@@ -808,10 +903,11 @@ export default function RoulettePage({
               </summary>
 
               <p className="my-2">
-                Straight 35:1 · Split 17:1 · Street 11:1 ·
-                Corner 8:1 · Line 5:1 · Dozen/Column 2:1 ·
-                Outside bets 1:1. Winning returns include
-                original stake. Zero loses all outside bets.
+                Straight 35:1 · Split 17:1 · Street
+                11:1 · Corner 8:1 · Line 5:1 ·
+                Dozen/Column 2:1 · Outside bets 1:1.
+                Winning returns include original
+                stake. Zero loses all outside bets.
               </p>
 
               <p>
@@ -832,54 +928,104 @@ export default function RoulettePage({
   );
 }
 
-function Wheel({ phase, number, elapsed }) {
-  const uid = useId().replace(/:/g, '');
-
-  const spinning = phase === 'SPINNING';
-
+function spinPose(seconds, target) {
   const progress = Math.min(
     1,
-    Math.max(0, elapsed / 15),
+    Math.max(0, seconds / 15),
   );
 
-  const wheelAngle =
-    2160 * (1 - Math.pow(1 - progress, 2));
-
-  const ballAngle =
-    -3960 * (1 - Math.pow(1 - progress, 3));
-
-  const last = useRef({
-    wheel: 2160,
-    ball: -3960,
-  });
-
-  if (spinning) {
-    last.current = {
-      wheel: wheelAngle,
-      ball: ballAngle,
-    };
-  }
-
-  const valid =
-    Number.isInteger(number) &&
-    number >= 0 &&
-    number <= 36;
+  const ease =
+    1 - Math.pow(1 - progress, 3);
 
   const step = 360 / 37;
+  const index = wheel.indexOf(target);
 
-  const target = valid
-    ? wheel.indexOf(number) * step + last.current.wheel
-    : last.current.ball;
+  const endBall =
+    -3960 + (index < 0 ? 0 : index * step);
 
-  const modulo = (value) =>
-    ((value % 360) + 360) % 360;
+  const drop = Math.min(
+    1,
+    Math.max(0, (progress - 0.65) / 0.35),
+  );
 
-  const finalBall =
-    last.current.ball -
-    modulo(last.current.ball - target);
+  const smoothDrop =
+    drop * drop * (3 - 2 * drop);
+
+  return {
+    wheel: 2160 * ease,
+    ball: endBall * ease,
+    radius: 194 - 12 * smoothDrop,
+  };
+}
+
+function Wheel({
+  phase,
+  number,
+  landingNumber,
+  elapsed,
+}) {
+  const uid = useId().replace(/:/g, '');
+  const spinning = phase === 'SPINNING';
+
+  const anchor = useRef({
+    elapsed,
+    at: performance.now(),
+  });
+
+  const [seconds, setSeconds] =
+    useState(elapsed);
+
+  useEffect(() => {
+    anchor.current = {
+      elapsed,
+      at: performance.now(),
+    };
+  }, [elapsed]);
+
+  useEffect(() => {
+    if (!spinning) return;
+
+    let frame;
+
+    const tick = () => {
+      const next =
+        anchor.current.elapsed +
+        (
+          performance.now() -
+          anchor.current.at
+        ) / 1000;
+
+      setSeconds(Math.min(15, next));
+
+      frame = requestAnimationFrame(tick);
+    };
+
+    frame = requestAnimationFrame(tick);
+
+    return () => cancelAnimationFrame(frame);
+  }, [spinning]);
+
+  const target = spinning
+    ? landingNumber
+    : number;
+
+  const ready =
+    Number.isInteger(target) &&
+    target >= 0 &&
+    target <= 36;
+
+  const pose = spinPose(
+    spinning ? seconds : 15,
+    target,
+  );
+
+  const wheelAngle = pose.wheel;
+  const ballAngle = pose.ball;
+  const step = 360 / 37;
 
   const point = (radius, degrees) => {
-    const radians = degrees * Math.PI / 180;
+    const radians =
+      degrees * Math.PI / 180;
 
     return [
       300 + radius * Math.sin(radians),
@@ -887,7 +1033,12 @@ function Wheel({ phase, number, elapsed }) {
     ];
   };
 
-  const sector = (inner, outer, start, end) => {
+  const sector = (
+    inner,
+    outer,
+    start,
+    end,
+  ) => {
     const a = point(outer, start);
     const b = point(outer, end);
     const c = point(inner, end);
@@ -901,8 +1052,8 @@ function Wheel({ phase, number, elapsed }) {
     );
   };
 
-  const id = (name) => `${uid}-${name}`;
-  const paint = (name) => `url(#${id(name)})`;
+  const id = name => `${uid}-${name}`;
+  const paint = name => `url(#${id(name)})`;
 
   return (
     <section
@@ -915,7 +1066,9 @@ function Wheel({ phase, number, elapsed }) {
     >
       <div className="flex justify-between px-3 pt-2 text-[9px] font-bold tracking-widest text-amber-200/70">
         <span>TSB · EUROPEAN ROULETTE</span>
-        <span>{spinning ? 'SPINNING' : 'RESULT'}</span>
+        <span>
+          {spinning ? 'SPINNING' : 'RESULT'}
+        </span>
       </div>
 
       <svg
@@ -931,89 +1084,182 @@ function Wheel({ phase, number, elapsed }) {
         <defs>
           <linearGradient
             id={id('gold')}
-            x1="0" y1="0" x2="1" y2="1"
+            x1="0"
+            y1="0"
+            x2="1"
+            y2="1"
           >
             <stop stopColor="#44230c" />
-            <stop offset=".18" stopColor="#d69c37" />
-            <stop offset=".34" stopColor="#fff1b8" />
-            <stop offset=".48" stopColor="#9a5b17" />
-            <stop offset=".65" stopColor="#f5d47e" />
-            <stop offset=".85" stopColor="#96601f" />
-            <stop offset="1" stopColor="#39200b" />
+            <stop
+              offset=".18"
+              stopColor="#d69c37"
+            />
+            <stop
+              offset=".34"
+              stopColor="#fff1b8"
+            />
+            <stop
+              offset=".48"
+              stopColor="#9a5b17"
+            />
+            <stop
+              offset=".65"
+              stopColor="#f5d47e"
+            />
+            <stop
+              offset=".85"
+              stopColor="#96601f"
+            />
+            <stop
+              offset="1"
+              stopColor="#39200b"
+            />
           </linearGradient>
 
           <radialGradient
             id={id('wood')}
-            cx="35%" cy="25%"
+            cx="35%"
+            cy="25%"
           >
             <stop stopColor="#82411e" />
-            <stop offset=".35" stopColor="#431b0d" />
-            <stop offset=".7" stopColor="#602811" />
-            <stop offset="1" stopColor="#170b08" />
+            <stop
+              offset=".35"
+              stopColor="#431b0d"
+            />
+            <stop
+              offset=".7"
+              stopColor="#602811"
+            />
+            <stop
+              offset="1"
+              stopColor="#170b08"
+            />
           </radialGradient>
 
           <radialGradient
             id={id('bowl')}
-            cx="35%" cy="20%"
+            cx="35%"
+            cy="20%"
           >
             <stop stopColor="#b17b44" />
-            <stop offset=".25" stopColor="#4b2515" />
-            <stop offset=".65" stopColor="#24130f" />
-            <stop offset="1" stopColor="#080707" />
+            <stop
+              offset=".25"
+              stopColor="#4b2515"
+            />
+            <stop
+              offset=".65"
+              stopColor="#24130f"
+            />
+            <stop
+              offset="1"
+              stopColor="#080707"
+            />
           </radialGradient>
 
           <linearGradient
             id={id('red')}
-            x1="0" y1="0" x2="0" y2="1"
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="1"
           >
             <stop stopColor="#ff3e45" />
-            <stop offset=".5" stopColor="#b60e21" />
-            <stop offset="1" stopColor="#4b050c" />
+            <stop
+              offset=".5"
+              stopColor="#b60e21"
+            />
+            <stop
+              offset="1"
+              stopColor="#4b050c"
+            />
           </linearGradient>
 
           <linearGradient
             id={id('black')}
-            x1="0" y1="0" x2="0" y2="1"
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="1"
           >
             <stop stopColor="#50565d" />
-            <stop offset=".5" stopColor="#15191e" />
-            <stop offset="1" stopColor="#030405" />
+            <stop
+              offset=".5"
+              stopColor="#15191e"
+            />
+            <stop
+              offset="1"
+              stopColor="#030405"
+            />
           </linearGradient>
 
           <linearGradient
             id={id('green')}
-            x1="0" y1="0" x2="0" y2="1"
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="1"
           >
             <stop stopColor="#32df8a" />
-            <stop offset=".5" stopColor="#078748" />
-            <stop offset="1" stopColor="#023d20" />
+            <stop
+              offset=".5"
+              stopColor="#078748"
+            />
+            <stop
+              offset="1"
+              stopColor="#023d20"
+            />
           </linearGradient>
 
           <radialGradient
             id={id('ball')}
-            cx="30%" cy="25%"
+            cx="30%"
+            cy="25%"
           >
             <stop stopColor="#ffffff" />
-            <stop offset=".45" stopColor="#fff8df" />
-            <stop offset=".8" stopColor="#d4c8a9" />
-            <stop offset="1" stopColor="#938365" />
+            <stop
+              offset=".45"
+              stopColor="#fff8df"
+            />
+            <stop
+              offset=".8"
+              stopColor="#d4c8a9"
+            />
+            <stop
+              offset="1"
+              stopColor="#938365"
+            />
           </radialGradient>
 
           <radialGradient
             id={id('hub')}
-            cx="30%" cy="20%"
+            cx="30%"
+            cy="20%"
           >
             <stop stopColor="#fff8ce" />
-            <stop offset=".3" stopColor="#e4bd58" />
-            <stop offset=".6" stopColor="#7e4814" />
-            <stop offset=".78" stopColor="#f2cf73" />
-            <stop offset="1" stopColor="#35200d" />
+            <stop
+              offset=".3"
+              stopColor="#e4bd58"
+            />
+            <stop
+              offset=".6"
+              stopColor="#7e4814"
+            />
+            <stop
+              offset=".78"
+              stopColor="#f2cf73"
+            />
+            <stop
+              offset="1"
+              stopColor="#35200d"
+            />
           </radialGradient>
 
           <filter
             id={id('shadow')}
-            x="-50%" y="-50%"
-            width="200%" height="200%"
+            x="-50%"
+            y="-50%"
+            width="200%"
+            height="200%"
           >
             <feDropShadow
               dx="0"
@@ -1026,31 +1272,38 @@ function Wheel({ phase, number, elapsed }) {
         </defs>
 
         <ellipse
-          cx="300" cy="495"
-          rx="252" ry="28"
+          cx="300"
+          cy="495"
+          rx="252"
+          ry="28"
           fill="#000"
           opacity=".7"
         />
 
         <g transform="translate(0 12) scale(1 .86)">
           <circle
-            cx="300" cy="307" r="286"
+            cx="300"
+            cy="307"
+            r="286"
             fill="#170c09"
             stroke="#4d2b16"
             strokeWidth="8"
           />
 
           <circle
-            cx="300" cy="300" r="286"
+            cx="300"
+            cy="300"
+            r="286"
             fill={paint('wood')}
             stroke={paint('gold')}
             strokeWidth="5"
           />
 
-          {[278, 273, 266].map((radius) => (
+          {[278, 273, 266].map(radius => (
             <circle
               key={radius}
-              cx="300" cy="300"
+              cx="300"
+              cy="300"
               r={radius}
               fill="none"
               stroke={
@@ -1058,25 +1311,33 @@ function Wheel({ phase, number, elapsed }) {
                   ? paint('gold')
                   : '#ac7040'
               }
-              strokeWidth={radius === 266 ? 10 : 1}
-              opacity={radius === 266 ? 1 : .4}
+              strokeWidth={
+                radius === 266 ? 10 : 1
+              }
+              opacity={
+                radius === 266 ? 1 : 0.4
+              }
             />
           ))}
 
           {Array.from(
             { length: 8 },
-            (_, i) => (
+            (_, index) => (
               <path
-                key={i}
+                key={index}
                 d="M 300 20 l 3 6 -3 6 -3 -6 Z"
                 fill={paint('gold')}
-                transform={`rotate(${i * 45} 300 300)`}
+                transform={`rotate(${
+                  index * 45
+                } 300 300)`}
               />
             ),
           )}
 
           <circle
-            cx="300" cy="300" r="255"
+            cx="300"
+            cy="300"
+            r="255"
             fill="#0a0806"
             stroke="#f0c86f"
             strokeWidth="2"
@@ -1085,11 +1346,8 @@ function Wheel({ phase, number, elapsed }) {
           <g
             style={{
               transformOrigin: '300px 300px',
-              transform: `rotate(${
-                spinning
-                  ? wheelAngle
-                  : last.current.wheel
-              }deg)`,
+              transform:
+                `rotate(${wheelAngle}deg)`,
             }}
           >
             {wheel.map((value, index) => {
@@ -1112,7 +1370,12 @@ function Wheel({ phase, number, elapsed }) {
               return (
                 <g key={value}>
                   <path
-                    d={sector(207, 247, start, end)}
+                    d={sector(
+                      207,
+                      247,
+                      start,
+                      end,
+                    )}
                     fill={color(value)}
                     stroke="#e5be72"
                     strokeWidth=".8"
@@ -1127,16 +1390,18 @@ function Wheel({ phase, number, elapsed }) {
                     fontFamily="Georgia,serif"
                     fontSize="19"
                     fontWeight="bold"
-                    transform={
-                      `rotate(${angle} ` +
-                      `${label[0]} ${label[1]})`
-                    }
+                    transform={`rotate(${angle} ${label[0]} ${label[1]})`}
                   >
                     {value}
                   </text>
 
                   <path
-                    d={sector(159, 204, start, end)}
+                    d={sector(
+                      159,
+                      204,
+                      start,
+                      end,
+                    )}
                     fill={fill}
                     stroke="#69421c"
                     strokeWidth="1"
@@ -1152,45 +1417,56 @@ function Wheel({ phase, number, elapsed }) {
                     d={sector(
                       160,
                       166,
-                      start + .6,
-                      end - .6,
+                      start + 0.6,
+                      end - 0.6,
                     )}
                     fill="#000"
                     opacity=".38"
                   />
 
-                  {!spinning && value === number && (
-                    <path
-                      d={sector(159, 204, start, end)}
-                      fill="none"
-                      stroke="#fff0a1"
-                      strokeWidth="2.5"
-                    />
-                  )}
+                  {!spinning &&
+                    value === number && (
+                      <path
+                        d={sector(
+                          159,
+                          204,
+                          start,
+                          end,
+                        )}
+                        fill="none"
+                        stroke="#fff0a1"
+                        strokeWidth="2.5"
+                      />
+                    )}
                 </g>
               );
             })}
 
-            {[248, 206, 158].map((radius) => (
+            {[248, 206, 158].map(radius => (
               <circle
                 key={radius}
-                cx="300" cy="300"
+                cx="300"
+                cy="300"
                 r={radius}
                 fill="none"
                 stroke={paint('gold')}
-                strokeWidth={radius === 206 ? 4 : 3}
+                strokeWidth={
+                  radius === 206 ? 4 : 3
+                }
               />
             ))}
           </g>
 
           <circle
-            cx="300" cy="300" r="155"
+            cx="300"
+            cy="300"
+            r="155"
             fill={paint('bowl')}
             stroke="#b88843"
             strokeWidth="2"
           />
 
-          {[0, 90, 180, 270].map((angle) => (
+          {[0, 90, 180, 270].map(angle => (
             <path
               key={angle}
               d="M 300 156 L 300 300"
@@ -1202,7 +1478,9 @@ function Wheel({ phase, number, elapsed }) {
           ))}
 
           <circle
-            cx="300" cy="300" r="81"
+            cx="300"
+            cy="300"
+            r="81"
             fill={paint('wood')}
             stroke={paint('gold')}
             strokeWidth="5"
@@ -1210,8 +1488,10 @@ function Wheel({ phase, number, elapsed }) {
 
           <g filter={paint('shadow')}>
             <ellipse
-              cx="300" cy="307"
-              rx="48" ry="25"
+              cx="300"
+              cy="307"
+              rx="48"
+              ry="25"
               fill={paint('gold')}
             />
 
@@ -1222,8 +1502,10 @@ function Wheel({ phase, number, elapsed }) {
             />
 
             <ellipse
-              cx="300" cy="245"
-              rx="31" ry="12"
+              cx="300"
+              cy="245"
+              rx="31"
+              ry="12"
               fill={paint('gold')}
               stroke="#f8df9a"
             />
@@ -1234,8 +1516,10 @@ function Wheel({ phase, number, elapsed }) {
             />
 
             <ellipse
-              cx="300" cy="212"
-              rx="27" ry="9"
+              cx="300"
+              cy="212"
+              rx="27"
+              ry="9"
               fill={paint('gold')}
               stroke="#fce8ad"
             />
@@ -1246,7 +1530,9 @@ function Wheel({ phase, number, elapsed }) {
             />
 
             <circle
-              cx="300" cy="190" r="13"
+              cx="300"
+              cy="190"
+              r="13"
               fill={paint('hub')}
             />
 
@@ -1267,44 +1553,49 @@ function Wheel({ phase, number, elapsed }) {
             />
 
             <circle
-              cx="235" cy="238" r="7"
+              cx="235"
+              cy="238"
+              r="7"
               fill={paint('hub')}
             />
 
             <circle
-              cx="365" cy="238" r="7"
+              cx="365"
+              cy="238"
+              r="7"
               fill={paint('hub')}
             />
           </g>
 
           <g
+            visibility={
+              ready ? 'visible' : 'hidden'
+            }
             style={{
               transformOrigin: '300px 300px',
-              transform: `rotate(${
-                spinning ? ballAngle : finalBall
-              }deg)`,
-              transition: spinning
-                ? 'none'
-                : 'transform .75s ease-out',
+              transform:
+                `rotate(${ballAngle}deg)`,
             }}
           >
             <g
               style={{
-                transform: `translateY(${
-                  spinning ? -245 : -182
-                }px)`,
-                transition: 'transform .75s ease-in',
+                transform:
+                  `translateY(${-pose.radius}px)`,
               }}
             >
               <ellipse
-                cx="302" cy="305"
-                rx="10" ry="6"
+                cx="302"
+                cy="305"
+                rx="10"
+                ry="6"
                 fill="#000"
                 opacity=".65"
               />
 
               <circle
-                cx="300" cy="300" r="8.5"
+                cx="300"
+                cy="300"
+                r="8.5"
                 fill={paint('ball')}
                 stroke="#e8ddbf"
                 strokeWidth=".7"
@@ -1312,7 +1603,9 @@ function Wheel({ phase, number, elapsed }) {
               />
 
               <circle
-                cx="297" cy="297" r="2"
+                cx="297"
+                cy="297"
+                r="2"
                 fill="#fff"
                 opacity=".85"
               />
