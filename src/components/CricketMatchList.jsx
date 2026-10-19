@@ -16,99 +16,206 @@ async function getJSON(url) {
     cache: "no-store",
     credentials: "same-origin",
   });
+
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Unable to load matches.");
+
+  if (!response.ok) {
+    throw new Error(
+      data.error || "Unable to load matches.",
+    );
+  }
+
   return data;
 }
 
-// Ignore incomplete fixtures rather than assigning a fabricated date or opponent.
-export function normalizeApiMatch(item) {
-  if (!item || typeof item !== "object") return null;
-  const type = String(
-    item.dataFeedType || item.feedType || item.provider || item.source || "",
-  );
+function parseStart(value) {
+  if (typeof value === "number") {
+    return value < 100000000000
+      ? value * 1000
+      : value;
+  }
+
   if (
-    /mock|demo|sample/i.test(type) ||
-    item.isMock === true ||
-    item.isDemo === true
-  )
-    return null;
+    typeof value === "string" &&
+    /^\d{10,13}$/.test(value)
+  ) {
+    return parseStart(Number(value));
+  }
+
+  return Date.parse(value || "");
+}
+
+export function normalizeApiMatch(item, feed = "") {
+  if (!item || typeof item !== "object") return null;
+
   const home =
-    item.home_team || item.homeTeam || item.team1?.name || item.team1;
+    item.home_team ||
+    item.homeTeam?.name ||
+    item.homeTeam ||
+    item.team1?.name ||
+    item.team1;
+
   const away =
-    item.away_team || item.awayTeam || item.team2?.name || item.team2;
+    item.away_team ||
+    item.awayTeam?.name ||
+    item.awayTeam ||
+    item.team2?.name ||
+    item.team2;
+
+  const names = Array.isArray(item.teams)
+    ? item.teams
+        .map((t) =>
+          typeof t === "string" ? t : t?.name,
+        )
+        .filter(Boolean)
+    : [];
+
   const teams =
-    typeof home === "string" && typeof away === "string"
+    typeof home === "string" &&
+    typeof away === "string"
       ? `${home} vs ${away}`
       : typeof item.teams === "string"
         ? item.teams
-        : Array.isArray(item.teams) && item.teams.length === 2
-          ? item.teams
-              .map((t) => (typeof t === "string" ? t : t?.name))
-              .filter(Boolean)
-              .join(" vs ")
-          : "";
-  const start = Date.parse(
+        : names.length === 2
+          ? names.join(" vs ")
+          : item.title ||
+            item.name ||
+            item.eventName ||
+            item.event_name ||
+            "";
+
+  const start = parseStart(
     item.commence_time ||
       item.startTime ||
       item.startAt ||
       item.start_time ||
-      item.date ||
-      "",
+      item.startDate ||
+      item.start_date ||
+      item.scheduledAt ||
+      item.date,
   );
-  const status = String(item.status || "").toUpperCase();
+
+  const status = String(
+    item.status || "",
+  ).toUpperCase();
+
   if (
-    !teams ||
-    !Number.isFinite(start) ||
-    item.id === undefined ||
-    item.id === null ||
-    ["COMPLETED", "FINISHED", "CANCELLED", "ABANDONED", "ENDED"].includes(
-      status,
-    )
-  )
+    typeof teams !== "string" ||
+    !teams.trim() ||
+    [
+      "COMPLETED",
+      "FINISHED",
+      "CANCELLED",
+      "ABANDONED",
+      "ENDED",
+    ].includes(status)
+  ) {
     return null;
-  const odds =
-    Array.isArray(item.odds) &&
-    item.odds.every((o) => typeof o === "string" || typeof o === "number")
-      ? item.odds
-      : [];
+  }
+
+  const source = String(
+    item.dataFeedType ||
+      item.feedType ||
+      item.provider ||
+      item.source ||
+      feed,
+  );
+
+  const demo =
+    /mock|demo|sample/i.test(source) ||
+    item.isMock === true ||
+    item.isDemo === true;
+
+  const id =
+    item.id ??
+    item.eventId ??
+    item.event_id ??
+    `${teams}:${
+      Number.isFinite(start) ? start : "pending"
+    }`;
+
   return {
     ...item,
-    key: `api-${item.id}`,
+    id,
+    key: `api-${id}`,
     type: "API",
-    start,
+    start: Number.isFinite(start) ? start : null,
     teams,
-    date: `${ist(start)} IST`,
-    odds,
+    date: Number.isFinite(start)
+      ? `${ist(start)} IST`
+      : "Time unavailable",
+    demo,
     live:
       item.live === true ||
       item.isLive === true ||
-      ["LIVE", "INPLAY", "IN_PLAY"].includes(status),
+      [
+        "LIVE",
+        "INPLAY",
+        "IN_PLAY",
+        "IN PROGRESS",
+        "IN_PROGRESS",
+      ].includes(status),
   };
 }
 
-export default function CricketMatchList({ onOpenMatch }) {
-  const [virtual, setVirtual] = useState([]),
-    [real, setReal] = useState([]);
+function eventRows(data) {
+  if (Array.isArray(data)) return data;
+
+  for (const rows of [
+    data?.data,
+    data?.events,
+    data?.matches,
+    data?.data?.events,
+    data?.data?.matches,
+  ]) {
+    if (Array.isArray(rows)) return rows;
+  }
+
+  return [];
+}
+
+export default function CricketMatchList({
+  onOpenMatch,
+}) {
+  const [virtual, setVirtual] = useState([]);
+  const [real, setReal] = useState([]);
+
   const [error, setError] = useState("");
+  const [sportsError, setSportsError] = useState("");
+  const [sportsLoaded, setSportsLoaded] =
+    useState(false);
+  const [feedDemo, setFeedDemo] = useState(false);
+
   const [anchor, setAnchor] = useState({
     server: Date.now(),
     local: performance.now(),
   });
+
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
-    let alive = true,
-      loading = false;
+    let alive = true;
+    let loading = false;
+
     const load = async () => {
       if (loading) return;
       loading = true;
+
       try {
-        const data = await getJSON("/api/animated-cricket/schedule");
+        const data = await getJSON(
+          "/api/animated-cricket/schedule",
+        );
+
         if (alive) {
           const server = Date.parse(data.serverTime);
-          if (Number.isFinite(server))
-            setAnchor({ server, local: performance.now() });
+
+          if (Number.isFinite(server)) {
+            setAnchor({
+              server,
+              local: performance.now(),
+            });
+          }
+
           setVirtual(
             (data.matches || [])
               .slice(0, 3)
@@ -117,12 +224,16 @@ export default function CricketMatchList({ onOpenMatch }) {
                 type: "SO",
                 start: Date.parse(m.startAt),
                 end:
-                  Date.parse(m.endsAt || "") || Date.parse(m.startAt) + 120000,
+                  Date.parse(m.endsAt || "") ||
+                  Date.parse(m.startAt) + 120000,
                 teams: m.teams.join(" vs "),
                 phase: m.phase,
               }))
-              .filter((m) => Number.isFinite(m.start)),
+              .filter((m) =>
+                Number.isFinite(m.start),
+              ),
           );
+
           setError("");
         }
       } catch (e) {
@@ -131,8 +242,11 @@ export default function CricketMatchList({ onOpenMatch }) {
         loading = false;
       }
     };
+
     load();
+
     const timer = setInterval(load, 5000);
+
     return () => {
       alive = false;
       clearInterval(timer);
@@ -140,18 +254,18 @@ export default function CricketMatchList({ onOpenMatch }) {
   }, []);
 
   useEffect(() => {
-    let alive = true,
-      loading = false;
+    let alive = true;
+    let loading = false;
+
     const load = async () => {
       if (loading) return;
       loading = true;
+
       try {
-        const health = await getJSON("/api/health");
-        if (health.apiConnected !== true) {
-          if (alive) setReal([]);
-          return;
-        }
-        const data = await getJSON("/api/sports/events?sport=cricket");
+        const data = await getJSON(
+          "/api/sports/events?sport=cricket",
+        );
+
         const feed = String(
           data.dataFeedType ||
             data.feedType ||
@@ -159,30 +273,40 @@ export default function CricketMatchList({ onOpenMatch }) {
             data.source ||
             "",
         );
-        const rows = /mock|demo|sample/i.test(feed)
-          ? []
-          : Array.isArray(data.data)
-            ? data.data
-            : Array.isArray(data.events)
-              ? data.events
-              : [];
+
+        const rows = eventRows(data);
+
         if (alive) {
           const unique = new Map(
             rows
-              .map(normalizeApiMatch)
+              .map((item) =>
+                normalizeApiMatch(item, feed),
+              )
               .filter(Boolean)
               .map((m) => [m.key, m]),
           );
+
           setReal([...unique.values()]);
+          setFeedDemo(
+            /mock|demo|sample/i.test(feed),
+          );
+          setSportsError("");
+          setSportsLoaded(true);
         }
-      } catch {
-        if (alive) setReal([]);
+      } catch (e) {
+        if (alive) {
+          setSportsError(e.message);
+          setSportsLoaded(true);
+        }
       } finally {
         loading = false;
       }
     };
+
     load();
+
     const timer = setInterval(load, 30000);
+
     return () => {
       alive = false;
       clearInterval(timer);
@@ -191,35 +315,79 @@ export default function CricketMatchList({ onOpenMatch }) {
 
   useEffect(() => {
     const update = () =>
-      setNow(anchor.server + performance.now() - anchor.local);
+      setNow(
+        anchor.server +
+          performance.now() -
+          anchor.local,
+      );
+
     update();
+
     const timer = setInterval(update, 1000);
+
     return () => clearInterval(timer);
   }, [anchor]);
 
-  const fixtures = [...virtual.filter((m) => m.end > now), ...real].sort(
-    (a, b) => a.start - b.start || a.key.localeCompare(b.key),
+  const fixtures = [
+    ...virtual.filter((m) => m.end > now),
+    ...real,
+  ].sort(
+    (a, b) =>
+      (a.start ?? Infinity) -
+        (b.start ?? Infinity) ||
+      a.key.localeCompare(b.key),
   );
 
   return (
     <div aria-label="Cricket match list">
-      {error && (
-        <p role="alert" className="my-3 text-xs text-amber-300">
-          {error}
+      {(error || sportsError) && (
+        <p
+          role="alert"
+          className="my-3 text-xs text-amber-300"
+        >
+          {sportsError
+            ? `Sports feed: ${sportsError}.`
+            : ""}
+
+          {sportsError && real.length > 0
+            ? " Showing the last received list; it may be outdated."
+            : ""}
+
+          {error ? ` Super Over: ${error}` : ""}
         </p>
       )}
+
+      {fixtures.length === 0 && (
+        <div
+          role="status"
+          className="my-3 rounded-xl border border-white/10 bg-[#111827] p-4 text-sm text-slate-300"
+        >
+          {!sportsLoaded
+            ? "Loading sports matches…"
+            : sportsError
+              ? "Sports matches could not be loaded. Retrying automatically."
+              : feedDemo
+                ? "The demo feed currently has no cricket fixtures."
+                : "The sports server returned no cricket fixtures. Prepared Super Over matches appear five minutes before start."}
+        </div>
+      )}
+
       {fixtures.map((match) => {
         const live =
           match.type === "SO"
             ? now >= match.start && now < match.end
             : match.live;
+
         const open = () => {
-          if (match.type === "SO")
+          if (match.type === "SO") {
             window.location.assign(
               `/games/animated-super-over?start=${match.start}`,
             );
-          else onOpenMatch?.(match);
+          } else {
+            onOpenMatch?.(match);
+          }
         };
+
         return (
           <article
             key={match.key}
@@ -229,10 +397,19 @@ export default function CricketMatchList({ onOpenMatch }) {
             <div className="flex items-start justify-between gap-3 px-4 py-4">
               <div className="min-w-0 flex-1">
                 <div
-                  className={`mb-2 text-[9px] font-black uppercase tracking-wider ${live ? "text-red-400" : "text-cyan-300"}`}
+                  className={`mb-2 text-[9px] font-black uppercase tracking-wider ${
+                    live
+                      ? "text-red-400"
+                      : "text-cyan-300"
+                  }`}
                 >
-                  {live ? "● LIVE" : "● UPCOMING"}
+                  {match.demo
+                    ? "● DEMO FEED"
+                    : live
+                      ? "● LIVE"
+                      : "● UPCOMING"}
                 </div>
+
                 <button
                   type="button"
                   onClick={open}
@@ -240,10 +417,14 @@ export default function CricketMatchList({ onOpenMatch }) {
                 >
                   {match.teams}
                 </button>
+
                 <p className="mt-2 text-[11px] font-bold text-emerald-300">
-                  {ist(match.start)} IST
+                  {match.start === null
+                    ? "Time unavailable"
+                    : `${ist(match.start)} IST`}
                 </p>
               </div>
+
               <button
                 type="button"
                 onClick={open}
