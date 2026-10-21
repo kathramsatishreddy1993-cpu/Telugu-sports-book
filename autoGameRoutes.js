@@ -25,6 +25,12 @@ const wrap = fn => (req, res, next) =>
 const validGame = game =>
   Object.hasOwn(GAME_NAMES, game);
 
+// Game mode is independent of the sports data provider.
+const demoMode = () =>
+  String(process.env.DEMO_GAMES_MODE ?? "demo")
+    .trim()
+    .toLowerCase() === "demo";
+
 export async function initializeAutoGames(pool) {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS tsb_auto_controls (
@@ -162,11 +168,6 @@ const clock = async connection => {
 
   return new Date(result.rows[0].now).getTime();
 };
-
-const demoMode = () =>
-  String(process.env.SPORTS_API_MODE || "demo")
-    .trim()
-    .toLowerCase() === "demo";
 
 async function gameClock(connection, game, wall) {
   const control = (
@@ -371,7 +372,7 @@ export function publicRound(round, time) {
   const events = timeline(
     game,
     round.outcome,
-  ).filter(event => event.at <= delta);
+      ).filter(event => event.at <= delta);
 
   return {
     id: String(round.id),
@@ -395,8 +396,7 @@ export function publicRound(round, time) {
     bettingClosesAt:
       stage === 2
         ? new Date(
-            new Date(round.closes_at).getTime() +
-              7000,
+            new Date(round.closes_at).getTime() + 7000,
           ).toISOString()
         : round.closes_at,
 
@@ -426,8 +426,7 @@ export function registerAutoGameRoutes(
 
     if (!demoMode()) {
       return res.status(409).json({
-        error:
-          "These games are available in demo mode only.",
+        error: "Games are currently unavailable.",
       });
     }
 
@@ -552,9 +551,7 @@ export function registerAutoGameRoutes(
             const extra = Math.max(
               0,
               wall -
-                new Date(
-                  control.paused_at,
-                ).getTime(),
+                new Date(control.paused_at).getTime(),
             );
 
             await connection.query(
@@ -608,9 +605,7 @@ export function registerAutoGameRoutes(
           .split(";")
           .map(value => value.trim())
           .find(value =>
-            value.startsWith(
-              "tsb_demo_session=",
-            ),
+            value.startsWith("tsb_demo_session="),
           )
           ?.slice(17) || "";
 
@@ -714,11 +709,7 @@ export function registerAutoGameRoutes(
               ],
             )
           ).rows.map(
-            ({
-              outcome,
-              settled,
-              ...bet
-            }) => ({
+            ({ outcome, settled, ...bet }) => ({
               ...bet,
               winner: settled
                 ? outcome.winner
@@ -734,9 +725,7 @@ export function registerAutoGameRoutes(
             balance,
             history,
             bets,
-            markets: marketsFor(
-              req.params.game,
-            ),
+            markets: marketsFor(req.params.game),
           };
         },
       );
@@ -774,9 +763,7 @@ export function registerAutoGameRoutes(
           direction === "LAY" &&
           !selected.lay
         ) ||
-        !/^\d{1,18}$/.test(
-          String(roundId),
-        ) ||
+        !/^\d{1,18}$/.test(String(roundId)) ||
         !/^[a-zA-Z0-9_-]{16,100}$/.test(
           String(requestKey),
         )
@@ -848,14 +835,11 @@ export function registerAutoGameRoutes(
             game,
             round.outcome,
             time -
-              new Date(
-                round.closes_at,
-              ).getTime(),
+              new Date(round.closes_at).getTime(),
           );
 
           if (
-            String(round.id) !==
-              String(roundId) ||
+            String(round.id) !== String(roundId) ||
             round.settled ||
             !stage ||
             selected.stage !== stage
@@ -945,9 +929,7 @@ export function registerAutoGameRoutes(
           }
 
           if (
-            Number(
-              wallet.demo_coin_balance,
-            ) < hold
+            Number(wallet.demo_coin_balance) < hold
           ) {
             throw fail(
               400,
@@ -968,9 +950,7 @@ export function registerAutoGameRoutes(
               game,
               round.outcome,
               latestTime -
-                new Date(
-                  round.closes_at,
-                ).getTime(),
+                new Date(round.closes_at).getTime(),
             ) !== stage
           ) {
             throw fail(
@@ -1114,9 +1094,7 @@ export function registerAutoGameRoutes(
               game,
               round.outcome,
               time -
-                new Date(
-                  round.closes_at,
-                ).getTime(),
+                new Date(round.closes_at).getTime(),
             ) !== bet.stage
           ) {
             throw fail(
@@ -1146,9 +1124,7 @@ export function registerAutoGameRoutes(
               game,
               round.outcome,
               latestTime -
-                new Date(
-                  round.closes_at,
-                ).getTime(),
+                new Date(round.closes_at).getTime(),
             ) !== bet.stage
           ) {
             throw fail(
@@ -1210,12 +1186,10 @@ export function registerAutoGameRoutes(
         await transaction(
           pool,
           async connection => {
-            const wall =
-              await clock(connection);
+            const wall = await clock(connection);
 
             for (
-              const game of
-              Object.keys(GAME_NAMES)
+              const game of Object.keys(GAME_NAMES)
             ) {
               const { control, time } =
                 await gameClock(
@@ -1247,7 +1221,6 @@ export function registerAutoGameRoutes(
     tick();
 
     const timer = setInterval(tick, 500);
-
     timer.unref?.();
 
     return () => clearInterval(timer);
