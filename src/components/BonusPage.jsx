@@ -1,14 +1,119 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
-export default function BonusPage({ onBack }) {
+const BONUS_DETAILS = {
+  welcome: {
+    title: 'Welcome Bonus',
+    percentage: '5%',
+    color: 'text-emerald-400',
+    border: 'border-emerald-400/40',
+    background: 'bg-emerald-400/10',
+    description:
+      'మినిమమ్ ₹2,000 డిపాజిట్ చేస్తే 5% వెల్కమ్ బోనస్ లభిస్తుంది. గరిష్ఠ డిపాజిట్ పరిమితి లేదు.',
+    details: [
+      ['Minimum Deposit', '₹2,000'],
+      ['Maximum Deposit', 'Unlimited'],
+      ['Welcome Bonus', '5%'],
+    ],
+  },
+
+  promo: {
+    title: 'Promo Code Bonus',
+    percentage: '5%',
+    color: 'text-violet-400',
+    border: 'border-violet-400/40',
+    background: 'bg-violet-400/10',
+    description:
+      'మీ ప్రోమో కోడ్ ద్వారా వచ్చిన కొత్త కస్టమర్ డిపాజిట్ చేస్తే, ఆ డిపాజిట్ మొత్తంపై వారికి 5% బోనస్ మరియు మీకు 5% ప్రోమో బోనస్ లభిస్తుంది.',
+    details: [
+      ['New Customer Bonus', '5%'],
+      ['Your Referral Bonus', '5%'],
+    ],
+  },
+
+  losing: {
+    title: 'Losing Bonus',
+    percentage: '10%',
+    color: 'text-orange-400',
+    border: 'border-orange-400/40',
+    background: 'bg-orange-400/10',
+    description:
+      '₹1,00,000 లాస్ అయినప్పుడు 10% లాసింగ్ బోనస్ లభిస్తుంది.',
+    details: [
+      ['Loss Amount', '₹1,00,000'],
+      ['Losing Bonus', '10%'],
+    ],
+  },
+};
+
+function normalizeBonusType(value) {
+  const type = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]/g, '');
+
+  if (
+    type === 'welcome' ||
+    type === 'welcomebonus'
+  ) {
+    return 'welcome';
+  }
+
+  if (
+    [
+      'promo',
+      'promocode',
+      'promobonus',
+      'promocodebonus',
+      'referral',
+    ].includes(type)
+  ) {
+    return 'promo';
+  }
+
+  if (
+    [
+      'losing',
+      'loss',
+      'losingbonus',
+      'lossbonus',
+    ].includes(type)
+  ) {
+    return 'losing';
+  }
+
+  return null;
+}
+
+export default function BonusPage({
+  onBack,
+  bonusType,
+}) {
+  const [selectedBonus, setSelectedBonus] = useState(
+    () => normalizeBonusType(bonusType),
+  );
+
+  useEffect(() => {
+    setSelectedBonus(normalizeBonusType(bonusType));
+  }, [bonusType]);
+
+  const bonus = BONUS_DETAILS[selectedBonus];
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+      return;
+    }
+
+    window.location.assign('/');
+  };
+
   return (
     <div className="min-h-screen bg-[#080d16] text-white">
-      {/* HEADER */}
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[#080d16] px-4 py-4">
-        <div className="mx-auto flex max-w-4xl items-center justify-between">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
           <button
             type="button"
-            onClick={onBack}
+            onClick={handleBack}
             className="rounded-lg border border-amber-400/50 bg-[#111827] px-3 py-2 text-xs font-black text-white transition active:scale-95"
           >
             ‹ BACK
@@ -19,204 +124,112 @@ export default function BonusPage({ onBack }) {
               TELUGU SPORTS BOOK
             </p>
 
-            <h1 className="text-sm font-black">
-              BONUS DETAILS
+            <h1 className="mt-1 text-sm font-black uppercase">
+              {bonus ? bonus.title : 'Bonus Offers'}
             </h1>
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-4xl px-4 py-6">
-        {/* PAGE TITLE */}
-        <section className="mb-6 text-center">
-          <div className="text-4xl">
-            🎁
-          </div>
+        {!bonus && (
+          <>
+            <h2 className="mb-5 text-center text-xl font-black">
+              Bonus Offers
+            </h2>
 
-          <p className="mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-amber-400">
-            MEMBER BONUS
-          </p>
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
+              {[
+                {
+                  key: 'welcome',
+                  label: 'WELCOME',
+                },
+                {
+                  key: 'promo',
+                  label: 'PROMO CODE',
+                },
+                {
+                  key: 'losing',
+                  label: 'LOSING',
+                },
+              ].map(({ key, label }) => {
+                const item = BONUS_DETAILS[key];
 
-          <h2 className="mt-2 text-2xl font-black">
-            Bonus Offers
-          </h2>
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setSelectedBonus(key)}
+                    className={`flex min-w-0 flex-col items-center justify-center rounded-2xl border px-2 py-6 text-center transition active:scale-95 ${item.border} ${item.background}`}
+                  >
+                    <span
+                      className={`text-3xl font-black sm:text-4xl ${item.color}`}
+                    >
+                      {item.percentage}
+                    </span>
 
-          <p className="mt-2 text-[10px] text-gray-500">
-            Demo & informational offers
-          </p>
-        </section>
+                    <span className="mt-3 text-[10px] font-black sm:text-xs">
+                      {label}
+                    </span>
 
-        {/* =================================
-            1. WELCOME BONUS
-        ================================= */}
+                    <span className="mt-1 text-[9px] font-bold tracking-wider text-slate-400">
+                      BONUS
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
 
-        <section className="mb-4 overflow-hidden rounded-2xl border border-emerald-500/40 bg-[#10192b]">
-          <div className="relative px-5 py-5">
-            <div className="pointer-events-none absolute right-0 top-0 h-28 w-28 rounded-full bg-emerald-500/10 blur-3xl" />
+        {bonus && (
+          <section
+            className={`overflow-hidden rounded-2xl border bg-[#10192b] ${bonus.border}`}
+          >
+            <div className="p-5 sm:p-7">
+              <div className="flex items-center justify-between gap-4">
+                <h2 className="text-xl font-black">
+                  {bonus.title}
+                </h2>
 
-            <div className="relative flex items-start justify-between gap-4">
-              <div>
-                <span className="inline-flex rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-wider text-emerald-400">
-                  NEW PLAYERS
+                <span
+                  className={`shrink-0 text-4xl font-black ${bonus.color}`}
+                >
+                  {bonus.percentage}
                 </span>
-
-                <h3 className="mt-3 text-xl font-black">
-                  Welcome Bonus
-                </h3>
               </div>
 
-              <span className="text-3xl font-black text-emerald-400">
-                10%
-              </span>
-            </div>
-
-            <p className="relative mt-4 text-[12px] leading-5 text-gray-300">
-              Eligible demo users can receive a
-              10% Welcome Bonus according to the
-              applicable demo offer conditions.
-            </p>
-
-            <div className="relative mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-              <p className="text-[10px] font-black uppercase tracking-wider text-emerald-400">
-                WELCOME BONUS
+              <p className="mt-5 text-sm leading-7 text-gray-300">
+                {bonus.description}
               </p>
 
-              <p className="mt-2 text-[10px] leading-5 text-gray-400">
-                Welcome Bonus eligibility is
-                subject to the active demo offer
-                and applicable conditions.
+              <dl
+                className={`mt-6 divide-y divide-white/10 rounded-xl border px-4 ${bonus.border} ${bonus.background}`}
+              >
+                {bonus.details.map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="flex items-center justify-between gap-4 py-4"
+                  >
+                    <dt className="text-xs text-slate-300">
+                      {label}
+                    </dt>
+
+                    <dd
+                      className={`text-right text-sm font-black ${bonus.color}`}
+                    >
+                      {value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+
+              <p className="mt-5 text-[10px] text-slate-500">
+                Demo coins కోసం బోనస్ వివరాలు.
               </p>
             </div>
-          </div>
-        </section>
-
-        {/* =================================
-            2. PROMO CODE BONUS
-        ================================= */}
-
-        <section className="mb-4 overflow-hidden rounded-2xl border border-blue-500/40 bg-[#10192b]">
-          <div className="relative px-5 py-5">
-            <div className="pointer-events-none absolute right-0 top-0 h-28 w-28 rounded-full bg-blue-500/10 blur-3xl" />
-
-            <div className="relative flex items-start justify-between gap-4">
-              <div>
-                <span className="inline-flex rounded-md border border-blue-500/40 bg-blue-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-wider text-blue-400">
-                  SPECIAL CODE
-                </span>
-
-                <h3 className="mt-3 text-xl font-black">
-                  Promo Code Bonus
-                </h3>
-              </div>
-
-              <span className="text-3xl font-black text-blue-400">
-                10%
-              </span>
-            </div>
-
-            <p className="relative mt-4 text-[12px] leading-5 text-gray-300">
-              Eligible demo users with a valid
-              promotional code can receive a
-              10% Promo Code Bonus.
-            </p>
-
-            <div className="relative mt-4 rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
-              <p className="text-[10px] font-black uppercase tracking-wider text-blue-400">
-                PROMO CONDITIONS
-              </p>
-
-              <p className="mt-2 text-[10px] leading-5 text-gray-400">
-                Promotional codes may have
-                separate eligibility, validity
-                and demo offer conditions.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* =================================
-            3. LOSING BONUS
-        ================================= */}
-
-        <section className="mb-4 overflow-hidden rounded-2xl border border-orange-500/40 bg-[#10192b]">
-          <div className="relative px-5 py-5">
-            <div className="pointer-events-none absolute right-0 top-0 h-28 w-28 rounded-full bg-orange-500/10 blur-3xl" />
-
-            <div className="relative flex items-start justify-between gap-4">
-              <div>
-                <span className="inline-flex rounded-md border border-orange-500/40 bg-orange-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-wider text-orange-400">
-                  DEMO OFFER
-                </span>
-
-                <h3 className="mt-3 text-xl font-black">
-                  Losing Bonus
-                </h3>
-              </div>
-
-              <span className="text-3xl font-black text-orange-400">
-                10%
-              </span>
-            </div>
-
-            <p className="relative mt-4 text-[12px] leading-5 text-gray-300">
-              Eligible simulated demo activity
-              can receive a 10% Losing Bonus
-              according to the applicable demo
-              offer conditions.
-            </p>
-
-            <div className="relative mt-4 rounded-xl border border-orange-500/20 bg-orange-500/5 p-4">
-              <p className="text-[10px] font-black uppercase tracking-wider text-orange-400">
-                LOSING BONUS
-              </p>
-
-              <p className="mt-2 text-[10px] leading-5 text-gray-400">
-                This is an informational demo
-                bonus only and does not represent
-                real-money cashback or payment.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* =================================
-            LIMITED PERIOD
-        ================================= */}
-
-        <section className="mb-6 rounded-2xl border border-amber-500/40 bg-[#10192b] p-5">
-          <div className="flex items-start gap-3">
-            <span className="text-2xl">
-              ⏳
-            </span>
-
-            <div>
-              <h3 className="text-sm font-black uppercase tracking-wider text-amber-400">
-                Limited Period Offer
-              </h3>
-
-              <p className="mt-3 text-[11px] leading-5 text-gray-300">
-                Demo bonus offers may be changed
-                or withdrawn at any time.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* =================================
-            NOTICE
-        ================================= */}
-
-        <section className="rounded-xl border border-white/10 bg-black/20 px-4 py-4 text-center">
-          <p className="text-[9px] font-black uppercase tracking-[0.15em] text-gray-500">
-            DEMO WEBSITE
-          </p>
-
-          <p className="mt-2 text-[9px] leading-4 text-gray-500">
-            For demonstration and informational
-            purposes only. No real-money
-            transactions.
-          </p>
-        </section>
+          </section>
+        )}
       </main>
     </div>
   );
