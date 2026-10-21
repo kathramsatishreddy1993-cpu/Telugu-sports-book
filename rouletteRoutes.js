@@ -1,4 +1,5 @@
 import { randomBytes, createHash } from 'node:crypto';
+
 import {
   requireControllerAccount,
   verifyControllerForMutation,
@@ -12,6 +13,12 @@ const fail = (status, message) =>
 
 const wrap = fn => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
+
+// Demo games are independent of the live sports data provider.
+const demoEnabled = () =>
+  String(process.env.DEMO_GAMES_MODE ?? 'demo')
+    .trim()
+    .toLowerCase() === 'demo';
 
 export const RED = new Set([
   1, 3, 5, 7, 9, 12, 14, 16, 18,
@@ -429,15 +436,10 @@ export function registerRouletteRoutes(app, pool) {
     (req, res, next) => {
       res.set('Cache-Control', 'no-store');
 
-      const mode = String(
-        process.env.SPORTS_API_MODE || 'demo',
-      )
-        .trim()
-        .toLowerCase();
-
-      if (mode !== 'demo') {
+      if (!demoEnabled()) {
         return res.status(409).json({
-          error: 'Roulette is available in demo mode only.',
+          error:
+            'Roulette is a demo-only game. Enable DEMO_GAMES_MODE=demo.',
         });
       }
 
