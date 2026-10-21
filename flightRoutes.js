@@ -14,8 +14,9 @@ const digest = (value) =>
     .update(String(value))
     .digest('hex');
 
+// Demo games are independent of the live sports data provider.
 const demoEnabled = () =>
-  String(process.env.SPORTS_API_MODE || 'demo')
+  String(process.env.DEMO_GAMES_MODE ?? 'demo')
     .trim()
     .toLowerCase() === 'demo';
 
@@ -280,7 +281,7 @@ export function registerFlightRoutes(app, pool) {
       ? next()
       : res.status(409).json({
           error:
-            'TSB Flight is a demo-only game. Enable SPORTS_API_MODE=demo.',
+            'TSB Flight is a demo-only game. Enable DEMO_GAMES_MODE=demo.',
         });
 
   const customer = wrap(async (req, res, next) => {
