@@ -35,6 +35,7 @@ function restoredSession(key) {
 export default function App() {
   const [view, setView] = useState("home");
   const [authMode, setAuthMode] = useState(null);
+  const [selectedBonus, setSelectedBonus] = useState(null);
   const [selectedPublicItem, setSelectedPublicItem] =
     useState(null);
 
@@ -70,6 +71,9 @@ export default function App() {
     !cardGame &&
     !isAnimatedSO;
 
+  const [adminChecking, setAdminChecking] =
+    useState(isAdminMode);
+
   useEffect(() => {
     if (!unknownGame) return;
 
@@ -80,9 +84,6 @@ export default function App() {
 
     return () => clearTimeout(timer);
   }, [unknownGame]);
-
-  const [adminChecking, setAdminChecking] =
-    useState(isAdminMode);
 
   useEffect(() => {
     if (!isAdminMode) return;
@@ -126,6 +127,20 @@ export default function App() {
     }
   };
 
+  const handleOpenBonus = (bonusType = null) => {
+    setSelectedBonus(
+      typeof bonusType === "string" ? bonusType : null,
+    );
+    setView("bonus");
+    window.scrollTo(0, 0);
+  };
+
+  const handleCloseBonus = () => {
+    setView("home");
+    setSelectedBonus(null);
+    window.scrollTo(0, 0);
+  };
+
   const handlePublicItemClick = (
     mode = "login",
     item = null,
@@ -152,6 +167,7 @@ export default function App() {
     setUser(normalizedUser);
     setAuthMode(null);
     setView("home");
+    setSelectedBonus(null);
 
     if (selectedPublicItem) {
       try {
@@ -183,6 +199,7 @@ export default function App() {
     saveCustomerSession(completedUser);
     setUser(completedUser);
     setView("home");
+    setSelectedBonus(null);
   };
 
   const handleLogout = () => {
@@ -199,6 +216,7 @@ export default function App() {
     setUser(null);
     setAuthMode(null);
     setSelectedPublicItem(null);
+    setSelectedBonus(null);
     setView("home");
   };
 
@@ -340,16 +358,26 @@ export default function App() {
   }
 
   if (user?.isAuthenticated) {
+    if (view === "bonus") {
+      return (
+        <BonusPage
+          bonusType={selectedBonus}
+          onBack={handleCloseBonus}
+        />
+      );
+    }
+
     return (
       <DemoDashboard
         user={user}
         onLogout={handleLogout}
+        onOpenBonus={handleOpenBonus}
       />
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#080d16] text-white flex flex-col font-sans">
+    <div className="flex min-h-screen flex-col bg-[#080d16] font-sans text-white">
       <Header
         onOpenAuth={setAuthMode}
         user={user}
@@ -363,9 +391,9 @@ export default function App() {
             onRequireAuth={handlePublicItemClick}
           />
 
-          <div className="max-w-xl mx-auto px-4 my-4">
+          <div className="mx-auto my-4 max-w-xl px-4">
             <HeroBonusCard
-              onOpenBonus={() => setView("bonus")}
+              onOpenBonus={handleOpenBonus}
             />
           </div>
 
@@ -373,7 +401,8 @@ export default function App() {
         </main>
       ) : (
         <BonusPage
-          onBack={() => setView("home")}
+          bonusType={selectedBonus}
+          onBack={handleCloseBonus}
         />
       )}
 
