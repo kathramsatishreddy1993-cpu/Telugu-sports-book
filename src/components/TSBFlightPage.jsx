@@ -13,12 +13,10 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
 
   const [clock, setClock] = useState(Date.now());
   const [drafts, setDrafts] = useState({ 1: '50', 2: '50' });
+  const [verified, setVerified] = useState('');
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setClock(Date.now());
-    }, 50);
-
+    const timer = setInterval(() => setClock(Date.now()), 50);
     return () => clearInterval(timer);
   }, []);
 
@@ -30,14 +28,11 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
 
   const round = data?.round;
   const elapsed = Math.max(0, clock - receivedAt);
-
   const serverNow = data
     ? new Date(data.serverTime).getTime() + elapsed
     : clock;
 
-  const start = round
-    ? new Date(round.startsAt).getTime()
-    : 0;
+  const start = round ? new Date(round.startsAt).getTime() : 0;
 
   const fresh = Boolean(
     data && !error && elapsed < 3500 && !wrongAccount,
@@ -59,19 +54,15 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
         ? Math.floor(
             Math.exp(
               ((data?.growthRate || 0.085) *
-                Math.max(0, serverNow - start)) /
-                1000,
+                Math.max(0, serverNow - start)) / 1000,
             ) * 100,
           ) / 100
         : 1;
 
   const sound = useFlightSound(phase, round?.id, fresh);
-
   const shownBalance = data
     ? Number(data.balance).toLocaleString('en-IN')
     : 'Loading...';
-
-  const [verified, setVerified] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -104,9 +95,7 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
           }
         })
         .catch(() => {
-          if (active) {
-            setVerified('Verification unavailable.');
-          }
+          if (active) setVerified('Verification unavailable.');
         });
     }
 
@@ -131,22 +120,16 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
         >
           ← Home
         </button>
-
         <div>
           <h1 className="text-lg font-black text-cyan-300">
             TSB FLIGHT
           </h1>
-
           <p className="text-[10px] text-slate-400">
             MULTIPLAYER DEMO
           </p>
         </div>
-
         <div className="text-right">
-          <p className="text-xs text-slate-400">
-            Demo coins
-          </p>
-
+          <p className="text-xs text-slate-400">Demo coins</p>
           <p className="font-black text-amber-300">
             {shownBalance}
           </p>
@@ -173,7 +156,6 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
             {wrongAccount
               ? 'Customer session does not match. Logout and login again.'
               : error}
-
             <button
               type="button"
               onClick={onLogout}
@@ -216,7 +198,6 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
 
         <section className="rounded-2xl border border-white/10 bg-[#0d192a] p-4">
           <h2 className="font-black">Recent rounds</h2>
-
           <div className="mt-3 flex flex-wrap gap-2">
             {data?.history?.map((item) => (
               <span
@@ -226,7 +207,6 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
                 #{item.id} · {item.crashMultiplier.toFixed(2)}×
               </span>
             ))}
-
             {!data?.history?.length && (
               <p className="text-xs text-slate-400">
                 No completed rounds.
@@ -237,7 +217,6 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
 
         <section className="overflow-x-auto rounded-2xl border border-white/10 bg-[#0d192a] p-4">
           <h2 className="font-black">Your flight history</h2>
-
           <table className="mt-3 w-full text-left text-xs">
             <thead className="text-slate-400">
               <tr>
@@ -248,24 +227,18 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
                 <th>Returned</th>
               </tr>
             </thead>
-
             <tbody>
               {data?.bets?.map((bet) => (
-                <tr
-                  key={bet.id}
-                  className="border-t border-white/5"
-                >
+                <tr key={bet.id} className="border-t border-white/5">
                   <td className="py-3">#{bet.roundId}</td>
                   <td>{bet.slot || 1}</td>
                   <td>{bet.stake}</td>
-
                   <td>
                     {bet.status}
                     {bet.cashoutMultiplier
                       ? ` · ${bet.cashoutMultiplier.toFixed(2)}×`
                       : ''}
                   </td>
-
                   <td>{bet.payout}</td>
                 </tr>
               ))}
@@ -274,9 +247,10 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
         </section>
 
         <p className="px-1 text-[10px] leading-5 text-slate-400">
-          Demo coins only · Controller fixes the crash before betting
-          opens. Closing the page does not cash out; the server must
-          accept cash out before crash.
+          Demo coins only · Cancel an accepted bet before flight
+          starts to return its stake. During flight, only cash out is
+          available. The server must accept the action before its
+          deadline. Closing the page does not cancel or cash out.
         </p>
 
         {round && (
@@ -284,17 +258,12 @@ export default function TSBFlightPage({ user, onBack, onLogout }) {
             <summary className="cursor-pointer">
               Locked round verification
             </summary>
-
             <p className="mt-2">
               SHA-256 commitment: {round.commitment}
             </p>
-
             {round.seed && (
-              <p className="mt-2">
-                Revealed seed: {round.seed}
-              </p>
+              <p className="mt-2">Revealed seed: {round.seed}</p>
             )}
-
             <p className="mt-2">
               Commitment input: round ID : crash multiplier × 100 :
               seed. This verifies the locked result; this test mode is
@@ -328,30 +297,44 @@ function BetBox({
 
   useEffect(() => {
     mounted.current = true;
-
     return () => {
       mounted.current = false;
     };
   }, []);
 
   const remote = bets.find(
-    (bet) =>
-      String(bet.roundId) === String(round?.id) &&
-      Number(bet.slot || 1) === slot,
+    (item) =>
+      String(item.roundId) === String(round?.id) &&
+      Number(item.slot || 1) === slot,
   );
 
-  const bet =
-    remote?.status === 'CASHED_OUT' || remote?.status === 'LOST'
-      ? remote
-      : saved || remote;
+  // A completed local response must not be replaced by an older
+  // polling response showing the same bet as still PLACED.
+  const remoteFinished =
+    remote && remote.status !== 'PLACED';
+
+  const savedFinished =
+    saved && saved.status !== 'PLACED';
+
+  const bet = remoteFinished
+    ? remote
+    : savedFinished
+      ? saved
+      : remote || saved;
+
+  const placed = bet?.status === 'PLACED';
+  const cancelled = bet?.status === 'CANCELLED';
+
+  const canCancel = placed && phase === 'COUNTDOWN';
+  const cashout = placed && phase === 'RUNNING';
+
+  const canBet =
+    (!bet || cancelled) && phase === 'COUNTDOWN';
 
   const editable = !busy;
-  const cashout = bet?.status === 'PLACED' && phase === 'RUNNING';
-  const canBet = !bet && phase === 'COUNTDOWN';
 
   const change = (delta) => {
     if (!editable) return;
-
     setStake(
       String(
         Math.min(
@@ -372,9 +355,17 @@ function BetBox({
       return;
     }
 
-    if (!cashout && !canBet) {
+    const action = canCancel
+      ? 'cancel'
+      : cashout
+        ? 'cashout'
+        : canBet
+          ? 'bet'
+          : null;
+
+    if (!action) {
       setMessage(
-        'WAIT FOR NEXT ROUND — amount prepared only. No bet placed and no coins deducted. Press BET again during the next countdown.',
+        'WAIT FOR NEXT ROUND — amount prepared only. No new bet placed and no new coins deducted. Press BET during the next countdown.',
       );
       return;
     }
@@ -386,7 +377,12 @@ function BetBox({
     try {
       let result;
 
-      if (cashout) {
+      if (action === 'cancel') {
+        result = await flightApi(
+          `/api/flight/bets/${bet.id}/cancel`,
+          {},
+        );
+      } else if (action === 'cashout') {
         result = await flightApi(
           `/api/flight/bets/${bet.id}/cashout`,
           {},
@@ -414,39 +410,86 @@ function BetBox({
         pending.current = null;
       }
 
+      if (!result?.bet) {
+        throw new Error(
+          'Server response could not be confirmed. Refreshing bet status.',
+        );
+      }
+
       notifyFlightWallet();
 
       if (mounted.current) {
         setSaved(result.bet);
 
-        setMessage(
-          result.bet.status === 'CASHED_OUT'
-            ? `Cashed out at ${result.bet.cashoutMultiplier.toFixed(2)}× · ${result.bet.payout.toLocaleString('en-IN')} coins returned (stake included).`
-            : `Box ${slot}: ${result.bet.stake.toLocaleString('en-IN')} demo coins placed.`,
-        );
+        if (result.bet.status === 'CANCELLED') {
+          pending.current = null;
+          setMessage(
+            `Bet cancelled · ${Number(
+              result.bet.stake,
+            ).toLocaleString('en-IN')} demo coins returned. You can bet again while the countdown is open.`,
+          );
+        } else if (result.bet.status === 'CASHED_OUT') {
+          setMessage(
+            `Cashed out at ${Number(
+              result.bet.cashoutMultiplier,
+            ).toFixed(2)}× · ${Number(
+              result.bet.payout,
+            ).toLocaleString('en-IN')} coins returned (stake included).`,
+          );
+        } else {
+          setMessage(
+            `Box ${slot}: ${Number(
+              result.bet.stake,
+            ).toLocaleString('en-IN')} demo coins placed. Press CANCEL BET before flight starts to return the stake.`,
+          );
+        }
       }
-    } catch (error) {
-      if ([400, 401, 403, 404, 409].includes(error.status)) {
+    } catch (actionError) {
+      if ([400, 401, 403, 404, 409].includes(actionError.status)) {
         pending.current = null;
       }
 
       if (mounted.current) {
         setMessage(
-          error.status === 409 && !cashout
-            ? 'Betting closed or this box already has a bet. WAIT FOR NEXT ROUND. Your prepared amount is kept.'
-            : error.message,
+          action === 'bet' && actionError.status === 409
+            ? 'Betting closed or this box already has a bet. Refreshing its status. Your prepared amount is kept.'
+            : actionError.message || 'Unable to complete action.',
         );
       }
     } finally {
       inflight.current = false;
 
-      if (mounted.current) {
-        setBusy(false);
-      }
+      if (mounted.current) setBusy(false);
 
       refresh();
     }
   };
+
+  const buttonColour = canCancel
+    ? 'bg-red-500 text-white'
+    : cashout
+      ? 'bg-amber-300 text-black'
+      : 'bg-emerald-400 text-black';
+
+  const buttonLabel = busy
+    ? 'PROCESSING…'
+    : canCancel
+      ? 'CANCEL BET'
+      : cashout
+        ? 'CASH OUT'
+        : canBet
+          ? pending.current
+            ? 'RETRY SAME BET'
+            : 'BET'
+          : 'WAIT FOR NEXT ROUND';
+
+  const buttonAmount = cashout
+    ? `≈ ${Math.floor(
+        Number(bet.stake) * multiplier,
+      ).toLocaleString('en-IN')}`
+    : canCancel
+      ? Number(bet.stake).toLocaleString('en-IN')
+      : Number(stake || 0).toLocaleString('en-IN');
 
   return (
     <section className="rounded-2xl border border-white/10 bg-[#0d192a] p-4">
@@ -454,7 +497,6 @@ function BetBox({
         <h2 className="text-sm font-black text-cyan-200">
           BET BOX {slot}
         </h2>
-
         <span className="text-[10px] text-slate-400">
           10–25,000 demo coins
         </span>
@@ -476,7 +518,6 @@ function BetBox({
             >
               −
             </button>
-
             <input
               aria-label={`Box ${slot} stake`}
               type="text"
@@ -490,7 +531,6 @@ function BetBox({
               }}
               className="min-w-0 w-full bg-transparent text-center text-xl font-black outline-none disabled:opacity-50"
             />
-
             <button
               type="button"
               aria-label={`Increase box ${slot} stake`}
@@ -521,30 +561,12 @@ function BetBox({
           type="button"
           disabled={busy || !fresh}
           onClick={act}
-          className={`min-w-0 rounded-2xl px-2 py-3 font-black text-black disabled:opacity-40 ${
-            cashout ? 'bg-amber-300' : 'bg-emerald-400'
-          }`}
+          className={`min-w-0 rounded-2xl px-2 py-3 font-black disabled:opacity-40 ${buttonColour}`}
         >
-          <span className="block text-sm">
-            {busy
-              ? 'PROCESSING…'
-              : cashout
-                ? 'CASH OUT'
-                : !canBet
-                  ? 'WAIT FOR NEXT ROUND'
-                  : pending.current
-                    ? 'RETRY SAME BET'
-                    : 'BET'}
-          </span>
-
+          <span className="block text-sm">{buttonLabel}</span>
           <span className="mt-2 block break-words text-xl">
-            {cashout
-              ? `≈ ${Math.floor(
-                  bet.stake * multiplier,
-                ).toLocaleString('en-IN')}`
-              : Number(stake || 0).toLocaleString('en-IN')}
+            {buttonAmount}
           </span>
-
           <span className="mt-1 block text-[10px]">
             DEMO COINS
           </span>
@@ -563,7 +585,8 @@ function BetBox({
       {bet && (
         <p className="mt-2 text-[10px] text-slate-400">
           Round #{bet.roundId} ·{' '}
-          {bet.stake.toLocaleString('en-IN')} coins · {bet.status}
+          {Number(bet.stake).toLocaleString('en-IN')} coins ·{' '}
+          {bet.status}
         </p>
       )}
     </section>
@@ -593,7 +616,6 @@ function FlightScene({
       : 0;
 
   const x = 52 + 440 * progress;
-
   const y =
     265 -
     165 * Math.pow(progress, 1.35) +
@@ -606,25 +628,20 @@ function FlightScene({
     <section className="relative overflow-hidden rounded-3xl border border-cyan-400/20 bg-[#07111f]">
       <style>{`
         @keyframes tsb-grid {
-          to {
-            background-position: -36px 36px;
-          }
+          to { background-position: -36px 36px; }
         }
-
         @keyframes tsb-depart {
           to {
             transform: translate(200px, -120px);
             opacity: 0;
           }
         }
-
         @keyframes tsb-engine {
           to {
             opacity: .4;
             transform: scaleX(.6);
           }
         }
-
         .tsb-flight-grid {
           position: absolute;
           inset: 0;
@@ -634,15 +651,12 @@ function FlightScene({
             linear-gradient(90deg, #38bdf8 1px, transparent 1px);
           background-size: 36px 36px;
         }
-
         .tsb-flight-grid.fly {
           animation: tsb-grid 2s linear infinite;
         }
-
         .tsb-plane-depart {
           animation: tsb-depart .7s ease-in forwards;
         }
-
         .tsb-plane-engine {
           transform-box: fill-box;
           transform-origin: right;
@@ -650,15 +664,12 @@ function FlightScene({
         }
       `}</style>
 
-      <div
-        className={`tsb-flight-grid ${running ? 'fly' : ''}`}
-      />
+      <div className={`tsb-flight-grid ${running ? 'fly' : ''}`} />
 
       <div className="absolute inset-x-0 top-5 z-10 px-3 text-center">
         <p className="text-[10px] font-bold tracking-widest text-slate-400">
           {round ? `ROUND #${round.id}` : 'TSB FLIGHT'}
         </p>
-
         <p
           className={`mt-4 text-5xl font-black sm:text-7xl ${
             crashed ? 'text-red-400' : 'text-cyan-300'
@@ -670,7 +681,6 @@ function FlightScene({
               ? Math.max(0, Math.ceil((start - now) / 1000))
               : `${multiplier.toFixed(2)}×`}
         </p>
-
         <p className="mt-2 text-[10px] font-black">
           {phase === 'COUNTDOWN'
             ? 'BETTING OPEN · RESULT LOCKED'
@@ -703,7 +713,6 @@ function FlightScene({
               stopColor={crashed ? '#f87171' : '#22d3ee'}
               stopOpacity=".3"
             />
-
             <stop
               offset="100%"
               stopColor="#22d3ee"
@@ -724,7 +733,6 @@ function FlightScene({
               d={`${curve} L ${x} 285 L 52 285 Z`}
               fill="url(#tsb-flight-fill)"
             />
-
             <path
               d={curve}
               fill="none"
@@ -748,14 +756,12 @@ function FlightScene({
                   fill="#fbbf24"
                 />
               )}
-
               <path
                 d="M -36 -5 L -14 -6 L -5 -26 L 5 -26 L 4 -6 L 25 -5 Q 42 -3 44 1 Q 39 6 25 7 L 3 7 L -14 25 L -24 25 L -14 6 L -34 6 L -45 15 L -51 15 L -44 2 L -51 -11 L -44 -11 Z"
                 fill="#67e8f9"
                 stroke="#ecfeff"
                 strokeWidth="1.3"
               />
-
               <path
                 d="M 18 -4 L 28 -3 L 32 0 L 18 0 Z"
                 fill="#0c4a6e"
@@ -776,19 +782,13 @@ function FlightScene({
 
 function useFlightSound(phase, roundId, fresh) {
   const [enabled, setEnabled] = useState(false);
-
-  const [visible, setVisible] = useState(
-    () => !document.hidden,
-  );
+  const [visible, setVisible] = useState(() => !document.hidden);
 
   const context = useRef(null);
   const previous = useRef(null);
 
   useEffect(() => {
-    const changed = () => {
-      setVisible(!document.hidden);
-    };
-
+    const changed = () => setVisible(!document.hidden);
     document.addEventListener('visibilitychange', changed);
 
     return () => {
@@ -827,19 +827,17 @@ function useFlightSound(phase, roundId, fresh) {
 
   useEffect(() => {
     const key = `${roundId}:${phase}`;
-
     const transitioned =
       previous.current && previous.current !== key;
 
     previous.current = key;
-
     const ctx = context.current;
 
     if (!enabled || !visible || !fresh || !ctx) return;
 
     const nodes = [];
-
     const master = ctx.createDynamicsCompressor();
+
     master.threshold.value = -12;
     master.knee.value = 18;
     master.ratio.value = 6;
@@ -873,19 +871,15 @@ function useFlightSound(phase, roundId, fresh) {
       const gain = ctx.createGain();
 
       oscillator.type = type;
-
       oscillator.frequency.setValueAtTime(
         frequency,
         ctx.currentTime,
       );
-
       oscillator.frequency.exponentialRampToValueAtTime(
         end,
         ctx.currentTime + duration,
       );
-
       gain.gain.setValueAtTime(volume, ctx.currentTime);
-
       gain.gain.exponentialRampToValueAtTime(
         0.0001,
         ctx.currentTime + duration,
@@ -893,7 +887,6 @@ function useFlightSound(phase, roundId, fresh) {
 
       oscillator.connect(gain);
       gain.connect(master);
-
       oscillator.start();
       oscillator.stop(ctx.currentTime + duration);
 
@@ -905,7 +898,6 @@ function useFlightSound(phase, roundId, fresh) {
     if (phase === 'RUNNING') {
       const thump = () => {
         const now = ctx.currentTime;
-
         const bass = ctx.createOscillator();
         const knock = ctx.createOscillator();
         const body = ctx.createGain();
@@ -915,33 +907,24 @@ function useFlightSound(phase, roundId, fresh) {
         knock.type = 'triangle';
 
         bass.frequency.setValueAtTime(135, now);
-
         bass.frequency.exponentialRampToValueAtTime(
           48,
           now + 0.19,
         );
-
         knock.frequency.setValueAtTime(380, now);
-
         knock.frequency.exponentialRampToValueAtTime(
           105,
           now + 0.055,
         );
 
         body.gain.setValueAtTime(0.0001, now);
-
-        body.gain.linearRampToValueAtTime(
-          0.85,
-          now + 0.008,
-        );
-
+        body.gain.linearRampToValueAtTime(0.85, now + 0.008);
         body.gain.exponentialRampToValueAtTime(
           0.0001,
           now + 0.24,
         );
 
         attack.gain.setValueAtTime(0.28, now);
-
         attack.gain.exponentialRampToValueAtTime(
           0.0001,
           now + 0.075,
@@ -949,13 +932,11 @@ function useFlightSound(phase, roundId, fresh) {
 
         bass.connect(body);
         body.connect(master);
-
         knock.connect(attack);
         attack.connect(master);
 
         bass.start(now);
         knock.start(now);
-
         bass.stop(now + 0.26);
         knock.stop(now + 0.09);
 
@@ -965,12 +946,8 @@ function useFlightSound(phase, roundId, fresh) {
         bass.onended = () => {
           group.forEach((node) => {
             node.disconnect();
-
             const index = nodes.indexOf(node);
-
-            if (index >= 0) {
-              nodes.splice(index, 1);
-            }
+            if (index >= 0) nodes.splice(index, 1);
           });
         };
       };
@@ -979,10 +956,7 @@ function useFlightSound(phase, roundId, fresh) {
       timer = setInterval(thump, 290);
     } else if (phase === 'COUNTDOWN') {
       tone(660, 0.09);
-
-      timer = setInterval(() => {
-        tone(660, 0.09);
-      }, 1000);
+      timer = setInterval(() => tone(660, 0.09), 1000);
     } else if (phase === 'CRASHED' && transitioned) {
       tone(320, 0.8, 'triangle', 0.4, 65);
     }
@@ -992,10 +966,7 @@ function useFlightSound(phase, roundId, fresh) {
 
       nodes.forEach((node) => {
         try {
-          if (node.stop) {
-            node.stop();
-          }
-
+          if (node.stop) node.stop();
           node.disconnect();
         } catch {
           // Node may already be stopped.
