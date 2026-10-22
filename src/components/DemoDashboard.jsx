@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import DepositPage from "./DepositPage";
 import WithdrawalPage from "./WithdrawalPage";
@@ -86,7 +86,10 @@ const favourites = [
   { name: "AVIATOR X", image: "/games/aviator-x.png" },
   { name: "FANTASY 11", image: "/games/fantasy-11.png" },
   { name: "CRICKET BATTLE", image: "/games/cricket-battle.png" },
-  { name: "LIGHTNING ROULETTE", image: "/games/lightning-roulette.png" },
+  {
+    name: "LIGHTNING ROULETTE",
+    image: "/games/lightning-roulette.png",
+  },
   { name: "BACCARAT", image: "/games/baccarat.png" },
   { name: "TEEN PATTI", image: "/games/teen-patti.png" },
 ];
@@ -200,34 +203,218 @@ function GameSection({
 }
 
 function TopGamesSlider({ onGameClick }) {
-  return (
-    <section className="overflow-hidden border-b border-white/10 bg-[#080d16] py-3">
-      <div className="tsb-game-track">
-        {[0, 1].map(copy => (
-          <div
-            key={copy}
-            className="flex shrink-0 gap-2 pr-2"
-            aria-hidden={copy === 1 ? true : undefined}
-          >
-            {GAMES.map(game => (
-              <button
-                key={game.id}
-                type="button"
-                tabIndex={copy === 1 ? -1 : 0}
-                onClick={() => onGameClick(game)}
-                className="w-[82px] shrink-0"
-              >
-                <div className="h-[54px] overflow-hidden rounded-lg border border-cyan-400/20 bg-black">
-                  <GameArtwork game={game.id} />
-                </div>
+  const scrollerRef = useRef(null);
+  const pauseUntilRef = useRef(0);
+  const focusedRef = useRef(false);
+  const suppressClickUntilRef = useRef(0);
+  const gestureRef = useRef(null);
 
-                <span className="mt-1 block truncate text-center text-[7px] font-black text-gray-300">
-                  {game.name}
-                </span>
-              </button>
-            ))}
-          </div>
-        ))}
+  const pause = () => {
+    pauseUntilRef.current = performance.now() + 3000;
+  };
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return undefined;
+
+    const motion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    );
+
+    let frameId;
+    let previousTime = 0;
+    let position = scroller.scrollLeft;
+    let direction = 1;
+
+    const animate = now => {
+      const elapsed = previousTime
+        ? Math.min(now - previousTime, 50)
+        : 0;
+
+      previousTime = now;
+
+      const paused =
+        motion.matches ||
+        document.hidden ||
+        focusedRef.current ||
+        gestureRef.current !== null ||
+        now < pauseUntilRef.current;
+
+      const maximum =
+        scroller.scrollWidth - scroller.clientWidth;
+
+      if (paused || maximum <= 0) {
+        position = scroller.scrollLeft;
+      } else {
+        position += direction * elapsed * 0.025;
+
+        if (position >= maximum) {
+          position = maximum;
+          direction = -1;
+        } else if (position <= 0) {
+          position = 0;
+          direction = 1;
+        }
+
+        scroller.scrollLeft = position;
+      }
+
+      frameId = window.requestAnimationFrame(animate);
+    };
+
+    frameId = window.requestAnimationFrame(animate);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, []);
+
+  const handlePointerDown = event => {
+    if (!event.isPrimary || event.button !== 0) return;
+
+    pause();
+    suppressClickUntilRef.current = 0;
+
+    gestureRef.current = {
+      id: event.pointerId,
+      type: event.pointerType,
+      x: event.clientX,
+      y: event.clientY,
+      scrollLeft: event.currentTarget.scrollLeft,
+      moved: false,
+    };
+  };
+
+  const handlePointerMove = event => {
+    const gesture = gestureRef.current;
+
+    if (!gesture || gesture.id !== event.pointerId) {
+      return;
+    }
+
+    const distanceX = event.clientX - gesture.x;
+    const distanceY = event.clientY - gesture.y;
+
+    if (
+      Math.abs(distanceX) > 8 ||
+      Math.abs(distanceY) > 8
+    ) {
+      gesture.moved = true;
+    }
+
+    // Touch and pen use the browser's native swipe scrolling.
+    if (
+      gesture.type === "mouse" &&
+      Math.abs(distanceX) > 8
+    ) {
+      event.preventDefault();
+
+      if (
+        !event.currentTarget.hasPointerCapture(event.pointerId)
+      ) {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
+
+      event.currentTarget.scrollLeft =
+        gesture.scrollLeft - distanceX;
+    }
+  };
+
+  const finishGesture = event => {
+    const gesture = gestureRef.current;
+
+    if (!gesture || gesture.id !== event.pointerId) {
+      return;
+    }
+
+    if (gesture.moved) {
+      suppressClickUntilRef.current =
+        performance.now() + 800;
+    }
+
+    gestureRef.current = null;
+    pause();
+
+    if (
+      event.currentTarget.hasPointerCapture(event.pointerId)
+    ) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  return (
+    <section className="border-b border-white/10 bg-[#080d16] py-3">
+      <div
+        ref={scrollerRef}
+        role="region"
+        aria-label="Games. Swipe left or right to browse."
+        className="tsb-game-scroller tsb-scrollbar"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={finishGesture}
+        onPointerCancel={finishGesture}
+        onLostPointerCapture={finishGesture}
+        onPointerLeave={event => {
+          if (
+            event.pointerType === "mouse" &&
+            !event.currentTarget.hasPointerCapture(event.pointerId)
+          ) {
+            finishGesture(event);
+          }
+        }}
+        onTouchEnd={pause}
+        onWheel={pause}
+        onScroll={() => {
+          if (gestureRef.current) {
+            gestureRef.current.moved = true;
+            pause();
+          }
+        }}
+        onFocusCapture={event => {
+          // Keep keyboard focus visible while browsing.
+          if (event.target.matches(":focus-visible")) {
+            focusedRef.current = true;
+          }
+          pause();
+        }}
+        onBlurCapture={event => {
+          if (
+            !event.currentTarget.contains(event.relatedTarget)
+          ) {
+            focusedRef.current = false;
+            pause();
+          }
+        }}
+        onClickCapture={event => {
+          if (
+            event.detail !== 0 &&
+            performance.now() < suppressClickUntilRef.current
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }}
+        onDragStart={event => event.preventDefault()}
+      >
+        <div className="flex w-max gap-2 px-3 pb-1">
+          {GAMES.map(game => (
+            <button
+              key={game.id}
+              type="button"
+              aria-label={`Open ${game.name}`}
+              onClick={() => onGameClick(game)}
+              className="w-[82px] shrink-0 select-none rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
+            >
+              <div className="pointer-events-none h-[54px] overflow-hidden rounded-lg border border-cyan-400/20 bg-black">
+                <GameArtwork game={game.id} />
+              </div>
+
+              <span className="pointer-events-none mt-1 block truncate text-center text-[7px] font-black text-gray-300">
+                {game.name}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -397,21 +584,20 @@ export default function DemoDashboard({ user, onLogout }) {
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#080d16] text-white">
       <style>{`
-        .tsb-game-track {
-          display: flex;
-          width: max-content;
-          animation: tsbGameSlide 32s linear infinite;
+        .tsb-game-scroller {
+          width: 100%;
+          overflow-x: auto;
+          overflow-y: hidden;
+          touch-action: pan-x pan-y;
+          overscroll-behavior-x: contain;
+          -webkit-overflow-scrolling: touch;
+          scroll-behavior: auto;
+          cursor: grab;
+          user-select: none;
         }
 
-        .tsb-game-track:hover,
-        .tsb-game-track:focus-within,
-        .tsb-game-track:active {
-          animation-play-state: paused;
-        }
-
-        @keyframes tsbGameSlide {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
+        .tsb-game-scroller:active {
+          cursor: grabbing;
         }
 
         .tsb-neon-track {
@@ -447,7 +633,6 @@ export default function DemoDashboard({ user, onLogout }) {
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .tsb-game-track,
           .tsb-neon-track {
             animation: none;
           }
