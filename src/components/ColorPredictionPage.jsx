@@ -116,11 +116,19 @@ function ColorGame({ mode, onChangeMode, onBack }) {
   const matchingData = data?.round?.mode === mode;
   const round = matchingData ? data.round : null;
 
+  const paused = Boolean(
+    matchingData &&
+    (
+      data.paused === true ||
+      data.control?.paused === true
+    ),
+  );
+
   const elapsed = Math.max(0, clock - receivedAt);
   const serverTime = Date.parse(data?.serverTime);
 
   const now = Number.isFinite(serverTime)
-    ? serverTime + elapsed
+    ? serverTime + (paused ? 0 : elapsed)
     : clock;
 
   const fresh = Boolean(
@@ -135,6 +143,7 @@ function ColorGame({ mode, onChangeMode, onBack }) {
 
   const open = Boolean(
     fresh &&
+    !paused &&
     round?.phase === "BETTING" &&
     now < closesAt
   );
@@ -185,6 +194,12 @@ function ColorGame({ mode, onChangeMode, onBack }) {
     setSelection(null);
   }, [round?.id]);
 
+  useEffect(() => {
+    if (paused) {
+      setSelection(null);
+    }
+  }, [paused]);
+
   const chooseMarket = key => {
     if (!open || locked) return;
 
@@ -211,12 +226,22 @@ function ColorGame({ mode, onChangeMode, onBack }) {
     );
   };
 
+  const refreshSafely = async () => {
+    try {
+      await refresh();
+    } catch {
+      // Regular state polling will retry.
+    }
+  };
+
   const requestBet = async (retry = false) => {
     if (inFlight.current || pendingCancel) return;
 
     if (!retry && !canConfirm) {
       setMessage(
-        "Choose a market and enter 100–25,000 coins during betting.",
+        paused
+          ? "Color Prediction is paused by Admin."
+          : "Choose a market and enter 100–25,000 coins during betting.",
       );
       return;
     }
@@ -272,7 +297,7 @@ function ColorGame({ mode, onChangeMode, onBack }) {
 
       if (mounted.current) {
         setBusy(false);
-        refresh();
+        void refreshSafely();
       }
     }
   };
@@ -284,6 +309,15 @@ function ColorGame({ mode, onChangeMode, onBack }) {
       pendingCancel &&
       String(pendingCancel) !== String(betId)
     ) {
+      return;
+    }
+
+    if (!pendingCancel && !open) {
+      setMessage(
+        paused
+          ? "Color Prediction is paused by Admin."
+          : "Betting is closed or the connection is unavailable.",
+      );
       return;
     }
 
@@ -322,7 +356,7 @@ function ColorGame({ mode, onChangeMode, onBack }) {
 
       if (mounted.current) {
         setBusy(false);
-        refresh();
+        void refreshSafely();
       }
     }
   };
@@ -386,6 +420,22 @@ function ColorGame({ mode, onChangeMode, onBack }) {
           </p>
         )}
 
+        {paused && (
+          <div
+            role="status"
+            className="rounded-xl border border-amber-300/40 bg-amber-300/15 p-3 text-center"
+          >
+            <p className="text-sm font-black text-amber-200">
+              Ⅱ PAUSED BY ADMIN
+            </p>
+            <p className="mt-1 text-xs leading-5 text-amber-100">
+              All four time modes are paused.
+              Existing bets remain reserved.
+              The timer resumes when Admin selects Play.
+            </p>
+          </div>
+        )}
+
         <section className="rounded-2xl border border-blue-300/20 bg-gradient-to-br from-blue-500 to-indigo-700 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -417,12 +467,18 @@ function ColorGame({ mode, onChangeMode, onBack }) {
               <p className="text-xs font-bold">
                 {!round
                   ? "CONNECTING…"
-                  : drawing
-                    ? "Waiting for draw"
-                    : "Betting closes in"}
+                  : paused
+                    ? "PAUSED BY ADMIN"
+                    : drawing
+                      ? "Waiting for draw"
+                      : "Betting closes in"}
               </p>
 
-              <p className="mt-2 font-mono text-4xl font-black">
+              <p
+                className={`mt-2 font-mono text-4xl font-black ${
+                  paused ? "text-amber-200" : ""
+                }`}
+              >
                 {timerText}
               </p>
 
@@ -470,14 +526,25 @@ function ColorGame({ mode, onChangeMode, onBack }) {
 
             <p className="mt-2">
               Switching time modes does not cancel existing bets.
-              Confirmed bets can be cancelled before betting closes.
+              Confirmed bets can be cancelled before betting closes
+              while the game is playing.
+            </p>
+
+            <p className="mt-2">
+              Admin Pause freezes all four time modes.
+              New bets and cancellations are unavailable while
+              paused. Existing bets stay reserved, and Play
+              resumes the game from the same logical time.
+              Pause does not change a round's result.
             </p>
           </section>
         )}
 
         <section className="rounded-2xl border border-white/10 bg-[#242e65] p-4">
           <div className="flex justify-between gap-2">
-            <h2 className="text-sm font-black">BET AMOUNT</h2>
+            <h2 className="text-sm font-black">
+              BET AMOUNT
+            </h2>
             <span className="text-[10px] text-slate-300">
               100–25,000 coins
             </span>
@@ -541,9 +608,11 @@ function ColorGame({ mode, onChangeMode, onBack }) {
           className="scroll-mt-4 rounded-2xl border border-amber-200/30 bg-[#182e3b] p-4"
         >
           <h2 className="text-sm font-black">
-            {selectedForRound
-              ? marketLabel(selection.key)
-              : "Select a color, number, Big or Small"}
+            {paused
+              ? "Paused by Admin"
+              : selectedForRound
+                ? marketLabel(selection.key)
+                : "Select a color, number, Big or Small"}
           </h2>
 
           <p className="mt-2 text-xs text-slate-300">
@@ -565,7 +634,11 @@ function ColorGame({ mode, onChangeMode, onBack }) {
             onClick={() => requestBet()}
             className="mt-3 w-full rounded-xl bg-emerald-400 p-3 text-sm font-black text-black disabled:opacity-40"
           >
-            {busy ? "PROCESSING…" : "CONFIRM BET"}
+            {busy
+              ? "PROCESSING…"
+              : paused
+                ? "PAUSED BY ADMIN"
+                : "CONFIRM BET"}
           </button>
         </section>
 
@@ -672,7 +745,9 @@ function ColorGame({ mode, onChangeMode, onBack }) {
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-[#202951] p-4">
-          <h2 className="text-sm font-black">This round</h2>
+          <h2 className="text-sm font-black">
+            This round
+          </h2>
 
           {!currentBets.length && (
             <p className="mt-3 text-xs text-slate-400">
@@ -747,13 +822,23 @@ function ColorGame({ mode, onChangeMode, onBack }) {
                     key={item.id}
                     className="border-t border-white/10"
                   >
-                    <td className="py-3 pr-2">{item.period}</td>
-                    <td>
-                      <ResultBall number={item.result.number} small />
+                    <td className="py-3 pr-2">
+                      {item.period}
                     </td>
+
                     <td>
-                      {item.result.size === "BIG" ? "Big" : "Small"}
+                      <ResultBall
+                        number={item.result.number}
+                        small
+                      />
                     </td>
+
+                    <td>
+                      {item.result.size === "BIG"
+                        ? "Big"
+                        : "Small"}
+                    </td>
+
                     <td>
                       <div className="flex gap-1">
                         {item.result.colors.map(color => (
@@ -786,9 +871,11 @@ function ColorGame({ mode, onChangeMode, onBack }) {
                   <p className="font-black">
                     {marketLabel(bet.market)} · {coins(bet.amount)}
                   </p>
+
                   <p className="mt-1 text-[10px] text-slate-300">
                     {bet.period} · {bet.status}
                   </p>
+
                   <p className="mt-1 text-[10px] text-amber-200">
                     Returned: {coins(bet.payout)}
                   </p>
