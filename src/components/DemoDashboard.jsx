@@ -18,6 +18,27 @@ const LOGO =
 
 const HEADER_BACKGROUND = "/games/tsb-header-bg.jpg";
 
+const WINE_LABEL = {
+  backgroundColor: "#791b3e",
+  color: "#ffffff",
+};
+
+const GREEN_LABEL = {
+  backgroundColor: "#08b7bc",
+  color: "#000000",
+};
+
+function gridLabelColor(index) {
+  const column = index % 4;
+  return column === 0 || column === 3
+    ? WINE_LABEL
+    : GREEN_LABEL;
+}
+
+function sliderLabelColor(index) {
+  return index % 2 === 0 ? WINE_LABEL : GREEN_LABEL;
+}
+
 const GAMES = [
   {
     id: "aviator",
@@ -73,12 +94,18 @@ const sports = [
 const newLaunch = [
   { name: "JILI", image: "/games/jili.png" },
   { name: "GOLDEN KICK", image: "/games/golden-kick.png" },
-  { name: "SNAKES & LADDERS", image: "/games/snakes-ladders.png" },
+  {
+    name: "SNAKES & LADDERS",
+    image: "/games/snakes-ladders.png",
+  },
   { name: "PREDIX", image: "/games/predix.png" },
   { name: "MONEY HEIST", image: "/games/money-heist.png" },
   { name: "FOOTBALL X", image: "/games/football-x.png" },
   { name: "TWIST X", image: "/games/twist-x.png" },
-  { name: "INSTANT RUMMY", image: "/games/instant-rummy.png" },
+  {
+    name: "INSTANT RUMMY",
+    image: "/games/instant-rummy.png",
+  },
   { name: "JHANDI MUNDA", image: "/games/jhandi-munda.png" },
   { name: "BLACKJACK", image: "/games/blackjack.png" },
   { name: "LOOT BOXES", image: "/games/loot-boxes.png" },
@@ -87,7 +114,10 @@ const newLaunch = [
 const favourites = [
   { name: "AVIATOR X", image: "/games/aviator-x.png" },
   { name: "FANTASY 11", image: "/games/fantasy-11.png" },
-  { name: "CRICKET BATTLE", image: "/games/cricket-battle.png" },
+  {
+    name: "CRICKET BATTLE",
+    image: "/games/cricket-battle.png",
+  },
   {
     name: "LIGHTNING ROULETTE",
     image: "/games/lightning-roulette.png",
@@ -165,13 +195,14 @@ function GameSection({
     <section className="border-t border-slate-200 bg-white px-3 py-3">
       <div className="mb-3 flex items-center gap-2">
         <span className="h-2 w-2 rounded-full bg-[#08b7bc] shadow-[0_0_10px_rgba(8,183,188,.3)]" />
+
         <h2 className="text-sm font-black uppercase tracking-wide text-slate-900">
           {title}
         </h2>
       </div>
 
       <div className="grid grid-cols-4 gap-1.5 sm:gap-3">
-        {games.map(game => (
+        {games.map((game, index) => (
           <button
             key={game.id || game.name}
             type="button"
@@ -192,8 +223,11 @@ function GameSection({
               )}
             </div>
 
-            <div className="flex min-h-[26px] items-center justify-center px-1 py-1">
-              <span className="text-center text-[7px] font-black uppercase leading-tight text-slate-900 sm:text-[10px]">
+            <div
+              className="flex min-h-[26px] items-center justify-center px-1 py-1"
+              style={gridLabelColor(index)}
+            >
+              <span className="text-center text-[7px] font-black uppercase leading-tight sm:text-[10px]">
                 {game.name}
               </span>
             </div>
@@ -375,6 +409,7 @@ function TopGamesSlider({ onGameClick }) {
           if (event.target.matches(":focus-visible")) {
             focusedRef.current = true;
           }
+
           pause();
         }}
         onBlurCapture={event => {
@@ -397,7 +432,7 @@ function TopGamesSlider({ onGameClick }) {
         onDragStart={event => event.preventDefault()}
       >
         <div className="flex w-max gap-2 px-3 pb-1">
-          {GAMES.map(game => (
+          {GAMES.map((game, index) => (
             <button
               key={game.id}
               type="button"
@@ -409,7 +444,10 @@ function TopGamesSlider({ onGameClick }) {
                 <GameArtwork game={game.id} />
               </div>
 
-              <span className="pointer-events-none mt-1 block truncate text-center text-[7px] font-black text-slate-900">
+              <span
+                className="pointer-events-none mt-1 block truncate rounded-full text-center text-[7px] font-black"
+                style={sliderLabelColor(index)}
+              >
                 {game.name}
               </span>
             </button>
@@ -437,6 +475,7 @@ export default function DemoDashboard({ user, onLogout }) {
   useEffect(() => {
     let active = true;
     let loading = false;
+
     const controller = new AbortController();
 
     const loadBalance = async () => {
@@ -449,6 +488,7 @@ export default function DemoDashboard({ user, onLogout }) {
             "Customer ID is missing. Please login again.",
           );
         }
+
         return;
       }
 
@@ -493,6 +533,7 @@ export default function DemoDashboard({ user, onLogout }) {
     return () => {
       active = false;
       controller.abort();
+
       window.removeEventListener("focus", loadBalance);
       window.removeEventListener(
         "demo-balance-updated",
@@ -789,12 +830,14 @@ export default function DemoDashboard({ user, onLogout }) {
                 >
                   &nbsp;
                 </span>
+
                 <span
                   aria-hidden="true"
                   className="invisible text-[8px]"
                 >
                   &nbsp;
                 </span>
+
                 <strong className="absolute inset-0 flex items-center text-xs text-white">
                   DEPOSIT
                 </strong>
@@ -821,12 +864,14 @@ export default function DemoDashboard({ user, onLogout }) {
                 >
                   &nbsp;
                 </span>
+
                 <span
                   aria-hidden="true"
                   className="invisible text-[8px]"
                 >
                   &nbsp;
                 </span>
+
                 <strong className="absolute inset-0 flex items-center whitespace-nowrap text-xs text-white">
                   WITHDRAWAL
                 </strong>
@@ -905,6 +950,7 @@ export default function DemoDashboard({ user, onLogout }) {
               <span className="block text-xl">
                 {sport.icon}
               </span>
+
               <span className="mt-2 block whitespace-nowrap text-[7px] font-black">
                 {sport.name}
               </span>
@@ -916,6 +962,7 @@ export default function DemoDashboard({ user, onLogout }) {
       <section className="px-3 pb-2 pt-4">
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_12px_#ef4444]" />
+
           <h2 className="text-lg font-black text-slate-900">
             LIVE SPORTS
           </h2>
@@ -965,6 +1012,7 @@ export default function DemoDashboard({ user, onLogout }) {
           className="mx-3 mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900"
         >
           <span>{notice}</span>
+
           <button
             type="button"
             aria-label="Dismiss message"
