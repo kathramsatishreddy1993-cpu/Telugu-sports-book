@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+
 import Header from "./components/Header";
 import HeroBanner from "./components/HeroBanner";
 import HeroBonusCard from "./components/HeroBonusCard";
@@ -15,6 +16,9 @@ import TSBFlightPage from "./components/TSBFlightPage";
 import CardGamesPage from "./components/CardGamesPage";
 import ColorPredictionPage from "./components/ColorPredictionPage";
 import AnimatedSuperOverPage from "./components/AnimatedSuperOverPage";
+import DealOrNoDealPage from "./components/DealOrNoDealPage";
+import DealOrNoDealControlPage from "./components/DealOrNoDealControlPage";
+
 import { ACTIVE_GAMES } from "./components/GameArtwork";
 
 const AUTH_KEY = "telugu_sports_auth_user";
@@ -35,7 +39,11 @@ function restoredSession(key) {
 
     return saved?.isAuthenticated ? saved : null;
   } catch (error) {
-    console.error("Unable to restore session:", error);
+    console.error(
+      "Unable to restore session:",
+      error,
+    );
+
     return null;
   }
 }
@@ -43,9 +51,14 @@ function restoredSession(key) {
 export default function App() {
   const [view, setView] = useState("home");
   const [authMode, setAuthMode] = useState(null);
-  const [selectedBonus, setSelectedBonus] = useState(null);
-  const [selectedPublicItem, setSelectedPublicItem] =
+
+  const [selectedBonus, setSelectedBonus] =
     useState(null);
+
+  const [
+    selectedPublicItem,
+    setSelectedPublicItem,
+  ] = useState(null);
 
   const [user, setUser] = useState(() =>
     restoredSession(AUTH_KEY),
@@ -59,16 +72,32 @@ export default function App() {
     .replace(/\/+$/, "")
     .toLowerCase();
 
-  const isAdminMode = cleanPath === "/admin";
-  const isGameControl = cleanPath === "/game-control";
-  const isRoulette = cleanPath === "/games/roulette";
+  const isAdminMode =
+    cleanPath === "/admin";
+
+  const isGameControl =
+    cleanPath === "/game-control";
+
+  const isRoulette =
+    cleanPath === "/games/roulette";
+
   const isRouletteControl =
     cleanPath === "/game-control/roulette";
+
   const isAnimatedSO =
     cleanPath === "/games/animated-super-over";
-  const isFlight = cleanPath === "/games/tsb-flight";
+
+  const isFlight =
+    cleanPath === "/games/tsb-flight";
+
   const isColorPrediction =
     cleanPath === "/games/color-prediction";
+
+  const isDealOrNoDeal =
+    cleanPath === "/games/deal-or-no-deal";
+
+  const isDealOrNoDealControl =
+    cleanPath === "/game-control/deal-or-no-deal";
 
   const cardGame = ACTIVE_GAMES.find(
     game =>
@@ -78,10 +107,11 @@ export default function App() {
 
   const isCustomerGame = Boolean(
     isFlight ||
-    isRoulette ||
-    cardGame ||
-    isAnimatedSO ||
-    isColorPrediction
+      isRoulette ||
+      cardGame ||
+      isAnimatedSO ||
+      isColorPrediction ||
+      isDealOrNoDeal,
   );
 
   const unknownGame =
@@ -115,14 +145,18 @@ export default function App() {
         const data = await response.json();
 
         if (active) {
-          setAdmin(response.ok ? data.admin : null);
+          setAdmin(
+            response.ok ? data.admin : null,
+          );
         }
       })
       .catch(() => {
         if (active) setAdmin(null);
       })
       .finally(() => {
-        if (active) setAdminChecking(false);
+        if (active) {
+          setAdminChecking(false);
+        }
       });
 
     return () => {
@@ -144,10 +178,15 @@ export default function App() {
     }
   };
 
-  const handleOpenBonus = (bonusType = null) => {
+  const handleOpenBonus = (
+    bonusType = null,
+  ) => {
     setSelectedBonus(
-      typeof bonusType === "string" ? bonusType : null,
+      typeof bonusType === "string"
+        ? bonusType
+        : null,
     );
+
     setView("bonus");
     window.scrollTo(0, 0);
   };
@@ -163,7 +202,10 @@ export default function App() {
     item = null,
   ) => {
     setSelectedPublicItem(item);
-    setAuthMode(mode === "signup" ? "signup" : "login");
+
+    setAuthMode(
+      mode === "signup" ? "signup" : "login",
+    );
   };
 
   const handleLoginSuccess = loggedInUser => {
@@ -227,7 +269,10 @@ export default function App() {
         "telugu_sports_selected_demo_item",
       );
     } catch (error) {
-      console.error("Unable to logout:", error);
+      console.error(
+        "Unable to logout:",
+        error,
+      );
     }
 
     setUser(null);
@@ -244,17 +289,29 @@ export default function App() {
         credentials: "same-origin",
       });
     } catch (error) {
-      console.error("Server logout failed:", error);
+      console.error(
+        "Server logout failed:",
+        error,
+      );
     }
 
     try {
-      localStorage.removeItem(ADMIN_AUTH_KEY);
+      localStorage.removeItem(
+        ADMIN_AUTH_KEY,
+      );
     } catch (error) {
-      console.error("Unable to logout admin:", error);
+      console.error(
+        "Unable to logout admin:",
+        error,
+      );
     }
 
     setAdmin(null);
   };
+
+  if (isDealOrNoDealControl) {
+    return <DealOrNoDealControlPage />;
+  }
 
   if (isRouletteControl) {
     return <RoulettePage controller />;
@@ -290,10 +347,10 @@ export default function App() {
 
   const requiresSecuritySetup = Boolean(
     user?.isAuthenticated &&
-    (
-      user.mustChangePassword === true ||
-      user.mustChangeWithdrawalPassword === true
-    )
+      (
+        user.mustChangePassword === true ||
+        user.mustChangeWithdrawalPassword === true
+      ),
   );
 
   if (requiresSecuritySetup) {
@@ -307,29 +364,35 @@ export default function App() {
   }
 
   if (unknownGame) {
-    return <div className="fixed inset-0 bg-black" />;
+    return (
+      <div className="fixed inset-0 bg-black" />
+    );
   }
 
-  const GamePage = isColorPrediction
-    ? ColorPredictionPage
-    : isAnimatedSO
-      ? AnimatedSuperOverPage
-      : cardGame
-        ? CardGamesPage
-        : isRoulette
-          ? RoulettePage
-          : TSBFlightPage;
-
-  const gameTitle = isColorPrediction
-    ? "COLOR PREDICTION"
-    : cardGame?.name ||
-      (
-        isAnimatedSO
-          ? "ANIMATED SUPER OVER"
+  const GamePage = isDealOrNoDeal
+    ? DealOrNoDealPage
+    : isColorPrediction
+      ? ColorPredictionPage
+      : isAnimatedSO
+        ? AnimatedSuperOverPage
+        : cardGame
+          ? CardGamesPage
           : isRoulette
-            ? "TSB ROULETTE"
-            : "TSB FLIGHT"
-      );
+            ? RoulettePage
+            : TSBFlightPage;
+
+  const gameTitle = isDealOrNoDeal
+    ? "DEAL OR NO DEAL"
+    : isColorPrediction
+      ? "COLOR PREDICTION"
+      : cardGame?.name ||
+        (
+          isAnimatedSO
+            ? "ANIMATED SUPER OVER"
+            : isRoulette
+              ? "TSB ROULETTE"
+              : "TSB FLIGHT"
+        );
 
   if (isCustomerGame) {
     if (user?.isAuthenticated) {
@@ -337,7 +400,9 @@ export default function App() {
         <GamePage
           game={cardGame?.id}
           user={user}
-          onBack={() => window.location.assign("/")}
+          onBack={() =>
+            window.location.assign("/")
+          }
           onLogout={handleLogout}
         />
       );
@@ -350,13 +415,23 @@ export default function App() {
         </h1>
 
         <p className="mt-4 max-w-md text-sm leading-6 text-slate-300">
-          Multiplayer demo. Login with your customer ID
-          to use your demo coins.
+          Multiplayer demo. Login with your
+          customer ID to use your demo coins.
         </p>
+
+        {isDealOrNoDeal && (
+          <p className="mt-3 max-w-md text-xs leading-5 text-amber-200">
+            Admin-selected demo. Results are
+            selected and locked before betting
+            opens.
+          </p>
+        )}
 
         <button
           type="button"
-          onClick={() => setAuthMode("login")}
+          onClick={() =>
+            setAuthMode("login")
+          }
           className="mt-6 rounded-xl bg-cyan-400 px-8 py-3 font-black text-black"
         >
           CUSTOMER LOGIN
@@ -372,7 +447,9 @@ export default function App() {
         <AuthModal
           isOpen={Boolean(authMode)}
           initialMode={authMode || "login"}
-          onClose={() => setAuthMode(null)}
+          onClose={() =>
+            setAuthMode(null)
+          }
           onLoginSuccess={handleLoginSuccess}
         />
       </div>
