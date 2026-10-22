@@ -1,7 +1,6 @@
 import React from "react";
 
-const ARTWORK_IMAGE =
-  "/games/tsb-game-artwork.png";
+const ARTWORK_IMAGE = "/games/%20tsb-game-artwork.png";
 
 export const ACTIVE_GAMES = [
   {
@@ -62,10 +61,6 @@ export const CARD_GAME_ITEMS = [
   ACTIVE_GAMES[7],
 ];
 
-/*
- * Positions in the approved 1536 × 1024 image.
- * Each viewBox displays one game card.
- */
 const ARTWORK_REGIONS = {
   aviator: {
     x: 10,
@@ -122,16 +117,13 @@ export default function GameArtwork({
   className = "",
 }) {
   const gameId =
-    typeof game === "string"
-      ? game
-      : game?.id;
+    typeof game === "string" ? game : game?.id;
 
   const region = ARTWORK_REGIONS[gameId];
 
   const name =
-    ACTIVE_GAMES.find(
-      item => item.id === gameId,
-    )?.name || "TELUGU SPORTS BOOK";
+    ACTIVE_GAMES.find(item => item.id === gameId)
+      ?.name || "TELUGU SPORTS BOOK";
 
   if (!region) {
     return (
@@ -148,12 +140,7 @@ export default function GameArtwork({
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox={[
-        region.x,
-        region.y,
-        region.width,
-        region.height,
-      ].join(" ")}
+      viewBox={`${region.x} ${region.y} ${region.width} ${region.height}`}
       preserveAspectRatio="none"
       role="img"
       aria-label={`${name} game artwork`}
