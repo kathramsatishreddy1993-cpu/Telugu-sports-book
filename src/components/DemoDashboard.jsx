@@ -1,7 +1,4 @@
-import React, {
-  useEffect,
-  useState,
-} from "react";
+import React, { useEffect, useState } from "react";
 
 import DepositPage from "./DepositPage";
 import WithdrawalPage from "./WithdrawalPage";
@@ -15,6 +12,9 @@ import RulesPage from "./RulesPage";
 import CricketMatchList from "./CricketMatchList";
 import MyPromoCodePage from "./MyPromoCodePage";
 import GameArtwork from "./GameArtwork";
+
+const LOGO =
+  "/games/file_0000000092bc82118617f615539c5f17.png";
 
 const GAMES = [
   {
@@ -70,97 +70,37 @@ const sports = [
 
 const newLaunch = [
   { name: "JILI", image: "/games/jili.png" },
-  {
-    name: "GOLDEN KICK",
-    image: "/games/golden-kick.png",
-  },
-  {
-    name: "SNAKES & LADDERS",
-    image: "/games/snakes-ladders.png",
-  },
+  { name: "GOLDEN KICK", image: "/games/golden-kick.png" },
+  { name: "SNAKES & LADDERS", image: "/games/snakes-ladders.png" },
   { name: "PREDIX", image: "/games/predix.png" },
-  {
-    name: "MONEY HEIST",
-    image: "/games/money-heist.png",
-  },
-  {
-    name: "FOOTBALL X",
-    image: "/games/football-x.png",
-  },
+  { name: "MONEY HEIST", image: "/games/money-heist.png" },
+  { name: "FOOTBALL X", image: "/games/football-x.png" },
   { name: "TWIST X", image: "/games/twist-x.png" },
-  {
-    name: "INSTANT RUMMY",
-    image: "/games/instant-rummy.png",
-  },
-  {
-    name: "JHANDI MUNDA",
-    image: "/games/jhandi-munda.png",
-  },
-  {
-    name: "BLACKJACK",
-    image: "/games/blackjack.png",
-  },
-  {
-    name: "LOOT BOXES",
-    image: "/games/loot-boxes.png",
-  },
+  { name: "INSTANT RUMMY", image: "/games/instant-rummy.png" },
+  { name: "JHANDI MUNDA", image: "/games/jhandi-munda.png" },
+  { name: "BLACKJACK", image: "/games/blackjack.png" },
+  { name: "LOOT BOXES", image: "/games/loot-boxes.png" },
 ];
 
 const favourites = [
-  {
-    name: "AVIATOR X",
-    image: "/games/aviator-x.png",
-  },
-  {
-    name: "FANTASY 11",
-    image: "/games/fantasy-11.png",
-  },
-  {
-    name: "CRICKET BATTLE",
-    image: "/games/cricket-battle.png",
-  },
-  {
-    name: "LIGHTNING ROULETTE",
-    image: "/games/lightning-roulette.png",
-  },
-  {
-    name: "BACCARAT",
-    image: "/games/baccarat.png",
-  },
-  {
-    name: "TEEN PATTI",
-    image: "/games/teen-patti.png",
-  },
+  { name: "AVIATOR X", image: "/games/aviator-x.png" },
+  { name: "FANTASY 11", image: "/games/fantasy-11.png" },
+  { name: "CRICKET BATTLE", image: "/games/cricket-battle.png" },
+  { name: "LIGHTNING ROULETTE", image: "/games/lightning-roulette.png" },
+  { name: "BACCARAT", image: "/games/baccarat.png" },
+  { name: "TEEN PATTI", image: "/games/teen-patti.png" },
 ];
 
 const providers = [
   { name: "MAC88", image: "/games/mac88.png" },
-  {
-    name: "EZUGI",
-    image: "/games/ezugi-provider.png",
-  },
-  {
-    name: "SMARTSOFT",
-    image: "/games/smartsoft.png",
-  },
+  { name: "EZUGI", image: "/games/ezugi-provider.png" },
+  { name: "SMARTSOFT", image: "/games/smartsoft.png" },
   { name: "SPRIBE", image: "/games/spribe.png" },
-  {
-    name: "EVOLUTION",
-    image: "/games/evolution.png",
-  },
-  {
-    name: "JILI",
-    image: "/games/jili-provider.png",
-  },
-  {
-    name: "TURBO GAMES",
-    image: "/games/turbo-games.png",
-  },
+  { name: "EVOLUTION", image: "/games/evolution.png" },
+  { name: "JILI", image: "/games/jili-provider.png" },
+  { name: "TURBO GAMES", image: "/games/turbo-games.png" },
   { name: "GAMZIX", image: "/games/gamzix.png" },
-  {
-    name: "KING MIDAS",
-    image: "/games/king-midas.png",
-  },
+  { name: "KING MIDAS", image: "/games/king-midas.png" },
 ];
 
 const MENU_ITEMS = [
@@ -173,6 +113,16 @@ const MENU_ITEMS = [
   ["My Promo Code", "promo"],
   ["Rule", "rules"],
 ];
+
+function BrandLogo({ className = "" }) {
+  return (
+    <img
+      src={LOGO}
+      alt="Telugu Sports Book logo"
+      className={`block h-full w-full object-contain ${className}`}
+    />
+  );
+}
 
 function GameImage({ game }) {
   const [failed, setFailed] = useState(false);
@@ -210,7 +160,6 @@ function GameSection({
     <section className="border-t border-[#1e293b] bg-[#080d16] px-3 py-3">
       <div className="mb-3 flex items-center gap-2">
         <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]" />
-
         <h2 className="text-sm font-black uppercase tracking-wide text-white">
           {title}
         </h2>
@@ -226,9 +175,7 @@ function GameSection({
           >
             <div
               className={`relative w-full overflow-hidden bg-black ${
-                compact
-                  ? "aspect-[3/2]"
-                  : "aspect-square"
+                compact ? "aspect-[3/2]" : "aspect-square"
               }`}
             >
               <GameImage game={game} />
@@ -286,31 +233,19 @@ function TopGamesSlider({ onGameClick }) {
   );
 }
 
-export default function DemoDashboard({
-  user,
-  onLogout,
-}) {
+export default function DemoDashboard({ user, onLogout }) {
   const [page, setPage] = useState("home");
-  const [selectedSport, setSelectedSport] =
-    useState("CRICKET");
-  const [selectedTab, setSelectedTab] =
-    useState("INPLAY");
-  const [matchFilter, setMatchFilter] =
-    useState("LIVE");
-  const [showCustomerMenu, setShowCustomerMenu] =
-    useState(false);
-  const [selectedMatch, setSelectedMatch] =
-    useState(null);
-  const [demoBalance, setDemoBalance] =
-    useState(0);
-  const [balanceError, setBalanceError] =
-    useState("");
+  const [selectedSport, setSelectedSport] = useState("CRICKET");
+  const [selectedTab, setSelectedTab] = useState("INPLAY");
+  const [matchFilter, setMatchFilter] = useState("LIVE");
+  const [showCustomerMenu, setShowCustomerMenu] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [demoBalance, setDemoBalance] = useState(0);
+  const [balanceError, setBalanceError] = useState("");
   const [notice, setNotice] = useState("");
 
   const customerId =
-    user?.id ||
-    user?.customerId ||
-    user?.customer_id;
+    user?.id || user?.customerId || user?.customer_id;
 
   useEffect(() => {
     let active = true;
@@ -327,7 +262,6 @@ export default function DemoDashboard({
             "Customer ID is missing. Please login again.",
           );
         }
-
         return;
       }
 
@@ -356,10 +290,7 @@ export default function DemoDashboard({
           setBalanceError("");
         }
       } catch (requestError) {
-        if (
-          active &&
-          requestError.name !== "AbortError"
-        ) {
+        if (active && requestError.name !== "AbortError") {
           setBalanceError(requestError.message);
         }
       } finally {
@@ -370,20 +301,12 @@ export default function DemoDashboard({
     loadBalance();
 
     window.addEventListener("focus", loadBalance);
-    window.addEventListener(
-      "demo-balance-updated",
-      loadBalance,
-    );
+    window.addEventListener("demo-balance-updated", loadBalance);
 
     return () => {
       active = false;
       controller.abort();
-
-      window.removeEventListener(
-        "focus",
-        loadBalance,
-      );
-
+      window.removeEventListener("focus", loadBalance);
       window.removeEventListener(
         "demo-balance-updated",
         loadBalance,
@@ -412,63 +335,31 @@ export default function DemoDashboard({
       return;
     }
 
-    setNotice(
-      `${game.name} is not available yet.`,
-    );
+    setNotice(`${game.name} is not available yet.`);
   };
 
   if (page === "deposit") {
-    return (
-      <DepositPage
-        user={user}
-        onBack={goHome}
-      />
-    );
+    return <DepositPage user={user} onBack={goHome} />;
   }
 
   if (page === "withdrawal") {
-    return (
-      <WithdrawalPage
-        user={user}
-        onBack={goHome}
-      />
-    );
+    return <WithdrawalPage user={user} onBack={goHome} />;
   }
 
   if (page === "statement") {
-    return (
-      <AccountStatementPage
-        user={user}
-        onBack={goHome}
-      />
-    );
+    return <AccountStatementPage user={user} onBack={goHome} />;
   }
 
   if (page === "history") {
-    return (
-      <BetHistoryPage
-        user={user}
-        onBack={goHome}
-      />
-    );
+    return <BetHistoryPage user={user} onBack={goHome} />;
   }
 
   if (page === "unsettled") {
-    return (
-      <UnsettledBetPage
-        user={user}
-        onBack={goHome}
-      />
-    );
+    return <UnsettledBetPage user={user} onBack={goHome} />;
   }
 
   if (page === "buttons") {
-    return (
-      <SetButtonValuesPage
-        user={user}
-        onBack={goHome}
-      />
-    );
+    return <SetButtonValuesPage user={user} onBack={goHome} />;
   }
 
   if (page === "password") {
@@ -483,21 +374,11 @@ export default function DemoDashboard({
   }
 
   if (page === "promo") {
-    return (
-      <MyPromoCodePage
-        user={user}
-        onBack={goHome}
-      />
-    );
+    return <MyPromoCodePage user={user} onBack={goHome} />;
   }
 
   if (page === "rules") {
-    return (
-      <RulesPage
-        user={user}
-        onBack={goHome}
-      />
-    );
+    return <RulesPage user={user} onBack={goHome} />;
   }
 
   if (selectedMatch) {
@@ -576,15 +457,13 @@ export default function DemoDashboard({
       <header className="border-b border-[#1f2937] bg-gradient-to-br from-[#0c1727] via-[#0b121e] to-[#111827] px-4 pb-3 pt-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-amber-400/30 bg-black text-sm font-black text-amber-300">
-              TSB
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-amber-400/30 bg-black shadow-[0_0_20px_rgba(245,158,11,.12)]">
+              <BrandLogo />
             </div>
 
-            <div>
+            <div className="min-w-0">
               <h1 className="text-base font-black tracking-wide sm:text-lg">
-                <span className="text-amber-400">
-                  TELUGU
-                </span>{" "}
+                <span className="text-amber-400">TELUGU</span>{" "}
                 SPORTS
               </h1>
 
@@ -601,8 +480,7 @@ export default function DemoDashboard({
               </p>
 
               <p className="mt-1 text-sm font-black text-amber-300">
-                🪙{" "}
-                {demoBalance.toLocaleString("en-IN")}
+                🪙 {demoBalance.toLocaleString("en-IN")}
               </p>
             </div>
 
@@ -675,17 +553,14 @@ export default function DemoDashboard({
           >
             <span className="flex items-center gap-2">
               <span className="text-2xl">💰</span>
-
               <span>
                 <strong className="block text-xs text-emerald-300">
                   DEPOSIT
                 </strong>
-
                 <span className="text-[8px] text-emerald-100/60">
                   CREDITS
                 </span>
               </span>
-
               <span className="ml-auto text-xl text-emerald-300">
                 ›
               </span>
@@ -699,17 +574,14 @@ export default function DemoDashboard({
           >
             <span className="flex items-center gap-2">
               <span className="text-2xl">💵</span>
-
               <span>
                 <strong className="block text-xs text-orange-300">
                   WITHDRAWAL
                 </strong>
-
                 <span className="text-[8px] text-orange-100/60">
                   REQUEST
                 </span>
               </span>
-
               <span className="ml-auto text-xl text-orange-300">
                 ›
               </span>
@@ -773,9 +645,7 @@ export default function DemoDashboard({
             <button
               key={sport.name}
               type="button"
-              onClick={() =>
-                setSelectedSport(sport.name)
-              }
+              onClick={() => setSelectedSport(sport.name)}
               className={`w-[90px] shrink-0 rounded-xl border px-2 py-2 text-center ${
                 selectedSport === sport.name
                   ? "border-amber-400/50 bg-amber-400/15 text-white"
@@ -785,7 +655,6 @@ export default function DemoDashboard({
               <span className="block text-xl">
                 {sport.icon}
               </span>
-
               <span className="mt-2 block whitespace-nowrap text-[7px] font-black">
                 {sport.name}
               </span>
@@ -797,7 +666,6 @@ export default function DemoDashboard({
       <section className="px-3 pb-2 pt-4">
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_12px_#ef4444]" />
-
           <h2 className="text-lg font-black">
             LIVE SPORTS
           </h2>
@@ -847,7 +715,6 @@ export default function DemoDashboard({
           className="mx-3 mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-300/20 bg-amber-300/10 p-3 text-xs text-amber-100"
         >
           <span>{notice}</span>
-
           <button
             type="button"
             aria-label="Dismiss message"
@@ -892,7 +759,11 @@ export default function DemoDashboard({
       />
 
       <footer className="border-t border-white/10 bg-[#050911] px-5 py-8 text-center">
-        <p className="text-sm font-black text-amber-300">
+        <div className="mx-auto h-14 w-14 overflow-hidden rounded-xl border border-amber-400/20 bg-black">
+          <BrandLogo />
+        </div>
+
+        <p className="mt-3 text-sm font-black text-amber-300">
           TELUGU SPORTS BOOK
         </p>
 
