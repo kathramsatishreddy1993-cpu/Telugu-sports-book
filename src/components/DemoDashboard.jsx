@@ -9,8 +9,6 @@ import ChangePasswordPage from "./ChangePasswordPage";
 import MatchDetailsPage from "./MatchDetailsPage";
 import RulesPage from "./RulesPage";
 import CricketMatchList from "./CricketMatchList";
-import HeroBonusCard from "./HeroBonusCard";
-import BonusPage from "./BonusPage";
 import MyPromoCodePage from "./MyPromoCodePage";
 import GameArtwork, { ACTIVE_GAMES } from "./GameArtwork";
 
@@ -25,7 +23,6 @@ const sports = [
 
 const featuredGames = ACTIVE_GAMES.slice(0, 3);
 const secondGames = ACTIVE_GAMES.slice(3, 6);
-const topScrollingGames = ACTIVE_GAMES;
 const roulette = ACTIVE_GAMES[1];
 
 const newLaunch = [
@@ -70,12 +67,11 @@ function NeonScrollingLine() {
   return (
     <div className="tsb-neon-area">
       <div className="tsb-neon-track">
-        <span className="tsb-neon-text">
-          ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS & ENTERTAINMENT ✦
-        </span>
-        <span className="tsb-neon-text">
-          ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS & ENTERTAINMENT ✦
-        </span>
+        {[0, 1].map(index => (
+          <span key={index} className="tsb-neon-text">
+            ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS & ENTERTAINMENT ✦
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -86,36 +82,29 @@ function TopGamesSlider({ onGameClick }) {
     <section className="overflow-hidden border-b border-white/10 bg-[#080d16] py-3">
       <div className="tsb-game-slider">
         <div className="tsb-game-slider-track">
-          {[...topScrollingGames, ...topScrollingGames].map(
-            (game, index) => (
-              <button
-                key={`${game.name}-${index}`}
-                type="button"
-                aria-label={game.name}
-                onClick={() => onGameClick(game)}
-                className="tsb-top-game-card"
-              >
-                <div className="h-[74px] w-[112px] overflow-hidden rounded-xl border border-cyan-400/20 bg-[#111827] shadow-[0_0_15px_rgba(34,211,238,.08)]">
-                  <GameArtwork game={game.id} />
-                </div>
-                <span className="mt-1 block max-w-[112px] truncate text-center text-[7px] font-black uppercase tracking-wide text-gray-300">
-                  {game.name}
-                </span>
-              </button>
-            ),
-          )}
+          {[...ACTIVE_GAMES, ...ACTIVE_GAMES].map((game, index) => (
+            <button
+              key={`${game.name}-${index}`}
+              type="button"
+              aria-label={game.name}
+              onClick={() => onGameClick(game)}
+              className="tsb-top-game-card"
+            >
+              <div className="h-[74px] w-[112px] overflow-hidden rounded-xl border border-cyan-400/20 bg-[#111827] shadow-[0_0_15px_rgba(34,211,238,.08)]">
+                <GameArtwork game={game.id} />
+              </div>
+              <span className="mt-1 block max-w-[112px] truncate text-center text-[7px] font-black uppercase tracking-wide text-gray-300">
+                {game.name}
+              </span>
+            </button>
+          ))}
         </div>
       </div>
     </section>
   );
 }
 
-function GameSection({
-  title,
-  games,
-  onGameClick,
-  active = false,
-}) {
+function GameSection({ title, games, onGameClick, active = false }) {
   return (
     <section className="border-t border-[#1e293b] bg-[#080d16] px-3 py-4">
       <div className="mb-3 flex items-center justify-between">
@@ -131,7 +120,7 @@ function GameSection({
       </div>
 
       <div className={`grid gap-2 ${active ? "grid-cols-3" : "grid-cols-4"}`}>
-        {games.map((game) => (
+        {games.map(game => (
           <button
             key={game.name}
             type="button"
@@ -163,11 +152,7 @@ function GameSection({
   );
 }
 
-export default function DemoDashboard({
-  user,
-  onLogout,
-  onOpenBonus,
-}) {
+export default function DemoDashboard({ user, onLogout }) {
   const [selectedSport, setSelectedSport] = useState("CRICKET");
   const [selectedTab, setSelectedTab] = useState("INPLAY");
   const [matchFilter, setMatchFilter] = useState("LIVE");
@@ -182,10 +167,8 @@ export default function DemoDashboard({
   const [showRules, setShowRules] = useState(false);
   const [showMyPromoCode, setShowMyPromoCode] = useState(false);
   const [showCustomerMenu, setShowCustomerMenu] = useState(false);
-  const [selectedBonus, setSelectedBonus] = useState(null);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [selectedGame, setSelectedGame] = useState(null);
-
   const [demoBalance, setDemoBalance] = useState(0);
   const [balanceError, setBalanceError] = useState("");
 
@@ -200,9 +183,7 @@ export default function DemoDashboard({
         if (!customerId) {
           if (active) {
             setDemoBalance(0);
-            setBalanceError(
-              "Customer ID is missing. Please login again.",
-            );
+            setBalanceError("Customer ID is missing. Please login again.");
           }
           return;
         }
@@ -211,7 +192,6 @@ export default function DemoDashboard({
           `/api/customers/${customerId}/demo-balance`,
           { cache: "no-store" },
         );
-
         const data = await response.json();
 
         if (!response.ok) {
@@ -246,13 +226,20 @@ export default function DemoDashboard({
     showWithdrawal,
   ]);
 
+  useEffect(() => {
+    if (!selectedGame) return;
+
+    const timer = setTimeout(() => {
+      setSelectedGame(null);
+      setSelectedTab("INPLAY");
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }, 650);
+
+    return () => clearTimeout(timer);
+  }, [selectedGame]);
+
   const tabs = [
-    "INPLAY",
-    "SPORTS",
-    "CASINO",
-    "SPORTS BOOK",
-    "PREDIX",
-    "OTHERS",
+    "INPLAY", "SPORTS", "CASINO", "SPORTS BOOK", "PREDIX", "OTHERS",
   ];
 
   const customerMenuItems = [
@@ -266,7 +253,7 @@ export default function DemoDashboard({
     "Rule",
   ];
 
-  const handleCustomerMenu = (item) => {
+  const handleCustomerMenu = item => {
     setShowCustomerMenu(false);
 
     if (item === "Home") {
@@ -285,33 +272,9 @@ export default function DemoDashboard({
     window.scrollTo(0, 0);
   };
 
-  const handleBonusClick = (bonusType) => {
-    setShowCustomerMenu(false);
-
-    if (typeof onOpenBonus === "function") {
-      onOpenBonus(bonusType);
-      return;
-    }
-
-    setSelectedBonus(bonusType);
-    window.scrollTo(0, 0);
-  };
-
-  useEffect(() => {
-    if (!selectedGame) return;
-
-    const timer = setTimeout(() => {
-      setSelectedGame(null);
-      setSelectedTab("INPLAY");
-      window.scrollTo({ top: 0, behavior: "auto" });
-    }, 650);
-
-    return () => clearTimeout(timer);
-  }, [selectedGame]);
-
-  const handleGameClick = (game) => {
+  const handleGameClick = game => {
     const active = ACTIVE_GAMES.find(
-      (item) => item.id === game.id || item.name === game.name,
+      item => item.id === game.id || item.name === game.name,
     );
 
     if (active) {
@@ -323,21 +286,11 @@ export default function DemoDashboard({
   };
 
   if (showDeposit) {
-    return (
-      <DepositPage
-        user={user}
-        onBack={() => setShowDeposit(false)}
-      />
-    );
+    return <DepositPage user={user} onBack={() => setShowDeposit(false)} />;
   }
 
   if (showWithdrawal) {
-    return (
-      <WithdrawalPage
-        user={user}
-        onBack={() => setShowWithdrawal(false)}
-      />
-    );
+    return <WithdrawalPage user={user} onBack={() => setShowWithdrawal(false)} />;
   }
 
   if (showAccountStatement) {
@@ -350,12 +303,7 @@ export default function DemoDashboard({
   }
 
   if (showBetHistory) {
-    return (
-      <BetHistoryPage
-        user={user}
-        onBack={() => setShowBetHistory(false)}
-      />
-    );
+    return <BetHistoryPage user={user} onBack={() => setShowBetHistory(false)} />;
   }
 
   if (showUnsettledBet) {
@@ -397,24 +345,7 @@ export default function DemoDashboard({
   }
 
   if (showRules) {
-    return (
-      <RulesPage
-        user={user}
-        onBack={() => setShowRules(false)}
-      />
-    );
-  }
-
-  if (selectedBonus) {
-    return (
-      <BonusPage
-        bonusType={selectedBonus}
-        onBack={() => {
-          setSelectedBonus(null);
-          window.scrollTo(0, 0);
-        }}
-      />
-    );
+    return <RulesPage user={user} onBack={() => setShowRules(false)} />;
   }
 
   if (selectedMatch) {
@@ -463,13 +394,8 @@ export default function DemoDashboard({
           font-weight: 900;
           letter-spacing: 1px;
           background: linear-gradient(
-            90deg,
-            #22d3ee,
-            #34d399,
-            #fbbf24,
-            #fb7185,
-            #a78bfa,
-            #22d3ee
+            90deg, #22d3ee, #34d399, #fbbf24,
+            #fb7185, #a78bfa, #22d3ee
           );
           background-size: 300% 100%;
           -webkit-background-clip: text;
@@ -533,7 +459,6 @@ export default function DemoDashboard({
                   className="h-full w-full object-contain"
                 />
               </div>
-
               <div>
                 <h1 className="text-lg font-black tracking-wide">
                   <span className="text-amber-400">TELUGU</span>{" "}
@@ -559,7 +484,7 @@ export default function DemoDashboard({
             <button
               type="button"
               aria-expanded={showCustomerMenu}
-              onClick={() => setShowCustomerMenu((value) => !value)}
+              onClick={() => setShowCustomerMenu(value => !value)}
               className="mt-2 max-w-[135px] truncate rounded-lg border border-cyan-400/30 bg-[#111827] px-3 py-2 text-[10px] font-black text-cyan-200"
             >
               {user?.name || user?.identifier || "User"} ▼
@@ -567,21 +492,18 @@ export default function DemoDashboard({
 
             {showCustomerMenu && (
               <div className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-56 overflow-y-auto rounded-xl border border-white/10 bg-[#111827] text-left text-gray-100 shadow-2xl">
-                {customerMenuItems.map((item) => (
+                {customerMenuItems.map(item => (
                   <button
                     key={item}
                     type="button"
                     onClick={() => handleCustomerMenu(item)}
                     className={`block w-full border-b border-white/5 px-4 py-3 text-left text-[11px] font-bold transition hover:bg-white/5 ${
-                      item === "My Promo Code"
-                        ? "text-violet-300"
-                        : ""
+                      item === "My Promo Code" ? "text-violet-300" : ""
                     }`}
                   >
                     {item}
                   </button>
                 ))}
-
                 <button
                   type="button"
                   onClick={onLogout}
@@ -621,9 +543,7 @@ export default function DemoDashboard({
                   </p>
                 </div>
               </div>
-              <span className="shrink-0 text-xl font-black text-emerald-300">
-                ›
-              </span>
+              <span className="shrink-0 text-xl font-black text-emerald-300">›</span>
             </div>
           </button>
 
@@ -647,9 +567,7 @@ export default function DemoDashboard({
                   </p>
                 </div>
               </div>
-              <span className="shrink-0 text-xl font-black text-orange-300">
-                ›
-              </span>
+              <span className="shrink-0 text-xl font-black text-orange-300">›</span>
             </div>
           </button>
         </div>
@@ -658,12 +576,6 @@ export default function DemoDashboard({
           <NeonScrollingLine />
         </div>
       </header>
-
-      <section className="bg-[#080d16] px-3 py-4">
-        <div className="mx-auto max-w-xl">
-          <HeroBonusCard onOpenBonus={handleBonusClick} />
-        </div>
-      </section>
 
       <TopGamesSlider onGameClick={handleGameClick} />
 
@@ -678,13 +590,10 @@ export default function DemoDashboard({
 
       <nav
         className="tsb-scrollbar w-full overflow-x-auto border-b border-white/10 bg-[#0d1523]"
-        style={{
-          WebkitOverflowScrolling: "touch",
-          touchAction: "pan-x",
-        }}
+        style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}
       >
         <div className="flex w-max min-w-full px-2 py-2">
-          {tabs.map((tab) => (
+          {tabs.map(tab => (
             <button
               key={tab}
               type="button"
@@ -703,13 +612,10 @@ export default function DemoDashboard({
 
       <section
         className="tsb-scrollbar w-full overflow-x-auto border-b border-white/10 bg-[#0a101b]"
-        style={{
-          WebkitOverflowScrolling: "touch",
-          touchAction: "pan-x",
-        }}
+        style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}
       >
         <div className="flex w-max gap-2 px-3 py-3">
-          {sports.map((sport) => (
+          {sports.map(sport => (
             <button
               key={sport.name}
               type="button"
@@ -720,9 +626,7 @@ export default function DemoDashboard({
                   : "border-white/10 bg-[#111827] text-gray-400"
               }`}
             >
-              <span className="block text-xl leading-none">
-                {sport.icon}
-              </span>
+              <span className="block text-xl leading-none">{sport.icon}</span>
               <span className="mt-2 block whitespace-nowrap text-[7px] font-black leading-none">
                 {sport.name}
               </span>
@@ -747,7 +651,7 @@ export default function DemoDashboard({
 
       <section className="border-b border-white/10 bg-[#080d16] px-3 py-3">
         <div className="flex gap-2">
-          {["LIVE", "VIRTUAL", "PREMIUM"].map((filter) => (
+          {["LIVE", "VIRTUAL", "PREMIUM"].map(filter => (
             <button
               key={filter}
               type="button"
@@ -776,31 +680,24 @@ export default function DemoDashboard({
         games={featuredGames}
         onGameClick={handleGameClick}
       />
-
       <GameSection
         title="CARD GAMES"
         active
         games={secondGames}
         onGameClick={handleGameClick}
       />
-
       <GameSection
         title="NEW LAUNCH"
         games={newLaunch}
         onGameClick={handleGameClick}
       />
-
       <GameSection
         title="MY FAVOURITES"
         games={favourites.filter(
-          (game) =>
-            !ACTIVE_GAMES.some(
-              (item) => item.name === game.name,
-            ),
+          game => !ACTIVE_GAMES.some(item => item.name === game.name),
         )}
         onGameClick={handleGameClick}
       />
-
       <GameSection
         title="OUR PROVIDERS"
         games={providers}
@@ -815,11 +712,9 @@ export default function DemoDashboard({
             className="h-full w-full object-contain"
           />
         </div>
-
         <p className="mt-3 text-sm font-black text-white">
           TELUGU SPORTS BOOK
         </p>
-
         <p className="mx-auto mt-3 max-w-xl text-[9px] leading-5 text-gray-600">
           Demonstration and informational purposes only.
           No real-money transactions are processed.
