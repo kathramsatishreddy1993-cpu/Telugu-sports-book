@@ -13,11 +13,19 @@ import GameControlPage from "./components/GameControlPage";
 import RoulettePage from "./components/RoulettePage";
 import TSBFlightPage from "./components/TSBFlightPage";
 import CardGamesPage from "./components/CardGamesPage";
+import ColorPredictionPage from "./components/ColorPredictionPage";
 import AnimatedSuperOverPage from "./components/AnimatedSuperOverPage";
 import { ACTIVE_GAMES } from "./components/GameArtwork";
 
 const AUTH_KEY = "telugu_sports_auth_user";
 const ADMIN_AUTH_KEY = "telugu_sports_demo_admin";
+
+const CARD_GAME_IDS = new Set([
+  "super-over",
+  "dragon-tiger",
+  "andar-bahar",
+  "lucky-seven",
+]);
 
 function restoredSession(key) {
   try {
@@ -59,17 +67,26 @@ export default function App() {
   const isAnimatedSO =
     cleanPath === "/games/animated-super-over";
   const isFlight = cleanPath === "/games/tsb-flight";
+  const isColorPrediction =
+    cleanPath === "/games/color-prediction";
 
-  const cardGame = ACTIVE_GAMES.slice(2).find(
-    (game) => game.href === cleanPath,
+  const cardGame = ACTIVE_GAMES.find(
+    game =>
+      CARD_GAME_IDS.has(game.id) &&
+      game.href === cleanPath,
+  );
+
+  const isCustomerGame = Boolean(
+    isFlight ||
+    isRoulette ||
+    cardGame ||
+    isAnimatedSO ||
+    isColorPrediction
   );
 
   const unknownGame =
     cleanPath.startsWith("/games/") &&
-    !isFlight &&
-    !isRoulette &&
-    !cardGame &&
-    !isAnimatedSO;
+    !isCustomerGame;
 
   const [adminChecking, setAdminChecking] =
     useState(isAdminMode);
@@ -94,7 +111,7 @@ export default function App() {
       credentials: "same-origin",
       cache: "no-store",
     })
-      .then(async (response) => {
+      .then(async response => {
         const data = await response.json();
 
         if (active) {
@@ -113,7 +130,7 @@ export default function App() {
     };
   }, [isAdminMode]);
 
-  const saveCustomerSession = (customer) => {
+  const saveCustomerSession = customer => {
     try {
       localStorage.setItem(
         AUTH_KEY,
@@ -149,7 +166,7 @@ export default function App() {
     setAuthMode(mode === "signup" ? "signup" : "login");
   };
 
-  const handleLoginSuccess = (loggedInUser) => {
+  const handleLoginSuccess = loggedInUser => {
     const normalizedUser = {
       ...loggedInUser,
       isAuthenticated: true,
@@ -186,7 +203,7 @@ export default function App() {
     setSelectedPublicItem(null);
   };
 
-  const handleSecurityComplete = (updatedUser) => {
+  const handleSecurityComplete = updatedUser => {
     const completedUser = {
       ...user,
       ...updatedUser,
@@ -273,8 +290,10 @@ export default function App() {
 
   const requiresSecuritySetup = Boolean(
     user?.isAuthenticated &&
-      (user.mustChangePassword === true ||
-        user.mustChangeWithdrawalPassword === true),
+    (
+      user.mustChangePassword === true ||
+      user.mustChangeWithdrawalPassword === true
+    )
   );
 
   if (requiresSecuritySetup) {
@@ -291,20 +310,28 @@ export default function App() {
     return <div className="fixed inset-0 bg-black" />;
   }
 
-  const GamePage = isAnimatedSO
-    ? AnimatedSuperOverPage
-    : cardGame
-      ? CardGamesPage
-      : isRoulette
-        ? RoulettePage
-        : TSBFlightPage;
+  const GamePage = isColorPrediction
+    ? ColorPredictionPage
+    : isAnimatedSO
+      ? AnimatedSuperOverPage
+      : cardGame
+        ? CardGamesPage
+        : isRoulette
+          ? RoulettePage
+          : TSBFlightPage;
 
-  if (
-    isFlight ||
-    isRoulette ||
-    cardGame ||
-    isAnimatedSO
-  ) {
+  const gameTitle = isColorPrediction
+    ? "COLOR PREDICTION"
+    : cardGame?.name ||
+      (
+        isAnimatedSO
+          ? "ANIMATED SUPER OVER"
+          : isRoulette
+            ? "TSB ROULETTE"
+            : "TSB FLIGHT"
+      );
+
+  if (isCustomerGame) {
     if (user?.isAuthenticated) {
       return (
         <GamePage
@@ -319,12 +346,7 @@ export default function App() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#080d16] p-5 text-center text-white">
         <h1 className="text-3xl font-black text-cyan-300">
-          {cardGame?.name ||
-            (isAnimatedSO
-              ? "ANIMATED SUPER OVER"
-              : isRoulette
-                ? "TSB ROULETTE"
-                : "TSB FLIGHT")}
+          {gameTitle}
         </h1>
 
         <p className="mt-4 max-w-md text-sm leading-6 text-slate-300">
@@ -358,20 +380,10 @@ export default function App() {
   }
 
   if (user?.isAuthenticated) {
-    if (view === "bonus") {
-      return (
-        <BonusPage
-          bonusType={selectedBonus}
-          onBack={handleCloseBonus}
-        />
-      );
-    }
-
     return (
       <DemoDashboard
         user={user}
         onLogout={handleLogout}
-        onOpenBonus={handleOpenBonus}
       />
     );
   }
