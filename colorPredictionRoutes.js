@@ -1,22 +1,24 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 import {
-  COLOR_MODES,
-  COLOR_MARKETS,
-  COLOR_BET_LIMITS,
-  COLOR_FEE_PERCENT,
-  COLOR_RULES_TEXT,
-  colorModeFor,
-  colorMarketFor,
-  validColorStake,
-  drawColorResult,
-  colorResultFor,
-  colorBetReturn,
-  colorRoundWindow,
-} from "./colorPredictionRules.js";
+  GAME_NAMES,
+  canonicalOutcome,
+  shuffledDeck,
+  createOutcome,
+  timeline,
+  duration,
+  stageAt,
+  marketsFor,
+  betHold,
+  betReturn,
+} from "./autoGameRules.js";
 
-const LOCK_ID = 746238;
-const CONTROL_GAME = "color-prediction";
+import {
+  readColorPredictionControl,
+  changeColorPredictionControl,
+} from "./colorPredictionRoutes.js";
+
+const COLOR_GAME = "color-prediction";
 
 const hash = value =>
   createHash("sha256").update(value).digest("hex");
@@ -27,38 +29,144 @@ const fail = (status, message) =>
 const wrap = fn => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 
-const validId = value =>
-  /^\d{1,18}$/.test(String(value));
-
-const validRequestKey = value =>
-  typeof value === "string" &&
-  /^[a-zA-Z0-9_-]{16,100}$/.test(value);
+const validGame = game =>
+  Object.hasOwn(GAME_NAMES, game);
 
 const demoMode = () =>
   String(process.env.DEMO_GAMES_MODE ?? "demo")
     .trim()
     .toLowerCase() === "demo";
 
-async function databaseTime(connection) {
-  const result = await connection.query(
-    "SELECT clock_timestamp() AS now",
-  );
+function validOrigin(req) {
+  if (!req.headers.origin) return true;
 
-  return new Date(result.rows[0].now).getTime();
+  try {
+    return (
+      new URL(req.headers.origin).host ===
+      req.headers.host
+    );
+  } catch {
+    return false;
+  }
 }
 
-async function transaction(pool, callback) {
+export async function initializeAutoGames(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tsb_auto_controls (
+      game TEXT PRIMARY KEY,
+      paused BOOLEAN NOT NULL DEFAULT FALSE,
+      paused_at TIMESTAMPTZ,
+      paused_ms BIGINT NOT NULL DEFAULT 0,
+      version INTEGER NOT NULL DEFAULT 0
+    );
+
+    INSERT INTO tsb_auto_controls(game)
+    VALUES
+      ('super-over'),
+      ('dragon-tiger'),
+      ('andar-bahar'),
+      ('lucky-seven')
+    ON CONFLICT DO NOTHING;
+
+    CREATE TABLE IF NOT EXISTS tsb_auto_control_audit (
+      id BIGSERIAL PRIMARY KEY,
+      game TEXT NOT NULL,
+      admin_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS tsb_auto_shoes (
+      game TEXT PRIMARY KEY,
+      cards JSONB NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS tsb_auto_rounds (
+      id BIGSERIAL PRIMARY KEY,
+      game TEXT NOT NULL,
+      outcome JSONB NOT NULL,
+      seed TEXT NOT NULL,
+      commitment TEXT NOT NULL,
+      opens_at TIMESTAMPTZ NOT NULL,
+      closes_at TIMESTAMPTZ NOT NULL,
+      ends_at TIMESTAMPTZ NOT NULL,
+      settled BOOLEAN NOT NULL DEFAULT FALSE
+    );
+
+    CREATE INDEX IF NOT EXISTS tsb_auto_game_rounds
+      ON tsb_auto_rounds(game,id DESC);
+
+    CREATE UNIQUE INDEX IF NOT EXISTS tsb_auto_one_active
+      ON tsb_auto_rounds(game)
+      WHERE settled=FALSE;
+
+    CREATE TABLE IF NOT EXISTS tsb_auto_bets (
+      id BIGSERIAL PRIMARY KEY,
+      round_id BIGINT NOT NULL
+        REFERENCES tsb_auto_rounds(id),
+      customer_id INTEGER NOT NULL
+        REFERENCES customers(id),
+      market TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      direction TEXT NOT NULL,
+      hold INTEGER NOT NULL,
+      stage INTEGER NOT NULL,
+      request_key TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PLACED',
+      payout INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(customer_id,request_key)
+    );
+
+    CREATE INDEX IF NOT EXISTS tsb_auto_customer_bets
+      ON tsb_auto_bets(customer_id,id DESC);
+
+    CREATE OR REPLACE FUNCTION tsb_auto_protect()
+      RETURNS trigger AS $$
+    BEGIN
+      IF TG_OP='DELETE' THEN
+        RAISE EXCEPTION 'Game history cannot be deleted';
+      END IF;
+
+      IF NEW.id IS DISTINCT FROM OLD.id
+        OR NEW.game IS DISTINCT FROM OLD.game
+        OR NEW.outcome IS DISTINCT FROM OLD.outcome
+        OR NEW.seed IS DISTINCT FROM OLD.seed
+        OR NEW.commitment IS DISTINCT FROM OLD.commitment
+        OR NEW.opens_at IS DISTINCT FROM OLD.opens_at
+        OR NEW.closes_at IS DISTINCT FROM OLD.closes_at
+        OR NEW.ends_at IS DISTINCT FROM OLD.ends_at
+        OR (OLD.settled AND NOT NEW.settled)
+      THEN
+        RAISE EXCEPTION
+          'Round result and timing are immutable';
+      END IF;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    DROP TRIGGER IF EXISTS tsb_auto_immutable
+      ON tsb_auto_rounds;
+
+    CREATE TRIGGER tsb_auto_immutable
+      BEFORE UPDATE OR DELETE ON tsb_auto_rounds
+      FOR EACH ROW
+      EXECUTE FUNCTION tsb_auto_protect();
+  `);
+}
+
+async function transaction(pool, fn) {
   const connection = await pool.connect();
 
   try {
     await connection.query("BEGIN");
 
     await connection.query(
-      "SELECT pg_advisory_xact_lock($1)",
-      [LOCK_ID],
+      "SELECT pg_advisory_xact_lock(746225)",
     );
 
-    const result = await callback(connection);
+    const result = await fn(connection);
 
     await connection.query("COMMIT");
     return result;
@@ -70,143 +178,32 @@ async function transaction(pool, callback) {
   }
 }
 
-export async function initializeColorPrediction(pool) {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS tsb_color_control (
-      game TEXT PRIMARY KEY
-        CHECK (game='color-prediction'),
-      paused BOOLEAN NOT NULL DEFAULT FALSE,
-      paused_at TIMESTAMPTZ,
-      paused_ms BIGINT NOT NULL DEFAULT 0
-        CHECK (paused_ms>=0),
-      version INTEGER NOT NULL DEFAULT 0,
-      CHECK (
-        (paused=TRUE AND paused_at IS NOT NULL)
-        OR
-        (paused=FALSE AND paused_at IS NULL)
-      )
-    );
+const clock = async connection => {
+  const result = await connection.query(
+    "SELECT clock_timestamp() AS now",
+    [],
+  );
 
-    INSERT INTO tsb_color_control(game)
-    VALUES('color-prediction')
-    ON CONFLICT DO NOTHING;
+  return new Date(result.rows[0].now).getTime();
+};
 
-    CREATE TABLE IF NOT EXISTS tsb_color_control_audit (
-      id BIGSERIAL PRIMARY KEY,
-      admin_id TEXT NOT NULL,
-      action TEXT NOT NULL
-        CHECK (action IN ('PLAY','PAUSE')),
-      version INTEGER NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-
-    CREATE TABLE IF NOT EXISTS tsb_color_rounds (
-      id BIGSERIAL PRIMARY KEY,
-      mode TEXT NOT NULL
-        CHECK (mode IN ('30s','1m','3m','5m')),
-      period TEXT NOT NULL UNIQUE,
-      result_number INTEGER NOT NULL
-        CHECK (result_number BETWEEN 0 AND 9),
-      opens_at TIMESTAMPTZ NOT NULL,
-      closes_at TIMESTAMPTZ NOT NULL,
-      ends_at TIMESTAMPTZ NOT NULL,
-      settled BOOLEAN NOT NULL DEFAULT FALSE,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-
-    CREATE INDEX IF NOT EXISTS tsb_color_round_mode_index
-      ON tsb_color_rounds(mode,id DESC);
-
-    CREATE TABLE IF NOT EXISTS tsb_color_bets (
-      id BIGSERIAL PRIMARY KEY,
-      round_id BIGINT NOT NULL
-        REFERENCES tsb_color_rounds(id),
-      customer_id INTEGER NOT NULL
-        REFERENCES customers(id),
-      market TEXT NOT NULL,
-      amount INTEGER NOT NULL
-        CHECK (amount BETWEEN 100 AND 25000),
-      request_key TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'PLACED'
-        CHECK (
-          status IN (
-            'PLACED','WON','LOST','CANCELLED'
-          )
-        ),
-      payout INTEGER NOT NULL DEFAULT 0,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      settled_at TIMESTAMPTZ,
-      UNIQUE(customer_id,request_key)
-    );
-
-    CREATE INDEX IF NOT EXISTS tsb_color_bet_customer_index
-      ON tsb_color_bets(customer_id,id DESC);
-
-    CREATE INDEX IF NOT EXISTS tsb_color_bet_round_index
-      ON tsb_color_bets(round_id,id);
-
-    CREATE OR REPLACE FUNCTION tsb_color_protect_round()
-      RETURNS trigger AS $$
-    BEGIN
-      IF TG_OP='DELETE' THEN
-        RAISE EXCEPTION 'Color round history cannot be deleted';
-      END IF;
-
-      IF NEW.id IS DISTINCT FROM OLD.id
-        OR NEW.mode IS DISTINCT FROM OLD.mode
-        OR NEW.period IS DISTINCT FROM OLD.period
-        OR NEW.result_number IS DISTINCT FROM OLD.result_number
-        OR NEW.opens_at IS DISTINCT FROM OLD.opens_at
-        OR NEW.closes_at IS DISTINCT FROM OLD.closes_at
-        OR NEW.ends_at IS DISTINCT FROM OLD.ends_at
-        OR NEW.created_at IS DISTINCT FROM OLD.created_at
-        OR (OLD.settled AND NOT NEW.settled)
-      THEN
-        RAISE EXCEPTION 'Color round result and timing are immutable';
-      END IF;
-
-      RETURN NEW;
-    END;
-    $$ LANGUAGE plpgsql;
-
-    DROP TRIGGER IF EXISTS tsb_color_round_immutable
-      ON tsb_color_rounds;
-
-    CREATE TRIGGER tsb_color_round_immutable
-      BEFORE UPDATE OR DELETE ON tsb_color_rounds
-      FOR EACH ROW
-      EXECUTE FUNCTION tsb_color_protect_round();
-  `);
-}
-
-function publicControl(row) {
-  return {
-    game: CONTROL_GAME,
-    name: "COLOR PREDICTION",
-    paused: row.paused,
-    version: Number(row.version),
-  };
-}
-
-async function gameClock(connection) {
+async function gameClock(connection, game, wall) {
   const control = (
     await connection.query(
       `SELECT *
-       FROM tsb_color_control
+       FROM tsb_auto_controls
        WHERE game=$1
        FOR UPDATE`,
-      [CONTROL_GAME],
+      [game],
     )
   ).rows[0];
 
   if (!control) {
     throw fail(
       503,
-      "Color Prediction control is not initialized.",
+      "Game control is not initialized.",
     );
   }
-
-  const wall = await databaseTime(connection);
 
   const time =
     (
@@ -215,166 +212,106 @@ async function gameClock(connection) {
         : wall
     ) - Number(control.paused_ms);
 
-  return { control, wall, time };
+  return { control, time };
 }
 
-/*
-  Used by the authenticated Admin automatic-games API.
-  These helpers do not register public Admin endpoints.
-*/
+const publicControl = row => ({
+  game: row.game,
+  name: GAME_NAMES[row.game],
+  paused: row.paused,
+  version: Number(row.version),
+});
 
-export async function readColorPredictionControl(pool) {
-  const row = (
-    await pool.query(
+async function startRound(connection, game, time) {
+  let card;
+
+  if (game === "lucky-seven") {
+    let cards = (
+      await connection.query(
+        `SELECT cards
+         FROM tsb_auto_shoes
+         WHERE game=$1
+         FOR UPDATE`,
+        [game],
+      )
+    ).rows[0]?.cards;
+
+    if (!cards?.length) {
+      cards = shuffledDeck(8);
+    }
+
+    card = cards.pop();
+
+    await connection.query(
+      `INSERT INTO tsb_auto_shoes(game,cards)
+       VALUES($1,$2)
+       ON CONFLICT(game)
+       DO UPDATE SET cards=$2`,
+      [game, JSON.stringify(cards)],
+    );
+  }
+
+  const outcome = createOutcome(game, card);
+  const seed = randomBytes(32).toString("hex");
+
+  const commitment = hash(
+    `${game}:${canonicalOutcome(outcome)}:${seed}`,
+  );
+
+  return (
+    await connection.query(
+      `INSERT INTO tsb_auto_rounds(
+         game,
+         outcome,
+         seed,
+         commitment,
+         opens_at,
+         closes_at,
+         ends_at
+       )
+       VALUES($1,$2,$3,$4,$5,$6,$7)
+       RETURNING *`,
+      [
+        game,
+        JSON.stringify(outcome),
+        seed,
+        commitment,
+        new Date(time),
+        new Date(time + 30000),
+        new Date(
+          time + 30000 + duration(game, outcome),
+        ),
+      ],
+    )
+  ).rows[0];
+}
+
+async function advance(connection, game, time) {
+  let round = (
+    await connection.query(
       `SELECT *
-       FROM tsb_color_control
-       WHERE game=$1`,
-      [CONTROL_GAME],
+       FROM tsb_auto_rounds
+       WHERE game=$1
+       ORDER BY id DESC
+       LIMIT 1
+       FOR UPDATE`,
+      [game],
     )
   ).rows[0];
 
-  if (!row) {
-    throw fail(
-      503,
-      "Color Prediction control is not initialized.",
-    );
+  if (!round) {
+    return startRound(connection, game, time);
   }
 
-  return publicControl(row);
-}
-
-export async function changeColorPredictionControl(
-  pool,
-  {
-    action,
-    version,
-    adminId,
-  },
-) {
   if (
-    !["PLAY", "PAUSE"].includes(action) ||
-    !Number.isInteger(version)
+    !round.settled &&
+    time >= new Date(round.ends_at).getTime()
   ) {
-    throw fail(
-      400,
-      "Choose PLAY or PAUSE with a valid control version.",
-    );
-  }
-
-  return transaction(pool, async connection => {
-    const { control, time } =
-      await gameClock(connection);
-
-    if (Number(control.version) !== version) {
-      throw fail(
-        409,
-        "Control changed on another device. Refresh and try again.",
-      );
-    }
-
-    const shouldPause = action === "PAUSE";
-
-    if (control.paused === shouldPause) {
-      return {
-        control: publicControl(control),
-      };
-    }
-
-    if (shouldPause) {
-      /*
-        Finish only rounds already due before the pause.
-        The result of every round remains unchanged.
-      */
-      for (const mode of COLOR_MODES) {
-        await settleDueRounds(
-          connection,
-          mode.id,
-          time,
-        );
-      }
-
-      /*
-        Freeze at the same logical time used above,
-        even if settlement took time to process.
-      */
-      await connection.query(
-        `UPDATE tsb_color_control
-         SET paused=TRUE,
-             paused_at=$1,
-             version=version+1
-         WHERE game=$2`,
-        [
-          new Date(time + Number(control.paused_ms)),
-          CONTROL_GAME,
-        ],
-      );
-    } else {
-      const wall = await databaseTime(connection);
-
-      const extra = Math.max(
-        0,
-        wall - new Date(control.paused_at).getTime(),
-      );
-
-      await connection.query(
-        `UPDATE tsb_color_control
-         SET paused=FALSE,
-             paused_at=NULL,
-             paused_ms=paused_ms+$1,
-             version=version+1
-         WHERE game=$2`,
-        [extra, CONTROL_GAME],
-      );
-    }
-
-    const updated = (
-      await connection.query(
-        `SELECT *
-         FROM tsb_color_control
-         WHERE game=$1`,
-        [CONTROL_GAME],
-      )
-    ).rows[0];
-
-    await connection.query(
-      `INSERT INTO tsb_color_control_audit(
-         admin_id,action,version
-       )
-       VALUES($1,$2,$3)`,
-      [
-        String(adminId || "admin"),
-        action,
-        updated.version,
-      ],
-    );
-
-    return {
-      control: publicControl(updated),
-    };
-  });
-}
-
-async function settleDueRounds(connection, mode, time) {
-  const rounds = (
-    await connection.query(
-      `SELECT *
-       FROM tsb_color_rounds
-       WHERE mode=$1
-         AND settled=FALSE
-         AND ends_at<=$2
-       ORDER BY id
-       FOR UPDATE`,
-      [mode, new Date(time)],
-    )
-  ).rows;
-
-  for (const round of rounds) {
     const bets = (
       await connection.query(
         `SELECT *
-         FROM tsb_color_bets
-         WHERE round_id=$1
-           AND status='PLACED'
+         FROM tsb_auto_bets
+         WHERE round_id=$1 AND status='PLACED'
          ORDER BY customer_id,id
          FOR UPDATE`,
         [round.id],
@@ -382,19 +319,22 @@ async function settleDueRounds(connection, mode, time) {
     ).rows;
 
     for (const bet of bets) {
-      const payout = colorBetReturn(
-        Number(bet.amount),
-        bet.market,
-        round.result_number,
+      const returned = betReturn(
+        game,
+        round.outcome,
+        {
+          ...bet,
+          key: bet.market,
+        },
       );
 
-      if (payout > 0) {
+      if (returned) {
         await connection.query(
           `UPDATE customers
            SET demo_coin_balance=demo_coin_balance+$1,
                updated_at=NOW()
            WHERE id=$2`,
-          [payout, bet.customer_id],
+          [returned, bet.customer_id],
         );
 
         await connection.query(
@@ -404,286 +344,431 @@ async function settleDueRounds(connection, mode, time) {
              transaction_type,
              note
            )
-           VALUES($1,$2,'COLOR_RETURN',$3)`,
+           VALUES($1,$2,'CARD_GAME_RETURN',$3)`,
           [
             bet.customer_id,
-            payout,
-            `Color ${round.period}; ${bet.market}; return includes stake`,
+            returned,
+            `${GAME_NAMES[game]} #${round.id}; ${bet.market}; stake included`,
           ],
         );
       }
 
       await connection.query(
-        `UPDATE tsb_color_bets
-         SET status=$1,
-             payout=$2,
-             settled_at=NOW()
-         WHERE id=$3`,
-        [
-          payout > 0 ? "WON" : "LOST",
-          payout,
-          bet.id,
-        ],
+        `UPDATE tsb_auto_bets
+         SET status='SETTLED',payout=$1
+         WHERE id=$2`,
+        [returned, bet.id],
       );
     }
 
     await connection.query(
-      `UPDATE tsb_color_rounds
+      `UPDATE tsb_auto_rounds
        SET settled=TRUE
        WHERE id=$1`,
       [round.id],
     );
+
+    round = {
+      ...round,
+      settled: true,
+    };
   }
-}
 
-async function currentRound(connection, mode, time) {
-  await settleDueRounds(connection, mode, time);
-
-  const window = colorRoundWindow(mode, time);
-
-  let round = (
-    await connection.query(
-      `SELECT *
-       FROM tsb_color_rounds
-       WHERE period=$1
-       FOR UPDATE`,
-      [window.period],
-    )
-  ).rows[0];
-
-  if (!round) {
-    const result = drawColorResult();
-
-    round = (
-      await connection.query(
-        `INSERT INTO tsb_color_rounds(
-           mode,
-           period,
-           result_number,
-           opens_at,
-           closes_at,
-           ends_at
-         )
-         VALUES($1,$2,$3,$4,$5,$6)
-         RETURNING *`,
-        [
-          mode,
-          window.period,
-          result.number,
-          new Date(window.opensAt),
-          new Date(window.closesAt),
-          new Date(window.endsAt),
-        ],
-      )
-    ).rows[0];
+  if (
+    round.settled &&
+    time >= new Date(round.ends_at).getTime() + 3000
+  ) {
+    return startRound(connection, game, time);
   }
 
   return round;
 }
 
-function publicRound(round, now) {
+export function publicRound(round, time) {
+  const game = round.game;
+
+  const delta =
+    time - new Date(round.closes_at).getTime();
+
+  const stage = round.settled
+    ? 0
+    : stageAt(game, round.outcome, delta);
+
+  const events = timeline(
+    game,
+    round.outcome,
+  ).filter(event => event.at <= delta);
+
   return {
     id: String(round.id),
-    mode: round.mode,
-    period: round.period,
+    game,
     opensAt: round.opens_at,
     closesAt: round.closes_at,
     endsAt: round.ends_at,
+
+    nextAt: new Date(
+      new Date(round.ends_at).getTime() + 3000,
+    ).toISOString(),
+
     phase: round.settled
       ? "RESULT"
-      : now < new Date(round.closes_at).getTime()
+      : stage
         ? "BETTING"
-        : "DRAWING",
+        : "REVEAL",
+
+    stage,
+
+    bettingClosesAt:
+      stage === 2
+        ? new Date(
+            new Date(round.closes_at).getTime() + 7000,
+          ).toISOString()
+        : round.closes_at,
+
+    events,
+    commitment: round.commitment,
+
     result: round.settled
-      ? colorResultFor(round.result_number)
+      ? round.outcome
+      : null,
+
+    seed: round.settled
+      ? round.seed
       : null,
   };
 }
 
-function publicBet(row) {
-  return {
-    id: String(row.id),
-    roundId: String(row.round_id),
-    mode: row.mode,
-    period: row.period,
-    market: row.market,
-    amount: Number(row.amount),
-    status: row.status,
-    payout: Number(row.payout),
-    createdAt: row.created_at,
-    settledAt: row.settled_at,
-    result:
-      row.settled === true
-        ? colorResultFor(row.result_number)
-        : null,
-  };
-}
-
-async function loadPublicBet(connection, id) {
-  const result = await connection.query(
-    `SELECT b.*,r.mode,r.period,r.settled,r.result_number
-     FROM tsb_color_bets b
-     JOIN tsb_color_rounds r ON r.id=b.round_id
-     WHERE b.id=$1`,
-    [id],
-  );
-
-  return publicBet(result.rows[0]);
-}
-
-export function registerColorPredictionRoutes(app, pool) {
-  app.use("/api/color-prediction", (req, res, next) => {
+export function registerAutoGameRoutes(
+  app,
+  pool,
+  adminGuard = (req, res) =>
+    res.status(401).json({
+      error: "Admin login required.",
+    }),
+) {
+  app.use("/api/card-games", (req, res, next) => {
     res.set("Cache-Control", "no-store");
 
     if (!demoMode()) {
       return res.status(409).json({
-        error: "This game is currently unavailable.",
+        error: "Games are currently unavailable.",
       });
     }
 
-    if (req.method === "POST" && req.headers.origin) {
-      try {
-        if (
-          new URL(req.headers.origin).host !==
-          req.headers.host
-        ) {
-          return res.status(403).json({
-            error: "Invalid request origin.",
-          });
-        }
-      } catch {
-        return res.status(403).json({
-          error: "Invalid request origin.",
-        });
-      }
-    }
-
-    next();
-  });
-
-  const customerGuard = wrap(async (req, res, next) => {
-    const cookie = String(req.headers.cookie || "")
-      .split(";")
-      .map(value => value.trim())
-      .find(value => value.startsWith("tsb_demo_session="));
-
-    const token = cookie
-      ? cookie.slice("tsb_demo_session=".length)
-      : "";
-
-    if (!/^[a-f0-9]{64}$/.test(token)) {
-      throw fail(401, "Customer login required.");
-    }
-
-    const customer = (
-      await pool.query(
-        `SELECT c.id
-         FROM demo_customer_sessions s
-         JOIN customers c ON c.id=s.customer_id
-         WHERE s.token_hash=$1
-           AND s.expires_at>NOW()
-           AND c.status='ACTIVE'
-         LIMIT 1`,
-        [hash(token)],
-      )
-    ).rows[0];
-
-    if (!customer) {
-      throw fail(
-        401,
-        "Customer session expired. Please login again.",
-      );
-    }
-
-    req.colorCustomerId = customer.id;
-    next();
-  });
-
-  const modeGuard = (req, res, next) => {
-    if (!colorModeFor(req.params.mode)) {
-      return res.status(404).json({
-        error: "Invalid time mode.",
+    if (
+      req.method === "POST" &&
+      !validOrigin(req)
+    ) {
+      return res.status(403).json({
+        error: "Invalid request origin.",
       });
     }
 
     next();
-  };
+  });
 
   app.get(
-    "/api/color-prediction/:mode/state",
-    customerGuard,
-    modeGuard,
+    "/api/admin/automatic-games",
+    adminGuard,
+    wrap(async (req, res) => {
+      res.set("Cache-Control", "no-store");
+
+      const controls = (
+        await pool.query(
+          `SELECT *
+           FROM tsb_auto_controls
+           ORDER BY game`,
+          [],
+        )
+      ).rows
+        .filter(row => validGame(row.game))
+        .map(publicControl);
+
+      const colorControl =
+        await readColorPredictionControl(pool);
+
+      res.json({
+        controls: [
+          ...controls,
+          colorControl,
+        ],
+      });
+    }),
+  );
+
+  app.post(
+    "/api/admin/automatic-games/:game/status",
+    adminGuard,
+    wrap(async (req, res) => {
+      res.set("Cache-Control", "no-store");
+
+      const game = req.params.game;
+      const action = req.body?.action;
+      const version = req.body?.version;
+
+      if (
+        (
+          !validGame(game) &&
+          game !== COLOR_GAME
+        ) ||
+        !["PLAY", "PAUSE"].includes(action) ||
+        !Number.isInteger(version)
+      ) {
+        throw fail(
+          400,
+          "Choose PLAY or PAUSE for a valid game.",
+        );
+      }
+
+      if (!validOrigin(req)) {
+        throw fail(
+          403,
+          "Invalid request origin.",
+        );
+      }
+
+      if (game === COLOR_GAME) {
+        const result =
+          await changeColorPredictionControl(
+            pool,
+            {
+              action,
+              version,
+              adminId:
+                req.verifiedAdminId || "admin",
+            },
+          );
+
+        res.json(result);
+        return;
+      }
+
+      const result = await transaction(
+        pool,
+        async connection => {
+          const wall = await clock(connection);
+
+          const { control, time } =
+            await gameClock(
+              connection,
+              game,
+              wall,
+            );
+
+          if (Number(control.version) !== version) {
+            throw fail(
+              409,
+              "Control changed on another device. Refresh and try again.",
+            );
+          }
+
+          if (
+            control.paused ===
+            (action === "PAUSE")
+          ) {
+            return {
+              control: publicControl(control),
+            };
+          }
+
+          if (action === "PAUSE") {
+            await advance(
+              connection,
+              game,
+              time,
+            );
+
+            await connection.query(
+              `UPDATE tsb_auto_controls
+               SET paused=TRUE,
+                   paused_at=$1,
+                   version=version+1
+               WHERE game=$2`,
+              [new Date(wall), game],
+            );
+          } else {
+            const extra = Math.max(
+              0,
+              wall -
+                new Date(control.paused_at).getTime(),
+            );
+
+            await connection.query(
+              `UPDATE tsb_auto_controls
+               SET paused=FALSE,
+                   paused_at=NULL,
+                   paused_ms=paused_ms+$1,
+                   version=version+1
+               WHERE game=$2`,
+              [extra, game],
+            );
+          }
+
+          await connection.query(
+            `INSERT INTO tsb_auto_control_audit(
+               game,
+               admin_id,
+               action
+             )
+             VALUES($1,$2,$3)`,
+            [
+              game,
+              req.verifiedAdminId || "admin",
+              action,
+            ],
+          );
+
+          const updated = (
+            await connection.query(
+              `SELECT *
+               FROM tsb_auto_controls
+               WHERE game=$1`,
+              [game],
+            )
+          ).rows[0];
+
+          return {
+            control: publicControl(updated),
+          };
+        },
+      );
+
+      res.json(result);
+    }),
+  );
+
+  const customer = wrap(
+    async (req, res, next) => {
+      const cookie = String(
+        req.headers.cookie || "",
+      )
+        .split(";")
+        .map(value => value.trim())
+        .find(value =>
+          value.startsWith("tsb_demo_session="),
+        );
+
+      const token = cookie
+        ? cookie.slice("tsb_demo_session=".length)
+        : "";
+
+      if (!/^[a-f0-9]{64}$/.test(token)) {
+        throw fail(
+          401,
+          "Customer login required.",
+        );
+      }
+
+      const row = (
+        await pool.query(
+          `SELECT c.id
+           FROM demo_customer_sessions s
+           JOIN customers c ON c.id=s.customer_id
+           WHERE s.token_hash=$1
+             AND s.expires_at>NOW()
+             AND c.status='ACTIVE'`,
+          [hash(token)],
+        )
+      ).rows[0];
+
+      if (!row) {
+        throw fail(
+          401,
+          "Customer session expired. Please login again.",
+        );
+      }
+
+      req.customerId = row.id;
+      next();
+    },
+  );
+
+  const gameGuard = (req, res, next) =>
+    validGame(req.params.game)
+      ? next()
+      : res.status(404).json({
+          error: "Game not found.",
+        });
+
+  app.get(
+    "/api/card-games/:game/state",
+    customer,
+    gameGuard,
     wrap(async (req, res) => {
       const result = await transaction(
         pool,
         async connection => {
-          const mode = req.params.mode;
-
           const { control, time } =
-            await gameClock(connection);
+            await gameClock(
+              connection,
+              req.params.game,
+              await clock(connection),
+            );
 
-          const round = await currentRound(
+          const round = await advance(
             connection,
-            mode,
+            req.params.game,
             time,
           );
 
-          const wallet = (
-            await connection.query(
-              `SELECT demo_coin_balance
-               FROM customers
-               WHERE id=$1`,
-              [req.colorCustomerId],
-            )
-          ).rows[0];
+          const balance = Number(
+            (
+              await connection.query(
+                `SELECT demo_coin_balance
+                 FROM customers
+                 WHERE id=$1`,
+                [req.customerId],
+              )
+            ).rows[0].demo_coin_balance,
+          );
 
           const history = (
             await connection.query(
-              `SELECT *
-               FROM tsb_color_rounds
-               WHERE mode=$1 AND settled=TRUE
+              `SELECT id,outcome
+               FROM tsb_auto_rounds
+               WHERE game=$1 AND settled=TRUE
                ORDER BY id DESC
-               LIMIT 30`,
-              [mode],
+               LIMIT 20`,
+              [req.params.game],
             )
           ).rows.map(item => ({
             id: String(item.id),
-            period: item.period,
-            result: colorResultFor(item.result_number),
-            endsAt: item.ends_at,
+            winner: item.outcome.winner,
           }));
 
           const bets = (
             await connection.query(
-              `SELECT b.*,r.mode,r.period,r.settled,r.result_number
-               FROM tsb_color_bets b
-               JOIN tsb_color_rounds r ON r.id=b.round_id
+              `SELECT b.*,r.game,r.outcome,r.settled
+               FROM tsb_auto_bets b
+               JOIN tsb_auto_rounds r
+                 ON r.id=b.round_id
                WHERE b.customer_id=$1
-                 AND r.mode=$2
+                 AND r.game=$2
                ORDER BY b.id DESC
                LIMIT 100`,
-              [req.colorCustomerId, mode],
+              [
+                req.customerId,
+                req.params.game,
+              ],
             )
-          ).rows.map(publicBet);
-
-          const latestClock = await gameClock(connection);
+          ).rows.map(
+            ({ outcome, settled, ...bet }) => ({
+              ...bet,
+              winner: settled
+                ? outcome.winner
+                : null,
+            }),
+          );
 
           return {
-            customerId: req.colorCustomerId,
-            serverTime: new Date(
-              latestClock.time,
-            ).toISOString(),
             paused: control.paused,
-            control: publicControl(control),
-            balance: Number(wallet.demo_coin_balance),
-            round: publicRound(round, latestClock.time),
-            modes: COLOR_MODES,
-            markets: COLOR_MARKETS,
-            limits: COLOR_BET_LIMITS,
-            feePercent: COLOR_FEE_PERCENT,
-            rules: COLOR_RULES_TEXT,
+            serverTime:
+              new Date(time).toISOString(),
+            round: publicRound(round, time),
+            balance,
             history,
             bets,
+            markets: marketsFor(req.params.game),
           };
         },
       );
@@ -693,84 +778,119 @@ export function registerColorPredictionRoutes(app, pool) {
   );
 
   app.post(
-    "/api/color-prediction/:mode/bets",
-    customerGuard,
-    modeGuard,
+    "/api/card-games/:game/bets",
+    customer,
+    gameGuard,
     wrap(async (req, res) => {
+      const game = req.params.game;
+
       const {
         roundId,
-        market,
+        market: key,
         amount,
+        direction = "BACK",
         requestKey,
       } = req.body || {};
 
+      const selected = marketsFor(game).find(
+        item => item.key === key,
+      );
+
       if (
-        !validId(roundId) ||
-        !colorMarketFor(market) ||
-        !validColorStake(amount) ||
-        !validRequestKey(requestKey)
+        !selected ||
+        !Number.isSafeInteger(amount) ||
+        amount < 100 ||
+        amount > 25000 ||
+        !["BACK", "LAY"].includes(direction) ||
+        (
+          direction === "LAY" &&
+          !selected.lay
+        ) ||
+        !/^\d{1,18}$/.test(String(roundId)) ||
+        !/^[a-zA-Z0-9_-]{16,100}$/.test(
+          String(requestKey),
+        )
       ) {
         throw fail(
           400,
-          "Choose a valid market and enter 100–25,000 whole demo coins.",
+          "Enter 100–25,000 whole demo coins and choose a valid market.",
         );
       }
 
       const result = await transaction(
         pool,
         async connection => {
-          const mode = req.params.mode;
-
           const { control, time } =
-            await gameClock(connection);
+            await gameClock(
+              connection,
+              game,
+              await clock(connection),
+            );
 
-          /*
-            A retry of an accepted request must still
-            return its original bet while paused.
-          */
+          const round = await advance(
+            connection,
+            game,
+            time,
+          );
+
           const prior = (
             await connection.query(
-              `SELECT b.*,r.mode
-               FROM tsb_color_bets b
-               JOIN tsb_color_rounds r ON r.id=b.round_id
-               WHERE b.customer_id=$1
-                 AND b.request_key=$2`,
-              [req.colorCustomerId, requestKey],
+              `SELECT *
+               FROM tsb_auto_bets
+               WHERE customer_id=$1
+                 AND request_key=$2`,
+              [
+                req.customerId,
+                requestKey,
+              ],
             )
           ).rows[0];
 
           if (prior) {
             if (
-              String(prior.round_id) !== String(roundId) ||
-              prior.mode !== mode ||
-              prior.market !== market ||
-              Number(prior.amount) !== amount
+              String(prior.round_id) !==
+                String(roundId) ||
+              prior.market !== key ||
+              prior.amount !== amount ||
+              prior.direction !== direction
             ) {
-              throw fail(409, "Request key already used.");
+              throw fail(
+                409,
+                "Request key already used.",
+              );
             }
 
             return {
               success: true,
+              bet: prior,
               duplicate: true,
-              bet: await loadPublicBet(connection, prior.id),
             };
           }
 
           if (control.paused) {
             throw fail(
               409,
-              "Color Prediction is paused by Admin. No coins were deducted.",
+              "This game is paused by Admin.",
             );
           }
 
-          const round = await currentRound(
-            connection,
-            mode,
-            time,
+          const stage = stageAt(
+            game,
+            round.outcome,
+            time -
+              new Date(round.closes_at).getTime(),
           );
 
-          if (String(round.id) !== String(roundId)) {
-            throw fail(409, "This round has closed.");
+          if (
+            String(round.id) !== String(roundId) ||
+            round.settled ||
+            !stage ||
+            selected.stage !== stage
+          ) {
+            throw fail(
+              409,
+              "Betting is closed for this market. Wait for its next betting window.",
+            );
           }
 
           const wallet = (
@@ -779,56 +899,92 @@ export function registerColorPredictionRoutes(app, pool) {
                FROM customers
                WHERE id=$1
                FOR UPDATE`,
-              [req.colorCustomerId],
+              [req.customerId],
             )
           ).rows[0];
 
-          if (!wallet || wallet.status !== "ACTIVE") {
-            throw fail(403, "Customer is inactive.");
+          if (wallet?.status !== "ACTIVE") {
+            throw fail(
+              403,
+              "Customer is inactive.",
+            );
           }
 
           const total = (
             await connection.query(
               `SELECT
-                 COUNT(*) AS count,
                  COALESCE(
                    SUM(
-                     CASE WHEN status<>'CANCELLED'
-                       THEN amount ELSE 0 END
+                     CASE
+                       WHEN status<>'CANCELLED'
+                       THEN hold
+                       ELSE 0
+                     END
                    ),
                    0
-                 ) AS reserved
-               FROM tsb_color_bets
-               WHERE round_id=$1 AND customer_id=$2`,
-              [round.id, req.colorCustomerId],
+                 ) AS total,
+                 COUNT(*) AS count
+               FROM tsb_auto_bets
+               WHERE round_id=$1
+                 AND customer_id=$2`,
+              [
+                roundId,
+                req.customerId,
+              ],
             )
           ).rows[0];
 
-          if (
-            Number(total.count) >= 100 ||
-            Number(total.reserved) + amount > 100000
-          ) {
+          const existing = Number(total.total);
+          const count = Number(total.count);
+
+          if (count >= 100) {
             throw fail(
               400,
-              "Maximum 100 requests and 100,000 reserved coins per round.",
+              "Maximum 100 bet requests per round.",
             );
           }
 
-          if (Number(wallet.demo_coin_balance) < amount) {
-            throw fail(400, "Insufficient demo coins.");
+          const hold = betHold(
+            selected,
+            amount,
+            direction,
+          );
+
+          if (existing + hold > 100000) {
+            throw fail(
+              400,
+              "Maximum reserved amount is 100,000 demo coins per round.",
+            );
           }
 
-          const latest = await gameClock(connection);
+          if (
+            Number(wallet.demo_coin_balance) < hold
+          ) {
+            throw fail(
+              400,
+              "Insufficient available demo coins.",
+            );
+          }
+
+          const latestTime = (
+            await gameClock(
+              connection,
+              game,
+              await clock(connection),
+            )
+          ).time;
 
           if (
-            latest.control.paused ||
-            round.settled ||
-            latest.time < new Date(round.opens_at).getTime() ||
-            latest.time >= new Date(round.closes_at).getTime()
+            stageAt(
+              game,
+              round.outcome,
+              latestTime -
+                new Date(round.closes_at).getTime(),
+            ) !== stage
           ) {
             throw fail(
               409,
-              "Betting closed. No coins were deducted.",
+              "Betting closed while processing. No coins were deducted.",
             );
           }
 
@@ -837,41 +993,54 @@ export function registerColorPredictionRoutes(app, pool) {
              SET demo_coin_balance=demo_coin_balance-$1,
                  updated_at=NOW()
              WHERE id=$2`,
-            [amount, req.colorCustomerId],
+            [hold, req.customerId],
           );
 
-          const saved = (
+          await connection.query(
+            `INSERT INTO demo_coin_transactions(
+               customer_id,
+               amount,
+               transaction_type,
+               note
+             )
+             VALUES($1,$2,'CARD_GAME_STAKE',$3)`,
+            [
+              req.customerId,
+              -hold,
+              `${GAME_NAMES[game]} #${roundId}; ${direction} ${key}`,
+            ],
+          );
+
+          const bet = (
             await connection.query(
-              `INSERT INTO tsb_color_bets(
-                 round_id,customer_id,market,amount,request_key
+              `INSERT INTO tsb_auto_bets(
+                 round_id,
+                 customer_id,
+                 market,
+                 amount,
+                 direction,
+                 hold,
+                 stage,
+                 request_key
                )
-               VALUES($1,$2,$3,$4,$5)
-               RETURNING id`,
+               VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+               RETURNING *`,
               [
-                round.id,
-                req.colorCustomerId,
-                market,
+                roundId,
+                req.customerId,
+                key,
                 amount,
+                direction,
+                hold,
+                stage,
                 requestKey,
               ],
             )
           ).rows[0];
 
-          await connection.query(
-            `INSERT INTO demo_coin_transactions(
-               customer_id,amount,transaction_type,note
-             )
-             VALUES($1,$2,'COLOR_STAKE',$3)`,
-            [
-              req.colorCustomerId,
-              -amount,
-              `Color ${round.period}; ${market}; 2% fee included in stake`,
-            ],
-          );
-
           return {
             success: true,
-            bet: await loadPublicBet(connection, saved.id),
+            bet,
           };
         },
       );
@@ -881,69 +1050,115 @@ export function registerColorPredictionRoutes(app, pool) {
   );
 
   app.post(
-    "/api/color-prediction/:mode/cancel",
-    customerGuard,
-    modeGuard,
+    "/api/card-games/:game/cancel",
+    customer,
+    gameGuard,
     wrap(async (req, res) => {
-      const betId = req.body?.betId;
-
-      if (!validId(betId)) {
-        throw fail(400, "Invalid bet ID.");
+      if (
+        !/^\d{1,18}$/.test(
+          String(req.body?.betId),
+        )
+      ) {
+        throw fail(400, "Invalid bet.");
       }
 
       const result = await transaction(
         pool,
         async connection => {
-          const { control } = await gameClock(connection);
+          const game = req.params.game;
+
+          const { control, time } =
+            await gameClock(
+              connection,
+              game,
+              await clock(connection),
+            );
+
+          const round = await advance(
+            connection,
+            game,
+            time,
+          );
 
           const bet = (
             await connection.query(
-              `SELECT b.*,r.mode,r.period,r.closes_at
-               FROM tsb_color_bets b
-               JOIN tsb_color_rounds r ON r.id=b.round_id
-               WHERE b.id=$1 AND b.customer_id=$2
-               FOR UPDATE OF b`,
-              [betId, req.colorCustomerId],
+              `SELECT *
+               FROM tsb_auto_bets
+               WHERE id=$1
+                 AND customer_id=$2
+               FOR UPDATE`,
+              [
+                req.body.betId,
+                req.customerId,
+              ],
             )
           ).rows[0];
 
-          if (!bet || bet.mode !== req.params.mode) {
-            throw fail(404, "Bet not found.");
+          if (
+            !bet ||
+            String(bet.round_id) !==
+              String(round.id)
+          ) {
+            throw fail(
+              409,
+              "Bet is from a closed round.",
+            );
           }
 
           if (bet.status === "CANCELLED") {
-            return {
-              success: true,
-              duplicate: true,
-              bet: await loadPublicBet(connection, bet.id),
-            };
-          }
-
-          if (bet.status !== "PLACED") {
-            throw fail(409, "This bet is already settled.");
+            return { success: true };
           }
 
           if (control.paused) {
             throw fail(
               409,
-              "Color Prediction is paused by Admin.",
+              "This game is paused by Admin.",
+            );
+          }
+
+          if (
+            round.settled ||
+            bet.status !== "PLACED" ||
+            stageAt(
+              game,
+              round.outcome,
+              time -
+                new Date(round.closes_at).getTime(),
+            ) !== bet.stage
+          ) {
+            throw fail(
+              409,
+              "Bet is locked and cannot be cancelled.",
             );
           }
 
           await connection.query(
-            "SELECT id FROM customers WHERE id=$1 FOR UPDATE",
-            [req.colorCustomerId],
+            `SELECT id
+             FROM customers
+             WHERE id=$1
+             FOR UPDATE`,
+            [req.customerId],
           );
 
-          const latest = await gameClock(connection);
+          const latestTime = (
+            await gameClock(
+              connection,
+              game,
+              await clock(connection),
+            )
+          ).time;
 
           if (
-            latest.control.paused ||
-            latest.time >= new Date(bet.closes_at).getTime()
+            stageAt(
+              game,
+              round.outcome,
+              latestTime -
+                new Date(round.closes_at).getTime(),
+            ) !== bet.stage
           ) {
             throw fail(
               409,
-              "Betting closed. This bet cannot be cancelled.",
+              "Bet is now locked.",
             );
           }
 
@@ -952,34 +1167,35 @@ export function registerColorPredictionRoutes(app, pool) {
              SET demo_coin_balance=demo_coin_balance+$1,
                  updated_at=NOW()
              WHERE id=$2`,
-            [bet.amount, req.colorCustomerId],
+            [
+              bet.hold,
+              req.customerId,
+            ],
           );
 
           await connection.query(
-            `UPDATE tsb_color_bets
-             SET status='CANCELLED',
-                 payout=amount,
-                 settled_at=NOW()
+            `UPDATE tsb_auto_bets
+             SET status='CANCELLED'
              WHERE id=$1`,
             [bet.id],
           );
 
           await connection.query(
             `INSERT INTO demo_coin_transactions(
-               customer_id,amount,transaction_type,note
+               customer_id,
+               amount,
+               transaction_type,
+               note
              )
-             VALUES($1,$2,'COLOR_REFUND',$3)`,
+             VALUES($1,$2,'CARD_GAME_REFUND',$3)`,
             [
-              req.colorCustomerId,
-              bet.amount,
-              `Color ${bet.period}; cancelled bet #${bet.id}; full stake refunded`,
+              req.customerId,
+              bet.hold,
+              `${GAME_NAMES[game]} #${round.id}; bet cancelled`,
             ],
           );
 
-          return {
-            success: true,
-            bet: await loadPublicBet(connection, bet.id),
-          };
+          return { success: true };
         },
       );
 
@@ -987,7 +1203,7 @@ export function registerColorPredictionRoutes(app, pool) {
     }),
   );
 
-  return function startColorPrediction() {
+  return function startAutoGames() {
     let busy = false;
     let stopped = false;
 
@@ -997,25 +1213,34 @@ export function registerColorPredictionRoutes(app, pool) {
       busy = true;
 
       try {
-        for (const mode of COLOR_MODES) {
-          if (stopped) break;
+        await transaction(
+          pool,
+          async connection => {
+            const wall = await clock(connection);
 
-          await transaction(pool, async connection => {
-            const { control, time } =
-              await gameClock(connection);
+            for (const game of Object.keys(GAME_NAMES)) {
+              if (stopped) break;
 
-            if (!control.paused) {
-              await currentRound(
-                connection,
-                mode.id,
-                time,
-              );
+              const { control, time } =
+                await gameClock(
+                  connection,
+                  game,
+                  wall,
+                );
+
+              if (!control.paused) {
+                await advance(
+                  connection,
+                  game,
+                  time,
+                );
+              }
             }
-          });
-        }
+          },
+        );
       } catch (error) {
         console.error(
-          "Color Prediction update failed:",
+          "Automatic demo game update failed:",
           error.message,
         );
       } finally {
