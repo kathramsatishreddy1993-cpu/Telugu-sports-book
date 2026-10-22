@@ -19,6 +19,11 @@ import {
 } from "./colorPredictionRoutes.js";
 
 import {
+  initializeDealOrNoDeal,
+  registerDealOrNoDealRoutes,
+} from "./dealOrNoDealRoutes.js";
+
+import {
   initializeControllerAccounts,
   registerControllerAccountRoutes,
   requireOldAdmin,
@@ -55,10 +60,13 @@ const PORT = process.env.PORT || 10000;
 const DEFAULT_ADMIN_WHATSAPP_NUMBER = "919346824432";
 
 app.use(express.json({ limit: "2mb" }));
-app.use(express.urlencoded({
-  extended: true,
-  limit: "2mb",
-}));
+
+app.use(
+  express.urlencoded({
+    extended: true,
+    limit: "2mb",
+  }),
+);
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -96,7 +104,9 @@ const publicCustomer = customer => ({
   name: customer.name,
   loginId: customer.login_id,
   promoCode: customer.promo_code || null,
-  mustChangePassword: Boolean(customer.must_change_password),
+  mustChangePassword: Boolean(
+    customer.must_change_password,
+  ),
   mustChangeWithdrawalPassword: Boolean(
     customer.must_change_withdrawal_password,
   ),
@@ -105,8 +115,12 @@ const publicCustomer = customer => ({
   ),
   status: customer.status,
   createdAt: customer.created_at,
-  demoCoinBalance: Number(customer.demo_coin_balance || 0),
-  demo_coin_balance: Number(customer.demo_coin_balance || 0),
+  demoCoinBalance: Number(
+    customer.demo_coin_balance || 0,
+  ),
+  demo_coin_balance: Number(
+    customer.demo_coin_balance || 0,
+  ),
 });
 
 async function initializeDatabase() {
@@ -208,7 +222,9 @@ async function initializeDatabase() {
   `);
 
   await pool.query(
-    `INSERT INTO site_settings(setting_key,setting_value)
+    `INSERT INTO site_settings(
+       setting_key,setting_value
+     )
      VALUES('admin_whatsapp_number',$1)
      ON CONFLICT(setting_key) DO NOTHING`,
     [DEFAULT_ADMIN_WHATSAPP_NUMBER],
@@ -221,13 +237,15 @@ async function initializeDatabase() {
   await initializeAutoGames(pool);
   await initializeAnimatedCricket(pool);
   await initializeColorPrediction(pool);
+  await initializeDealOrNoDeal(pool);
 
   console.log(
-    "Database ready; customer promo codes, demo games and Color Prediction enabled.",
+    "Database ready; customer promo codes, demo games, Color Prediction and Deal or No Deal enabled.",
   );
 }
 
 registerControllerAccountRoutes(app, pool);
+
 app.use("/api/admin", requireOldAdmin(pool));
 
 async function getAdminWhatsAppNumber() {
@@ -278,7 +296,8 @@ app.put(
 
     if (!isValidWhatsAppNumber(number)) {
       return res.status(400).json({
-        error: "Please enter a valid WhatsApp number with country code.",
+        error:
+          "Please enter a valid WhatsApp number with country code.",
       });
     }
 
@@ -309,15 +328,22 @@ app.post(
   wrap(async (req, res) => {
     const name = String(req.body.name || "").trim();
     const loginId = normalizeLoginId(req.body.loginId);
-    const promoCode = normalizePromoCode(req.body.promoCode);
-    const password = String(req.body.temporaryPassword || "");
+    const promoCode = normalizePromoCode(
+      req.body.promoCode,
+    );
+
+    const password = String(
+      req.body.temporaryPassword || "",
+    );
+
     const withdrawal = String(
       req.body.temporaryWithdrawalPassword || "",
     );
 
     if (!name || name.length > 120) {
       return res.status(400).json({
-        error: "Customer name is required (maximum 120 characters).",
+        error:
+          "Customer name is required (maximum 120 characters).",
       });
     }
 
@@ -337,13 +363,15 @@ app.post(
 
     if (password.length < 6 || withdrawal.length < 6) {
       return res.status(400).json({
-        error: "Both temporary passwords must contain at least 6 characters.",
+        error:
+          "Both temporary passwords must contain at least 6 characters.",
       });
     }
 
     if (password === withdrawal) {
       return res.status(400).json({
-        error: "Login Password and Withdrawal Password must be different.",
+        error:
+          "Login Password and Withdrawal Password must be different.",
       });
     }
 
@@ -376,7 +404,8 @@ app.post(
         return res.status(409).json({
           success: false,
           error:
-            error.constraint === "customers_promo_code_unique"
+            error.constraint ===
+            "customers_promo_code_unique"
               ? "This Promo Code is already assigned. Enter a different code."
               : "This Login ID already exists. Enter a different Login ID.",
         });
@@ -407,7 +436,9 @@ app.put(
   "/api/admin/customers/:id/promo-code",
   wrap(async (req, res) => {
     const id = Number(req.params.id);
-    const promoCode = normalizePromoCode(req.body.promoCode);
+    const promoCode = normalizePromoCode(
+      req.body.promoCode,
+    );
 
     if (!positiveInteger(id)) {
       return res.status(400).json({
@@ -445,7 +476,8 @@ app.put(
     } catch (error) {
       if (error.code === "23505") {
         return res.status(409).json({
-          error: "This Promo Code is already assigned to another customer.",
+          error:
+            "This Promo Code is already assigned to another customer.",
         });
       }
 
@@ -462,7 +494,9 @@ app.get(
     const cookie = String(req.headers.cookie || "")
       .split(";")
       .map(value => value.trim())
-      .find(value => value.startsWith("tsb_demo_session="));
+      .find(value =>
+        value.startsWith("tsb_demo_session="),
+      );
 
     const token = cookie
       ? cookie.slice("tsb_demo_session=".length)
@@ -493,7 +527,8 @@ app.get(
 
     if (!customer) {
       return res.status(401).json({
-        error: "Customer session expired. Please login again.",
+        error:
+          "Customer session expired. Please login again.",
       });
     }
 
@@ -513,9 +548,13 @@ app.post(
     const id = Number(req.params.id);
     const amount = Number(req.body.amount);
 
-    if (!positiveInteger(id) || !positiveInteger(amount)) {
+    if (
+      !positiveInteger(id) ||
+      !positiveInteger(amount)
+    ) {
       return res.status(400).json({
-        error: "Valid customer ID and positive whole coin amount are required.",
+        error:
+          "Valid customer ID and positive whole coin amount are required.",
       });
     }
 
@@ -549,7 +588,10 @@ app.post(
         [
           id,
           amount,
-          String(req.body.note || "Demo Coins added by Admin").trim(),
+          String(
+            req.body.note ||
+              "Demo Coins added by Admin",
+          ).trim(),
         ],
       );
 
@@ -557,7 +599,8 @@ app.post(
 
       res.json({
         success: true,
-        message: `${amount} Demo Coins added successfully.`,
+        message:
+          `${amount} Demo Coins added successfully.`,
         customer: result.rows[0],
       });
     } catch (error) {
@@ -597,7 +640,9 @@ app.get(
       success: true,
       customerId: result.rows[0].id,
       loginId: result.rows[0].login_id,
-      balance: Number(result.rows[0].demo_coin_balance),
+      balance: Number(
+        result.rows[0].demo_coin_balance,
+      ),
     });
   }),
 );
@@ -618,13 +663,16 @@ for (const kind of ["login", "withdrawal"]) {
         req.body.password ||
           req.body.newPassword ||
           req.body.temporaryPassword ||
-          (withdrawal ? req.body.temporaryWithdrawalPassword : "") ||
+          (withdrawal
+            ? req.body.temporaryWithdrawalPassword
+            : "") ||
           "",
       );
 
       if (password.length < 6) {
         return res.status(400).json({
-          error: "New password must contain at least 6 characters.",
+          error:
+            "New password must contain at least 6 characters.",
         });
       }
 
@@ -645,25 +693,34 @@ for (const kind of ["login", "withdrawal"]) {
         ? customer.password_hash
         : customer.withdrawal_password_hash;
 
-      if (otherHash && await bcrypt.compare(password, otherHash)) {
+      if (
+        otherHash &&
+        (await bcrypt.compare(password, otherHash))
+      ) {
         return res.status(400).json({
-          error: "Login Password and Withdrawal Password must be different.",
+          error:
+            "Login Password and Withdrawal Password must be different.",
         });
       }
 
-      const newHash = await bcrypt.hash(password, 12);
+      const newHash = await bcrypt.hash(
+        password,
+        12,
+      );
 
       const query = withdrawal
         ? `UPDATE customers
            SET withdrawal_password_hash=$1,
                must_change_withdrawal_password=TRUE,
                updated_at=NOW()
-           WHERE id=$2 RETURNING *`
+           WHERE id=$2
+           RETURNING *`
         : `UPDATE customers
            SET password_hash=$1,
                must_change_password=TRUE,
                updated_at=NOW()
-           WHERE id=$2 RETURNING *`;
+           WHERE id=$2
+           RETURNING *`;
 
       const updated = await pool.query(query, [
         newHash,
@@ -672,15 +729,19 @@ for (const kind of ["login", "withdrawal"]) {
 
       if (!withdrawal) {
         await pool.query(
-          "DELETE FROM demo_customer_sessions WHERE customer_id=$1",
+          `DELETE FROM demo_customer_sessions
+           WHERE customer_id=$1`,
           [customer.id],
         );
       }
 
       res.json({
         success: true,
-        message: "Password reset successfully. Customer must change it before use.",
-        customer: publicCustomer(updated.rows[0]),
+        message:
+          "Password reset successfully. Customer must change it before use.",
+        customer: publicCustomer(
+          updated.rows[0],
+        ),
       });
     }),
   );
@@ -692,7 +753,10 @@ app.post(
     const loginId = normalizeLoginId(
       req.body.loginId || req.body.identifier,
     );
-    const password = String(req.body.password || "");
+
+    const password = String(
+      req.body.password || "",
+    );
 
     if (!loginId || !password) {
       return res.status(400).json({
@@ -701,7 +765,10 @@ app.post(
     }
 
     const result = await pool.query(
-      "SELECT * FROM customers WHERE login_id=$1 LIMIT 1",
+      `SELECT *
+       FROM customers
+       WHERE login_id=$1
+       LIMIT 1`,
       [loginId],
     );
 
@@ -709,28 +776,42 @@ app.post(
 
     if (
       !customer ||
-      !(await bcrypt.compare(password, customer.password_hash))
+      !(await bcrypt.compare(
+        password,
+        customer.password_hash,
+      ))
     ) {
       return res.status(401).json({
         error: "Invalid Login ID or Password.",
       });
     }
 
-    if (String(customer.status).toUpperCase() !== "ACTIVE") {
+    if (
+      String(customer.status).toUpperCase() !==
+      "ACTIVE"
+    ) {
       return res.status(403).json({
-        error: "This customer account is not active.",
+        error:
+          "This customer account is not active.",
       });
     }
 
-    await issueCustomerSession(pool, res, customer.id);
+    await issueCustomerSession(
+      pool,
+      res,
+      customer.id,
+    );
 
     const output = publicCustomer(customer);
 
     res.json({
       success: true,
-      mustChangePassword: output.mustChangePassword,
-      mustChangeWithdrawalPassword: output.mustChangeWithdrawalPassword,
-      withdrawalPasswordConfigured: output.withdrawalPasswordConfigured,
+      mustChangePassword:
+        output.mustChangePassword,
+      mustChangeWithdrawalPassword:
+        output.mustChangeWithdrawalPassword,
+      withdrawalPasswordConfigured:
+        output.withdrawalPasswordConfigured,
       customer: output,
     });
   }),
@@ -742,14 +823,31 @@ for (const kind of ["customer", "withdrawal"]) {
   app.post(
     `/api/auth/change-${kind}-password`,
     wrap(async (req, res) => {
-      const loginId = normalizeLoginId(req.body.loginId);
-      const current = String(req.body.currentPassword || "");
-      const password = String(req.body.newPassword || "");
-      const confirm = String(req.body.confirmPassword || "");
+      const loginId = normalizeLoginId(
+        req.body.loginId,
+      );
 
-      if (!loginId || !current || !password || !confirm) {
+      const current = String(
+        req.body.currentPassword || "",
+      );
+
+      const password = String(
+        req.body.newPassword || "",
+      );
+
+      const confirm = String(
+        req.body.confirmPassword || "",
+      );
+
+      if (
+        !loginId ||
+        !current ||
+        !password ||
+        !confirm
+      ) {
         return res.status(400).json({
-          error: "Please complete all password fields.",
+          error:
+            "Please complete all password fields.",
         });
       }
 
@@ -765,7 +863,10 @@ for (const kind of ["customer", "withdrawal"]) {
       }
 
       const result = await pool.query(
-        "SELECT * FROM customers WHERE login_id=$1 LIMIT 1",
+        `SELECT *
+         FROM customers
+         WHERE login_id=$1
+         LIMIT 1`,
         [loginId],
       );
 
@@ -781,9 +882,16 @@ for (const kind of ["customer", "withdrawal"]) {
         ? customer.withdrawal_password_hash
         : customer.password_hash;
 
-      if (!currentHash || !(await bcrypt.compare(current, currentHash))) {
+      if (
+        !currentHash ||
+        !(await bcrypt.compare(
+          current,
+          currentHash,
+        ))
+      ) {
         return res.status(401).json({
-          error: "Current password is incorrect or not configured.",
+          error:
+            "Current password is incorrect or not configured.",
         });
       }
 
@@ -791,25 +899,37 @@ for (const kind of ["customer", "withdrawal"]) {
         ? customer.password_hash
         : customer.withdrawal_password_hash;
 
-      if (otherHash && await bcrypt.compare(password, otherHash)) {
+      if (
+        otherHash &&
+        (await bcrypt.compare(
+          password,
+          otherHash,
+        ))
+      ) {
         return res.status(400).json({
-          error: "Login Password and Withdrawal Password must be different.",
+          error:
+            "Login Password and Withdrawal Password must be different.",
         });
       }
 
-      const newHash = await bcrypt.hash(password, 12);
+      const newHash = await bcrypt.hash(
+        password,
+        12,
+      );
 
       const query = withdrawal
         ? `UPDATE customers
            SET withdrawal_password_hash=$1,
                must_change_withdrawal_password=FALSE,
                updated_at=NOW()
-           WHERE id=$2 RETURNING *`
+           WHERE id=$2
+           RETURNING *`
         : `UPDATE customers
            SET password_hash=$1,
                must_change_password=FALSE,
                updated_at=NOW()
-           WHERE id=$2 RETURNING *`;
+           WHERE id=$2
+           RETURNING *`;
 
       const updated = await pool.query(query, [
         newHash,
@@ -818,20 +938,29 @@ for (const kind of ["customer", "withdrawal"]) {
 
       if (!withdrawal) {
         await pool.query(
-          "DELETE FROM demo_customer_sessions WHERE customer_id=$1",
+          `DELETE FROM demo_customer_sessions
+           WHERE customer_id=$1`,
           [customer.id],
         );
 
-        await issueCustomerSession(pool, res, customer.id);
+        await issueCustomerSession(
+          pool,
+          res,
+          customer.id,
+        );
       }
 
       res.json({
         success: true,
         message: "Password changed successfully.",
-        customer: publicCustomer(updated.rows[0]),
+        customer: publicCustomer(
+          updated.rows[0],
+        ),
         mustChangeWithdrawalPassword: withdrawal
           ? false
-          : Boolean(customer.must_change_withdrawal_password),
+          : Boolean(
+              customer.must_change_withdrawal_password,
+            ),
       });
     }),
   );
@@ -842,7 +971,8 @@ const otpStore = new Map();
 function sendFast2SMS(mobile, otp) {
   return new Promise((resolve, reject) => {
     const key =
-      process.env.FAST2SMS_API_KEY || process.env.SMS_API_KEY;
+      process.env.FAST2SMS_API_KEY ||
+      process.env.SMS_API_KEY;
 
     if (!key) {
       return reject(
@@ -864,7 +994,9 @@ function sendFast2SMS(mobile, otp) {
         hostname: "www.fast2sms.com",
         path: `/dev/bulkV2?${params}`,
         method: "GET",
-        headers: { "cache-control": "no-cache" },
+        headers: {
+          "cache-control": "no-cache",
+        },
       },
       response => {
         let data = "";
@@ -879,27 +1011,38 @@ function sendFast2SMS(mobile, otp) {
           try {
             const result = JSON.parse(data);
 
-            if (result.return === true || result.status_code === 200) {
+            if (
+              result.return === true ||
+              result.status_code === 200
+            ) {
               resolve(result);
             } else {
               reject(
                 new Error(
                   Array.isArray(result.message)
                     ? result.message.join(", ")
-                    : result.message || "SMS delivery failed.",
+                    : result.message ||
+                        "SMS delivery failed.",
                 ),
               );
             }
           } catch {
-            reject(new Error("Failed to parse Fast2SMS response."));
+            reject(
+              new Error(
+                "Failed to parse Fast2SMS response.",
+              ),
+            );
           }
         });
       },
     );
 
     request.setTimeout(15000, () =>
-      request.destroy(new Error("SMS request timed out.")),
+      request.destroy(
+        new Error("SMS request timed out."),
+      ),
     );
+
     request.on("error", reject);
     request.end();
   });
@@ -908,21 +1051,27 @@ function sendFast2SMS(mobile, otp) {
 app.post(
   "/api/auth/send-otp",
   wrap(async (req, res) => {
-    const mobile = String(req.body.mobile || "").replace(/\D/g, "");
+    const mobile = String(
+      req.body.mobile || "",
+    ).replace(/\D/g, "");
 
     if (!/^\d{10}$/.test(mobile)) {
       return res.status(400).json({
-        error: "Please enter a valid 10-digit mobile number.",
+        error:
+          "Please enter a valid 10-digit mobile number.",
       });
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = Math.floor(
+      100000 + Math.random() * 900000,
+    ).toString();
 
     await sendFast2SMS(mobile, otp);
 
     otpStore.set(mobile, {
       otp,
-      expiresAt: Date.now() + 10 * 60 * 1000,
+      expiresAt:
+        Date.now() + 10 * 60 * 1000,
     });
 
     res.json({
@@ -935,12 +1084,21 @@ app.post(
 app.post(
   "/api/auth/verify-otp",
   wrap(async (req, res) => {
-    const mobile = String(req.body.mobile || "").replace(/\D/g, "");
-    const otp = String(req.body.otp || "").trim();
+    const mobile = String(
+      req.body.mobile || "",
+    ).replace(/\D/g, "");
 
-    if (!/^\d{10}$/.test(mobile) || !/^\d{6}$/.test(otp)) {
+    const otp = String(
+      req.body.otp || "",
+    ).trim();
+
+    if (
+      !/^\d{10}$/.test(mobile) ||
+      !/^\d{6}$/.test(otp)
+    ) {
       return res.status(400).json({
-        error: "Valid mobile number and 6-digit OTP are required.",
+        error:
+          "Valid mobile number and 6-digit OTP are required.",
       });
     }
 
@@ -954,6 +1112,7 @@ app.post(
 
     if (Date.now() > record.expiresAt) {
       otpStore.delete(mobile);
+
       return res.status(400).json({
         error: "OTP has expired.",
       });
@@ -969,7 +1128,8 @@ app.post(
 
     res.json({
       success: true,
-      message: "Mobile number verified successfully.",
+      message:
+        "Mobile number verified successfully.",
     });
   }),
 );
@@ -987,8 +1147,11 @@ app.get(
 
     try {
       apiConnected =
-        typeof sportsService.isApiConnected === "function"
-          ? Boolean(await sportsService.isApiConnected())
+        typeof sportsService.isApiConnected ===
+        "function"
+          ? Boolean(
+              await sportsService.isApiConnected(),
+            )
           : false;
     } catch {}
 
@@ -1005,30 +1168,42 @@ app.get(
   "/api/sports/events",
   wrap(async (req, res) => {
     res.json({
-      data: (await sportsService.getEvents(req.query.sport || "all")) || [],
+      data:
+        (await sportsService.getEvents(
+          req.query.sport || "all",
+        )) || [],
     });
   }),
 );
 
-app.get("/api/sports/stream", (req, res) => {
-  res.set({
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache",
-    Connection: "keep-alive",
-  });
+app.get(
+  "/api/sports/stream",
+  (req, res) => {
+    res.set({
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    });
 
-  res.flushHeaders();
+    res.flushHeaders();
 
-  if (typeof sportsService.addClient === "function") {
-    sportsService.addClient(res);
-  }
-
-  req.on("close", () => {
-    if (typeof sportsService.removeClient === "function") {
-      sportsService.removeClient(res);
+    if (
+      typeof sportsService.addClient ===
+      "function"
+    ) {
+      sportsService.addClient(res);
     }
-  });
-});
+
+    req.on("close", () => {
+      if (
+        typeof sportsService.removeClient ===
+        "function"
+      ) {
+        sportsService.removeClient(res);
+      }
+    });
+  },
+);
 
 const depositJSON = row => ({
   id: row.id,
@@ -1052,7 +1227,8 @@ const withdrawalJSON = row => ({
   customerName: row.customer_name,
   loginId: row.login_id,
   amount: Number(row.amount),
-  accountHolderName: row.account_holder_name,
+  accountHolderName:
+    row.account_holder_name,
   bankName: row.bank_name,
   accountNumber: row.account_number,
   ifscCode: row.ifsc_code,
@@ -1068,22 +1244,33 @@ app.post(
   wrap(async (req, res) => {
     const id = Number(req.body.customerId);
     const amount = Number(req.body.amount);
+
     const reference = String(
-      req.body.referenceNumber || req.body.reference || "",
+      req.body.referenceNumber ||
+        req.body.reference ||
+        "",
     ).trim();
+
     const method = String(
-      req.body.paymentMethod || req.body.method || "ACCOUNT",
+      req.body.paymentMethod ||
+        req.body.method ||
+        "ACCOUNT",
     ).trim().toUpperCase();
 
-    if (!positiveInteger(id) || !positiveInteger(amount)) {
+    if (
+      !positiveInteger(id) ||
+      !positiveInteger(amount)
+    ) {
       return res.status(400).json({
-        error: "Valid customer ID and whole-number amount are required.",
+        error:
+          "Valid customer ID and whole-number amount are required.",
       });
     }
 
     if (!/^\d{12}$/.test(reference)) {
       return res.status(400).json({
-        error: "Reference number must contain exactly 12 digits.",
+        error:
+          "Reference number must contain exactly 12 digits.",
       });
     }
 
@@ -1097,6 +1284,7 @@ app.post(
       "SELECT * FROM customers WHERE id=$1",
       [id],
     );
+
     const customer = result.rows[0];
 
     if (!customer) {
@@ -1107,7 +1295,8 @@ app.post(
 
     if (customer.status !== "ACTIVE") {
       return res.status(403).json({
-        error: "Customer account is not active.",
+        error:
+          "Customer account is not active.",
       });
     }
 
@@ -1127,13 +1316,16 @@ app.post(
           reference,
           amount,
           method,
-          String(req.body.proofName || "").trim() || null,
+          String(
+            req.body.proofName || "",
+          ).trim() || null,
         ],
       );
 
       res.status(201).json({
         success: true,
-        message: "Demo request submitted successfully.",
+        message:
+          "Demo request submitted successfully.",
         request: depositJSON({
           ...saved.rows[0],
           customer_name: customer.name,
@@ -1155,14 +1347,19 @@ app.post(
   }),
 );
 
-for (const kind of ["deposits", "withdrawals"]) {
+for (const kind of [
+  "deposits",
+  "withdrawals",
+]) {
   const table =
     kind === "deposits"
       ? "demo_deposit_requests"
       : "demo_withdrawal_requests";
 
   const serialize =
-    kind === "deposits" ? depositJSON : withdrawalJSON;
+    kind === "deposits"
+      ? depositJSON
+      : withdrawalJSON;
 
   app.get(
     `/api/customers/:id/demo-${kind}`,
@@ -1174,7 +1371,9 @@ for (const kind of ["deposits", "withdrawals"]) {
       }
 
       const customer = await pool.query(
-        "SELECT id,name,login_id FROM customers WHERE id=$1",
+        `SELECT id,name,login_id
+         FROM customers
+         WHERE id=$1`,
         [Number(req.params.id)],
       );
 
@@ -1198,9 +1397,11 @@ for (const kind of ["deposits", "withdrawals"]) {
         customer: {
           id: customer.rows[0].id,
           name: customer.rows[0].name,
-          loginId: customer.rows[0].login_id,
+          loginId:
+            customer.rows[0].login_id,
         },
-        requests: result.rows.map(serialize),
+        requests:
+          result.rows.map(serialize),
       });
     }),
   );
@@ -1208,13 +1409,24 @@ for (const kind of ["deposits", "withdrawals"]) {
   app.get(
     `/api/admin/demo-${kind}`,
     wrap(async (req, res) => {
-      const status = String(req.query.status || "").trim().toUpperCase();
-      const filter = ["PENDING", "APPROVED", "REJECTED"].includes(status);
+      const status = String(
+        req.query.status || "",
+      ).trim().toUpperCase();
+
+      const filter = [
+        "PENDING",
+        "APPROVED",
+        "REJECTED",
+      ].includes(status);
 
       const result = await pool.query(
-        `SELECT d.*,c.name AS customer_name,c.login_id
+        `SELECT
+           d.*,
+           c.name AS customer_name,
+           c.login_id
          FROM ${table} d
-         JOIN customers c ON c.id=d.customer_id
+         JOIN customers c
+           ON c.id=d.customer_id
          ${filter ? "WHERE d.status=$1" : ""}
          ORDER BY d.id DESC
          LIMIT 200`,
@@ -1223,7 +1435,8 @@ for (const kind of ["deposits", "withdrawals"]) {
 
       res.json({
         success: true,
-        requests: result.rows.map(serialize),
+        requests:
+          result.rows.map(serialize),
       });
     }),
   );
@@ -1238,9 +1451,13 @@ for (const kind of ["deposits", "withdrawals"]) {
       }
 
       const result = await pool.query(
-        `SELECT d.*,c.name AS customer_name,c.login_id
+        `SELECT
+           d.*,
+           c.name AS customer_name,
+           c.login_id
          FROM ${table} d
-         JOIN customers c ON c.id=d.customer_id
+         JOIN customers c
+           ON c.id=d.customer_id
          WHERE d.id=$1
          LIMIT 1`,
         [Number(req.params.id)],
@@ -1254,7 +1471,9 @@ for (const kind of ["deposits", "withdrawals"]) {
 
       res.json({
         success: true,
-        request: serialize(result.rows[0]),
+        request: serialize(
+          result.rows[0],
+        ),
       });
     }),
   );
@@ -1264,14 +1483,22 @@ app.patch(
   "/api/admin/demo-deposits/:id/status",
   wrap(async (req, res) => {
     const id = Number(req.params.id);
-    const status = String(req.body.status || "").trim().toUpperCase();
+
+    const status = String(
+      req.body.status || "",
+    ).trim().toUpperCase();
 
     if (
       !positiveInteger(id) ||
-      !["PENDING", "APPROVED", "REJECTED"].includes(status)
+      ![
+        "PENDING",
+        "APPROVED",
+        "REJECTED",
+      ].includes(status)
     ) {
       return res.status(400).json({
-        error: "Invalid request ID or status.",
+        error:
+          "Invalid request ID or status.",
       });
     }
 
@@ -1291,8 +1518,11 @@ app.patch(
 
     res.json({
       success: true,
-      message: "Request status updated successfully.",
-      request: depositJSON(result.rows[0]),
+      message:
+        "Request status updated successfully.",
+      request: depositJSON(
+        result.rows[0],
+      ),
     });
   }),
 );
@@ -1304,10 +1534,14 @@ app.post(
     const id = Number(body.customerId);
     const amount = Number(body.amount);
 
-    if (!positiveInteger(id) || !positiveInteger(amount)) {
+    if (
+      !positiveInteger(id) ||
+      !positiveInteger(amount)
+    ) {
       return res.status(400).json({
         success: false,
-        error: "Valid customer ID and withdrawal amount are required.",
+        error:
+          "Valid customer ID and withdrawal amount are required.",
       });
     }
 
@@ -1316,16 +1550,22 @@ app.post(
       body.bankName,
       body.accountNumber,
       body.ifscCode,
-    ].map(value => String(value || "").trim());
+    ].map(value =>
+      String(value || "").trim(),
+    );
 
-    if (details.some(value => !value)) {
+    if (
+      details.some(value => !value)
+    ) {
       return res.status(400).json({
         success: false,
-        error: "Complete bank account details are required.",
+        error:
+          "Complete bank account details are required.",
       });
     }
 
-    details[3] = details[3].toUpperCase();
+    details[3] =
+      details[3].toUpperCase();
 
     const client = await pool.connect();
 
@@ -1333,29 +1573,43 @@ app.post(
       await client.query("BEGIN");
 
       const result = await client.query(
-        "SELECT * FROM customers WHERE id=$1 FOR UPDATE",
+        `SELECT *
+         FROM customers
+         WHERE id=$1
+         FOR UPDATE`,
         [id],
       );
 
       const customer = result.rows[0];
 
-      if (!customer || customer.status !== "ACTIVE") {
+      if (
+        !customer ||
+        customer.status !== "ACTIVE"
+      ) {
         await client.query("ROLLBACK");
 
-        return res.status(customer ? 403 : 404).json({
+        return res.status(
+          customer ? 403 : 404,
+        ).json({
           success: false,
-          error: "Customer not found or inactive.",
+          error:
+            "Customer not found or inactive.",
         });
       }
 
-      if (amount > Number(customer.demo_coin_balance)) {
+      if (
+        amount >
+        Number(customer.demo_coin_balance)
+      ) {
         await client.query("ROLLBACK");
 
         return res.status(400).json({
           success: false,
           code: "LOW_BALANCE",
           error: "LOW BALANCE",
-          balance: Number(customer.demo_coin_balance),
+          balance: Number(
+            customer.demo_coin_balance,
+          ),
         });
       }
 
@@ -1371,33 +1625,49 @@ app.post(
            coins_held,
            coins_restored
          )
-         VALUES($1,$2,$3,$4,$5,$6,'PENDING',TRUE,FALSE)
+         VALUES(
+           $1,$2,$3,$4,$5,$6,
+           'PENDING',TRUE,FALSE
+         )
          RETURNING *`,
         [id, amount, ...details],
       );
 
-      const balance = Number(customer.demo_coin_balance) - amount;
+      const balance =
+        Number(customer.demo_coin_balance) -
+        amount;
 
       await client.query(
         `UPDATE customers
-         SET demo_coin_balance=$1,updated_at=NOW()
+         SET demo_coin_balance=$1,
+             updated_at=NOW()
          WHERE id=$2`,
         [balance, id],
       );
 
       await client.query(
         `INSERT INTO demo_coin_transactions(
-           customer_id,amount,transaction_type,note
+           customer_id,
+           amount,
+           transaction_type,
+           note
          )
-         VALUES($1,$2,'WITHDRAWAL_HOLD',$3)`,
-        [id, -amount, "Demo withdrawal request submitted"],
+         VALUES(
+           $1,$2,'WITHDRAWAL_HOLD',$3
+         )`,
+        [
+          id,
+          -amount,
+          "Demo withdrawal request submitted",
+        ],
       );
 
       await client.query("COMMIT");
 
       res.status(201).json({
         success: true,
-        message: "Demo withdrawal request submitted successfully.",
+        message:
+          "Demo withdrawal request submitted successfully.",
         balance,
         request: withdrawalJSON({
           ...saved.rows[0],
@@ -1418,15 +1688,22 @@ app.patch(
   "/api/admin/demo-withdrawals/:id/status",
   wrap(async (req, res) => {
     const id = Number(req.params.id);
-    const status = String(req.body.status || "").trim().toUpperCase();
+
+    const status = String(
+      req.body.status || "",
+    ).trim().toUpperCase();
 
     if (
       !positiveInteger(id) ||
-      !["APPROVED", "REJECTED"].includes(status)
+      ![
+        "APPROVED",
+        "REJECTED",
+      ].includes(status)
     ) {
       return res.status(400).json({
         success: false,
-        error: "Valid ID and APPROVED or REJECTED status are required.",
+        error:
+          "Valid ID and APPROVED or REJECTED status are required.",
       });
     }
 
@@ -1450,16 +1727,20 @@ app.patch(
 
         return res.status(404).json({
           success: false,
-          error: "Withdrawal request not found.",
+          error:
+            "Withdrawal request not found.",
         });
       }
 
-      if (request.status !== "PENDING") {
+      if (
+        request.status !== "PENDING"
+      ) {
         await client.query("ROLLBACK");
 
         return res.status(409).json({
           success: false,
-          error: `Withdrawal request is already ${request.status}.`,
+          error:
+            `Withdrawal request is already ${request.status}.`,
         });
       }
 
@@ -1470,17 +1751,26 @@ app.patch(
       ) {
         await client.query(
           `UPDATE customers
-           SET demo_coin_balance=demo_coin_balance+$1::INTEGER,
+           SET demo_coin_balance=
+                 demo_coin_balance+$1::INTEGER,
                updated_at=NOW()
            WHERE id=$2::INTEGER`,
-          [Number(request.amount), request.customer_id],
+          [
+            Number(request.amount),
+            request.customer_id,
+          ],
         );
 
         await client.query(
           `INSERT INTO demo_coin_transactions(
-             customer_id,amount,transaction_type,note
+             customer_id,
+             amount,
+             transaction_type,
+             note
            )
-           VALUES($1,$2,'WITHDRAWAL_RESTORE',$3)`,
+           VALUES(
+             $1,$2,'WITHDRAWAL_RESTORE',$3
+           )`,
           [
             request.customer_id,
             Number(request.amount),
@@ -1505,7 +1795,9 @@ app.patch(
       );
 
       const balance = await client.query(
-        "SELECT demo_coin_balance FROM customers WHERE id=$1",
+        `SELECT demo_coin_balance
+         FROM customers
+         WHERE id=$1`,
         [request.customer_id],
       );
 
@@ -1513,8 +1805,13 @@ app.patch(
 
       res.json({
         success: true,
-        request: withdrawalJSON(updated.rows[0]),
-        demoCoinBalance: Number(balance.rows[0]?.demo_coin_balance || 0),
+        request: withdrawalJSON(
+          updated.rows[0],
+        ),
+        demoCoinBalance: Number(
+          balance.rows[0]?.demo_coin_balance ||
+            0,
+        ),
       });
     } catch (error) {
       await client.query("ROLLBACK");
@@ -1529,44 +1826,59 @@ registerDemoBetRoutes(app, pool);
 registerFlightRoutes(app, pool);
 registerRouletteRoutes(app, pool);
 
-const startAutoGames = registerAutoGameRoutes(
-  app,
-  pool,
-  requireOldAdmin(pool),
-);
+const startAutoGames =
+  registerAutoGameRoutes(
+    app,
+    pool,
+    requireOldAdmin(pool),
+  );
 
-const animatedCricket = registerAnimatedCricketRoutes(
-  app,
-  pool,
-);
+const animatedCricket =
+  registerAnimatedCricketRoutes(
+    app,
+    pool,
+  );
 
-const startColorPrediction = registerColorPredictionRoutes(
-  app,
-  pool,
-);
+const startColorPrediction =
+  registerColorPredictionRoutes(
+    app,
+    pool,
+  );
+
+const startDealOrNoDeal =
+  registerDealOrNoDealRoutes(
+    app,
+    pool,
+  );
 
 app.all("/api/*", (req, res) =>
   res.status(404).json({
-    error: `API endpoint ${req.originalUrl} not found.`,
+    error:
+      `API endpoint ${req.originalUrl} not found.`,
   }),
 );
 
 app.use((error, req, res, next) => {
   console.error("API error:", error);
 
-  if (res.headersSent) return next(error);
+  if (res.headersSent) {
+    return next(error);
+  }
 
   if (error.code === "23505") {
     return res.status(409).json({
       success: false,
       error:
-        error.constraint === "customers_promo_code_unique"
+        error.constraint ===
+        "customers_promo_code_unique"
           ? "This Promo Code is already assigned to another customer."
           : "This record already exists.",
     });
   }
 
-  res.status(error.status || 500).json({
+  res.status(
+    error.status || 500,
+  ).json({
     success: false,
     error: error.status
       ? error.message
@@ -1574,10 +1886,20 @@ app.use((error, req, res, next) => {
   });
 });
 
-app.use(express.static(path.join(__dirname, "dist")));
+app.use(
+  express.static(
+    path.join(__dirname, "dist"),
+  ),
+);
 
 app.get("*", (req, res) =>
-  res.sendFile(path.join(__dirname, "dist", "index.html")),
+  res.sendFile(
+    path.join(
+      __dirname,
+      "dist",
+      "index.html",
+    ),
+  ),
 );
 
 async function startServer() {
@@ -1586,14 +1908,21 @@ async function startServer() {
   startAutoGames();
   animatedCricket.start();
   startColorPrediction();
+  startDealOrNoDeal();
 
   app.listen(PORT, () =>
-    console.log(`Server listening on port ${PORT}`),
+    console.log(
+      `Server listening on port ${PORT}`,
+    ),
   );
 }
 
 startServer().catch(error => {
-  console.error("Server startup failed:", error);
+  console.error(
+    "Server startup failed:",
+    error,
+  );
+
   process.exitCode = 1;
   pool.end();
 });
