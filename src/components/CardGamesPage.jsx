@@ -259,6 +259,7 @@ export default function CardGamesPage({
   const [message, setMessage] = useState("");
 
   const inFlight = useRef(false);
+  const confirmBox = useRef(null);
 
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 100);
@@ -296,12 +297,12 @@ export default function CardGamesPage({
   const currentBets =
     data?.bets?.filter(
       bet =>
-        String(bet.round_id) === round?.id &&
+        String(bet.round_id) === String(round?.id) &&
         bet.status !== "CANCELLED",
     ) || [];
 
   const held = currentBets.reduce(
-    (total, bet) => total + bet.hold,
+    (total, bet) => total + Number(bet.hold || 0),
     0,
   );
 
@@ -312,14 +313,51 @@ export default function CardGamesPage({
   useEffect(() => {
     setSelection(null);
     setMessage("");
-  }, [round?.id, round?.stage]);
+  }, [game, round?.id, round?.stage]);
+
+  const selectionIsCurrent = Boolean(
+    selection &&
+    selection.game === game &&
+    String(selection.roundId) === String(round?.id) &&
+    selection.stage === round?.stage
+  );
+
+  const selectMarket = (market, direction) => {
+    if (
+      !open ||
+      busy ||
+      pending ||
+      market.stage !== round?.stage
+    ) {
+      return;
+    }
+
+    setSelection({
+      ...market,
+      direction,
+      game,
+      roundId: round.id,
+    });
+
+    setMessage("");
+
+    confirmBox.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  };
 
   const submit = async (retry = false) => {
     if (inFlight.current) return;
 
     const stake = Number(amount);
 
-    if (!retry && (!open || !selection)) {
+    if (!retry && pending) {
+      setMessage("Resolve the pending bet using RETRY SAME BET REQUEST.");
+      return;
+    }
+
+    if (!retry && (!open || !selectionIsCurrent)) {
       setMessage("Choose a market during its betting window.");
       return;
     }
@@ -362,19 +400,23 @@ export default function CardGamesPage({
       setPending(null);
       setSelection(null);
       setMessage("Bet recorded.");
-
       notifyFlightWallet();
-      await refresh();
     } catch (requestError) {
       setMessage(requestError.message);
 
-      if (requestError.status) {
+      if (
+        requestError.status >= 400 &&
+        requestError.status < 500
+      ) {
         setPending(null);
-        await refresh();
       }
     } finally {
-      inFlight.current = false;
-      setBusy(false);
+      try {
+        await refresh();
+      } finally {
+        inFlight.current = false;
+        setBusy(false);
+      }
     }
   };
 
@@ -391,15 +433,16 @@ export default function CardGamesPage({
       );
 
       setMessage("Bet cancelled.");
-
       notifyFlightWallet();
-      await refresh();
     } catch (requestError) {
-           setMessage(requestError.message);
-      await refresh();
+      setMessage(requestError.message);
     } finally {
-      inFlight.current = false;
-      setBusy(false);
+      try {
+        await refresh();
+      } finally {
+        inFlight.current = false;
+        setBusy(false);
+      }
     }
   };
 
@@ -429,6 +472,7 @@ export default function CardGamesPage({
 
         {unauthorized && (
           <button
+            type="button"
             onClick={onBack}
             className="w-full rounded-xl bg-amber-300 p-4 font-black text-black"
           >
@@ -546,6 +590,7 @@ export default function CardGamesPage({
             {[100, 500, 1000, 5000].map(value => (
               <button
                 key={value}
+                type="button"
                 onClick={() =>
                   setAmount(
                     String(
@@ -566,6 +611,59 @@ export default function CardGamesPage({
           <p className="mt-3 text-xs text-slate-400">
             Reserved this round: {coins(held)}
           </p>
+        </section>
+
+        <section
+          ref={confirmBox}
+          className="scroll-mt-4 rounded-xl border border-amber-200/30 bg-[#172324] p-4"
+        >
+          {selectionIsCurrent ? (
+            <>
+              <p className="font-bold">
+                {selection.label} · {selection.direction}
+              </p>
+
+              <p className="mt-2 text-xs text-slate-300">
+                Stake: {coins(amount)}
+                {selection.direction === "LAY"
+                  ? ` · Reserved liability: ${coins(
+                      Math.round(
+                        Number(amount) * (selection.returns - 1),
+                      ),
+                    )}`
+                  : ""}
+              </p>
+            </>
+          ) : (
+            <p className="text-xs text-slate-400">
+              Select a market below to confirm your bet.
+            </p>
+          )}
+
+          <button
+            type="button"
+            disabled={
+              !open ||
+              !selectionIsCurrent ||
+              busy ||
+              Boolean(pending)
+            }
+            onClick={() => submit()}
+            className="mt-3 w-full rounded-xl bg-emerald-400 p-3 font-black text-black disabled:opacity-40"
+          >
+            {busy ? "PROCESSING…" : "CONFIRM BET"}
+          </button>
+
+          {pending && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => submit(true)}
+              className="mt-3 w-full rounded-xl bg-amber-300 p-3 text-sm font-black text-black disabled:opacity-40"
+            >
+              RETRY SAME BET REQUEST
+            </button>
+          )}
         </section>
 
         <section className="space-y-2">
@@ -595,17 +693,13 @@ export default function CardGamesPage({
                     ).map(direction => (
                       <button
                         key={direction}
+                        type="button"
                         disabled={!enabled}
-                        onClick={() => {
-                          setSelection({
-                            ...market,
-                            direction,
-                          });
-                          setMessage("");
-                        }}
+                        onClick={() => selectMarket(market, direction)}
                         className={`min-w-0 flex-1 p-3 text-xs font-black disabled:opacity-35 ${
-                          selection?.key === market.key &&
-                          selection?.direction === direction
+                          selectionIsCurrent &&
+                          selection.key === market.key &&
+                          selection.direction === direction
                             ? "ring-2 ring-inset ring-amber-300"
                             : ""
                         } ${
@@ -630,43 +724,6 @@ export default function CardGamesPage({
             })}
           </div>
         </section>
-
-        {selection && (
-          <section className="rounded-xl border border-amber-200/30 bg-[#172324] p-4">
-            <p className="font-bold">
-              {selection.label} · {selection.direction}
-            </p>
-
-            <p className="mt-2 text-xs text-slate-300">
-              Stake: {coins(amount)}
-              {selection.direction === "LAY"
-                ? ` · Reserved liability: ${coins(
-                    Math.round(
-                      Number(amount) * (selection.returns - 1),
-                    ),
-                  )}`
-                : ""}
-            </p>
-
-            <button
-              disabled={!open || busy || Boolean(pending)}
-              onClick={() => submit()}
-              className="mt-3 w-full rounded-xl bg-emerald-400 p-3 font-black text-black disabled:opacity-40"
-            >
-              {busy ? "SENDING…" : "CONFIRM BET"}
-            </button>
-          </section>
-        )}
-
-        {pending && (
-          <button
-            disabled={busy}
-            onClick={() => submit(true)}
-            className="w-full rounded-xl bg-amber-300 p-3 font-black text-black"
-          >
-            RETRY SAME BET REQUEST
-          </button>
-        )}
 
         <section className="rounded-xl border border-white/10 p-4">
           <h2 className="font-black">This round</h2>
@@ -701,6 +758,7 @@ export default function CardGamesPage({
                 bet.stage === round?.stage &&
                 bet.status === "PLACED" && (
                   <button
+                    type="button"
                     disabled={busy || Boolean(pending)}
                     onClick={() => cancel(bet.id)}
                     className="rounded-lg border border-white/20 px-3 py-2"
