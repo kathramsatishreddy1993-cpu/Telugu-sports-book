@@ -16,6 +16,8 @@ import GameArtwork from "./GameArtwork";
 const LOGO =
   "/games/file_0000000092bc82118617f615539c5f17.png";
 
+const HEADER_BACKGROUND = "/games/tsb-header-bg.jpg";
+
 const GAMES = [
   {
     id: "aviator",
@@ -136,7 +138,7 @@ function GameImage({ game }) {
 
   if (failed || !game.image) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#173431] to-[#151025] p-2 text-center text-xs font-black text-amber-200">
+      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#e3f8f8] to-[#f1edf5] p-2 text-center text-xs font-black text-slate-900">
         {game.name}
       </div>
     );
@@ -160,10 +162,10 @@ function GameSection({
   onGameClick,
 }) {
   return (
-    <section className="border-t border-[#1e293b] bg-[#080d16] px-3 py-3">
+    <section className="border-t border-slate-200 bg-white px-3 py-3">
       <div className="mb-3 flex items-center gap-2">
-        <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]" />
-        <h2 className="text-sm font-black uppercase tracking-wide text-white">
+        <span className="h-2 w-2 rounded-full bg-[#08b7bc] shadow-[0_0_10px_rgba(8,183,188,.3)]" />
+        <h2 className="text-sm font-black uppercase tracking-wide text-slate-900">
           {title}
         </h2>
       </div>
@@ -174,7 +176,7 @@ function GameSection({
             key={game.id || game.name}
             type="button"
             onClick={() => onGameClick(game)}
-            className="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#111827] text-white shadow-lg transition active:scale-95"
+            className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-slate-900 shadow-lg transition active:scale-95"
           >
             <div
               className={`relative w-full overflow-hidden bg-black ${
@@ -191,7 +193,7 @@ function GameSection({
             </div>
 
             <div className="flex min-h-[26px] items-center justify-center px-1 py-1">
-              <span className="text-center text-[7px] font-black uppercase leading-tight text-gray-200 sm:text-[10px]">
+              <span className="text-center text-[7px] font-black uppercase leading-tight text-slate-900 sm:text-[10px]">
                 {game.name}
               </span>
             </div>
@@ -302,7 +304,6 @@ function TopGamesSlider({ onGameClick }) {
       gesture.moved = true;
     }
 
-    // Touch and pen use the browser's native swipe scrolling.
     if (
       gesture.type === "mouse" &&
       Math.abs(distanceX) > 8
@@ -343,7 +344,7 @@ function TopGamesSlider({ onGameClick }) {
   };
 
   return (
-    <section className="border-b border-white/10 bg-[#080d16] py-3">
+    <section className="border-b border-slate-200 bg-white py-3">
       <div
         ref={scrollerRef}
         role="region"
@@ -371,7 +372,6 @@ function TopGamesSlider({ onGameClick }) {
           }
         }}
         onFocusCapture={event => {
-          // Keep keyboard focus visible while browsing.
           if (event.target.matches(":focus-visible")) {
             focusedRef.current = true;
           }
@@ -403,13 +403,13 @@ function TopGamesSlider({ onGameClick }) {
               type="button"
               aria-label={`Open ${game.name}`}
               onClick={() => onGameClick(game)}
-              className="w-[82px] shrink-0 select-none rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
+              className="w-[82px] shrink-0 select-none rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#08b7bc]"
             >
-              <div className="pointer-events-none h-[54px] overflow-hidden rounded-lg border border-cyan-400/20 bg-black">
+              <div className="pointer-events-none h-[54px] overflow-hidden rounded-lg border border-slate-200 bg-black">
                 <GameArtwork game={game.id} />
               </div>
 
-              <span className="pointer-events-none mt-1 block truncate text-center text-[7px] font-black text-gray-300">
+              <span className="pointer-events-none mt-1 block truncate text-center text-[7px] font-black text-slate-900">
                 {game.name}
               </span>
             </button>
@@ -582,7 +582,7 @@ export default function DemoDashboard({ user, onLogout }) {
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#080d16] text-white">
+    <div className="min-h-screen overflow-x-hidden bg-white text-slate-900">
       <style>{`
         .tsb-game-scroller {
           width: 100%;
@@ -600,6 +600,20 @@ export default function DemoDashboard({ user, onLogout }) {
           cursor: grabbing;
         }
 
+        .tsb-header {
+          background-color: #061a25;
+          background-image:
+            linear-gradient(
+              180deg,
+              rgba(0, 10, 18, .18),
+              rgba(0, 10, 18, .06)
+            ),
+            var(--tsb-header-image);
+          background-position: center;
+          background-size: cover;
+          background-repeat: no-repeat;
+        }
+
         .tsb-neon-track {
           display: flex;
           width: max-content;
@@ -613,8 +627,8 @@ export default function DemoDashboard({ user, onLogout }) {
           font-weight: 900;
           letter-spacing: 1px;
           line-height: 30px;
-          color: #67e8f9;
-          text-shadow: 0 0 8px #0891b2;
+          color: #28e1e5;
+          text-shadow: 0 0 8px rgba(8,183,188,.55);
         }
 
         @keyframes tsbNeonSlide {
@@ -622,14 +636,38 @@ export default function DemoDashboard({ user, onLogout }) {
           to { transform: translateX(-50%); }
         }
 
+        .tsb-scrollbar {
+          scrollbar-color: #08b7bc #f1f5f9;
+        }
+
         .tsb-scrollbar::-webkit-scrollbar {
           width: 4px;
           height: 3px;
         }
 
+        .tsb-scrollbar::-webkit-scrollbar-track {
+          background: #f1f5f9;
+        }
+
         .tsb-scrollbar::-webkit-scrollbar-thumb {
-          background: #0d9488;
+          background: #08b7bc;
           border-radius: 999px;
+        }
+
+        .tsb-wallet-label {
+          display: flex;
+          align-items: center;
+          align-self: stretch;
+          position: relative;
+        }
+
+        .tsb-wallet-label::after {
+          content: "\\00a0";
+          display: inline-block;
+          width: 0;
+          font-size: 8px;
+          line-height: 2;
+          visibility: hidden;
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -639,7 +677,12 @@ export default function DemoDashboard({ user, onLogout }) {
         }
       `}</style>
 
-      <header className="border-b border-[#1f2937] bg-gradient-to-br from-[#0c1727] via-[#0b121e] to-[#111827] px-4 pb-3 pt-4">
+      <header
+        className="tsb-header border-b border-slate-200 px-4 pb-3 pt-4 text-white"
+        style={{
+          "--tsb-header-image": `url("${HEADER_BACKGROUND}")`,
+        }}
+      >
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-amber-400/30 bg-black shadow-[0_0_20px_rgba(245,158,11,.12)]">
@@ -659,8 +702,8 @@ export default function DemoDashboard({ user, onLogout }) {
           </div>
 
           <div className="relative shrink-0 text-right">
-            <div className="rounded-xl border border-amber-400/20 bg-black/20 px-3 py-2">
-              <p className="text-[8px] font-bold uppercase text-gray-400">
+            <div className="rounded-xl border border-amber-400/30 bg-[#03121d]/90 px-3 py-2">
+              <p className="text-[8px] font-bold uppercase text-gray-300">
                 Demo Balance
               </p>
 
@@ -676,7 +719,7 @@ export default function DemoDashboard({ user, onLogout }) {
               onClick={() =>
                 setShowCustomerMenu(value => !value)
               }
-              className="mt-2 max-w-[135px] truncate rounded-lg border border-cyan-400/30 bg-[#111827] px-3 py-2 text-[10px] font-black text-cyan-200"
+              className="mt-2 max-w-[135px] truncate rounded-lg border border-cyan-400/50 bg-[#031b29]/90 px-3 py-2 text-[10px] font-black text-cyan-200"
             >
               {user?.name ||
                 user?.loginId ||
@@ -688,7 +731,7 @@ export default function DemoDashboard({ user, onLogout }) {
             {showCustomerMenu && (
               <div
                 id="customer-menu"
-                className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-56 overflow-y-auto rounded-xl border border-white/10 bg-[#111827] text-left shadow-2xl"
+                className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-56 overflow-y-auto rounded-xl border border-slate-200 bg-white text-left shadow-2xl"
               >
                 {MENU_ITEMS.map(([label, target]) => (
                   <button
@@ -699,10 +742,10 @@ export default function DemoDashboard({ user, onLogout }) {
                         ? goHome()
                         : openPage(target)
                     }
-                    className={`block w-full border-b border-white/5 px-4 py-3 text-left text-[11px] font-bold hover:bg-white/5 ${
+                    className={`block w-full border-b border-slate-100 px-4 py-3 text-left text-[11px] font-bold hover:bg-slate-50 ${
                       target === "promo"
-                        ? "text-violet-300"
-                        : "text-gray-100"
+                        ? "text-violet-700"
+                        : "text-slate-900"
                     }`}
                   >
                     {label}
@@ -712,7 +755,7 @@ export default function DemoDashboard({ user, onLogout }) {
                 <button
                   type="button"
                   onClick={onLogout}
-                  className="block w-full bg-red-500/10 px-4 py-3 text-left text-[11px] font-black text-red-400"
+                  className="block w-full bg-red-50 px-4 py-3 text-left text-[11px] font-black text-red-700"
                 >
                   Logout
                 </button>
@@ -734,19 +777,30 @@ export default function DemoDashboard({ user, onLogout }) {
           <button
             type="button"
             onClick={() => openPage("deposit")}
-            className="rounded-2xl border border-emerald-400/50 bg-gradient-to-br from-[#08251f] to-[#071713] px-3 py-3 text-left shadow-[0_0_8px_rgba(52,211,153,.25)] active:scale-95"
+            className="rounded-2xl border border-[#08b7bc] bg-[#08b7bc] px-3 py-3 text-left shadow-[0_0_8px_rgba(8,183,188,.25)] active:scale-95"
           >
             <span className="flex items-center gap-2">
               <span className="text-2xl">💰</span>
-              <span>
-                <strong className="block text-xs text-emerald-300">
+
+              <span className="relative">
+                <span
+                  aria-hidden="true"
+                  className="invisible block text-xs font-bold"
+                >
+                  &nbsp;
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="invisible text-[8px]"
+                >
+                  &nbsp;
+                </span>
+                <strong className="absolute inset-0 flex items-center text-xs text-white">
                   DEPOSIT
                 </strong>
-                <span className="text-[8px] text-emerald-100/60">
-                  CREDITS
-                </span>
               </span>
-              <span className="ml-auto text-xl text-emerald-300">
+
+              <span className="ml-auto text-xl text-white">
                 ›
               </span>
             </span>
@@ -755,26 +809,37 @@ export default function DemoDashboard({ user, onLogout }) {
           <button
             type="button"
             onClick={() => openPage("withdrawal")}
-            className="rounded-2xl border border-orange-400/50 bg-gradient-to-br from-[#2a1809] to-[#171008] px-3 py-3 text-left shadow-[0_0_8px_rgba(251,146,60,.25)] active:scale-95"
+            className="rounded-2xl border border-[#791b3e] bg-[#791b3e] px-3 py-3 text-left shadow-[0_0_8px_rgba(121,27,62,.25)] active:scale-95"
           >
             <span className="flex items-center gap-2">
               <span className="text-2xl">💵</span>
-              <span>
-                <strong className="block text-xs text-orange-300">
+
+              <span className="relative">
+                <span
+                  aria-hidden="true"
+                  className="invisible block text-xs font-bold"
+                >
+                  &nbsp;
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="invisible text-[8px]"
+                >
+                  &nbsp;
+                </span>
+                <strong className="absolute inset-0 flex items-center whitespace-nowrap text-xs text-white">
                   WITHDRAWAL
                 </strong>
-                <span className="text-[8px] text-orange-100/60">
-                  REQUEST
-                </span>
               </span>
-              <span className="ml-auto text-xl text-orange-300">
+
+              <span className="ml-auto text-xl text-white">
                 ›
               </span>
             </span>
           </button>
         </div>
 
-        <div className="mt-3 overflow-hidden rounded-lg border border-cyan-500/10 bg-black/20">
+        <div className="mt-3 overflow-hidden rounded-lg border border-black bg-black">
           <div className="tsb-neon-track">
             {[0, 1].map(index => (
               <span
@@ -793,12 +858,12 @@ export default function DemoDashboard({ user, onLogout }) {
       <TopGamesSlider onGameClick={handleGameClick} />
 
       <div className="px-4 py-3">
-        <p className="rounded-lg border border-amber-400/10 bg-amber-400/5 px-3 py-2 text-center text-[9px] font-black uppercase tracking-wider text-amber-300">
+        <p className="rounded-lg border border-[#08b7bc] bg-[#08b7bc] px-3 py-2 text-center text-[9px] font-black uppercase tracking-wider text-black">
           🏆 Our Exchange • Sports Hub
         </p>
       </div>
 
-      <nav className="tsb-scrollbar overflow-x-auto border-b border-white/10 bg-[#0d1523]">
+      <nav className="tsb-scrollbar overflow-x-auto border-b border-slate-200 bg-white">
         <div className="flex w-max min-w-full gap-2 px-3 py-2">
           {[
             "INPLAY",
@@ -812,10 +877,10 @@ export default function DemoDashboard({ user, onLogout }) {
               key={tab}
               type="button"
               onClick={() => setSelectedTab(tab)}
-              className={`shrink-0 rounded-lg border px-4 py-2 text-[9px] font-black ${
+              className={`shrink-0 rounded-lg border px-4 py-2 text-[9px] font-black text-white ${
                 selectedTab === tab
-                  ? "border-cyan-400/50 bg-cyan-400/15 text-cyan-300"
-                  : "border-white/10 bg-[#111827] text-gray-400"
+                  ? "border-[#a72a55] bg-[#a12450] shadow-[0_0_10px_rgba(161,36,80,.2)]"
+                  : "border-[#791b3e] bg-[#791b3e]"
               }`}
             >
               {tab}
@@ -824,17 +889,17 @@ export default function DemoDashboard({ user, onLogout }) {
         </div>
       </nav>
 
-      <section className="tsb-scrollbar overflow-x-auto border-b border-white/10 bg-[#0a101b]">
+      <section className="tsb-scrollbar overflow-x-auto border-b border-slate-200 bg-white">
         <div className="flex w-max gap-2 px-3 py-3">
           {sports.map(sport => (
             <button
               key={sport.name}
               type="button"
               onClick={() => setSelectedSport(sport.name)}
-              className={`w-[90px] shrink-0 rounded-xl border px-2 py-2 text-center ${
+              className={`w-[90px] shrink-0 rounded-xl border bg-[#08b7bc] px-2 py-2 text-center text-black ${
                 selectedSport === sport.name
-                  ? "border-amber-400/50 bg-amber-400/15 text-white"
-                  : "border-white/10 bg-[#111827] text-gray-400"
+                  ? "border-[#087f83] shadow-[inset_0_0_0_1px_#087f83]"
+                  : "border-[#08b7bc]"
               }`}
             >
               <span className="block text-xl">
@@ -851,7 +916,7 @@ export default function DemoDashboard({ user, onLogout }) {
       <section className="px-3 pb-2 pt-4">
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_12px_#ef4444]" />
-          <h2 className="text-lg font-black">
+          <h2 className="text-lg font-black text-slate-900">
             LIVE SPORTS
           </h2>
         </div>
@@ -862,10 +927,10 @@ export default function DemoDashboard({ user, onLogout }) {
               key={filter}
               type="button"
               onClick={() => setMatchFilter(filter)}
-              className={`rounded-lg border px-4 py-2 text-[8px] font-black ${
+              className={`rounded-lg border px-4 py-2 text-[8px] font-black text-white ${
                 matchFilter === filter
-                  ? "border-red-400/40 bg-red-500/15 text-red-300"
-                  : "border-white/10 bg-[#111827] text-gray-400"
+                  ? "border-[#ac2854] bg-[#ac2854]"
+                  : "border-[#791b3e] bg-[#791b3e]"
               }`}
             >
               {filter}
@@ -885,7 +950,7 @@ export default function DemoDashboard({ user, onLogout }) {
               }}
             />
           ) : (
-            <p className="rounded-xl border border-white/10 bg-[#111827] p-4 text-xs leading-6 text-slate-400">
+            <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs leading-6 text-slate-600">
               No {matchFilter.toLowerCase()}{" "}
               {selectedSport.toLowerCase()} fixtures
               are available in this view.
@@ -897,7 +962,7 @@ export default function DemoDashboard({ user, onLogout }) {
       {notice && (
         <div
           role="status"
-          className="mx-3 mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-300/20 bg-amber-300/10 p-3 text-xs text-amber-100"
+          className="mx-3 mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900"
         >
           <span>{notice}</span>
           <button
@@ -943,16 +1008,16 @@ export default function DemoDashboard({ user, onLogout }) {
         onGameClick={handleGameClick}
       />
 
-      <footer className="border-t border-white/10 bg-[#050911] px-5 py-8 text-center">
+      <footer className="border-t border-slate-200 bg-white px-5 py-8 text-center">
         <div className="mx-auto h-14 w-14 overflow-hidden rounded-xl border border-amber-400/20 bg-black">
           <BrandLogo />
         </div>
 
-        <p className="mt-3 text-sm font-black text-amber-300">
+        <p className="mt-3 text-sm font-black text-slate-900">
           TELUGU SPORTS BOOK
         </p>
 
-        <p className="mx-auto mt-3 max-w-xl text-[9px] leading-5 text-gray-500">
+        <p className="mx-auto mt-3 max-w-xl text-[9px] leading-5 text-slate-500">
           Demonstration and informational purposes
           only. No real-money transactions are
           processed.
