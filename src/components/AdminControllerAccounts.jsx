@@ -19,7 +19,7 @@ const GAME_CONFIG = {
   DEAL_OR_NO_DEAL: {
     name: "DEAL OR NO DEAL",
     path: "/game-control/deal-or-no-deal",
-    ready: false,
+    ready: true,
   },
 };
 
@@ -72,14 +72,19 @@ export default function AdminControllerAccounts({
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
 
-  const [resetAccount, setResetAccount] = useState(null);
-  const [resetPassword, setResetPassword] = useState("");
+  const [resetAccount, setResetAccount] =
+    useState(null);
+
+  const [resetPassword, setResetPassword] =
+    useState("");
 
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [loginRequired, setLoginRequired] = useState(false);
+
+  const [loginRequired, setLoginRequired] =
+    useState(false);
 
   const alive = useRef(false);
   const pending = useRef(false);
@@ -90,7 +95,9 @@ export default function AdminControllerAccounts({
 
     const version = ++loadVersion.current;
 
-    if (alive.current) setLoading(true);
+    if (alive.current) {
+      setLoading(true);
+    }
 
     try {
       const data = await api(
@@ -102,8 +109,11 @@ export default function AdminControllerAccounts({
         version === loadVersion.current
       ) {
         setAccounts(
-          Array.isArray(data.accounts) ? data.accounts : [],
+          Array.isArray(data.accounts)
+            ? data.accounts
+            : [],
         );
+
         setLoginRequired(false);
         setError("");
       }
@@ -113,7 +123,10 @@ export default function AdminControllerAccounts({
         version === loadVersion.current
       ) {
         setError(requestError.message);
-        setLoginRequired(requestError.status === 401);
+
+        setLoginRequired(
+          requestError.status === 401,
+        );
       }
     } finally {
       if (
@@ -146,40 +159,63 @@ export default function AdminControllerAccounts({
     };
   }, [load]);
 
-  const action = async (kind, account, event) => {
+  const action = async (
+    kind,
+    account,
+    event,
+  ) => {
     event?.preventDefault();
 
-    if (pending.current || !config || loginRequired) return;
+    if (
+      pending.current ||
+      !config ||
+      loginRequired
+    ) {
+      return;
+    }
 
     setError("");
     setMessage("");
 
     if (kind === "create") {
-      const cleanLoginId = loginId.trim().toLowerCase();
+      const cleanLoginId = loginId
+        .trim()
+        .toLowerCase();
 
       if (
         !name.trim() ||
         name.trim().length > 100 ||
-        !/^[a-z0-9._-]{4,30}$/.test(cleanLoginId)
+        !/^[a-z0-9._-]{4,30}$/.test(
+          cleanLoginId,
+        )
       ) {
         setError(
           "Enter a name and a Login ID with 4–30 letters, numbers, dots, underscores or hyphens.",
         );
+
         return;
       }
     }
 
-    if (kind === "create" || kind === "reset") {
+    if (
+      kind === "create" ||
+      kind === "reset"
+    ) {
       const selectedPassword =
-        kind === "create" ? password : resetPassword;
+        kind === "create"
+          ? password
+          : resetPassword;
 
       if (
         selectedPassword.length < 12 ||
-        new TextEncoder().encode(selectedPassword).length > 72
+        new TextEncoder().encode(
+          selectedPassword,
+        ).length > 72
       ) {
         setError(
           "Password must have at least 12 characters and fit within 72 UTF-8 bytes.",
         );
+
         return;
       }
     }
@@ -188,7 +224,10 @@ export default function AdminControllerAccounts({
       kind !== "create" &&
       (!account || account.game !== game)
     ) {
-      setError("Choose an account belonging to this game.");
+      setError(
+        "Choose an account belonging to this game.",
+      );
+
       return;
     }
 
@@ -203,7 +242,9 @@ export default function AdminControllerAccounts({
           {
             game,
             name: name.trim(),
-            loginId: loginId.trim().toLowerCase(),
+            loginId: loginId
+              .trim()
+              .toLowerCase(),
             temporaryPassword: password,
           },
         );
@@ -221,7 +262,10 @@ export default function AdminControllerAccounts({
         await api(
           `/api/admin/game-controllers/${account.id}/reset-password`,
           "POST",
-          { temporaryPassword: resetPassword },
+          {
+            temporaryPassword:
+              resetPassword,
+          },
         );
 
         if (alive.current) {
@@ -255,7 +299,10 @@ export default function AdminControllerAccounts({
     } catch (requestError) {
       if (alive.current) {
         setError(requestError.message);
-        setLoginRequired(requestError.status === 401);
+
+        setLoginRequired(
+          requestError.status === 401,
+        );
       }
     } finally {
       pending.current = false;
@@ -279,6 +326,7 @@ export default function AdminControllerAccounts({
         >
           ‹ GAME IDs
         </button>
+
         <p className="mt-5 text-red-200">
           Invalid controller game.
         </p>
@@ -312,25 +360,38 @@ export default function AdminControllerAccounts({
 
         <div className="break-words rounded-xl border border-cyan-400/20 bg-cyan-400/5 p-4 text-xs leading-6 text-cyan-100">
           <p>
-            These IDs can control {config.name} only.
+            These IDs can control{" "}
+            {config.name} only.
           </p>
 
           {config.ready ? (
             <p className="mt-1">
               Login link:{" "}
+
               <a
                 className="underline"
                 href={config.path}
                 target="_blank"
                 rel="noreferrer"
               >
-                {window.location.origin}{config.path}
+                {window.location.origin}
+                {config.path}
               </a>
             </p>
           ) : (
             <p className="mt-2 text-amber-200">
-              Controller accounts can be created now.
-              The game-control page is not available yet.
+              Controller accounts can be
+              created now. The game-control
+              page is not available yet.
+            </p>
+          )}
+
+          {game === "DEAL_OR_NO_DEAL" && (
+            <p className="mt-3 text-amber-100">
+              Admin-selected demo. Publish
+              all nine levels before betting
+              opens. Published results stay
+              locked for the entire session.
             </p>
           )}
         </div>
@@ -364,7 +425,9 @@ export default function AdminControllerAccounts({
         )}
 
         <form
-          onSubmit={event => action("create", null, event)}
+          onSubmit={event =>
+            action("create", null, event)
+          }
           className="space-y-3 rounded-xl border border-[#28655f] bg-[#083d37] p-4"
         >
           <h2 className="text-sm font-black text-amber-300">
@@ -377,17 +440,21 @@ export default function AdminControllerAccounts({
           >
             <label className="block text-xs">
               Controller Name
+
               <input
                 required
                 maxLength={100}
                 value={name}
-                onChange={event => setName(event.target.value)}
+                onChange={event =>
+                  setName(event.target.value)
+                }
                 className={field}
               />
             </label>
 
             <label className="block text-xs">
               Game Control ID
+
               <input
                 required
                 minLength={4}
@@ -397,14 +464,18 @@ export default function AdminControllerAccounts({
                 spellCheck={false}
                 value={loginId}
                 onChange={event =>
-                  setLoginId(event.target.value)
+                  setLoginId(
+                    event.target.value,
+                  )
                 }
                 className={field}
               />
             </label>
 
             <label className="block text-xs">
-              Temporary Password (minimum 12 characters)
+              Temporary Password
+              (minimum 12 characters)
+
               <input
                 required
                 minLength={12}
@@ -412,7 +483,9 @@ export default function AdminControllerAccounts({
                 autoComplete="new-password"
                 value={password}
                 onChange={event =>
-                  setPassword(event.target.value)
+                  setPassword(
+                    event.target.value,
+                  )
                 }
                 className={field}
               />
@@ -432,25 +505,35 @@ export default function AdminControllerAccounts({
         {resetAccount && (
           <form
             onSubmit={event =>
-              action("reset", resetAccount, event)
+              action(
+                "reset",
+                resetAccount,
+                event,
+              )
             }
             className="space-y-3 rounded-xl border border-amber-400/30 bg-[#083d37] p-4"
           >
             <h2 className="text-sm font-bold">
-              Reset temporary password: {resetAccount.loginId}
+              Reset temporary password:{" "}
+              {resetAccount.loginId}
             </h2>
 
             <label className="block text-xs">
               New Temporary Password
+
               <input
                 required
                 minLength={12}
-                disabled={busy || loginRequired}
+                disabled={
+                  busy || loginRequired
+                }
                 type="password"
                 autoComplete="new-password"
                 value={resetPassword}
                 onChange={event =>
-                  setResetPassword(event.target.value)
+                  setResetPassword(
+                    event.target.value,
+                  )
                 }
                 className={field}
               />
@@ -459,7 +542,9 @@ export default function AdminControllerAccounts({
             <div className="flex gap-3">
               <button
                 type="submit"
-                disabled={busy || loginRequired}
+                disabled={
+                  busy || loginRequired
+                }
                 className="rounded-lg bg-amber-400 px-4 py-2 text-xs font-black text-black disabled:opacity-50"
               >
                 SAVE RESET
@@ -491,7 +576,9 @@ export default function AdminControllerAccounts({
             onClick={load}
             className="text-xs text-cyan-200 underline disabled:opacity-50"
           >
-            {loading ? "LOADING…" : "REFRESH"}
+            {loading
+              ? "LOADING…"
+              : "REFRESH"}
           </button>
         </div>
 
@@ -511,6 +598,7 @@ export default function AdminControllerAccounts({
                 <h3 className="font-black">
                   {account.name}
                 </h3>
+
                 <p className="mt-1 text-xs text-amber-200">
                   {account.loginId}
                 </p>
@@ -532,13 +620,16 @@ export default function AdminControllerAccounts({
               {account.mustChangePassword
                 ? "CHANGE REQUIRED ON LOGIN"
                 : "SET"}
-              {" · "}Multiple-device login allowed
+              {" · "}
+              Multiple-device login allowed
             </p>
 
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
-                disabled={busy || loginRequired}
+                disabled={
+                  busy || loginRequired
+                }
                 onClick={() => {
                   setResetAccount(account);
                   setResetPassword("");
@@ -550,8 +641,12 @@ export default function AdminControllerAccounts({
 
               <button
                 type="button"
-                disabled={busy || loginRequired}
-                onClick={() => action("status", account)}
+                disabled={
+                  busy || loginRequired
+                }
+                onClick={() =>
+                  action("status", account)
+                }
                 className="rounded-lg border border-cyan-400/30 px-3 py-2 text-xs text-cyan-200 disabled:opacity-50"
               >
                 {account.status === "ACTIVE"
