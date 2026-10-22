@@ -343,7 +343,7 @@ export default function CricketMatchList({
       {(error || sportsError) && (
         <p
           role="alert"
-          className="my-3 text-xs text-amber-300"
+          className="my-3 text-xs text-amber-800"
         >
           {sportsError
             ? `Sports feed: ${sportsError}.`
@@ -360,7 +360,7 @@ export default function CricketMatchList({
       {fixtures.length === 0 && (
         <div
           role="status"
-          className="my-3 rounded-xl border border-white/10 bg-[#111827] p-4 text-sm text-slate-300"
+          className="my-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"
         >
           {!sportsLoaded
             ? "Loading sports matches…"
@@ -392,15 +392,15 @@ export default function CricketMatchList({
           <article
             key={match.key}
             aria-label={match.teams}
-            className="mb-3 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#111827] to-[#0c1320] shadow-xl"
+            className="mb-3 overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 shadow-xl"
           >
             <div className="flex items-start justify-between gap-3 px-4 py-4">
               <div className="min-w-0 flex-1">
                 <div
                   className={`mb-2 text-[9px] font-black uppercase tracking-wider ${
                     live
-                      ? "text-red-400"
-                      : "text-cyan-300"
+                      ? "text-red-600"
+                      : "text-teal-700"
                   }`}
                 >
                   {match.demo
@@ -413,12 +413,12 @@ export default function CricketMatchList({
                 <button
                   type="button"
                   onClick={open}
-                  className="block w-full text-left text-[13px] font-black leading-5 text-white"
+                  className="block w-full text-left text-[13px] font-black leading-5 text-slate-900"
                 >
                   {match.teams}
                 </button>
 
-                <p className="mt-2 text-[11px] font-bold text-emerald-300">
+                <p className="mt-2 text-[11px] font-bold text-teal-700">
                   {match.start === null
                     ? "Time unavailable"
                     : `${ist(match.start)} IST`}
@@ -428,7 +428,7 @@ export default function CricketMatchList({
               <button
                 type="button"
                 onClick={open}
-                className="shrink-0 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-[10px] font-black text-cyan-300"
+                className="shrink-0 rounded-lg border border-[#791b3e] bg-[#791b3e] px-3 py-2 text-[10px] font-black text-white"
               >
                 OPEN ›
               </button>
