@@ -14,6 +14,11 @@ import {
 } from "./rouletteRoutes.js";
 
 import {
+  initializeColorPrediction,
+  registerColorPredictionRoutes,
+} from "./colorPredictionRoutes.js";
+
+import {
   initializeControllerAccounts,
   registerControllerAccountRoutes,
   requireOldAdmin,
@@ -40,14 +45,20 @@ import {
 } from "./demoBetRoutes.js";
 
 const { Pool } = pg;
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const __dirname = path.dirname(
+  fileURLToPath(import.meta.url),
+);
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 const DEFAULT_ADMIN_WHATSAPP_NUMBER = "919346824432";
 
 app.use(express.json({ limit: "2mb" }));
-app.use(express.urlencoded({ extended: true, limit: "2mb" }));
+app.use(express.urlencoded({
+  extended: true,
+  limit: "2mb",
+}));
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -209,9 +220,10 @@ async function initializeDatabase() {
   await initializeRoulette(pool);
   await initializeAutoGames(pool);
   await initializeAnimatedCricket(pool);
+  await initializeColorPrediction(pool);
 
   console.log(
-    "Database ready; customer promo codes, persistent demo bets and wallet transactions enabled.",
+    "Database ready; customer promo codes, demo games and Color Prediction enabled.",
   );
 }
 
@@ -248,6 +260,7 @@ for (const route of [
     route,
     wrap(async (req, res) => {
       res.set("Cache-Control", "no-store");
+
       res.json({
         success: true,
         whatsappNumber: await getAdminWhatsAppNumber(),
@@ -382,6 +395,7 @@ app.get(
     );
 
     res.set("Cache-Control", "no-store");
+
     res.json({
       success: true,
       customers: result.rows.map(publicCustomer),
@@ -429,7 +443,7 @@ app.put(
         customer: publicCustomer(result.rows[0]),
       });
     } catch (error) {
-            if (error.code === "23505") {
+      if (error.code === "23505") {
         return res.status(409).json({
           error: "This Promo Code is already assigned to another customer.",
         });
@@ -535,9 +549,7 @@ app.post(
         [
           id,
           amount,
-          String(
-            req.body.note || "Demo Coins added by Admin",
-          ).trim(),
+          String(req.body.note || "Demo Coins added by Admin").trim(),
         ],
       );
 
@@ -606,9 +618,7 @@ for (const kind of ["login", "withdrawal"]) {
         req.body.password ||
           req.body.newPassword ||
           req.body.temporaryPassword ||
-          (withdrawal
-            ? req.body.temporaryWithdrawalPassword
-            : "") ||
+          (withdrawal ? req.body.temporaryWithdrawalPassword : "") ||
           "",
       );
 
@@ -635,10 +645,7 @@ for (const kind of ["login", "withdrawal"]) {
         ? customer.password_hash
         : customer.withdrawal_password_hash;
 
-      if (
-        otherHash &&
-        (await bcrypt.compare(password, otherHash))
-      ) {
+      if (otherHash && await bcrypt.compare(password, otherHash)) {
         return res.status(400).json({
           error: "Login Password and Withdrawal Password must be different.",
         });
@@ -651,14 +658,12 @@ for (const kind of ["login", "withdrawal"]) {
            SET withdrawal_password_hash=$1,
                must_change_withdrawal_password=TRUE,
                updated_at=NOW()
-           WHERE id=$2
-           RETURNING *`
+           WHERE id=$2 RETURNING *`
         : `UPDATE customers
            SET password_hash=$1,
                must_change_password=TRUE,
                updated_at=NOW()
-           WHERE id=$2
-           RETURNING *`;
+           WHERE id=$2 RETURNING *`;
 
       const updated = await pool.query(query, [
         newHash,
@@ -674,8 +679,7 @@ for (const kind of ["login", "withdrawal"]) {
 
       res.json({
         success: true,
-        message:
-          "Password reset successfully. Customer must change it before use.",
+        message: "Password reset successfully. Customer must change it before use.",
         customer: publicCustomer(updated.rows[0]),
       });
     }),
@@ -688,7 +692,6 @@ app.post(
     const loginId = normalizeLoginId(
       req.body.loginId || req.body.identifier,
     );
-
     const password = String(req.body.password || "");
 
     if (!loginId || !password) {
@@ -726,10 +729,8 @@ app.post(
     res.json({
       success: true,
       mustChangePassword: output.mustChangePassword,
-      mustChangeWithdrawalPassword:
-        output.mustChangeWithdrawalPassword,
-      withdrawalPasswordConfigured:
-        output.withdrawalPasswordConfigured,
+      mustChangeWithdrawalPassword: output.mustChangeWithdrawalPassword,
+      withdrawalPasswordConfigured: output.withdrawalPasswordConfigured,
       customer: output,
     });
   }),
@@ -780,10 +781,7 @@ for (const kind of ["customer", "withdrawal"]) {
         ? customer.withdrawal_password_hash
         : customer.password_hash;
 
-      if (
-        !currentHash ||
-        !(await bcrypt.compare(current, currentHash))
-      ) {
+      if (!currentHash || !(await bcrypt.compare(current, currentHash))) {
         return res.status(401).json({
           error: "Current password is incorrect or not configured.",
         });
@@ -793,10 +791,7 @@ for (const kind of ["customer", "withdrawal"]) {
         ? customer.password_hash
         : customer.withdrawal_password_hash;
 
-      if (
-        otherHash &&
-        (await bcrypt.compare(password, otherHash))
-      ) {
+      if (otherHash && await bcrypt.compare(password, otherHash)) {
         return res.status(400).json({
           error: "Login Password and Withdrawal Password must be different.",
         });
@@ -809,14 +804,12 @@ for (const kind of ["customer", "withdrawal"]) {
            SET withdrawal_password_hash=$1,
                must_change_withdrawal_password=FALSE,
                updated_at=NOW()
-           WHERE id=$2
-           RETURNING *`
+           WHERE id=$2 RETURNING *`
         : `UPDATE customers
            SET password_hash=$1,
                must_change_password=FALSE,
                updated_at=NOW()
-           WHERE id=$2
-           RETURNING *`;
+           WHERE id=$2 RETURNING *`;
 
       const updated = await pool.query(query, [
         newHash,
@@ -871,9 +864,7 @@ function sendFast2SMS(mobile, otp) {
         hostname: "www.fast2sms.com",
         path: `/dev/bulkV2?${params}`,
         method: "GET",
-        headers: {
-          "cache-control": "no-cache",
-        },
+        headers: { "cache-control": "no-cache" },
       },
       response => {
         let data = "";
@@ -888,10 +879,7 @@ function sendFast2SMS(mobile, otp) {
           try {
             const result = JSON.parse(data);
 
-            if (
-              result.return === true ||
-              result.status_code === 200
-            ) {
+            if (result.return === true || result.status_code === 200) {
               resolve(result);
             } else {
               reject(
@@ -903,9 +891,7 @@ function sendFast2SMS(mobile, otp) {
               );
             }
           } catch {
-            reject(
-              new Error("Failed to parse Fast2SMS response."),
-            );
+            reject(new Error("Failed to parse Fast2SMS response."));
           }
         });
       },
@@ -914,7 +900,6 @@ function sendFast2SMS(mobile, otp) {
     request.setTimeout(15000, () =>
       request.destroy(new Error("SMS request timed out.")),
     );
-
     request.on("error", reject);
     request.end();
   });
@@ -923,8 +908,7 @@ function sendFast2SMS(mobile, otp) {
 app.post(
   "/api/auth/send-otp",
   wrap(async (req, res) => {
-    const mobile = String(req.body.mobile || "")
-      .replace(/\D/g, "");
+    const mobile = String(req.body.mobile || "").replace(/\D/g, "");
 
     if (!/^\d{10}$/.test(mobile)) {
       return res.status(400).json({
@@ -932,9 +916,7 @@ app.post(
       });
     }
 
-    const otp = Math.floor(
-      100000 + Math.random() * 900000,
-    ).toString();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     await sendFast2SMS(mobile, otp);
 
@@ -953,15 +935,10 @@ app.post(
 app.post(
   "/api/auth/verify-otp",
   wrap(async (req, res) => {
-    const mobile = String(req.body.mobile || "")
-      .replace(/\D/g, "");
-
+    const mobile = String(req.body.mobile || "").replace(/\D/g, "");
     const otp = String(req.body.otp || "").trim();
 
-    if (
-      !/^\d{10}$/.test(mobile) ||
-      !/^\d{6}$/.test(otp)
-    ) {
+    if (!/^\d{10}$/.test(mobile) || !/^\d{6}$/.test(otp)) {
       return res.status(400).json({
         error: "Valid mobile number and 6-digit OTP are required.",
       });
@@ -977,7 +954,6 @@ app.post(
 
     if (Date.now() > record.expiresAt) {
       otpStore.delete(mobile);
-
       return res.status(400).json({
         error: "OTP has expired.",
       });
@@ -1029,10 +1005,7 @@ app.get(
   "/api/sports/events",
   wrap(async (req, res) => {
     res.json({
-      data:
-        (await sportsService.getEvents(
-          req.query.sport || "all",
-        )) || [],
+      data: (await sportsService.getEvents(req.query.sport || "all")) || [],
     });
   }),
 );
@@ -1095,11 +1068,9 @@ app.post(
   wrap(async (req, res) => {
     const id = Number(req.body.customerId);
     const amount = Number(req.body.amount);
-
     const reference = String(
       req.body.referenceNumber || req.body.reference || "",
     ).trim();
-
     const method = String(
       req.body.paymentMethod || req.body.method || "ACCOUNT",
     ).trim().toUpperCase();
@@ -1126,7 +1097,6 @@ app.post(
       "SELECT * FROM customers WHERE id=$1",
       [id],
     );
-
     const customer = result.rows[0];
 
     if (!customer) {
@@ -1238,15 +1208,8 @@ for (const kind of ["deposits", "withdrawals"]) {
   app.get(
     `/api/admin/demo-${kind}`,
     wrap(async (req, res) => {
-      const status = String(req.query.status || "")
-        .trim()
-        .toUpperCase();
-
-      const filter = [
-        "PENDING",
-        "APPROVED",
-        "REJECTED",
-      ].includes(status);
+      const status = String(req.query.status || "").trim().toUpperCase();
+      const filter = ["PENDING", "APPROVED", "REJECTED"].includes(status);
 
       const result = await pool.query(
         `SELECT d.*,c.name AS customer_name,c.login_id
@@ -1301,10 +1264,7 @@ app.patch(
   "/api/admin/demo-deposits/:id/status",
   wrap(async (req, res) => {
     const id = Number(req.params.id);
-
-    const status = String(req.body.status || "")
-      .trim()
-      .toUpperCase();
+    const status = String(req.body.status || "").trim().toUpperCase();
 
     if (
       !positiveInteger(id) ||
@@ -1416,8 +1376,7 @@ app.post(
         [id, amount, ...details],
       );
 
-      const balance =
-        Number(customer.demo_coin_balance) - amount;
+      const balance = Number(customer.demo_coin_balance) - amount;
 
       await client.query(
         `UPDATE customers
@@ -1459,10 +1418,7 @@ app.patch(
   "/api/admin/demo-withdrawals/:id/status",
   wrap(async (req, res) => {
     const id = Number(req.params.id);
-
-    const status = String(req.body.status || "")
-      .trim()
-      .toUpperCase();
+    const status = String(req.body.status || "").trim().toUpperCase();
 
     if (
       !positiveInteger(id) ||
@@ -1558,9 +1514,7 @@ app.patch(
       res.json({
         success: true,
         request: withdrawalJSON(updated.rows[0]),
-        demoCoinBalance: Number(
-          balance.rows[0]?.demo_coin_balance || 0,
-        ),
+        demoCoinBalance: Number(balance.rows[0]?.demo_coin_balance || 0),
       });
     } catch (error) {
       await client.query("ROLLBACK");
@@ -1582,6 +1536,11 @@ const startAutoGames = registerAutoGameRoutes(
 );
 
 const animatedCricket = registerAnimatedCricketRoutes(
+  app,
+  pool,
+);
+
+const startColorPrediction = registerColorPredictionRoutes(
   app,
   pool,
 );
@@ -1615,14 +1574,10 @@ app.use((error, req, res, next) => {
   });
 });
 
-app.use(
-  express.static(path.join(__dirname, "dist")),
-);
+app.use(express.static(path.join(__dirname, "dist")));
 
 app.get("*", (req, res) =>
-  res.sendFile(
-    path.join(__dirname, "dist", "index.html"),
-  ),
+  res.sendFile(path.join(__dirname, "dist", "index.html")),
 );
 
 async function startServer() {
@@ -1630,6 +1585,7 @@ async function startServer() {
 
   startAutoGames();
   animatedCricket.start();
+  startColorPrediction();
 
   app.listen(PORT, () =>
     console.log(`Server listening on port ${PORT}`),
