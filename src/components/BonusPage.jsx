@@ -24,6 +24,12 @@ const BONUS_DETAILS = {
     background: 'bg-violet-400/10',
     description:
       'మీ ప్రోమో కోడ్ ద్వారా వచ్చిన కొత్త కస్టమర్ డిపాజిట్ చేస్తే, ఆ డిపాజిట్ మొత్తంపై వారికి 5% బోనస్ మరియు మీకు 5% ప్రోమో బోనస్ లభిస్తుంది.',
+    instructions: [
+      'మీ అకౌంట్ మెనూలో “My Promo Code” ఓపెన్ చేసి, మీ ప్రోమో కోడ్‌ను కాపీ చేయండి.',
+      'మీ ద్వారా కొత్త ID తీసుకునే వ్యక్తికి ఆ కోడ్‌ను పంపండి.',
+      'వారు తమ WhatsApp నంబర్ నుంచి Admin‌కు కొత్త ID కోసం రిక్వెస్ట్ పంపేటప్పుడు, మీ ప్రోమో కోడ్‌ను కూడా ఆ మెసేజ్‌లో పేస్ట్ చేయాలి.',
+      'ఆ ప్రోమో కోడ్‌తో కొత్త ID క్రియేట్ చేసిన తర్వాత, వారి డిపాజిట్ మొత్తంపై వారికి 5% మరియు మీకు 5% బోనస్ Admin జోడిస్తారు.',
+    ],
     details: [
       ['New Customer Bonus', '5%'],
       ['Your Referral Bonus', '5%'],
@@ -202,6 +208,22 @@ export default function BonusPage({
               <p className="mt-5 text-sm leading-7 text-gray-300">
                 {bonus.description}
               </p>
+
+              {bonus.instructions && (
+                <div className="mt-5 rounded-xl border border-violet-400/20 bg-violet-400/5 p-4">
+                  <h3 className="text-sm font-black text-violet-300">
+                    ప్రోమో కోడ్ ఎలా ఉపయోగించాలి?
+                  </h3>
+
+                  <ol className="mt-3 list-decimal space-y-3 pl-5 text-sm leading-7 text-slate-300">
+                    {bonus.instructions.map(instruction => (
+                      <li key={instruction}>
+                        {instruction}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
 
               <dl
                 className={`mt-6 divide-y divide-white/10 rounded-xl border px-4 ${bonus.border} ${bonus.background}`}
