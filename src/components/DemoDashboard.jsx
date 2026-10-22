@@ -11,6 +11,7 @@ import RulesPage from "./RulesPage";
 import CricketMatchList from "./CricketMatchList";
 import HeroBonusCard from "./HeroBonusCard";
 import BonusPage from "./BonusPage";
+import MyPromoCodePage from "./MyPromoCodePage";
 import GameArtwork, { ACTIVE_GAMES } from "./GameArtwork";
 
 const sports = [
@@ -179,6 +180,7 @@ export default function DemoDashboard({
   const [showSetButtonValues, setShowSetButtonValues] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [showMyPromoCode, setShowMyPromoCode] = useState(false);
   const [showCustomerMenu, setShowCustomerMenu] = useState(false);
   const [selectedBonus, setSelectedBonus] = useState(null);
   const [selectedMatch, setSelectedMatch] = useState(null);
@@ -260,6 +262,7 @@ export default function DemoDashboard({
     "Unsettled Bet",
     "Set Button Values",
     "Change Password",
+    "My Promo Code",
     "Rule",
   ];
 
@@ -276,7 +279,10 @@ export default function DemoDashboard({
     if (item === "Unsettled Bet") setShowUnsettledBet(true);
     if (item === "Set Button Values") setShowSetButtonValues(true);
     if (item === "Change Password") setShowChangePassword(true);
+    if (item === "My Promo Code") setShowMyPromoCode(true);
     if (item === "Rule") setShowRules(true);
+
+    window.scrollTo(0, 0);
   };
 
   const handleBonusClick = (bonusType) => {
@@ -317,11 +323,21 @@ export default function DemoDashboard({
   };
 
   if (showDeposit) {
-    return <DepositPage user={user} onBack={() => setShowDeposit(false)} />;
+    return (
+      <DepositPage
+        user={user}
+        onBack={() => setShowDeposit(false)}
+      />
+    );
   }
 
   if (showWithdrawal) {
-    return <WithdrawalPage user={user} onBack={() => setShowWithdrawal(false)} />;
+    return (
+      <WithdrawalPage
+        user={user}
+        onBack={() => setShowWithdrawal(false)}
+      />
+    );
   }
 
   if (showAccountStatement) {
@@ -334,7 +350,12 @@ export default function DemoDashboard({
   }
 
   if (showBetHistory) {
-    return <BetHistoryPage user={user} onBack={() => setShowBetHistory(false)} />;
+    return (
+      <BetHistoryPage
+        user={user}
+        onBack={() => setShowBetHistory(false)}
+      />
+    );
   }
 
   if (showUnsettledBet) {
@@ -364,8 +385,24 @@ export default function DemoDashboard({
     );
   }
 
+  if (showMyPromoCode) {
+    return (
+      <MyPromoCodePage
+        onBack={() => {
+          setShowMyPromoCode(false);
+          window.scrollTo(0, 0);
+        }}
+      />
+    );
+  }
+
   if (showRules) {
-    return <RulesPage user={user} onBack={() => setShowRules(false)} />;
+    return (
+      <RulesPage
+        user={user}
+        onBack={() => setShowRules(false)}
+      />
+    );
   }
 
   if (selectedBonus) {
@@ -496,6 +533,7 @@ export default function DemoDashboard({
                   className="h-full w-full object-contain"
                 />
               </div>
+
               <div>
                 <h1 className="text-lg font-black tracking-wide">
                   <span className="text-amber-400">TELUGU</span>{" "}
@@ -520,6 +558,7 @@ export default function DemoDashboard({
 
             <button
               type="button"
+              aria-expanded={showCustomerMenu}
               onClick={() => setShowCustomerMenu((value) => !value)}
               className="mt-2 max-w-[135px] truncate rounded-lg border border-cyan-400/30 bg-[#111827] px-3 py-2 text-[10px] font-black text-cyan-200"
             >
@@ -527,17 +566,22 @@ export default function DemoDashboard({
             </button>
 
             {showCustomerMenu && (
-              <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-white/10 bg-[#111827] text-left text-gray-100 shadow-2xl">
+              <div className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-56 overflow-y-auto rounded-xl border border-white/10 bg-[#111827] text-left text-gray-100 shadow-2xl">
                 {customerMenuItems.map((item) => (
                   <button
                     key={item}
                     type="button"
                     onClick={() => handleCustomerMenu(item)}
-                    className="block w-full border-b border-white/5 px-4 py-3 text-left text-[11px] font-bold transition hover:bg-white/5"
+                    className={`block w-full border-b border-white/5 px-4 py-3 text-left text-[11px] font-bold transition hover:bg-white/5 ${
+                      item === "My Promo Code"
+                        ? "text-violet-300"
+                        : ""
+                    }`}
                   >
                     {item}
                   </button>
                 ))}
+
                 <button
                   type="button"
                   onClick={onLogout}
@@ -634,7 +678,10 @@ export default function DemoDashboard({
 
       <nav
         className="tsb-scrollbar w-full overflow-x-auto border-b border-white/10 bg-[#0d1523]"
-        style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}
+        style={{
+          WebkitOverflowScrolling: "touch",
+          touchAction: "pan-x",
+        }}
       >
         <div className="flex w-max min-w-full px-2 py-2">
           {tabs.map((tab) => (
@@ -656,7 +703,10 @@ export default function DemoDashboard({
 
       <section
         className="tsb-scrollbar w-full overflow-x-auto border-b border-white/10 bg-[#0a101b]"
-        style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}
+        style={{
+          WebkitOverflowScrolling: "touch",
+          touchAction: "pan-x",
+        }}
       >
         <div className="flex w-max gap-2 px-3 py-3">
           {sports.map((sport) => (
@@ -670,7 +720,9 @@ export default function DemoDashboard({
                   : "border-white/10 bg-[#111827] text-gray-400"
               }`}
             >
-              <span className="block text-xl leading-none">{sport.icon}</span>
+              <span className="block text-xl leading-none">
+                {sport.icon}
+              </span>
               <span className="mt-2 block whitespace-nowrap text-[7px] font-black leading-none">
                 {sport.name}
               </span>
@@ -724,24 +776,31 @@ export default function DemoDashboard({
         games={featuredGames}
         onGameClick={handleGameClick}
       />
+
       <GameSection
         title="CARD GAMES"
         active
         games={secondGames}
         onGameClick={handleGameClick}
       />
+
       <GameSection
         title="NEW LAUNCH"
         games={newLaunch}
         onGameClick={handleGameClick}
       />
+
       <GameSection
         title="MY FAVOURITES"
         games={favourites.filter(
-          (game) => !ACTIVE_GAMES.some((item) => item.name === game.name),
+          (game) =>
+            !ACTIVE_GAMES.some(
+              (item) => item.name === game.name,
+            ),
         )}
         onGameClick={handleGameClick}
       />
+
       <GameSection
         title="OUR PROVIDERS"
         games={providers}
@@ -756,9 +815,11 @@ export default function DemoDashboard({
             className="h-full w-full object-contain"
           />
         </div>
+
         <p className="mt-3 text-sm font-black text-white">
           TELUGU SPORTS BOOK
         </p>
+
         <p className="mx-auto mt-3 max-w-xl text-[9px] leading-5 text-gray-600">
           Demonstration and informational purposes only.
           No real-money transactions are processed.
