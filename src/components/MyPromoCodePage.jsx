@@ -1,4 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 export default function MyPromoCodePage({ onBack }) {
   const [details, setDetails] = useState(null);
@@ -47,14 +51,10 @@ export default function MyPromoCodePage({ onBack }) {
           data = {};
         }
 
-        if (!response.ok) {
+        if (!response.ok || data.success !== true) {
           throw new Error(
             data.error || "Unable to load your Promo Code.",
           );
-        }
-
-        if (data.success !== true) {
-          throw new Error("Unable to load your Promo Code.");
         }
 
         if (active) {
@@ -206,7 +206,9 @@ export default function MyPromoCodePage({ onBack }) {
                     value={promoCode}
                     readOnly
                     spellCheck={false}
-                    onClick={event => event.currentTarget.select()}
+                    onClick={event =>
+                      event.currentTarget.select()
+                    }
                     className="mt-3 w-full rounded-xl border border-violet-400/40 bg-violet-400/10 px-3 py-5 text-center text-xl font-black tracking-wider text-violet-200 outline-none"
                   />
 
@@ -226,6 +228,37 @@ export default function MyPromoCodePage({ onBack }) {
                       {message}
                     </p>
                   )}
+
+                  <div className="mt-6 rounded-xl border border-violet-400/20 bg-violet-400/5 p-4">
+                    <h3 className="text-sm font-black text-violet-300">
+                      ప్రోమో కోడ్ ఎలా ఉపయోగించాలి?
+                    </h3>
+
+                    <ol className="mt-3 list-decimal space-y-3 pl-5 text-sm leading-7 text-slate-300">
+                      <li>
+                        పైన ఉన్న COPY PROMO CODE బటన్ నొక్కి
+                        మీ ప్రోమో కోడ్‌ను కాపీ చేయండి.
+                      </li>
+
+                      <li>
+                        మీ ద్వారా కొత్త ID తీసుకునే వ్యక్తికి
+                        ఆ కోడ్‌ను పంపండి.
+                      </li>
+
+                      <li>
+                        వారు తమ WhatsApp నంబర్ నుంచి Admin‌కు
+                        కొత్త ID కోసం రిక్వెస్ట్ పంపేటప్పుడు,
+                        మీ ప్రోమో కోడ్‌ను కూడా ఆ మెసేజ్‌లో
+                        పేస్ట్ చేయాలి.
+                      </li>
+
+                      <li>
+                        ఆ ప్రోమో కోడ్‌తో కొత్త ID క్రియేట్ చేసిన
+                        తర్వాత, వారి డిపాజిట్ మొత్తంపై వారికి
+                        5% మరియు మీకు 5% బోనస్ Admin జోడిస్తారు.
+                      </li>
+                    </ol>
+                  </div>
                 </>
               ) : (
                 <p className="mt-5 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm leading-6 text-amber-200">
