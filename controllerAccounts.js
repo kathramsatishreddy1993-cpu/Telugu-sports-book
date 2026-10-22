@@ -2,55 +2,64 @@ import {
   randomBytes,
   createHash,
   timingSafeEqual,
-} from 'node:crypto';
+} from "node:crypto";
 
-import bcrypt from 'bcryptjs';
+import bcrypt from "bcryptjs";
 
-const digest = (value) =>
-  createHash('sha256')
+export const CONTROLLER_GAMES = Object.freeze([
+  "AVIATOR",
+  "ROULETTE",
+  "DEAL_OR_NO_DEAL",
+]);
+
+const validGame = game =>
+  CONTROLLER_GAMES.includes(game);
+
+const digest = value =>
+  createHash("sha256")
     .update(String(value))
-    .digest('hex');
+    .digest("hex");
 
 const equal = (a, b) =>
   timingSafeEqual(
-    Buffer.from(digest(a), 'hex'),
-    Buffer.from(digest(b), 'hex'),
+    Buffer.from(digest(a), "hex"),
+    Buffer.from(digest(b), "hex"),
   );
 
 const cookie = (req, name) =>
-  String(req.headers.cookie || '')
-    .split(';')
-    .map((value) => value.trim())
-    .find((value) => value.startsWith(`${name}=`))
-    ?.slice(name.length + 1) || '';
+  String(req.headers.cookie || "")
+    .split(";")
+    .map(value => value.trim())
+    .find(value => value.startsWith(`${name}=`))
+    ?.slice(name.length + 1) || "";
 
-const wrap = (fn) => (req, res, next) =>
+const wrap = fn => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 
 const fail = (status, message) =>
   Object.assign(new Error(message), { status });
 
-const normalized = (value) =>
-  String(value || '').trim().toLowerCase();
+const normalized = value =>
+  String(value || "").trim().toLowerCase();
 
 const sessionCookie = (res, name, value) =>
   res.cookie(name, value, {
     httpOnly: true,
-    sameSite: 'strict',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
+    sameSite: "strict",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
     maxAge:
-      name === 'tsb_game_controller'
+      name === "tsb_game_controller"
         ? 365 * 24 * 60 * 60 * 1000
         : 8 * 60 * 60 * 1000,
   });
 
-const validPassword = (password) =>
-  typeof password === 'string' &&
+const validPassword = password =>
+  typeof password === "string" &&
   password.length >= 12 &&
-  Buffer.byteLength(password, 'utf8') <= 72;
+  Buffer.byteLength(password, "utf8") <= 72;
 
-const publicAccount = (row) => ({
+const publicAccount = row => ({
   id: row.id,
   name: row.name,
   loginId: row.login_id,
@@ -63,17 +72,17 @@ const publicAccount = (row) => ({
 
 function adminConfig() {
   const id = String(
-    process.env.ADMIN_LOGIN_ID || '',
+    process.env.ADMIN_LOGIN_ID || "",
   ).trim();
 
   const password = String(
-    process.env.ADMIN_LOGIN_PASSWORD || '',
+    process.env.ADMIN_LOGIN_PASSWORD || "",
   );
 
   if (!id || !validPassword(password)) {
     throw fail(
       503,
-      'Configure ADMIN_LOGIN_ID and ADMIN_LOGIN_PASSWORD (12+ characters, maximum 72 UTF-8 bytes) on Render.',
+      "Configure ADMIN_LOGIN_ID and ADMIN_LOGIN_PASSWORD (12+ characters, maximum 72 UTF-8 bytes) on Render.",
     );
   }
 
@@ -88,12 +97,12 @@ async function transaction(pool, fn) {
   const client = await pool.connect();
 
   try {
-    await client.query('BEGIN');
+    await client.query("BEGIN");
     const result = await fn(client);
-    await client.query('COMMIT');
+    await client.query("COMMIT");
     return result;
   } catch (error) {
-    await client.query('ROLLBACK');
+    await client.query("ROLLBACK");
     throw error;
   } finally {
     client.release();
@@ -101,16 +110,16 @@ async function transaction(pool, fn) {
 }
 
 async function issueController(client, res, account) {
-  const token = randomBytes(32).toString('hex');
+  const token = randomBytes(32).toString("hex");
 
   await client.query(
     `INSERT INTO tsb_game_account_sessions(
-      token_hash,
-      account_id,
-      auth_version,
-      expires_at
-    )
-    VALUES($1,$2,$3,NULL)`,
+       token_hash,
+       account_id,
+       auth_version,
+       expires_at
+     )
+     VALUES($1,$2,$3,NULL)`,
     [
       digest(token),
       account.id,
@@ -118,7 +127,7 @@ async function issueController(client, res, account) {
     ],
   );
 
-  sessionCookie(res, 'tsb_game_controller', token);
+  sessionCookie(res, "tsb_game_controller", token);
 }
 
 export async function initializeControllerAccounts(pool) {
@@ -154,8 +163,44 @@ export async function initializeControllerAccounts(pool) {
 
     ALTER TABLE tsb_game_controller_accounts
       ADD COLUMN IF NOT EXISTS game TEXT NOT NULL
-      DEFAULT 'AVIATOR'
-      CHECK(game IN ('AVIATOR','ROULETTE'));
+      DEFAULT 'AVIATOR';
+
+    DO $$
+    DECLARE
+      game_column SMALLINT;
+      old_constraint RECORD;
+    BEGIN
+      SELECT attnum
+      INTO game_column
+      FROM pg_attribute
+      WHERE attrelid='tsb_game_controller_accounts'::regclass
+        AND attname='game'
+        AND NOT attisdropped;
+
+      FOR old_constraint IN
+        SELECT conname
+        FROM pg_constraint
+        WHERE conrelid='tsb_game_controller_accounts'::regclass
+          AND contype='c'
+          AND game_column=ANY(conkey)
+      LOOP
+        EXECUTE format(
+          'ALTER TABLE tsb_game_controller_accounts DROP CONSTRAINT %I',
+          old_constraint.conname
+        );
+      END LOOP;
+
+      ALTER TABLE tsb_game_controller_accounts
+        ADD CONSTRAINT tsb_controller_game_check
+        CHECK (
+          game IN (
+            'AVIATOR',
+            'ROULETTE',
+            'DEAL_OR_NO_DEAL'
+          )
+        );
+    END;
+    $$;
 
     ALTER TABLE tsb_game_account_sessions
       ALTER COLUMN expires_at DROP NOT NULL;
@@ -174,12 +219,12 @@ export async function initializeControllerAccounts(pool) {
 export function requireOldAdmin(pool) {
   return wrap(async (req, res, next) => {
     const config = adminConfig();
-    const token = cookie(req, 'tsb_old_admin');
+    const token = cookie(req, "tsb_old_admin");
 
     if (!/^[a-f0-9]{64}$/.test(token)) {
       throw fail(
         401,
-        'Admin login required. Please logout and login again.',
+        "Admin login required. Please logout and login again.",
       );
     }
 
@@ -195,7 +240,7 @@ export function requireOldAdmin(pool) {
     if (!result.rows[0]) {
       throw fail(
         401,
-        'Admin session expired. Please login again.',
+        "Admin session expired. Please login again.",
       );
     }
 
@@ -207,13 +252,13 @@ export function requireOldAdmin(pool) {
 export function requireControllerAccount(
   pool,
   requireReady = true,
-  game = 'AVIATOR',
+  game = "AVIATOR",
 ) {
   return wrap(async (req, res, next) => {
-    const token = cookie(req, 'tsb_game_controller');
+    const token = cookie(req, "tsb_game_controller");
 
     if (!/^[a-f0-9]{64}$/.test(token)) {
-      throw fail(401, 'Game Controller login required.');
+      throw fail(401, "Game Controller login required.");
     }
 
     const result = await pool.query(
@@ -236,24 +281,21 @@ export function requireControllerAccount(
     if (!account) {
       throw fail(
         401,
-        'Controller session expired, reset or blocked. Please contact Admin.',
+        "Controller session expired, reset or blocked. Please contact Admin.",
       );
     }
 
     if (game && account.game !== game) {
       throw fail(
         403,
-        'This Controller ID belongs to another game.',
+        "This Controller ID belongs to another game.",
       );
     }
 
-    if (
-      requireReady &&
-      account.must_change_password
-    ) {
+    if (requireReady && account.must_change_password) {
       throw fail(
         403,
-        'Change your temporary password before using game controls.',
+        "Change your temporary password before using game controls.",
       );
     }
 
@@ -266,14 +308,14 @@ export function requireControllerAccount(
 export async function verifyControllerForMutation(
   client,
   account,
-  game = 'AVIATOR',
+  game = "AVIATOR",
 ) {
   const result = await client.query(
     `SELECT
-      status,
-      must_change_password,
-      auth_version,
-      game
+       status,
+       must_change_password,
+       auth_version,
+       game
      FROM tsb_game_controller_accounts
      WHERE id=$1
      FOR SHARE`,
@@ -285,28 +327,25 @@ export async function verifyControllerForMutation(
   if (
     !current ||
     current.game !== game ||
-    current.status !== 'ACTIVE' ||
+    current.status !== "ACTIVE" ||
     current.must_change_password ||
     current.auth_version !== account.auth_version
   ) {
     throw fail(
       403,
-      'Controller permission changed. Login again.',
+      "Controller permission changed. Login again.",
     );
   }
 }
 
-export function registerControllerAccountRoutes(
-  app,
-  pool,
-) {
-  app.use('/api/game-control', (req, res, next) => {
-    res.set('Cache-Control', 'no-store');
+export function registerControllerAccountRoutes(app, pool) {
+  app.use("/api/game-control", (req, res, next) => {
+    res.set("Cache-Control", "no-store");
     next();
   });
 
-  app.use('/api/auth', (req, res, next) => {
-    res.set('Cache-Control', 'no-store');
+  app.use("/api/auth", (req, res, next) => {
+    res.set("Cache-Control", "no-store");
     next();
   });
 
@@ -339,7 +378,7 @@ export function registerControllerAccountRoutes(
     if (value.count >= 10) {
       throw fail(
         429,
-        'Too many login attempts. Try again in 15 minutes.',
+        "Too many login attempts. Try again in 15 minutes.",
       );
     }
 
@@ -350,37 +389,34 @@ export function registerControllerAccountRoutes(
   };
 
   app.post(
-    '/api/auth/admin-login',
+    "/api/auth/admin-login",
     wrap(async (req, res) => {
-      const reset = rateLimit(req, 'admin');
+      const reset = rateLimit(req, "admin");
       const config = adminConfig();
 
       if (
         !equal(
-          String(req.body?.username || '').trim(),
+          String(req.body?.username || "").trim(),
           config.id,
         ) ||
         !equal(
-          String(req.body?.password || ''),
+          String(req.body?.password || ""),
           config.password,
         )
       ) {
-        throw fail(401, 'Invalid Admin ID or Password.');
+        throw fail(401, "Invalid Admin ID or Password.");
       }
 
-      const token = randomBytes(32).toString('hex');
+      const token = randomBytes(32).toString("hex");
 
       await pool.query(
         `INSERT INTO tsb_admin_sessions(
-          token_hash,
-          admin_id,
-          credential_fingerprint,
-          expires_at
-        )
-        VALUES(
-          $1,$2,$3,
-          NOW()+INTERVAL '8 hours'
-        )`,
+           token_hash,
+           admin_id,
+           credential_fingerprint,
+           expires_at
+         )
+         VALUES($1,$2,$3,NOW()+INTERVAL '8 hours')`,
         [
           digest(token),
           config.id,
@@ -388,14 +424,14 @@ export function registerControllerAccountRoutes(
         ],
       );
 
-      sessionCookie(res, 'tsb_old_admin', token);
+      sessionCookie(res, "tsb_old_admin", token);
       reset();
 
       res.json({
         success: true,
         admin: {
           username: config.id,
-          role: 'ADMIN',
+          role: "ADMIN",
           isAuthenticated: true,
         },
       });
@@ -403,47 +439,40 @@ export function registerControllerAccountRoutes(
   );
 
   app.get(
-    '/api/auth/admin-session',
+    "/api/auth/admin-session",
     admin,
-    (req, res) =>
-      res.json({
-        success: true,
-        admin: {
-          username: req.verifiedAdminId,
-          role: 'ADMIN',
-          isAuthenticated: true,
-        },
-      }),
+    (req, res) => res.json({
+      success: true,
+      admin: {
+        username: req.verifiedAdminId,
+        role: "ADMIN",
+        isAuthenticated: true,
+      },
+    }),
   );
 
   app.post(
-    '/api/auth/admin-logout',
+    "/api/auth/admin-logout",
     wrap(async (req, res) => {
       await pool.query(
         `DELETE FROM tsb_admin_sessions
          WHERE token_hash=$1`,
-        [digest(cookie(req, 'tsb_old_admin'))],
+        [digest(cookie(req, "tsb_old_admin"))],
       );
 
-      res.clearCookie('tsb_old_admin', {
-        path: '/',
-      });
-
+      res.clearCookie("tsb_old_admin", { path: "/" });
       res.json({ success: true });
     }),
   );
 
   app.get(
-    '/api/admin/game-controllers',
+    "/api/admin/game-controllers",
     admin,
     wrap(async (req, res) => {
       const game = req.query.game;
 
-      if (
-        game &&
-        !['AVIATOR', 'ROULETTE'].includes(game)
-      ) {
-        throw fail(400, 'Invalid game.');
+      if (game && !validGame(game)) {
+        throw fail(400, "Invalid game.");
       }
 
       const result = await pool.query(
@@ -454,6 +483,8 @@ export function registerControllerAccountRoutes(
         [game || null],
       );
 
+      res.set("Cache-Control", "no-store");
+
       res.json({
         success: true,
         accounts: result.rows.map(publicAccount),
@@ -462,19 +493,16 @@ export function registerControllerAccountRoutes(
   );
 
   app.post(
-    '/api/admin/game-controllers',
+    "/api/admin/game-controllers",
     admin,
     wrap(async (req, res) => {
-      const game = req.body?.game || 'AVIATOR';
+      const game = req.body?.game || "AVIATOR";
 
-      if (!['AVIATOR', 'ROULETTE'].includes(game)) {
-        throw fail(400, 'Invalid game.');
+      if (!validGame(game)) {
+        throw fail(400, "Invalid game.");
       }
 
-      const name = String(
-        req.body?.name || '',
-      ).trim();
-
+      const name = String(req.body?.name || "").trim();
       const loginId = normalized(req.body?.loginId);
       const password = req.body?.temporaryPassword;
 
@@ -485,53 +513,39 @@ export function registerControllerAccountRoutes(
       ) {
         throw fail(
           400,
-          'Name (1–100 characters) and Login ID (4–30 letters/numbers/dot/underscore/hyphen) are required.',
+          "Name (1–100 characters) and Login ID (4–30 letters/numbers/dot/underscore/hyphen) are required.",
         );
       }
 
       if (!validPassword(password)) {
         throw fail(
           400,
-          'Temporary password must have 12+ characters and fit within 72 UTF-8 bytes.',
+          "Temporary password must have 12+ characters and fit within 72 UTF-8 bytes.",
         );
       }
 
-      const passwordHash = await bcrypt.hash(
-        password,
-        12,
-      );
+      const passwordHash = await bcrypt.hash(password, 12);
 
-      const account = await transaction(
-        pool,
-        async (client) => {
-          const result = await client.query(
-            `INSERT INTO tsb_game_controller_accounts(
-              name,
-              login_id,
-              password_hash,
-              game
-            )
-            VALUES($1,$2,$3,$4)
-            RETURNING *`,
-            [name, loginId, passwordHash, game],
-          );
+      const account = await transaction(pool, async client => {
+        const result = await client.query(
+          `INSERT INTO tsb_game_controller_accounts(
+             name,login_id,password_hash,game
+           )
+           VALUES($1,$2,$3,$4)
+           RETURNING *`,
+          [name, loginId, passwordHash, game],
+        );
 
-          await client.query(
-            `INSERT INTO tsb_game_account_audit(
-              admin_id,
-              account_id,
-              action
-            )
-            VALUES($1,$2,'CREATE')`,
-            [
-              req.verifiedAdminId,
-              result.rows[0].id,
-            ],
-          );
+        await client.query(
+          `INSERT INTO tsb_game_account_audit(
+             admin_id,account_id,action
+           )
+           VALUES($1,$2,'CREATE')`,
+          [req.verifiedAdminId, result.rows[0].id],
+        );
 
-          return result.rows[0];
-        },
-      );
+        return result.rows[0];
+      });
 
       res.status(201).json({
         success: true,
@@ -541,7 +555,7 @@ export function registerControllerAccountRoutes(
   );
 
   app.post(
-    '/api/admin/game-controllers/:id/reset-password',
+    "/api/admin/game-controllers/:id/reset-password",
     admin,
     wrap(async (req, res) => {
       const id = Number(req.params.id);
@@ -554,55 +568,43 @@ export function registerControllerAccountRoutes(
       ) {
         throw fail(
           400,
-          'Valid account ID and 12+ character temporary password are required.',
+          "Valid account ID and 12+ character temporary password are required.",
         );
       }
 
-      const passwordHash = await bcrypt.hash(
-        password,
-        12,
-      );
+      const passwordHash = await bcrypt.hash(password, 12);
 
-      const account = await transaction(
-        pool,
-        async (client) => {
-          const result = await client.query(
-            `UPDATE tsb_game_controller_accounts
-             SET password_hash=$1,
-                 must_change_password=TRUE,
-                 auth_version=auth_version+1,
-                 updated_at=NOW()
-             WHERE id=$2
-             RETURNING *`,
-            [passwordHash, id],
-          );
+      const account = await transaction(pool, async client => {
+        const result = await client.query(
+          `UPDATE tsb_game_controller_accounts
+           SET password_hash=$1,
+               must_change_password=TRUE,
+               auth_version=auth_version+1,
+               updated_at=NOW()
+           WHERE id=$2
+           RETURNING *`,
+          [passwordHash, id],
+        );
 
-          if (!result.rows[0]) {
-            throw fail(
-              404,
-              'Controller account not found.',
-            );
-          }
+        if (!result.rows[0]) {
+          throw fail(404, "Controller account not found.");
+        }
 
-          await client.query(
-            `DELETE FROM tsb_game_account_sessions
-             WHERE account_id=$1`,
-            [id],
-          );
+        await client.query(
+          "DELETE FROM tsb_game_account_sessions WHERE account_id=$1",
+          [id],
+        );
 
-          await client.query(
-            `INSERT INTO tsb_game_account_audit(
-              admin_id,
-              account_id,
-              action
-            )
-            VALUES($1,$2,'PASSWORD_RESET')`,
-            [req.verifiedAdminId, id],
-          );
+        await client.query(
+          `INSERT INTO tsb_game_account_audit(
+             admin_id,account_id,action
+           )
+           VALUES($1,$2,'PASSWORD_RESET')`,
+          [req.verifiedAdminId, id],
+        );
 
-          return result.rows[0];
-        },
-      );
+        return result.rows[0];
+      });
 
       res.json({
         success: true,
@@ -612,65 +614,53 @@ export function registerControllerAccountRoutes(
   );
 
   app.patch(
-    '/api/admin/game-controllers/:id/status',
+    "/api/admin/game-controllers/:id/status",
     admin,
     wrap(async (req, res) => {
       const id = Number(req.params.id);
-
-      const status = String(
-        req.body?.status || '',
-      ).toUpperCase();
+      const status = String(req.body?.status || "").toUpperCase();
 
       if (
         !Number.isSafeInteger(id) ||
         id <= 0 ||
-        !['ACTIVE', 'BLOCKED'].includes(status)
+        !["ACTIVE", "BLOCKED"].includes(status)
       ) {
         throw fail(
           400,
-          'Valid account ID and ACTIVE/BLOCKED status are required.',
+          "Valid account ID and ACTIVE/BLOCKED status are required.",
         );
       }
 
-      const account = await transaction(
-        pool,
-        async (client) => {
-          const result = await client.query(
-            `UPDATE tsb_game_controller_accounts
-             SET status=$1,
-                 auth_version=auth_version+1,
-                 updated_at=NOW()
-             WHERE id=$2
-             RETURNING *`,
-            [status, id],
-          );
+      const account = await transaction(pool, async client => {
+        const result = await client.query(
+          `UPDATE tsb_game_controller_accounts
+           SET status=$1,
+               auth_version=auth_version+1,
+               updated_at=NOW()
+           WHERE id=$2
+           RETURNING *`,
+          [status, id],
+        );
 
-          if (!result.rows[0]) {
-            throw fail(
-              404,
-              'Controller account not found.',
-            );
-          }
+        if (!result.rows[0]) {
+          throw fail(404, "Controller account not found.");
+        }
 
-          await client.query(
-            `DELETE FROM tsb_game_account_sessions
-             WHERE account_id=$1`,
-            [id],
-          );
+        await client.query(
+          "DELETE FROM tsb_game_account_sessions WHERE account_id=$1",
+          [id],
+        );
 
-          await client.query(
-            `INSERT INTO tsb_game_account_audit(
-              admin_id,
-              account_id,
-              action
-            )
-            VALUES($1,$2,$3)`,
-            [req.verifiedAdminId, id, status],
-          );
+        await client.query(
+          `INSERT INTO tsb_game_account_audit(
+             admin_id,account_id,action
+           )
+           VALUES($1,$2,$3)`,
+          [req.verifiedAdminId, id, status],
+        );
 
-          return result.rows[0];
-        },
-      );
+        return result.rows[0];
+      });
 
       res.json({
         success: true,
@@ -680,58 +670,44 @@ export function registerControllerAccountRoutes(
   );
 
   app.post(
-    '/api/game-control/login',
+    "/api/game-control/login",
     wrap(async (req, res) => {
-      const game = req.body?.game || 'AVIATOR';
+      const game = req.body?.game || "AVIATOR";
 
-      if (!['AVIATOR', 'ROULETTE'].includes(game)) {
-        throw fail(400, 'Invalid game.');
+      if (!validGame(game)) {
+        throw fail(400, "Invalid game.");
       }
 
-      const reset = rateLimit(req, 'controller');
+      const reset = rateLimit(req, "controller");
       const loginId = normalized(req.body?.id);
+      const password = String(req.body?.password || "");
 
-      const password = String(
-        req.body?.password || '',
-      );
+      const account = await transaction(pool, async client => {
+        const result = await client.query(
+          `SELECT *
+           FROM tsb_game_controller_accounts
+           WHERE login_id=$1
+           FOR UPDATE`,
+          [loginId],
+        );
 
-      const account = await transaction(
-        pool,
-        async (client) => {
-          const result = await client.query(
-            `SELECT *
-             FROM tsb_game_controller_accounts
-             WHERE login_id=$1
-             FOR UPDATE`,
-            [loginId],
+        const account = result.rows[0];
+
+        if (
+          !account ||
+          account.game !== game ||
+          account.status !== "ACTIVE" ||
+          !(await bcrypt.compare(password, account.password_hash))
+        ) {
+          throw fail(
+            401,
+            "Invalid Game Control ID/Password or account is blocked.",
           );
+        }
 
-          const account = result.rows[0];
-
-          if (
-            !account ||
-            account.game !== game ||
-            account.status !== 'ACTIVE' ||
-            !(await bcrypt.compare(
-              password,
-              account.password_hash,
-            ))
-          ) {
-            throw fail(
-              401,
-              'Invalid Game Control ID/Password or account is blocked.',
-            );
-          }
-
-          await issueController(
-            client,
-            res,
-            account,
-          );
-
-          return account;
-        },
-      );
+        await issueController(client, res, account);
+        return account;
+      });
 
       reset();
 
@@ -740,41 +716,30 @@ export function registerControllerAccountRoutes(
         game: account.game,
         controllerId: account.login_id,
         controllerName: account.name,
-        mustChangePassword:
-          account.must_change_password,
+        mustChangePassword: account.must_change_password,
       });
     }),
   );
 
   app.post(
-    '/api/game-control/logout',
+    "/api/game-control/logout",
     wrap(async (req, res) => {
       await pool.query(
         `DELETE FROM tsb_game_account_sessions
          WHERE token_hash=$1`,
-        [
-          digest(
-            cookie(req, 'tsb_game_controller'),
-          ),
-        ],
+        [digest(cookie(req, "tsb_game_controller"))],
       );
 
-      res.clearCookie('tsb_game_controller', {
-        path: '/',
-      });
-
+      res.clearCookie("tsb_game_controller", { path: "/" });
       res.json({ success: true });
     }),
   );
 
   app.post(
-    '/api/game-control/change-password',
+    "/api/game-control/change-password",
     controller,
     wrap(async (req, res) => {
-      const current = String(
-        req.body?.currentPassword || '',
-      );
-
+      const current = String(req.body?.currentPassword || "");
       const password = req.body?.newPassword;
       const confirm = req.body?.confirmPassword;
 
@@ -785,78 +750,57 @@ export function registerControllerAccountRoutes(
       ) {
         throw fail(
           400,
-          'New password must be different, have 12+ characters, fit within 72 UTF-8 bytes and match confirmation.',
+          "New password must be different, have 12+ characters, fit within 72 UTF-8 bytes and match confirmation.",
         );
       }
 
-      const account = await transaction(
-        pool,
-        async (client) => {
-          const result = await client.query(
-            `SELECT *
-             FROM tsb_game_controller_accounts
-             WHERE id=$1
-             FOR UPDATE`,
-            [req.controllerAccount.id],
+      const account = await transaction(pool, async client => {
+        const result = await client.query(
+          `SELECT *
+           FROM tsb_game_controller_accounts
+           WHERE id=$1
+           FOR UPDATE`,
+          [req.controllerAccount.id],
+        );
+
+        const account = result.rows[0];
+
+        if (
+          !account ||
+          account.status !== "ACTIVE" ||
+          account.auth_version !== req.controllerAccount.auth_version
+        ) {
+          throw fail(
+            401,
+            "Account permission changed. Login again.",
           );
+        }
 
-          const account = result.rows[0];
+        if (!(await bcrypt.compare(current, account.password_hash))) {
+          throw fail(401, "Current password is incorrect.");
+        }
 
-          if (
-            !account ||
-            account.status !== 'ACTIVE' ||
-            account.auth_version !==
-              req.controllerAccount.auth_version
-          ) {
-            throw fail(
-              401,
-              'Account permission changed. Login again.',
-            );
-          }
+        const passwordHash = await bcrypt.hash(password, 12);
 
-          if (
-            !(await bcrypt.compare(
-              current,
-              account.password_hash,
-            ))
-          ) {
-            throw fail(
-              401,
-              'Current password is incorrect.',
-            );
-          }
+        const updated = await client.query(
+          `UPDATE tsb_game_controller_accounts
+           SET password_hash=$1,
+               must_change_password=FALSE,
+               auth_version=auth_version+1,
+               updated_at=NOW()
+           WHERE id=$2
+           RETURNING *`,
+          [passwordHash, account.id],
+        );
 
-          const passwordHash = await bcrypt.hash(
-            password,
-            12,
-          );
+        await client.query(
+          "DELETE FROM tsb_game_account_sessions WHERE account_id=$1",
+          [account.id],
+        );
 
-          const updated = await client.query(
-            `UPDATE tsb_game_controller_accounts
-             SET password_hash=$1,
-                 must_change_password=FALSE,
-                 auth_version=auth_version+1,
-                 updated_at=NOW()
-             WHERE id=$2
-             RETURNING *`,
-            [passwordHash, account.id],
-          );
-
-          await client.query(
-            `DELETE FROM tsb_game_account_sessions
-             WHERE account_id=$1`,
-            [account.id],
-          );
-
-          await issueController(
-            client,
-            res,
-            updated.rows[0],
-          );
-
-          return updated.rows[0];
-        },
-      );
+        await issueController(client, res, updated.rows[0]);
+        return updated.rows[0];
+      });
 
       res.json({
         success: true,
