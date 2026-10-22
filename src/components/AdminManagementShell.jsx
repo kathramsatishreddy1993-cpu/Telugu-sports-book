@@ -3,12 +3,21 @@ import AdminDashboard from "./AdminDashboard";
 import AdminControllerAccounts from "./AdminControllerAccounts";
 import AutoGameControls from "./AutoGameControls";
 import ManualSuperOverControls from "./ManualSuperOverControls";
+import AdminPromoCodes from "./AdminPromoCodes";
 
 export default function AdminManagementShell({
   admin,
   onLogout,
 }) {
   const [view, setView] = useState("HOME");
+
+  if (view === "PROMO_CODES") {
+    return (
+      <AdminPromoCodes
+        onBack={() => setView("HOME")}
+      />
+    );
+  }
 
   if (view === "CONTROLLED_SO") {
     return (
@@ -101,19 +110,32 @@ export default function AdminManagementShell({
   return (
     <>
       <div className="border-b border-teal-700 bg-[#061c1a] p-3 text-white">
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto grid max-w-5xl grid-cols-2 gap-3">
           <button
             type="button"
             onClick={() => setView("GAMES")}
-            className="w-full rounded-xl border border-teal-700 bg-[#083d37] p-4 text-left"
+            className="rounded-xl border border-teal-700 bg-[#083d37] p-4 text-left"
           >
             <span className="block font-black text-amber-300">
               🔑 GAME IDs
             </span>
 
-            <span className="mt-1 block text-xs text-cyan-100">
-              Six games · Controller IDs · Automatic
-              PLAY / PAUSE ›
+            <span className="mt-1 block text-xs leading-5 text-cyan-100">
+              Controller IDs · Automatic PLAY / PAUSE ›
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setView("PROMO_CODES")}
+            className="rounded-xl border border-violet-400/30 bg-violet-500/10 p-4 text-left"
+          >
+            <span className="block font-black text-violet-200">
+              PROMO CODES
+            </span>
+
+            <span className="mt-1 block text-xs leading-5 text-slate-300">
+              Assign / Update Customer Promo Codes ›
             </span>
           </button>
         </div>
