@@ -1,133 +1,166 @@
-import { MockSportsProvider } from "./mockProvider.js";
-import { createCommonEvent } from "./commonEvent.js";
+import { MockSportsProvider } from './mockProvider.js';
+import { createCommonEvent } from './commonEvent.js';
 
-const BASE_URL =
-  "https://cricket.sportmonks.com/api/v2.0";
+export const SPORTS = [
+  ['cricket', 'Cricket', 5000],
+  ['football', 'Football', 30000],
+  ['tennis', 'Tennis', 30000],
+  ['fantasy_eleven', 'Fantasy Eleven', 30000],
+  ['fight_events', 'Fight Events', 30000],
+  ['horse_racing', 'Horse Racing', 30000],
+  ['politics', 'Politics', 30000],
+  ['kabaddi', 'Kabaddi', 30000],
+].map(([id, name, pollIntervalMs], index) => ({
+  id,
+  name,
+  pollIntervalMs,
+  lockId: 746250 + index,
+}));
 
-function relation(value) {
-  return value?.data ?? value;
+export function canonicalSport(value) {
+  const key = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[ -]+/g, '_');
+
+  return (
+    {
+      soccer: 'football',
+      fantasy11: 'fantasy_eleven',
+      fantasy_11: 'fantasy_eleven',
+      fantasy: 'fantasy_eleven',
+      fight: 'fight_events',
+      fighting: 'fight_events',
+      horseracing: 'horse_racing',
+    }[key] || key
+  );
 }
 
-function asArray(value) {
-  const result = relation(value);
-  return Array.isArray(result) ? result : [];
-}
+const base =
+  'https://cricket.sportmonks.com/api/v2.0';
 
-function positiveNumber(value, fallback) {
-  const number = Number(value);
-  return Number.isFinite(number) && number > 0
-    ? number
-    : fallback;
-}
+const relation = value =>
+  value?.data ?? value;
 
-function matchStatus(fixture) {
-  const status = String(fixture.status || "")
+const array = value =>
+  Array.isArray(relation(value))
+    ? relation(value)
+    : [];
+
+const timestamp = value =>
+  value == null
+    ? NaN
+    : new Date(value).getTime();
+
+const errorWith = (message, status = 409) =>
+  Object.assign(new Error(message), { status });
+
+function status(fixture) {
+  const text = String(fixture.status || '')
     .trim()
     .toLowerCase();
 
-  // Check completed status before the API's live flag.
   if (
     /finished|abandoned|cancelled|canceled|no result|drawn/.test(
-      status,
+      text,
     )
   ) {
-    return "ENDED";
+    return 'ENDED';
   }
 
   if (
     /not started|upcoming|scheduled|postponed/.test(
-      status,
+      text,
     )
   ) {
-    return "UPCOMING";
+    return 'UPCOMING';
   }
 
-  if (
-    fixture.live === true ||
+  return fixture.live === true ||
     /innings|break|stumps|lunch|tea|delayed|interrupted/.test(
-      status,
+      text,
     )
-  ) {
-    return "LIVE";
-  }
-
-  return "UPCOMING";
+    ? 'LIVE'
+    : 'UPCOMING';
 }
 
-function teamScore(runs, teamId) {
-  const innings = runs.filter(
-    (run) => String(run.team_id) === String(teamId),
+function score(runs, team) {
+  return (
+    runs
+      .filter(
+        run =>
+          String(run.team_id) === String(team),
+      )
+      .map(
+        run =>
+          `${run.score ?? '-'}/${run.wickets ?? '-'}${
+            run.overs == null
+              ? ''
+              : ` (${run.overs} ov)`
+          }`,
+      )
+      .join(' & ') || 'Yet to bat'
   );
-
-  if (!innings.length) {
-    return "Yet to bat";
-  }
-
-  // Preserve multiple innings for Test matches.
-  return innings
-    .map((run) => {
-      const score = run.score ?? "-";
-      const wickets = run.wickets ?? "-";
-      const overs =
-        run.overs == null ? "" : ` (${run.overs} ov)`;
-
-      return `${score}/${wickets}${overs}`;
-    })
-    .join(" & ");
 }
 
-function normalizeFixture(fixture) {
+function normalize(fixture) {
   const home = relation(fixture.localteam);
   const away = relation(fixture.visitorteam);
-  const league = relation(fixture.league);
-  const runs = asArray(fixture.runs);
-
-  const event = createCommonEvent({
-    eventId: `sportmonks_${fixture.id}`,
-    sport: "cricket",
-
-    league: league?.name || fixture.type || "Cricket",
-
-    homeTeam:
-      home?.name ||
-      home?.code ||
-      `Team ${fixture.localteam_id}`,
-
-    awayTeam:
-      away?.name ||
-      away?.code ||
-      `Team ${fixture.visitorteam_id}`,
-
-    status: matchStatus(fixture),
-
-    startTime: fixture.starting_at || null,
-
-    score:
-      `${teamScore(runs, fixture.localteam_id)}` +
-      ` vs ${teamScore(runs, fixture.visitorteam_id)}`,
-
-    // Scores are real; this endpoint does not supply odds.
-    odds: {
-      home: null,
-      away: null,
-    },
-
-    source: "REAL_API",
-    lastUpdated: new Date().toISOString(),
-  });
 
   return {
-    ...event,
-    provider: "sportmonks",
+    ...createCommonEvent({
+      eventId: `sportmonks_${fixture.id}`,
+      sport: 'cricket',
+
+      league:
+        relation(fixture.league)?.name ||
+        fixture.type ||
+        'Cricket',
+
+      homeTeam:
+        home?.name ||
+        home?.code ||
+        `Team ${fixture.localteam_id}`,
+
+      awayTeam:
+        away?.name ||
+        away?.code ||
+        `Team ${fixture.visitorteam_id}`,
+
+      status: status(fixture),
+
+      startTime: fixture.starting_at || null,
+
+      score:
+        `${score(
+          array(fixture.runs),
+          fixture.localteam_id,
+        )} vs ` +
+        score(
+          array(fixture.runs),
+          fixture.visitorteam_id,
+        ),
+
+      odds: {
+        home: null,
+        away: null,
+      },
+
+      source: 'REAL_API',
+      lastUpdated: new Date().toISOString(),
+    }),
+
+    provider: 'sportmonks',
     providerEventId: fixture.id,
-    providerStatus: fixture.status || "",
-    matchType: fixture.type || "",
-    note: fixture.note || "",
+    providerStatus: fixture.status || '',
+    matchType: fixture.type || '',
+    note: fixture.note || '',
     oddsAvailable: false,
   };
 }
 
-// One shared, database-backed feed. Customer reads never call the provider.
+// Provider requests run only in the shared worker.
+// Customer GET routes read saved database data.
 export class SportsService {
   constructor({
     fetcher = (...args) => fetch(...args),
@@ -136,57 +169,70 @@ export class SportsService {
     this.fetcher = fetcher;
     this.now = now;
     this.pool = null;
+
+    this.rows = new Map();
     this.clients = new Set();
-    this.controllers = new Set();
+    this.controllers = new Map();
+    this.running = new Set();
+
     this.timer = null;
-    this.busy = false;
-    this.enabled = false;
+    this.lastMessage = '';
     this.version = 0;
-    this.liveEvents = [];
-    this.scheduleEvents = [];
-    this.lastSuccessAt = null;
-    this.scheduleUpdatedAt = null;
-    this.lastError = null;
-    this.scheduleError = null;
-    this.retryAt = null;
-    this.lastMessage = "";
-    this.pollIntervalMs = 5000;
-    this.scheduleIntervalMs = 300000;
+    this.enabled = false;
+
     this.mode = String(
-      process.env.SPORTS_API_MODE || "demo",
+      process.env.SPORTS_API_MODE || 'demo',
     )
       .trim()
       .toLowerCase();
-    this.demoMode = this.mode === "demo";
+
+    this.demoMode = this.mode === 'demo';
+
     this.apiKey = String(
-      process.env.SPORTMONKS_API_TOKEN || "",
+      process.env.SPORTMONKS_API_TOKEN || '',
     ).trim();
+
     this.feedKey = this.demoMode
-      ? "mock:demo"
-      : "sportmonks:live";
-    this.timeoutMs = positiveNumber(
+      ? 'mock:demo'
+      : 'sportmonks:live';
+
+    this.pollIntervalMs = 5000;
+    this.scheduleIntervalMs = 300000;
+
+    const timeout = Number(
       process.env.SPORTMONKS_TIMEOUT_MS,
-      15000,
     );
-    this.fallbackProvider = new MockSportsProvider();
+
+    this.timeoutMs =
+      Number.isFinite(timeout) && timeout > 0
+        ? timeout
+        : 15000;
+
+    this.fallbackProvider =
+      new MockSportsProvider();
   }
 
   async initialize(pool) {
     this.pool = pool;
+
+    // Existing tables and snapshots are retained.
     await pool.query(`
       CREATE TABLE IF NOT EXISTS tsb_sports_feed_control (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
+        id INTEGER PRIMARY KEY CHECK(id=1),
         enabled BOOLEAN NOT NULL DEFAULT TRUE,
         version INTEGER NOT NULL DEFAULT 0,
         updated_by TEXT,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
-      INSERT INTO tsb_sports_feed_control(id) VALUES (1)
-        ON CONFLICT DO NOTHING;
+
+      INSERT INTO tsb_sports_feed_control(id)
+      VALUES(1)
+      ON CONFLICT DO NOTHING;
+
       CREATE TABLE IF NOT EXISTS tsb_sports_feed_snapshot (
         feed_key TEXT PRIMARY KEY,
-        live_events JSONB NOT NULL DEFAULT '[]'::JSONB,
-        schedule_events JSONB NOT NULL DEFAULT '[]'::JSONB,
+        live_events JSONB NOT NULL DEFAULT '[]',
+        schedule_events JSONB NOT NULL DEFAULT '[]',
         last_success_at TIMESTAMPTZ,
         schedule_updated_at TIMESTAMPTZ,
         last_attempt_at TIMESTAMPTZ,
@@ -194,140 +240,415 @@ export class SportsService {
         last_error TEXT,
         schedule_error TEXT
       );
-      CREATE TABLE IF NOT EXISTS tsb_sports_feed_audit (
+
+      CREATE TABLE IF NOT EXISTS tsb_sports_control_v2 (
+        sport TEXT PRIMARY KEY,
+        enabled BOOLEAN NOT NULL DEFAULT FALSE,
+        generation INTEGER NOT NULL DEFAULT 0,
+        updated_by TEXT,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS tsb_sports_snapshot_v2 (
+        feed_key TEXT NOT NULL,
+        sport TEXT NOT NULL,
+        live_events JSONB NOT NULL DEFAULT '[]',
+        schedule_events JSONB NOT NULL DEFAULT '[]',
+        last_success_at TIMESTAMPTZ,
+        schedule_updated_at TIMESTAMPTZ,
+        last_attempt_at TIMESTAMPTZ,
+        retry_at TIMESTAMPTZ,
+        last_error TEXT,
+        schedule_error TEXT,
+        PRIMARY KEY(feed_key,sport)
+      );
+
+      CREATE TABLE IF NOT EXISTS tsb_sports_audit_v2 (
         id BIGSERIAL PRIMARY KEY,
-        admin_id TEXT NOT NULL,
+        sport TEXT NOT NULL,
         enabled BOOLEAN NOT NULL,
+        admin_id TEXT NOT NULL,
         version INTEGER NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
-    await pool.query(
-      "INSERT INTO tsb_sports_feed_snapshot(feed_key) VALUES ($1) ON CONFLICT DO NOTHING",
-      [this.feedKey],
-    );
+
+    for (const sport of SPORTS) {
+      await pool.query(
+        `
+          INSERT INTO tsb_sports_control_v2(
+            sport,
+            enabled
+          )
+          SELECT
+            $1,
+            CASE
+              WHEN $1='cricket' THEN enabled
+              ELSE FALSE
+            END
+          FROM tsb_sports_feed_control
+          WHERE id=1
+          ON CONFLICT DO NOTHING
+        `,
+        [sport.id],
+      );
+
+      await pool.query(
+        `
+          INSERT INTO tsb_sports_snapshot_v2(
+            feed_key,
+            sport,
+            live_events,
+            schedule_events,
+            last_success_at,
+            schedule_updated_at,
+            last_error,
+            schedule_error
+          )
+          SELECT
+            $1,
+            $2,
+
+            COALESCE(
+              (
+                SELECT jsonb_agg(e)
+                FROM jsonb_array_elements(
+                  s.live_events
+                ) e
+                WHERE LOWER(e->>'sport')=$2
+              ),
+              '[]'::JSONB
+            ),
+
+            COALESCE(
+              (
+                SELECT jsonb_agg(e)
+                FROM jsonb_array_elements(
+                  s.schedule_events
+                ) e
+                WHERE LOWER(e->>'sport')=$2
+              ),
+              '[]'::JSONB
+            ),
+
+            s.last_success_at,
+            s.schedule_updated_at,
+            s.last_error,
+            s.schedule_error
+
+          FROM tsb_sports_feed_snapshot s
+          WHERE s.feed_key=$1
+
+          ON CONFLICT DO NOTHING
+        `,
+        [this.feedKey, sport.id],
+      );
+
+      await pool.query(
+        `
+          INSERT INTO tsb_sports_snapshot_v2(
+            feed_key,
+            sport
+          )
+          VALUES($1,$2)
+          ON CONFLICT DO NOTHING
+        `,
+        [this.feedKey, sport.id],
+      );
+    }
+
     await this.readSaved();
   }
-    async readSaved(connection = this.pool) {
-    const { rows } = await connection.query(
-      `SELECT c.enabled, c.version, s.*
-       FROM tsb_sports_feed_control c
-       JOIN tsb_sports_feed_snapshot s ON s.feed_key = $1
-       WHERE c.id = 1`,
+
+  async readSaved(connection = this.pool) {
+    const result = await connection.query(
+      `
+        SELECT c.*,s.*,c.sport
+        FROM tsb_sports_control_v2 c
+
+        JOIN tsb_sports_snapshot_v2 s
+          ON s.sport=c.sport
+          AND s.feed_key=$1
+      `,
       [this.feedKey],
     );
 
-    const row = rows[0];
+    const revision = await connection.query(
+      `
+        SELECT version
+        FROM tsb_sports_feed_control
+        WHERE id=1
+      `,
+    );
 
-    if (!row) {
-      throw new Error(
-        "Sports feed is not initialized.",
-      );
-    }
+    this.rows = new Map(
+      result.rows.map(row => [row.sport, row]),
+    );
 
-    this.enabled = row.enabled;
-    this.version = Number(row.version);
+    this.version = Number(
+      revision.rows[0]?.version || 0,
+    );
 
-    this.liveEvents = Array.isArray(row.live_events)
-      ? row.live_events
-      : [];
+    this.enabled = [
+      ...this.rows.values(),
+    ].some(row => row.enabled);
 
-    this.scheduleEvents = Array.isArray(
-      row.schedule_events,
-    )
-      ? row.schedule_events
-      : [];
-
-    this.lastSuccessAt = row.last_success_at;
-    this.scheduleUpdatedAt = row.schedule_updated_at;
-    this.lastError = row.last_error;
-    this.scheduleError = row.schedule_error;
-    this.retryAt = row.retry_at;
-
-    return row;
+    return this.rows;
   }
 
-  getEvents(sport = "all") {
+  supported(sport) {
+    return (
+      this.demoMode ||
+      (this.mode === 'live' &&
+        sport === 'cricket')
+    );
+  }
+
+  state(sport, row = this.rows.get(sport)) {
+    const config = SPORTS.find(
+      item => item.id === sport,
+    );
+
+    if (!config) return null;
+
+    const supported = this.supported(sport);
+
+    const configured =
+      supported &&
+      (this.demoMode || Boolean(this.apiKey));
+
+    const age =
+      this.now() -
+      timestamp(row?.last_success_at);
+
+    const fresh =
+      Number.isFinite(age) &&
+      age >= -1000 &&
+      age <
+        Math.max(
+          config.pollIntervalMs * 3,
+          this.timeoutMs * 2,
+        );
+
+    // ON requires a fresh response before reopening.
+    const stale =
+      !row?.enabled ||
+      !configured ||
+      !fresh ||
+      Boolean(row?.last_error);
+
+    return {
+      ...config,
+      lockId: undefined,
+
+      enabled: Boolean(row?.enabled),
+      paused: !row?.enabled,
+      supported,
+      configured,
+      stale,
+
+      apiConnected:
+        !this.demoMode && !stale,
+
+      lastUpdated:
+        row?.last_success_at || null,
+
+      scheduleUpdatedAt:
+        row?.schedule_updated_at || null,
+
+      retryAt: row?.retry_at || null,
+
+      error: !supported
+        ? 'Provider integration pending for this category.'
+        : !configured
+          ? 'SPORTMONKS_API_TOKEN is missing or SPORTS_API_MODE is invalid.'
+          : row?.last_error || null,
+
+      scheduleError:
+        row?.schedule_error || null,
+
+      savedMatches: this.rawEvents(
+        sport,
+        row,
+      ).length,
+    };
+  }
+
+  rawEvents(sport, row = this.rows.get(sport)) {
     const merged = new Map();
 
-    for (const event of [
-      ...this.scheduleEvents,
-      ...this.liveEvents,
-    ]) {
-      merged.set(
-        String(event.eventId ?? event.id),
-        event,
-      );
-    }
+    const events = [
+      ...(Array.isArray(row?.schedule_events)
+        ? row.schedule_events
+        : []),
 
-    const category = String(sport || "all")
-      .trim()
-      .toLowerCase();
+      ...(Array.isArray(row?.live_events)
+        ? row.live_events
+        : []),
+    ];
+
+    for (const event of events) {
+      const id = event.eventId ?? event.id;
+
+      if (
+        id != null &&
+        canonicalSport(event.sport) === sport
+      ) {
+        merged.set(String(id), event);
+      }
+    }
 
     return [...merged.values()].filter(
       event =>
-        String(event.status || "").toUpperCase() !==
-          "ENDED" &&
-        (
-          category === "all" ||
-          String(event.sport || "").toLowerCase() ===
-            category
+        ![
+          'ENDED',
+          'FINISHED',
+          'COMPLETED',
+          'CANCELLED',
+          'CANCELED',
+          'ABANDONED',
+        ].includes(
+          String(event.status).toUpperCase(),
         ),
     );
   }
 
-  isApiConnected() {
-    return (
-      this.enabled &&
-      !this.demoMode &&
-      !this.lastError &&
-      Boolean(this.apiKey) &&
-      Boolean(this.lastSuccessAt) &&
-      this.now() -
-        new Date(this.lastSuccessAt).getTime() <
-        Math.max(15000, this.timeoutMs * 2)
+  eventState(event, state) {
+    const demo =
+      this.demoMode &&
+      /demo|mock/i.test(
+        String(event.source || ''),
+      );
+
+    const hasTeams =
+      typeof event.homeTeam === 'string' &&
+      typeof event.awayTeam === 'string' &&
+      event.homeTeam &&
+      event.awayTeam &&
+      event.homeTeam !== event.awayTeam;
+
+    // Live scores do not supply verified markets.
+    const bettingAllowed = Boolean(
+      state.enabled &&
+        !state.stale &&
+        demo &&
+        hasTeams,
     );
-  }
 
-  payload(type = "UPDATE", events = this.getEvents()) {
+    const bettingReason = !state.enabled
+      ? 'API OFF — Betting Paused'
+      : state.stale
+        ? 'Waiting for fresh data — Betting Paused'
+        : !demo
+          ? 'Verified market integration pending — Betting Paused'
+          : !hasTeams
+            ? 'Market unavailable'
+            : '';
+
     return {
-      type,
-      events,
-
-      source: this.demoMode
-        ? "DEMO_MOCK"
-        : this.lastSuccessAt
-          ? "REAL_API"
-          : "API_UNAVAILABLE",
-
-      provider: this.demoMode
-        ? "mock"
-        : "sportmonks",
-
-      enabled: this.enabled,
-      paused: !this.enabled,
-
-      stale:
-        !this.enabled ||
-        Boolean(this.lastError) ||
-        !this.lastSuccessAt ||
-        (!this.demoMode && !this.isApiConnected()),
-
-      apiConnected: this.isApiConnected(),
-      lastUpdated: this.lastSuccessAt,
-      scheduleUpdatedAt: this.scheduleUpdatedAt,
-      pollIntervalMs: this.pollIntervalMs,
-      error: this.lastError,
-      scheduleError: this.scheduleError,
+      ...event,
+      sport: state.id,
+      feedEnabled: state.enabled,
+      paused: state.paused,
+      stale: state.stale,
+      bettingAllowed,
+      bettingReason,
+      feedLastUpdated: state.lastUpdated,
     };
   }
 
-  async getFeedState(sport = "all") {
+  getEvents(sport = 'all') {
+    const category = canonicalSport(sport);
+
+    return SPORTS.filter(
+      item =>
+        category === 'all' ||
+        category === item.id,
+    ).flatMap(item => {
+      const state = this.state(item.id);
+
+      return this.rawEvents(item.id).map(
+        event => this.eventState(event, state),
+      );
+    });
+  }
+
+  isApiConnected() {
+    return SPORTS.some(
+      sport =>
+        this.state(sport.id)?.apiConnected,
+    );
+  }
+
+  payload(
+    type = 'UPDATE',
+    events = this.getEvents(),
+    category = 'all',
+  ) {
+    const sports = Object.fromEntries(
+      SPORTS.map(sport => [
+        sport.id,
+        this.state(sport.id),
+      ]),
+    );
+
+    const selected =
+      sports[canonicalSport(category)];
+
+    return {
+      type,
+      events,
+      sports,
+
+      source: this.demoMode
+        ? 'DEMO_MOCK'
+        : 'REAL_API',
+
+      provider: this.demoMode
+        ? 'mock'
+        : 'sportmonks',
+
+      mode: this.mode,
+
+      enabled: selected
+        ? selected.enabled
+        : this.enabled,
+
+      paused: selected
+        ? selected.paused
+        : !this.enabled,
+
+      stale: selected
+        ? selected.stale
+        : !Object.values(sports).some(
+            state =>
+              state.enabled && !state.stale,
+          ),
+
+      apiConnected: selected
+        ? selected.apiConnected
+        : this.isApiConnected(),
+
+      lastUpdated:
+        selected?.lastUpdated || null,
+
+      scheduleUpdatedAt:
+        selected?.scheduleUpdatedAt || null,
+
+      pollIntervalMs:
+        selected?.pollIntervalMs || 5000,
+
+      error: selected?.error || null,
+    };
+  }
+
+  async getFeedState(sport = 'all') {
     await this.readSaved();
 
     const payload = this.payload(
-      "STATE",
+      'STATE',
       this.getEvents(sport),
+      sport,
     );
 
     return {
@@ -340,90 +661,168 @@ export class SportsService {
     await this.readSaved();
 
     return {
-      ...this.payload("CONTROL"),
+      ...this.payload('CONTROL', []),
       events: undefined,
       version: this.version,
+
       configured:
-        this.demoMode || Boolean(this.apiKey),
-      mode: this.mode,
+        this.demoMode ||
+        Boolean(this.apiKey),
+
       supportedLiveSports: this.demoMode
         ? []
-        : ["cricket"],
+        : ['cricket'],
+
       savedMatches: this.getEvents().length,
-      scheduleIntervalMs: this.scheduleIntervalMs,
-      retryAt: this.retryAt,
+
+      scheduleIntervalMs:
+        this.scheduleIntervalMs,
     };
   }
 
-  async setEnabled(enabled, version, adminId) {
+  // Existing index.js passes req.body.enabled
+  // unchanged, so its route can remain as it is.
+  async setEnabled(change, version, adminId) {
+    const sport = canonicalSport(
+      change?.sport,
+    );
+
+    const enabled = change?.enabled;
+
     if (
-      typeof enabled !== "boolean" ||
+      !SPORTS.some(
+        item => item.id === sport,
+      ) ||
+      typeof enabled !== 'boolean' ||
       !Number.isInteger(version)
     ) {
-      throw Object.assign(
-        new Error(
-          "Choose ON or OFF with the current version.",
-        ),
-        { status: 400 },
+      throw errorWith(
+        'Refresh API Settings and choose a category ON or OFF.',
+        400,
       );
     }
 
-    const connection = await this.pool.connect();
+    const connection =
+      await this.pool.connect();
 
     try {
-      await connection.query("BEGIN");
+      await connection.query('BEGIN');
 
-      const row = (
+      const revision = (
         await connection.query(
-          "SELECT * FROM tsb_sports_feed_control WHERE id = 1 FOR UPDATE",
+          `
+            SELECT version
+            FROM tsb_sports_feed_control
+            WHERE id=1
+            FOR UPDATE
+          `,
         )
       ).rows[0];
 
-      if (Number(row.version) !== version) {
-        throw Object.assign(
-          new Error(
-            "Settings changed on another device. Refresh and try again.",
-          ),
-          { status: 409 },
+      if (
+        Number(revision.version) !== version
+      ) {
+        throw errorWith(
+          'Settings changed on another device. Refresh and try again.',
         );
       }
 
+      const row = (
+        await connection.query(
+          `
+            SELECT *
+            FROM tsb_sports_control_v2
+            WHERE sport=$1
+            FOR UPDATE
+          `,
+          [sport],
+        )
+      ).rows[0];
+
       if (row.enabled !== enabled) {
         await connection.query(
-          `UPDATE tsb_sports_feed_control
-           SET enabled = $1, version = version + 1,
-               updated_by = $2, updated_at = NOW() WHERE id = 1`,
-          [enabled, String(adminId || "admin")],
+          `
+            UPDATE tsb_sports_control_v2
+            SET
+              enabled=$2,
+              generation=generation+1,
+              updated_by=$3,
+              updated_at=NOW()
+            WHERE sport=$1
+          `,
+          [
+            sport,
+            enabled,
+            String(adminId || 'admin'),
+          ],
         );
 
         if (enabled) {
+          // Keep matches and retry backoff.
+          // Require a new successful response.
           await connection.query(
-            "UPDATE tsb_sports_feed_snapshot SET last_attempt_at = NULL WHERE feed_key = $1",
-            [this.feedKey],
+            `
+              UPDATE tsb_sports_snapshot_v2
+              SET
+                last_success_at=NULL,
+                last_attempt_at=NULL
+              WHERE sport=$1
+            `,
+            [sport],
           );
         }
 
         await connection.query(
-          `INSERT INTO tsb_sports_feed_audit(admin_id, enabled, version)
-           VALUES ($1, $2, $3)`,
+          `
+            UPDATE tsb_sports_feed_control
+            SET
+              version=version+1,
+              updated_by=$1,
+              updated_at=NOW(),
+
+              enabled=EXISTS(
+                SELECT 1
+                FROM tsb_sports_control_v2
+                WHERE enabled
+              )
+
+            WHERE id=1
+          `,
+          [String(adminId || 'admin')],
+        );
+
+        await connection.query(
+          `
+            INSERT INTO tsb_sports_audit_v2(
+              sport,
+              enabled,
+              admin_id,
+              version
+            )
+            VALUES($1,$2,$3,$4)
+          `,
           [
-            String(adminId || "admin"),
+            sport,
             enabled,
+            String(adminId || 'admin'),
             version + 1,
           ],
         );
       }
 
-      await connection.query("COMMIT");
+      await connection.query('COMMIT');
     } catch (error) {
-      await connection.query("ROLLBACK");
+      await connection.query('ROLLBACK');
       throw error;
     } finally {
       connection.release();
     }
 
     if (!enabled) {
-      for (const controller of this.controllers) {
+      for (
+        const controller of
+        this.controllers.get(sport) || []
+      ) {
         controller.abort();
       }
     }
@@ -437,19 +836,30 @@ export class SportsService {
 
     return this.getAdminState();
   }
-    async stillEnabled(connection, version) {
+
+  async stillEnabled(
+    connection,
+    sport,
+    generation,
+  ) {
     const row = (
       await connection.query(
-        "SELECT enabled, version FROM tsb_sports_feed_control WHERE id = 1",
+        `
+          SELECT enabled,generation
+          FROM tsb_sports_control_v2
+          WHERE sport=$1
+        `,
+        [sport],
       )
     ).rows[0];
 
     if (
-      !row.enabled ||
-      Number(row.version) !== version
+      !row?.enabled ||
+      Number(row.generation) !==
+        Number(generation)
     ) {
       throw Object.assign(
-        new Error("Sports feed stopped."),
+        new Error('Feed stopped.'),
         { stopped: true },
       );
     }
@@ -457,46 +867,73 @@ export class SportsService {
 
   async fetchFixtures(
     connection,
-    version,
+    generation,
     schedule = false,
   ) {
     const fixtures = [];
 
     for (let page = 1; page <= 20; page++) {
-      await this.stillEnabled(connection, version);
+      await this.stillEnabled(
+        connection,
+        'cricket',
+        generation,
+      );
 
       const url = new URL(
-        `${BASE_URL}/${schedule ? "fixtures" : "livescores"}`,
+        `${base}/${
+          schedule ? 'fixtures' : 'livescores'
+        }`,
       );
-
-      url.searchParams.set("api_token", this.apiKey);
 
       url.searchParams.set(
-        "include",
-        "localteam,visitorteam,league,runs",
+        'api_token',
+        this.apiKey,
       );
 
-      url.searchParams.set("page", String(page));
+      url.searchParams.set(
+        'include',
+        'localteam,visitorteam,league,runs',
+      );
+
+      url.searchParams.set(
+        'page',
+        String(page),
+      );
 
       if (schedule) {
-        const day = 86400000;
-
-        const start = new Date(this.now() - 7 * day)
+        const start = new Date(
+          this.now() - 7 * 86400000,
+        )
           .toISOString()
           .slice(0, 10);
 
-        const end = new Date(this.now() + 2 * day)
+        const end = new Date(
+          this.now() + 2 * 86400000,
+        )
           .toISOString()
           .slice(0, 10);
 
         url.searchParams.set(
-          "filter[starts_between]",
+          'filter[starts_between]',
           `${start},${end}`,
         );
       }
 
-      const controller = new AbortController();
-      this.controllers.add(controller);
+      const controller =
+        new AbortController();
+
+      if (
+        !this.controllers.has('cricket')
+      ) {
+        this.controllers.set(
+          'cricket',
+          new Set(),
+        );
+      }
+
+      this.controllers
+        .get('cricket')
+        .add(controller);
 
       const timer = setTimeout(
         () => controller.abort(),
@@ -504,34 +941,49 @@ export class SportsService {
       );
 
       try {
-        const response = await this.fetcher(url, {
-          signal: controller.signal,
-          headers: {
-            Accept: "application/json",
-          },
-        });
+        const response =
+          await this.fetcher(url, {
+            signal: controller.signal,
+            headers: {
+              Accept: 'application/json',
+            },
+          });
 
         if (!response.ok) {
           let delay = 0;
 
           if (
-            [401, 403, 429].includes(response.status)
+            [401, 403, 429].includes(
+              response.status,
+            )
           ) {
             const header =
-              response.headers.get("retry-after");
+              response.headers.get(
+                'retry-after',
+              );
 
             const seconds =
-              header == null ? NaN : Number(header);
+              header == null
+                ? NaN
+                : Number(header);
 
-            const date = Date.parse(header || "");
+            const date = Date.parse(
+              header || '',
+            );
 
             delay =
               response.status === 429 &&
               Number.isFinite(seconds)
-                ? Math.max(5000, seconds * 1000)
+                ? Math.max(
+                    5000,
+                    seconds * 1000,
+                  )
                 : response.status === 429 &&
                     Number.isFinite(date)
-                  ? Math.max(5000, date - this.now())
+                  ? Math.max(
+                      5000,
+                      date - this.now(),
+                    )
                   : 900000;
           }
 
@@ -543,200 +995,305 @@ export class SportsService {
           );
         }
 
-        const body = await response.json();
+        const body =
+          await response.json();
 
-        if (!Array.isArray(body?.data)) {
-          throw new Error("Invalid provider data.");
+        if (
+          !Array.isArray(body?.data)
+        ) {
+          throw new Error(
+            'Invalid provider data.',
+          );
         }
 
         fixtures.push(...body.data);
 
-        const pages = Number(
-          body.meta?.pagination?.total_pages || 1,
-        );
-
-        if (page >= pages) {
+        if (
+          page >=
+          Number(
+            body.meta?.pagination
+              ?.total_pages || 1,
+          )
+        ) {
           return fixtures
-            .filter(item => item?.id != null)
-            .map(normalizeFixture);
+            .filter(
+              item => item?.id != null,
+            )
+            .map(normalize);
         }
       } finally {
         clearTimeout(timer);
-        this.controllers.delete(controller);
+
+        this.controllers
+          .get('cricket')
+          .delete(controller);
       }
     }
 
     throw new Error(
-      "Provider pagination limit reached.",
+      'Provider pagination limit reached.',
     );
   }
 
   safeError(error) {
-    if (error?.name === "AbortError") {
-      return "Sports request stopped or timed out.";
-    }
-
-    if (
-      /^Sportmonks HTTP \d{3}$/.test(
-        error?.message || "",
-      )
-    ) {
-      return error.message;
-    }
-
-    return "Sports feed update failed. Showing saved matches.";
+    return /^Sportmonks HTTP \d{3}$/.test(
+      error?.message || '',
+    )
+      ? error.message
+      : error?.name === 'AbortError'
+        ? 'Sports request stopped or timed out.'
+        : 'Feed update failed. Showing saved matches.';
   }
 
-  async poll(connection, row) {
-    const version = Number(row.version);
-    const attemptedAt = new Date(this.now());
-
-    await connection.query(
-      "UPDATE tsb_sports_feed_snapshot SET last_attempt_at = $1 WHERE feed_key = $2",
-      [attemptedAt, this.feedKey],
+  async poll(connection, sport, row) {
+    const generation = Number(
+      row.generation,
     );
 
-    let live = this.liveEvents;
-    let schedule = this.scheduleEvents;
-    let successAt = this.lastSuccessAt;
-    let scheduleAt = this.scheduleUpdatedAt;
-    let errorMessage = null;
-    let scheduleError = this.scheduleError;
-    let retryAt = null;
+    const attempted = new Date(
+      this.now(),
+    );
+
+    await connection.query(
+      `
+        UPDATE tsb_sports_snapshot_v2
+        SET last_attempt_at=$3
+        WHERE feed_key=$1 AND sport=$2
+      `,
+      [
+        this.feedKey,
+        sport,
+        attempted,
+      ],
+    );
+
+    let live = row.live_events;
+    let schedule = row.schedule_events;
+    let success = row.last_success_at;
+    let scheduleAt =
+      row.schedule_updated_at;
+
+    let error = null;
+    let scheduleError =
+      row.schedule_error;
+
+    let retry = null;
 
     try {
       if (this.demoMode) {
-        live =
+        const events =
           await this.fallbackProvider.fetchEvents(
-            "all",
+            sport,
           );
 
-        if (!Array.isArray(live)) {
-          throw new Error("Invalid demo feed.");
-        }
-
-        live = live.map(event => ({
-          ...event,
-          source: "DEMO_MOCK",
-        }));
-
-        successAt = new Date(this.now());
-      } else {
-        if (this.mode !== "live" || !this.apiKey) {
+        if (!Array.isArray(events)) {
           throw new Error(
-            "Provider configuration missing.",
+            'Invalid demo feed.',
           );
         }
 
-        live = await this.fetchFixtures(
-          connection,
-          version,
-        );
+        live = events
+          .filter(
+            event =>
+              canonicalSport(
+                event.sport,
+              ) === sport,
+          )
+          .map(event => ({
+            ...event,
+            sport,
+            source: 'DEMO_MOCK',
+          }));
 
-        successAt = new Date(this.now());
+        schedule = [];
+        scheduleError = null;
+        success = new Date(this.now());
+      } else {
+        if (!this.apiKey) {
+          throw new Error(
+            'Configuration missing.',
+          );
+        }
+
+        live =
+          await this.fetchFixtures(
+            connection,
+            generation,
+          );
+
+        success = new Date(this.now());
 
         if (
           !scheduleAt ||
           this.now() -
-            new Date(scheduleAt).getTime() >=
+            timestamp(scheduleAt) >=
             this.scheduleIntervalMs
         ) {
           try {
-            schedule = await this.fetchFixtures(
-              connection,
-              version,
-              true,
+            schedule =
+              await this.fetchFixtures(
+                connection,
+                generation,
+                true,
+              );
+
+            scheduleAt = new Date(
+              this.now(),
             );
 
-            scheduleAt = new Date(this.now());
             scheduleError = null;
-          } catch (error) {
-            if (error.stopped) throw error;
+          } catch (failure) {
+            if (failure.stopped) {
+              throw failure;
+            }
 
-            scheduleError = this.safeError(error);
+            scheduleError =
+              this.safeError(failure);
 
-            if (error.delay) {
-              retryAt = new Date(
-                this.now() + error.delay,
+            if (failure.delay) {
+              retry = new Date(
+                this.now() +
+                  failure.delay,
               );
             }
           }
         }
       }
-    } catch (error) {
-      if (error.stopped) return;
+    } catch (failure) {
+      if (failure.stopped) return;
 
-      errorMessage =
-        !this.demoMode && !this.apiKey
-          ? "SPORTMONKS_API_TOKEN is missing."
-          : this.safeError(error);
+      error =
+        this.safeError(failure);
 
-      if (error.delay) {
-        retryAt = new Date(this.now() + error.delay);
+      if (failure.delay) {
+        retry = new Date(
+          this.now() + failure.delay,
+        );
       }
     }
 
-    // OFF/version changes override an older response.
-    await connection.query(
-      `UPDATE tsb_sports_feed_snapshot
-       SET live_events = $1::JSONB,
-           schedule_events = $2::JSONB,
-           last_success_at = $3,
-           schedule_updated_at = $4,
-           last_error = $5,
-           schedule_error = $6,
-           retry_at = $7
-       WHERE feed_key = $8
-         AND EXISTS (
-           SELECT 1
-           FROM tsb_sports_feed_control
-           WHERE id = 1
-             AND enabled = TRUE
-             AND version = $9
-         )`,
-      [
-        JSON.stringify(live),
-        JSON.stringify(schedule),
-        successAt,
-        scheduleAt,
-        errorMessage,
-        scheduleError,
-        retryAt,
-        this.feedKey,
-        version,
-      ],
-    );
-  }
-    async tick() {
-    if (!this.pool || this.busy) return;
+    // OFF overrides an older provider response.
+    await connection.query('BEGIN');
 
-    this.busy = true;
+    try {
+      const control = (
+        await connection.query(
+          `
+            SELECT enabled,generation
+            FROM tsb_sports_control_v2
+            WHERE sport=$1
+            FOR SHARE
+          `,
+          [sport],
+        )
+      ).rows[0];
+
+      if (
+        control?.enabled &&
+        Number(control.generation) ===
+          generation
+      ) {
+        await connection.query(
+          `
+            UPDATE tsb_sports_snapshot_v2
+            SET
+              live_events=$3::JSONB,
+              schedule_events=$4::JSONB,
+              last_success_at=$5,
+              schedule_updated_at=$6,
+              last_error=$7,
+              schedule_error=$8,
+              retry_at=$9
+
+            WHERE
+              feed_key=$1
+              AND sport=$2
+          `,
+          [
+            this.feedKey,
+            sport,
+            JSON.stringify(live),
+            JSON.stringify(schedule),
+            success,
+            scheduleAt,
+            error,
+            scheduleError,
+            retry,
+          ],
+        );
+      }
+
+      await connection.query('COMMIT');
+    } catch (failure) {
+      await connection.query(
+        'ROLLBACK',
+      );
+
+      throw failure;
+    }
+  }
+
+  async tickSport(config) {
+    if (
+      this.running.has(config.id)
+    ) {
+      return;
+    }
+
+    this.running.add(config.id);
 
     let connection;
     let locked = false;
 
     try {
-      await this.readSaved();
+      connection =
+        await this.pool.connect();
 
-      if (!this.enabled) return;
-
-      connection = await this.pool.connect();
-
-      const lockResult = await connection.query(
-        "SELECT pg_try_advisory_lock(746249) AS locked",
-      );
-
-      locked = lockResult.rows[0].locked;
+      locked = (
+        await connection.query(
+          `
+            SELECT
+              pg_try_advisory_lock($1)
+              AS locked
+          `,
+          [config.lockId],
+        )
+      ).rows[0].locked;
 
       if (!locked) return;
 
-      const row = await this.readSaved(connection);
+      const row = (
+        await connection.query(
+          `
+            SELECT c.*,s.*,c.sport
+            FROM tsb_sports_control_v2 c
 
-      if (!row.enabled) return;
+            JOIN tsb_sports_snapshot_v2 s
+              ON s.sport=c.sport
+              AND s.feed_key=$1
+
+            WHERE c.sport=$2
+          `,
+          [
+            this.feedKey,
+            config.id,
+          ],
+        )
+      ).rows[0];
+
+      if (
+        !row?.enabled ||
+        !this.supported(config.id) ||
+        (!this.demoMode &&
+          !this.apiKey)
+      ) {
+        return;
+      }
 
       if (
         row.retry_at &&
-        this.now() < new Date(row.retry_at).getTime()
+        this.now() <
+          timestamp(row.retry_at)
       ) {
         return;
       }
@@ -744,49 +1301,108 @@ export class SportsService {
       if (
         row.last_attempt_at &&
         this.now() -
-          new Date(row.last_attempt_at).getTime() <
-          this.pollIntervalMs
+          timestamp(
+            row.last_attempt_at,
+          ) <
+          config.pollIntervalMs
       ) {
         return;
       }
 
-      await this.poll(connection, row);
-
-      await this.readSaved(connection);
+      await this.poll(
+        connection,
+        config.id,
+        row,
+      );
     } catch {
       console.error(
-        "[SportsService] Feed synchronization failed; saved matches retained.",
+        '[SportsService] Category synchronization failed; saved matches retained.',
       );
     } finally {
       if (connection) {
-        let releaseError;
+        let failure;
 
         if (locked) {
           try {
             await connection.query(
-              "SELECT pg_advisory_unlock(746249)",
+              `
+                SELECT
+                  pg_advisory_unlock($1)
+              `,
+              [config.lockId],
             );
           } catch (error) {
-            releaseError = error;
+            failure = error;
           }
         }
 
-        connection.release(releaseError);
+        connection.release(failure);
       }
 
-      this.busy = false;
+      this.running.delete(
+        config.id,
+      );
+    }
+  }
+
+  async tick() {
+    if (
+      !this.pool ||
+      this.ticking
+    ) {
+      return;
+    }
+
+    this.ticking = true;
+
+    try {
+      await this.readSaved();
+
+      const activeSports =
+        SPORTS.filter(
+          config =>
+            this.rows.get(
+              config.id,
+            )?.enabled &&
+            this.supported(
+              config.id,
+            ) &&
+            (this.demoMode ||
+              this.apiKey),
+        );
+
+      await Promise.all(
+        activeSports.map(
+          config =>
+            this.tickSport(config),
+        ),
+      );
+
+      await this.readSaved();
       this.broadcast();
+    } catch {
+      console.error(
+        '[SportsService] Cached feed refresh failed.',
+      );
+    } finally {
+      this.ticking = false;
     }
   }
 
   start() {
-    if (this.timer || !this.pool) return;
+    if (
+      this.timer ||
+      !this.pool
+    ) {
+      return;
+    }
 
     void this.tick();
 
-    this.timer = setInterval(() => {
-      void this.tick();
-    }, this.pollIntervalMs);
+    this.timer = setInterval(
+      () => void this.tick(),
+      1000,
+    );
 
     this.timer.unref?.();
   }
@@ -795,8 +1411,15 @@ export class SportsService {
     clearInterval(this.timer);
     this.timer = null;
 
-    for (const controller of this.controllers) {
-      controller.abort();
+    for (
+      const group of
+      this.controllers.values()
+    ) {
+      for (
+        const controller of group
+      ) {
+        controller.abort();
+      }
     }
   }
 
@@ -805,7 +1428,9 @@ export class SportsService {
 
     try {
       res.write(
-        `data: ${JSON.stringify(this.payload("INIT"))}\n\n`,
+        `data: ${JSON.stringify(
+          this.payload('INIT'),
+        )}\n\n`,
       );
     } catch {
       this.clients.delete(res);
@@ -818,28 +1443,131 @@ export class SportsService {
 
   broadcast() {
     const message =
-      `data: ${JSON.stringify(this.payload())}\n\n`;
+      `data: ${JSON.stringify(
+        this.payload(),
+      )}\n\n`;
 
-    if (message === this.lastMessage) return;
+    if (
+      message ===
+      this.lastMessage
+    ) {
+      return;
+    }
 
     this.lastMessage = message;
 
-    for (const client of this.clients) {
+    for (
+      const client of
+      this.clients
+    ) {
       if (
         client.destroyed ||
         client.writableEnded
       ) {
-        this.clients.delete(client);
+        this.clients.delete(
+          client,
+        );
+
         continue;
       }
 
       try {
         client.write(message);
       } catch {
-        this.clients.delete(client);
+        this.clients.delete(
+          client,
+        );
       }
     }
   }
+
+  // Use inside the wallet transaction,
+  // after checking an idempotent replay.
+  async lockBetEvent(
+    connection,
+    matchId,
+  ) {
+    const controls = (
+      await connection.query(
+        `
+          SELECT *
+          FROM tsb_sports_control_v2
+          ORDER BY sport
+          FOR SHARE
+        `,
+      )
+    ).rows;
+
+    const snapshots = (
+      await connection.query(
+        `
+          SELECT *
+          FROM tsb_sports_snapshot_v2
+          WHERE feed_key=$1
+          ORDER BY sport
+          FOR SHARE
+        `,
+        [this.feedKey],
+      )
+    ).rows;
+
+    for (
+      const snapshot of
+      snapshots
+    ) {
+      const control =
+        controls.find(
+          item =>
+            item.sport ===
+            snapshot.sport,
+        );
+
+      const row = {
+        ...snapshot,
+        ...control,
+      };
+
+      const event =
+        this.rawEvents(
+          snapshot.sport,
+          row,
+        ).find(
+          item =>
+            String(
+              item.eventId,
+            ) === matchId ||
+            (item.id != null &&
+              String(item.id) ===
+                matchId),
+        );
+
+      if (!event) continue;
+
+      const decorated =
+        this.eventState(
+          event,
+          this.state(
+            snapshot.sport,
+            row,
+          ),
+        );
+
+      if (
+        !decorated.bettingAllowed
+      ) {
+        throw errorWith(
+          decorated.bettingReason,
+        );
+      }
+
+      return decorated;
+    }
+
+    throw errorWith(
+      'Match unavailable in the saved feed. Open a current match from the list.',
+    );
+  }
 }
 
-export const sportsService = new SportsService();
+export const sportsService =
+  new SportsService();
