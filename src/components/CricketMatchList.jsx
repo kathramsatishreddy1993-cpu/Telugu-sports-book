@@ -1,27 +1,39 @@
-import React, { useEffect, useState } from "react";
+import React, {
+  useEffect,
+  useState,
+} from 'react';
 
 const ist = value =>
-  new Intl.DateTimeFormat("en-IN", {
-    timeZone: "Asia/Kolkata",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+  new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
     hour12: false,
   }).format(new Date(value));
 
 async function getJSON(url) {
   const response = await fetch(url, {
-    cache: "no-store",
-    credentials: "same-origin",
+    cache: 'no-store',
+    credentials: 'same-origin',
   });
 
-  const data = await response.json();
+  let data;
+
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(
+      'Server response was not JSON.',
+    );
+  }
 
   if (!response.ok) {
     throw new Error(
-      data.error || "Unable to load matches.",
+      data.error ||
+        'Unable to load matches.',
     );
   }
 
@@ -29,24 +41,32 @@ async function getJSON(url) {
 }
 
 function parseStart(value) {
-  if (typeof value === "number") {
+  if (typeof value === 'number') {
     return value < 100000000000
       ? value * 1000
       : value;
   }
 
   if (
-    typeof value === "string" &&
+    typeof value === 'string' &&
     /^\d{10,13}$/.test(value)
   ) {
     return parseStart(Number(value));
   }
 
-  return Date.parse(value || "");
+  return Date.parse(value || '');
 }
 
-export function normalizeApiMatch(item, feed = "") {
-  if (!item || typeof item !== "object") return null;
+export function normalizeApiMatch(
+  item,
+  feed = '',
+) {
+  if (
+    !item ||
+    typeof item !== 'object'
+  ) {
+    return null;
+  }
 
   const home =
     item.home_team ||
@@ -62,27 +82,31 @@ export function normalizeApiMatch(item, feed = "") {
     item.team2?.name ||
     item.team2;
 
-  const names = Array.isArray(item.teams)
+  const names = Array.isArray(
+    item.teams,
+  )
     ? item.teams
         .map(team =>
-          typeof team === "string" ? team : team?.name,
+          typeof team === 'string'
+            ? team
+            : team?.name,
         )
         .filter(Boolean)
     : [];
 
   const teams =
-    typeof home === "string" &&
-    typeof away === "string"
+    typeof home === 'string' &&
+    typeof away === 'string'
       ? `${home} vs ${away}`
-      : typeof item.teams === "string"
+      : typeof item.teams === 'string'
         ? item.teams
         : names.length === 2
-          ? names.join(" vs ")
+          ? names.join(' vs ')
           : item.title ||
             item.name ||
             item.eventName ||
             item.event_name ||
-            "";
+            '';
 
   const start = parseStart(
     item.commence_time ||
@@ -96,18 +120,19 @@ export function normalizeApiMatch(item, feed = "") {
   );
 
   const status = String(
-    item.status || "",
+    item.status || '',
   ).toUpperCase();
 
   if (
-    typeof teams !== "string" ||
+    typeof teams !== 'string' ||
     !teams.trim() ||
     [
-      "COMPLETED",
-      "FINISHED",
-      "CANCELLED",
-      "ABANDONED",
-      "ENDED",
+      'COMPLETED',
+      'FINISHED',
+      'CANCELLED',
+      'CANCELED',
+      'ABANDONED',
+      'ENDED',
     ].includes(status)
   ) {
     return null;
@@ -116,82 +141,118 @@ export function normalizeApiMatch(item, feed = "") {
   const source = String(
     item.dataFeedType ||
       item.feedType ||
-      item.provider ||
       item.source ||
+      item.provider ||
       feed,
   );
 
-  const demo =
-    /mock|demo|sample/i.test(source) ||
-    item.isMock === true ||
-    item.isDemo === true;
-
   const id =
-    item.id ??
     item.eventId ??
+    item.id ??
     item.event_id ??
     `${teams}:${
-      Number.isFinite(start) ? start : "pending"
+      Number.isFinite(start)
+        ? start
+        : 'pending'
     }`;
 
   return {
     ...item,
     id,
     key: `api-${id}`,
-    type: "API",
-    start: Number.isFinite(start) ? start : null,
+    type: 'API',
+    sport: item.sport || 'cricket',
+
+    start: Number.isFinite(start)
+      ? start
+      : null,
+
     teams,
+
     date: Number.isFinite(start)
       ? `${ist(start)} IST`
-      : "Time unavailable",
-    demo,
+      : 'Time unavailable',
+
+    demo:
+      /mock|demo|sample/i.test(
+        source,
+      ) ||
+      item.isMock === true ||
+      item.isDemo === true,
+
     live:
       item.live === true ||
       item.isLive === true ||
       [
-        "LIVE",
-        "INPLAY",
-        "IN_PLAY",
-        "IN PROGRESS",
-        "IN_PROGRESS",
+        'LIVE',
+        'INPLAY',
+        'IN_PLAY',
+        'IN PROGRESS',
+        'IN_PROGRESS',
       ].includes(status),
   };
 }
 
 function eventRows(data) {
-  if (Array.isArray(data)) return data;
-
-  for (const rows of [
-    data?.data,
-    data?.events,
-    data?.matches,
-    data?.data?.events,
-    data?.data?.matches,
-  ]) {
-    if (Array.isArray(rows)) return rows;
+  if (Array.isArray(data)) {
+    return data;
   }
 
-  return [];
+  return (
+    [
+      data?.data,
+      data?.events,
+      data?.matches,
+      data?.data?.events,
+      data?.data?.matches,
+    ].find(Array.isArray) || []
+  );
 }
 
 export default function CricketMatchList({
   onOpenMatch,
 }) {
-  const [virtual, setVirtual] = useState([]);
-  const [real, setReal] = useState([]);
+  const [virtual, setVirtual] =
+    useState([]);
 
-  const [error, setError] = useState("");
-  const [sportsError, setSportsError] = useState("");
-  const [sportsLoaded, setSportsLoaded] = useState(false);
-  const [feedDemo, setFeedDemo] = useState(false);
-  const [feedMeta, setFeedMeta] = useState(null);
+  const [real, setReal] =
+    useState([]);
 
-  const [anchor, setAnchor] = useState({
-    server: Date.now(),
-    local: performance.now(),
-  });
+  const [error, setError] =
+    useState('');
 
-  const [now, setNow] = useState(Date.now());
+  const [
+    sportsError,
+    setSportsError,
+  ] = useState('');
+
+  const [loaded, setLoaded] =
+    useState(false);
+
+  const [feedDemo, setFeedDemo] =
+    useState(false);
+
+  const [meta, setMeta] =
+    useState(null);
+
+  const [
+    receivedAt,
+    setReceivedAt,
+  ] = useState(0);
+
+  const [anchor, setAnchor] =
+    useState({
+      server: Date.now(),
+      local: performance.now(),
+    });
+
+  const [now, setNow] =
+    useState(Date.now());
+
+  const [clock, setClock] =
+    useState(Date.now());
+
+  /* ANIMATED SUPER OVER SCHEDULE */
 
   useEffect(() => {
     let alive = true;
@@ -204,16 +265,21 @@ export default function CricketMatchList({
 
       try {
         const data = await getJSON(
-          "/api/animated-cricket/schedule",
+          '/api/animated-cricket/schedule',
         );
 
         if (alive) {
-          const server = Date.parse(data.serverTime);
+          const server = Date.parse(
+            data.serverTime,
+          );
 
-          if (Number.isFinite(server)) {
+          if (
+            Number.isFinite(server)
+          ) {
             setAnchor({
               server,
-              local: performance.now(),
+              local:
+                performance.now(),
             });
           }
 
@@ -221,87 +287,46 @@ export default function CricketMatchList({
             (data.matches || [])
               .slice(0, 3)
               .map(match => ({
-                key: `so-${match.startAt}`,
-                type: "SO",
-                start: Date.parse(match.startAt),
+                key:
+                  `so-${match.startAt}`,
+
+                type: 'SO',
+
+                start: Date.parse(
+                  match.startAt,
+                ),
+
                 end:
-                  Date.parse(match.endsAt || "") ||
-                  Date.parse(match.startAt) + 120000,
-                teams: match.teams.join(" vs "),
+                  Date.parse(
+                    match.endsAt ||
+                      '',
+                  ) ||
+                  Date.parse(
+                    match.startAt,
+                  ) +
+                    120000,
+
+                teams:
+                  match.teams.join(
+                    ' vs ',
+                  ),
+
                 phase: match.phase,
               }))
               .filter(match =>
-                Number.isFinite(match.start),
+                Number.isFinite(
+                  match.start,
+                ),
               ),
           );
 
-          setError("");
+          setError('');
         }
-      } catch (requestError) {
+      } catch (failure) {
         if (alive) {
-          setError(requestError.message);
-        }
-      } finally {
-        loading = false;
-      }
-    };
-
-    load();
-
-    const timer = setInterval(load, 5000);
-
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, []);
-
-  useEffect(() => {
-    let alive = true;
-    let loading = false;
-    let connected = false;
-    let stream;
-
-    const apply = data => {
-      if (!alive) return;
-
-      const feed = String(
-        data.source || data.provider || "",
-      );
-
-      const rows = eventRows(data);
-
-      const unique = new Map(
-        rows
-          .map(item => normalizeApiMatch(item, feed))
-          .filter(Boolean)
-          .map(match => [match.key, match]),
-      );
-
-      setReal([...unique.values()]);
-      setFeedDemo(/mock|demo|sample/i.test(feed));
-      setFeedMeta(data);
-      setSportsError("");
-      setSportsLoaded(true);
-    };
-
-    const load = async () => {
-      if (loading || !alive) return;
-
-      loading = true;
-
-      try {
-        const data = await getJSON(
-          "/api/sports/events?sport=cricket",
-        );
-
-        if (!connected) {
-          apply(data);
-        }
-      } catch (requestError) {
-        if (alive && !connected) {
-          setSportsError(requestError.message);
-          setSportsLoaded(true);
+          setError(
+            failure.message,
+          );
         }
       } finally {
         loading = false;
@@ -310,115 +335,277 @@ export default function CricketMatchList({
 
     void load();
 
-    if (typeof EventSource !== "undefined") {
-      stream = new EventSource(
-        "/api/sports/stream",
-      );
-
-      stream.onmessage = event => {
-        try {
-          const data = JSON.parse(event.data);
-
-          if (!Array.isArray(data.events)) return;
-
-          connected = true;
-
-          apply({
-            ...data,
-            events: data.events.filter(
-              item =>
-                String(item.sport || "").toLowerCase() ===
-                "cricket",
-            ),
-          });
-        } catch {
-          connected = false;
-        }
-      };
-
-      stream.onerror = () => {
-        connected = false;
-      };
-    }
-
-    // Reads our server's saved cache only.
-    // This does not trigger a Sportmonks request.
-    const timer = setInterval(() => {
-      if (!connected) {
-        void load();
-      }
-    }, 5000);
+    const timer = setInterval(
+      load,
+      5000,
+    );
 
     return () => {
       alive = false;
       clearInterval(timer);
-      stream?.close();
     };
   }, []);
 
+  /* SHARED CRICKET FEED */
+
   useEffect(() => {
-    const update = () =>
+    let alive = true;
+    let loading = false;
+    let sequence = 0;
+    let stream;
+
+    const apply = data => {
+      if (!alive) return;
+
+      sequence += 1;
+
+      const feed = String(
+        data.source ||
+          data.provider ||
+          '',
+      );
+
+      const matches =
+        eventRows(data)
+          .filter(
+            item =>
+              !item.sport ||
+              String(
+                item.sport,
+              ).toLowerCase() ===
+                'cricket',
+          )
+          .map(item =>
+            normalizeApiMatch(
+              item,
+              feed,
+            ),
+          )
+          .filter(Boolean);
+
+      const unique = new Map(
+        matches.map(match => [
+          match.key,
+          match,
+        ]),
+      );
+
+      setReal([
+        ...unique.values(),
+      ]);
+
+      setFeedDemo(
+        /mock|demo|sample/i.test(
+          feed,
+        ),
+      );
+
+      setMeta(
+        data.sports?.cricket ||
+          data,
+      );
+
+      setReceivedAt(
+        Date.now(),
+      );
+
+      setSportsError('');
+      setLoaded(true);
+    };
+
+    const load = async () => {
+      if (
+        loading ||
+        !alive
+      ) {
+        return;
+      }
+
+      loading = true;
+
+      const current = sequence;
+
+      try {
+        const data = await getJSON(
+          '/api/sports/events?sport=cricket',
+        );
+
+        if (
+          current === sequence
+        ) {
+          apply(data);
+        }
+      } catch (failure) {
+        if (
+          alive &&
+          current === sequence
+        ) {
+          setSportsError(
+            failure.message,
+          );
+
+          setReceivedAt(0);
+          setLoaded(true);
+        }
+      } finally {
+        loading = false;
+      }
+    };
+
+    void load();
+
+    if (
+      typeof EventSource !==
+      'undefined'
+    ) {
+      stream = new EventSource(
+        '/api/sports/stream',
+      );
+
+      stream.onmessage =
+        message => {
+          try {
+            const data =
+              JSON.parse(
+                message.data,
+              );
+
+            if (
+              Array.isArray(
+                data.events,
+              )
+            ) {
+              apply(data);
+            }
+          } catch {
+            // Cached GET retries.
+          }
+        };
+
+      stream.onerror = () => {
+        void load();
+      };
+    }
+
+    // Reads the server's saved cache only.
+    // These reads do not call Sportmonks.
+    const timer = setInterval(
+      load,
+      5000,
+    );
+
+    const focus = () => {
+      void load();
+    };
+
+    window.addEventListener(
+      'focus',
+      focus,
+    );
+
+    return () => {
+      alive = false;
+
+      clearInterval(timer);
+      stream?.close();
+
+      window.removeEventListener(
+        'focus',
+        focus,
+      );
+    };
+  }, []);
+
+  /* SERVER-ALIGNED DISPLAY CLOCK */
+
+  useEffect(() => {
+    const update = () => {
       setNow(
         anchor.server +
           performance.now() -
           anchor.local,
       );
 
+      setClock(Date.now());
+    };
+
     update();
 
-    const timer = setInterval(update, 1000);
+    const timer = setInterval(
+      update,
+      1000,
+    );
 
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+    };
   }, [anchor]);
 
+  const fresh =
+    receivedAt > 0 &&
+    clock - receivedAt <
+      15000 &&
+    !sportsError;
+
+  const paused =
+    meta?.enabled !== true ||
+    meta?.stale ||
+    !fresh;
+
   const fixtures = [
-    ...virtual.filter(match => match.end > now),
+    ...virtual.filter(
+      match =>
+        match.end > now,
+    ),
     ...real,
   ].sort(
     (a, b) =>
       (a.start ?? Infinity) -
         (b.start ?? Infinity) ||
-      a.key.localeCompare(b.key),
+      a.key.localeCompare(
+        b.key,
+      ),
   );
 
   return (
     <div aria-label="Cricket match list">
-      {feedMeta && (
+      {meta && (
         <p
           role="status"
           className="my-3 text-xs leading-5 text-slate-600"
         >
-          {feedMeta.enabled === false
-            ? "Sports API OFF · Showing saved matches. Scores are not updating."
-            : feedMeta.stale
-              ? "Waiting for live updates · Showing saved matches."
-              : "Automatic sports updates ON · Every 5 seconds."}
+          {meta.enabled === false
+            ? 'Cricket API OFF · Saved matches visible · Betting Paused.'
+            : paused
+              ? 'Waiting for fresh cricket data · Betting Paused.'
+              : 'Cricket updates ON · Every 5 seconds.'}
 
-          {feedMeta.lastUpdated &&
+          {meta.lastUpdated &&
           Number.isFinite(
-            Date.parse(feedMeta.lastUpdated),
+            Date.parse(
+              meta.lastUpdated,
+            ),
           )
             ? ` Last update: ${ist(
-                feedMeta.lastUpdated,
+                meta.lastUpdated,
               )} IST.`
-            : " No successful sports update saved yet."}
+            : ' No fresh cricket update saved yet.'}
         </p>
       )}
 
-      {(error || sportsError) && (
+      {(error ||
+        sportsError) && (
         <p
           role="alert"
           className="my-3 text-xs text-amber-800"
         >
           {sportsError
-            ? `Sports feed: ${sportsError}.`
-            : ""}
+            ? `Sports feed: ${sportsError}. Showing saved matches.`
+            : ''}
 
-          {sportsError && real.length > 0
-            ? " Showing the last received list; it may be outdated."
-            : ""}
-
-          {error ? ` Super Over: ${error}` : ""}
+          {error
+            ? ` Super Over: ${error}`
+            : ''}
         </p>
       )}
 
@@ -427,29 +614,45 @@ export default function CricketMatchList({
           role="status"
           className="my-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"
         >
-          {!sportsLoaded
-            ? "Loading sports matches…"
+          {!loaded
+            ? 'Loading sports matches…'
             : sportsError
-              ? "Sports matches could not be loaded. Retrying automatically."
+              ? 'Sports matches could not be loaded. Retrying automatically.'
               : feedDemo
-                ? "The demo feed currently has no cricket fixtures."
-                : "The sports server returned no cricket fixtures. Prepared Super Over matches appear five minutes before start."}
+                ? 'The demo feed currently has no cricket fixtures.'
+                : 'The sports server returned no cricket fixtures. Prepared Super Over matches appear five minutes before start.'}
         </div>
       )}
 
       {fixtures.map(match => {
         const live =
-          match.type === "SO"
-            ? now >= match.start && now < match.end
+          match.type === 'SO'
+            ? now >= match.start &&
+              now < match.end
             : match.live;
 
+        const stopped =
+          match.type === 'API' &&
+          (paused ||
+            match.paused ||
+            match.stale);
+
         const open = () => {
-          if (match.type === "SO") {
+          if (
+            match.type === 'SO'
+          ) {
             window.location.assign(
               `/games/animated-super-over?start=${match.start}`,
             );
           } else {
-            onOpenMatch?.(match);
+            onOpenMatch?.({
+              ...match,
+
+              bettingAllowed:
+                !stopped &&
+                match.bettingAllowed ===
+                  true,
+            });
           }
         };
 
@@ -463,16 +666,34 @@ export default function CricketMatchList({
               <div className="min-w-0 flex-1">
                 <div
                   className={`mb-2 text-[9px] font-black uppercase tracking-wider ${
-                    live
-                      ? "text-red-600"
-                      : "text-teal-700"
+                    stopped
+                      ? 'text-slate-500'
+                      : live
+                        ? 'text-red-600'
+                        : 'text-teal-700'
                   }`}
                 >
-                  {match.demo
-                    ? "● DEMO FEED"
-                    : live
-                      ? "● LIVE"
-                      : "● UPCOMING"}
+                  <span
+                    className={
+                      live &&
+                      !stopped
+                        ? 'animate-pulse'
+                        : ''
+                    }
+                  >
+                    ●
+                  </span>{' '}
+
+                  {stopped
+                    ? 'FEED PAUSED · SAVED MATCH'
+                    : match.type ===
+                        'SO'
+                      ? 'SUPER OVER'
+                      : match.demo
+                        ? 'DEMO FEED'
+                        : live
+                          ? 'LIVE'
+                          : 'UPCOMING'}
                 </div>
 
                 <button
@@ -484,10 +705,33 @@ export default function CricketMatchList({
                 </button>
 
                 <p className="mt-2 text-[11px] font-bold text-teal-700">
-                  {match.start === null
-                    ? "Time unavailable"
-                    : `${ist(match.start)} IST`}
+                  {match.start ===
+                  null
+                    ? 'Time unavailable'
+                    : `${ist(
+                        match.start,
+                      )} IST`}
                 </p>
+
+                {match.type ===
+                  'API' &&
+                  match.score && (
+                    <p className="mt-2 text-xs text-slate-600">
+                      {match.score}
+                    </p>
+                  )}
+
+                {match.type ===
+                  'API' &&
+                  (stopped ||
+                    !match.bettingAllowed) && (
+                    <p className="mt-2 text-[10px] font-bold text-amber-800">
+                      {stopped
+                        ? 'New bets paused'
+                        : match.bettingReason ||
+                          'Betting Paused'}
+                    </p>
+                  )}
               </div>
 
               <button
