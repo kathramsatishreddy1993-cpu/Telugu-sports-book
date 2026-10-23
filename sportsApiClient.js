@@ -1,33 +1,75 @@
-const API_BASE_URL = '/api';
+const API_BASE_URL = "/api";
 
-export async function fetchSportsEvents(sportCategory = 'all') {
+/*
+  Reads saved data from our server.
+  Customer requests do not call Sportmonks directly.
+*/
+export async function fetchSportsEvents(
+  sportCategory = "all",
+) {
   try {
-    const res = await fetch(`${API_BASE_URL}/sports/events?sport=${sportCategory}`);
-    if (!res.ok) throw new Error('Proxy connection failed');
-    const json = await res.json();
-    return json.data || [];
-  } catch (err) {
-    return null; // Signals hook to fall back locally
+    const response = await fetch(
+      `${API_BASE_URL}/sports/events?sport=${encodeURIComponent(
+        sportCategory,
+      )}`,
+      {
+        cache: "no-store",
+        credentials: "same-origin",
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error("Proxy connection failed");
+    }
+
+    const data = await response.json();
+
+    return Array.isArray(data.data)
+      ? data.data
+      : [];
+  } catch {
+    return null;
   }
 }
 
-export function subscribeToSportsStream(onMessage, onError) {
+/*
+  Receives shared updates from our server.
+  Reconnects automatically after temporary
+  network interruptions.
+*/
+export function subscribeToSportsStream(
+  onMessage,
+  onError,
+) {
   try {
-    const eventSource = new EventSource(`${API_BASE_URL}/sports/stream`);
-    
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      onMessage(data);
+    const stream = new EventSource(
+      `${API_BASE_URL}/sports/stream`,
+    );
+
+    stream.onmessage = event => {
+      try {
+        const data = JSON.parse(event.data);
+        onMessage(data);
+      } catch (error) {
+        onError?.(error);
+      }
     };
 
-    eventSource.onerror = (err) => {
-      if (onError) onError(err);
-      eventSource.close();
+    stream.onerror = error => {
+      onError?.(error);
     };
 
-    return () => eventSource.close();
-  } catch (e) {
-    if (onError) onError(e);
+    return () => {
+      stream.close();
+    };
+  } catch (error) {
+    onError?.(error);
+
     return () => {};
   }
 }
+
+export default {
+  fetchSportsEvents,
+  subscribeToSportsStream,
+};
