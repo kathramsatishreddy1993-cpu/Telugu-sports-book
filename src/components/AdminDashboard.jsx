@@ -1,27 +1,28 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import AdminPaymentSettings from './AdminPaymentSettings';
+import React, { useEffect, useMemo, useState } from "react";
+import AdminPaymentSettings from "./AdminPaymentSettings";
+import AdminSportsApiSettings from "./AdminSportsApiSettings";
 
-const COIN_HISTORY_KEY = 'telugu_sports_demo_coin_history';
-const DEFAULT_WHATSAPP_NUMBER = '919346824432';
+const COIN_HISTORY_KEY = "telugu_sports_demo_coin_history";
+const DEFAULT_WHATSAPP_NUMBER = "919346824432";
 
 const money = value =>
-  Number(value || 0).toLocaleString('en-IN');
+  Number(value || 0).toLocaleString("en-IN");
 
 const isPending = item =>
-  String(item?.status || '').toUpperCase() === 'PENDING';
+  String(item?.status || "").toUpperCase() === "PENDING";
 
 const getPromoCode = customer =>
-  customer?.promoCode || customer?.promo_code || '';
+  customer?.promoCode || customer?.promo_code || "";
 
 async function requestJson(url, options = {}) {
   const response = await fetch(url, {
-    credentials: 'same-origin',
-    cache: 'no-store',
+    credentials: "same-origin",
+    cache: "no-store",
     ...options,
     headers: {
-      Accept: 'application/json',
+      Accept: "application/json",
       ...(options.body
-        ? { 'Content-Type': 'application/json' }
+        ? { "Content-Type": "application/json" }
         : {}),
       ...options.headers,
     },
@@ -36,44 +37,47 @@ async function requestJson(url, options = {}) {
   }
 
   if (!response.ok) {
-    throw new Error(data?.error || 'Request failed. Please try again.');
+    throw new Error(
+      data?.error || "Request failed. Please try again.",
+    );
   }
 
   return data;
 }
 
 export default function AdminDashboard({ admin, onLogout }) {
-  const [activeSection, setActiveSection] = useState('Dashboard');
+  const [activeSection, setActiveSection] = useState("Dashboard");
 
   const [depositRequests, setDepositRequests] = useState([]);
   const [depositLoading, setDepositLoading] = useState(false);
-  const [depositError, setDepositError] = useState('');
+  const [depositError, setDepositError] = useState("");
 
   const [withdrawalRequests, setWithdrawalRequests] = useState([]);
   const [withdrawalLoading, setWithdrawalLoading] = useState(false);
-  const [withdrawalError, setWithdrawalError] = useState('');
+  const [withdrawalError, setWithdrawalError] = useState("");
 
   const [customers, setCustomers] = useState([]);
-  const [customerName, setCustomerName] = useState('');
-  const [customerLoginId, setCustomerLoginId] = useState('');
-  const [customerPromoCode, setCustomerPromoCode] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [withdrawalPassword, setWithdrawalPassword] = useState('');
+  const [customerName, setCustomerName] = useState("");
+  const [customerLoginId, setCustomerLoginId] = useState("");
+  const [customerPromoCode, setCustomerPromoCode] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [withdrawalPassword, setWithdrawalPassword] = useState("");
   const [customerLoading, setCustomerLoading] = useState(false);
   const [customerCreating, setCustomerCreating] = useState(false);
-  const [customerMessage, setCustomerMessage] = useState('');
-  const [customerError, setCustomerError] = useState('');
+  const [customerMessage, setCustomerMessage] = useState("");
+  const [customerError, setCustomerError] = useState("");
 
-  const [coinCustomerId, setCoinCustomerId] = useState('');
-  const [coinAmount, setCoinAmount] = useState('');
-  const [coinMessage, setCoinMessage] = useState('');
+  const [coinCustomerId, setCoinCustomerId] = useState("");
+  const [coinAmount, setCoinAmount] = useState("");
+  const [coinMessage, setCoinMessage] = useState("");
   const [coinBusy, setCoinBusy] = useState(false);
 
   const [coinHistory, setCoinHistory] = useState(() => {
     try {
       const parsed = JSON.parse(
-        localStorage.getItem(COIN_HISTORY_KEY) || '[]',
+        localStorage.getItem(COIN_HISTORY_KEY) || "[]",
       );
+
       return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
@@ -87,8 +91,8 @@ export default function AdminDashboard({ admin, onLogout }) {
     DEFAULT_WHATSAPP_NUMBER,
   );
   const [whatsappLoading, setWhatsappLoading] = useState(false);
-  const [whatsappMessage, setWhatsappMessage] = useState('');
-  const [whatsappError, setWhatsappError] = useState('');
+  const [whatsappMessage, setWhatsappMessage] = useState("");
+  const [whatsappError, setWhatsappError] = useState("");
 
   useEffect(() => {
     try {
@@ -103,10 +107,13 @@ export default function AdminDashboard({ admin, onLogout }) {
 
   const loadDepositRequests = async () => {
     setDepositLoading(true);
-    setDepositError('');
+    setDepositError("");
 
     try {
-      const data = await requestJson('/api/admin/demo-deposits');
+      const data = await requestJson(
+        "/api/admin/demo-deposits",
+      );
+
       setDepositRequests(
         Array.isArray(data.requests) ? data.requests : [],
       );
@@ -119,10 +126,13 @@ export default function AdminDashboard({ admin, onLogout }) {
 
   const loadWithdrawalRequests = async () => {
     setWithdrawalLoading(true);
-    setWithdrawalError('');
+    setWithdrawalError("");
 
     try {
-      const data = await requestJson('/api/admin/demo-withdrawals');
+      const data = await requestJson(
+        "/api/admin/demo-withdrawals",
+      );
+
       setWithdrawalRequests(
         Array.isArray(data.requests) ? data.requests : [],
       );
@@ -135,10 +145,11 @@ export default function AdminDashboard({ admin, onLogout }) {
 
   const loadCustomers = async () => {
     setCustomerLoading(true);
-    setCustomerError('');
+    setCustomerError("");
 
     try {
-      const data = await requestJson('/api/admin/customers');
+      const data = await requestJson("/api/admin/customers");
+
       setCustomers(
         Array.isArray(data.customers) ? data.customers : [],
       );
@@ -151,14 +162,17 @@ export default function AdminDashboard({ admin, onLogout }) {
 
   const loadWhatsAppNumber = async () => {
     setWhatsappLoading(true);
-    setWhatsappError('');
-    setWhatsappMessage('');
+    setWhatsappError("");
+    setWhatsappMessage("");
 
     try {
-      const data = await requestJson('/api/admin/settings/whatsapp');
+      const data = await requestJson(
+        "/api/admin/settings/whatsapp",
+      );
+
       const number = String(
         data.whatsappNumber || DEFAULT_WHATSAPP_NUMBER,
-      ).replace(/\D/g, '');
+      ).replace(/\D/g, "");
 
       setWhatsappNumber(number);
       setWhatsappInput(number);
@@ -171,40 +185,49 @@ export default function AdminDashboard({ admin, onLogout }) {
 
   useEffect(() => {
     if (
-      ['Dashboard', 'Pending Deposits', 'Transaction History'].includes(
-        activeSection,
-      )
+      [
+        "Dashboard",
+        "Pending Deposits",
+        "Transaction History",
+      ].includes(activeSection)
     ) {
       loadDepositRequests();
     }
 
     if (
-      ['Dashboard', 'Pending Withdrawals', 'Transaction History'].includes(
-        activeSection,
-      )
+      [
+        "Dashboard",
+        "Pending Withdrawals",
+        "Transaction History",
+      ].includes(activeSection)
     ) {
       loadWithdrawalRequests();
     }
 
-    if (['Customers', 'Coin Management'].includes(activeSection)) {
+    if (
+      ["Customers", "Coin Management"].includes(activeSection)
+    ) {
       loadCustomers();
     }
 
-    if (activeSection === 'WhatsApp Settings') {
+    if (activeSection === "WhatsApp Settings") {
       loadWhatsAppNumber();
     }
   }, [activeSection]);
 
   const saveWhatsAppNumber = async event => {
     event.preventDefault();
-    setWhatsappError('');
-    setWhatsappMessage('');
 
-    const cleanNumber = String(whatsappInput || '').replace(/\D/g, '');
+    setWhatsappError("");
+    setWhatsappMessage("");
+
+    const cleanNumber = String(
+      whatsappInput || "",
+    ).replace(/\D/g, "");
 
     if (!/^[1-9][0-9]{9,14}$/.test(cleanNumber)) {
       setWhatsappError(
-        'Enter a valid WhatsApp number with country code. Example: 919346824432',
+        "Enter a valid WhatsApp number with country code. Example: 919346824432",
       );
       return;
     }
@@ -220,14 +243,19 @@ export default function AdminDashboard({ admin, onLogout }) {
     setWhatsappLoading(true);
 
     try {
-      const data = await requestJson('/api/admin/settings/whatsapp', {
-        method: 'PUT',
-        body: JSON.stringify({ whatsappNumber: cleanNumber }),
-      });
+      const data = await requestJson(
+        "/api/admin/settings/whatsapp",
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            whatsappNumber: cleanNumber,
+          }),
+        },
+      );
 
       const savedNumber = String(
         data.whatsappNumber || cleanNumber,
-      ).replace(/\D/g, '');
+      ).replace(/\D/g, "");
 
       setWhatsappNumber(savedNumber);
       setWhatsappInput(savedNumber);
@@ -243,30 +271,31 @@ export default function AdminDashboard({ admin, onLogout }) {
 
   const createCustomer = async event => {
     event.preventDefault();
+
     if (customerCreating) return;
 
-    setCustomerError('');
-    setCustomerMessage('');
+    setCustomerError("");
+    setCustomerMessage("");
 
     const cleanName = customerName.trim();
     const cleanLoginId = customerLoginId.trim().toLowerCase();
     const cleanPromoCode = customerPromoCode.trim().toUpperCase();
 
     if (!cleanName) {
-      setCustomerError('Customer Name is required.');
+      setCustomerError("Customer Name is required.");
       return;
     }
 
     if (!/^[a-z0-9._-]{4,30}$/.test(cleanLoginId)) {
       setCustomerError(
-        'Login ID must contain 4–30 letters, numbers, dots, underscores or hyphens.',
+        "Login ID must contain 4–30 letters, numbers, dots, underscores or hyphens.",
       );
       return;
     }
 
     if (!/^[A-Z0-9_-]{4,30}$/.test(cleanPromoCode)) {
       setCustomerError(
-        'Promo Code must contain 4–30 letters, numbers, underscores or hyphens.',
+        "Promo Code must contain 4–30 letters, numbers, underscores or hyphens.",
       );
       return;
     }
@@ -274,32 +303,33 @@ export default function AdminDashboard({ admin, onLogout }) {
     if (
       customers.some(
         customer =>
-          getPromoCode(customer).toUpperCase() === cleanPromoCode,
+          getPromoCode(customer).toUpperCase() ===
+          cleanPromoCode,
       )
     ) {
       setCustomerError(
-        'This Promo Code is already assigned. Enter a different code.',
+        "This Promo Code is already assigned. Enter a different code.",
       );
       return;
     }
 
     if (loginPassword.length < 6) {
       setCustomerError(
-        'Login Password must contain at least 6 characters.',
+        "Login Password must contain at least 6 characters.",
       );
       return;
     }
 
     if (withdrawalPassword.length < 6) {
       setCustomerError(
-        'Withdrawal Password must contain at least 6 characters.',
+        "Withdrawal Password must contain at least 6 characters.",
       );
       return;
     }
 
     if (loginPassword === withdrawalPassword) {
       setCustomerError(
-        'Login Password and Withdrawal Password must be different.',
+        "Login Password and Withdrawal Password must be different.",
       );
       return;
     }
@@ -307,8 +337,8 @@ export default function AdminDashboard({ admin, onLogout }) {
     setCustomerCreating(true);
 
     try {
-      const data = await requestJson('/api/admin/customers', {
-        method: 'POST',
+      const data = await requestJson("/api/admin/customers", {
+        method: "POST",
         body: JSON.stringify({
           name: cleanName,
           loginId: cleanLoginId,
@@ -320,11 +350,11 @@ export default function AdminDashboard({ admin, onLogout }) {
 
       const savedPromo = getPromoCode(data.customer);
 
-      setCustomerName('');
-      setCustomerLoginId('');
-      setCustomerPromoCode('');
-      setLoginPassword('');
-      setWithdrawalPassword('');
+      setCustomerName("");
+      setCustomerLoginId("");
+      setCustomerPromoCode("");
+      setLoginPassword("");
+      setWithdrawalPassword("");
 
       await loadCustomers();
 
@@ -353,7 +383,7 @@ export default function AdminDashboard({ admin, onLogout }) {
 
     if (temporaryPassword.length < 6) {
       window.alert(
-        'Temporary Login Password must contain at least 6 characters.',
+        "Temporary Login Password must contain at least 6 characters.",
       );
       return;
     }
@@ -362,12 +392,15 @@ export default function AdminDashboard({ admin, onLogout }) {
       await requestJson(
         `/api/admin/customers/${customer.id}/reset-login-password`,
         {
-          method: 'POST',
+          method: "POST",
           body: JSON.stringify({ temporaryPassword }),
         },
       );
 
-      window.alert('Temporary Login Password reset successfully.');
+      window.alert(
+        "Temporary Login Password reset successfully.",
+      );
+
       await loadCustomers();
     } catch (error) {
       window.alert(error.message);
@@ -383,7 +416,7 @@ export default function AdminDashboard({ admin, onLogout }) {
 
     if (temporaryWithdrawalPassword.length < 6) {
       window.alert(
-        'Temporary Withdrawal Password must contain at least 6 characters.',
+        "Temporary Withdrawal Password must contain at least 6 characters.",
       );
       return;
     }
@@ -392,14 +425,17 @@ export default function AdminDashboard({ admin, onLogout }) {
       await requestJson(
         `/api/admin/customers/${customer.id}/reset-withdrawal-password`,
         {
-          method: 'POST',
-          body: JSON.stringify({ temporaryWithdrawalPassword }),
+          method: "POST",
+          body: JSON.stringify({
+            temporaryWithdrawalPassword,
+          }),
         },
       );
 
       window.alert(
-        'Temporary Withdrawal Password reset successfully.',
+        "Temporary Withdrawal Password reset successfully.",
       );
+
       await loadCustomers();
     } catch (error) {
       window.alert(error.message);
@@ -416,12 +452,17 @@ export default function AdminDashboard({ admin, onLogout }) {
     [withdrawalRequests],
   );
 
-  const updateDepositStatus = async (requestId, nextStatus) => {
+  const updateDepositStatus = async (
+    requestId,
+    nextStatus,
+  ) => {
     try {
       await requestJson(
-        `/api/admin/demo-deposits/${encodeURIComponent(requestId)}/status`,
+        `/api/admin/demo-deposits/${encodeURIComponent(
+          requestId,
+        )}/status`,
         {
-          method: 'PATCH',
+          method: "PATCH",
           body: JSON.stringify({ status: nextStatus }),
         },
       );
@@ -434,39 +475,51 @@ export default function AdminDashboard({ admin, onLogout }) {
     }
   };
 
-  const reviewDeposit = async (requestId, nextStatus) => {
-    const request = depositRequests.find(item => item.id === requestId);
+  const reviewDeposit = async (
+    requestId,
+    nextStatus,
+  ) => {
+    const request = depositRequests.find(
+      item => item.id === requestId,
+    );
 
     if (!request) {
-      window.alert('Deposit request not found.');
+      window.alert("Deposit request not found.");
       return;
     }
 
     if (!isPending(request)) {
-      window.alert('This request has already been reviewed.');
+      window.alert("This request has already been reviewed.");
       return;
     }
 
     const question =
-      nextStatus === 'APPROVED'
+      nextStatus === "APPROVED"
         ? `Approve ₹${money(request.amount)} deposit request?`
-        : 'Reject this deposit request?';
+        : "Reject this deposit request?";
 
     if (!window.confirm(question)) return;
 
     if (await updateDepositStatus(requestId, nextStatus)) {
-      window.alert(`Deposit request changed to ${nextStatus}.`);
+      window.alert(
+        `Deposit request changed to ${nextStatus}.`,
+      );
     }
   };
 
-  const updateWithdrawalStatus = async (requestId, nextStatus) => {
-    setWithdrawalError('');
+  const updateWithdrawalStatus = async (
+    requestId,
+    nextStatus,
+  ) => {
+    setWithdrawalError("");
 
     try {
       await requestJson(
-        `/api/admin/demo-withdrawals/${encodeURIComponent(requestId)}/status`,
+        `/api/admin/demo-withdrawals/${encodeURIComponent(
+          requestId,
+        )}/status`,
         {
-          method: 'PATCH',
+          method: "PATCH",
           body: JSON.stringify({ status: nextStatus }),
         },
       );
@@ -480,22 +533,28 @@ export default function AdminDashboard({ admin, onLogout }) {
     }
   };
 
-  const reviewWithdrawal = async (requestId, nextStatus) => {
+  const reviewWithdrawal = async (
+    requestId,
+    nextStatus,
+  ) => {
     const request = withdrawalRequests.find(
       item => item.id === requestId,
     );
 
     if (!request) {
-      window.alert('Withdrawal request not found.');
+      window.alert("Withdrawal request not found.");
       return;
     }
 
     if (!isPending(request)) {
-      window.alert('This withdrawal request has already been reviewed.');
+      window.alert(
+        "This withdrawal request has already been reviewed.",
+      );
       return;
     }
 
-    const action = nextStatus === 'APPROVED' ? 'Approve' : 'Reject';
+    const action =
+      nextStatus === "APPROVED" ? "Approve" : "Reject";
 
     if (
       !window.confirm(
@@ -505,24 +564,31 @@ export default function AdminDashboard({ admin, onLogout }) {
       return;
     }
 
-    if (await updateWithdrawalStatus(requestId, nextStatus)) {
-      window.alert(`Withdrawal request changed to ${nextStatus}.`);
+    if (
+      await updateWithdrawalStatus(requestId, nextStatus)
+    ) {
+      window.alert(
+        `Withdrawal request changed to ${nextStatus}.`,
+      );
     }
   };
 
   const changeDemoCoins = async mode => {
     if (coinBusy) return;
-    setCoinMessage('');
+
+    setCoinMessage("");
 
     if (!coinCustomerId) {
-      setCoinMessage('Select customer first.');
+      setCoinMessage("Select customer first.");
       return;
     }
 
     const amount = Number(coinAmount);
 
     if (!Number.isSafeInteger(amount) || amount <= 0) {
-      setCoinMessage('Enter a valid whole-number Coin amount.');
+      setCoinMessage(
+        "Enter a valid whole-number Coin amount.",
+      );
       return;
     }
 
@@ -531,12 +597,12 @@ export default function AdminDashboard({ admin, onLogout }) {
     );
 
     if (!customer) {
-      setCoinMessage('Selected customer was not found.');
+      setCoinMessage("Selected customer was not found.");
       return;
     }
 
-    if (mode !== 'ADD') {
-      setCoinMessage('Remove Coins is not available yet.');
+    if (mode !== "ADD") {
+      setCoinMessage("Remove Coins is not available yet.");
       return;
     }
 
@@ -546,10 +612,10 @@ export default function AdminDashboard({ admin, onLogout }) {
       const data = await requestJson(
         `/api/admin/customers/${customer.id}/add-demo-coins`,
         {
-          method: 'POST',
+          method: "POST",
           body: JSON.stringify({
             amount,
-            note: 'Coins added by Admin',
+            note: "Coins added by Admin",
           }),
         },
       );
@@ -565,14 +631,15 @@ export default function AdminDashboard({ admin, onLogout }) {
         customerId: customer.id,
         loginId: customer.loginId,
         customerName: customer.name || customer.loginId,
-        type: 'ADD',
+        type: "ADD",
         amount,
         balance: nextBalance,
-        date: new Date().toLocaleString('en-IN'),
+        date: new Date().toLocaleString("en-IN"),
       };
 
       setCoinHistory(previous => [record, ...previous]);
-      setCoinAmount('');
+      setCoinAmount("");
+
       setCoinMessage(
         `${money(amount)} Coins added to ${customer.name}. New balance: ${money(nextBalance)}`,
       );
@@ -584,18 +651,18 @@ export default function AdminDashboard({ admin, onLogout }) {
   };
 
   const adminBoxes = [
-    { title: 'Deposit Accounts', icon: '🏦' },
-    { title: 'Coin Management', icon: '🪙' },
-    { title: 'Customers', icon: '👥' },
-    { title: 'WhatsApp Settings', icon: '📱' },
-    { title: 'API Settings', icon: '🔌' },
-    { title: 'Transaction History', icon: '📒' },
-    { title: 'Admin Settings', icon: '⚙️' },
+    { title: "Deposit Accounts", icon: "🏦" },
+    { title: "Coin Management", icon: "🪙" },
+    { title: "Customers", icon: "👥" },
+    { title: "WhatsApp Settings", icon: "📱" },
+    { title: "API Settings", icon: "🔌" },
+    { title: "Transaction History", icon: "📒" },
+    { title: "Admin Settings", icon: "⚙️" },
   ];
 
-  const goBack = () => setActiveSection('Dashboard');
+  const goBack = () => setActiveSection("Dashboard");
 
-  if (activeSection === 'Deposit Accounts') {
+  if (activeSection === "Deposit Accounts") {
     return <AdminPaymentSettings onBack={goBack} />;
   }
 
@@ -607,49 +674,75 @@ export default function AdminDashboard({ admin, onLogout }) {
             <p className="text-[9px] font-black tracking-widest text-amber-200">
               TELUGU SPORTS BOOK
             </p>
+
             <h1 className="mt-1 text-lg font-black">
               🛡️ ADMIN CONTROL PANEL
             </h1>
           </div>
+
           <div className="text-right">
-            <p className="text-[8px] text-amber-100">ADMIN ID</p>
+            <p className="text-[8px] text-amber-100">
+              ADMIN ID
+            </p>
+
             <p className="text-[11px] font-black">
-              {admin?.username || 'admin'}
+              {admin?.username || "admin"}
             </p>
           </div>
         </div>
       </header>
 
-      {activeSection === 'Dashboard' && (
+      {activeSection === "Dashboard" && (
         <main className="mx-auto max-w-5xl px-3 py-5">
-          <h2 className="text-xl font-black">Admin Dashboard</h2>
+          <h2 className="text-xl font-black">
+            Admin Dashboard
+          </h2>
 
-          {depositError && <MessageBox text={depositError} error />}
-          {withdrawalError && <MessageBox text={withdrawalError} error />}
+          {depositError && (
+            <MessageBox text={depositError} error />
+          )}
+
+          {withdrawalError && (
+            <MessageBox text={withdrawalError} error />
+          )}
 
           <div className="mt-5 grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setActiveSection('Pending Deposits')}
+              onClick={() =>
+                setActiveSection("Pending Deposits")
+              }
               className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 text-left"
             >
               <span className="text-2xl">📥</span>
+
               <p className="mt-2 text-2xl font-black text-green-300">
-                {depositLoading ? '...' : pendingDeposits}
+                {depositLoading ? "..." : pendingDeposits}
               </p>
-              <p className="text-[9px] font-black">PENDING DEPOSITS</p>
+
+              <p className="text-[9px] font-black">
+                PENDING DEPOSITS
+              </p>
             </button>
 
             <button
               type="button"
-              onClick={() => setActiveSection('Pending Withdrawals')}
+              onClick={() =>
+                setActiveSection("Pending Withdrawals")
+              }
               className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-left"
             >
               <span className="text-2xl">💸</span>
+
               <p className="mt-2 text-2xl font-black text-red-300">
-                {withdrawalLoading ? '...' : pendingWithdrawals}
+                {withdrawalLoading
+                  ? "..."
+                  : pendingWithdrawals}
               </p>
-              <p className="text-[9px] font-black">PENDING WITHDRAWALS</p>
+
+              <p className="text-[9px] font-black">
+                PENDING WITHDRAWALS
+              </p>
             </button>
           </div>
 
@@ -662,10 +755,15 @@ export default function AdminDashboard({ admin, onLogout }) {
               <button
                 type="button"
                 key={item.title}
-                onClick={() => setActiveSection(item.title)}
+                onClick={() =>
+                  setActiveSection(item.title)
+                }
                 className="min-h-[130px] rounded-xl border border-[#28655f] bg-[#083d37] p-4 text-left"
               >
-                <span className="text-3xl">{item.icon}</span>
+                <span className="text-3xl">
+                  {item.icon}
+                </span>
+
                 <p className="mt-4 text-[11px] font-black">
                   {item.title}
                 </p>
@@ -683,117 +781,204 @@ export default function AdminDashboard({ admin, onLogout }) {
         </main>
       )}
 
-      {activeSection === 'Pending Deposits' && (
-        <AdminPage title="Pending Deposits" icon="📥" onBack={goBack}>
+      {activeSection === "Pending Deposits" && (
+        <AdminPage
+          title="Pending Deposits"
+          icon="📥"
+          onBack={goBack}
+        >
           <div className="grid grid-cols-2 gap-2">
             <InfoBox
               label="TOTAL PENDING"
-              value={depositLoading ? '...' : pendingDeposits}
+              value={depositLoading ? "..." : pendingDeposits}
             />
+
             <RefreshButton
               loading={depositLoading}
               onClick={loadDepositRequests}
             />
           </div>
 
-          {depositError && <MessageBox text={depositError} error />}
+          {depositError && (
+            <MessageBox text={depositError} error />
+          )}
 
           {!depositLoading && pendingDeposits === 0 && (
             <EmptyState text="No pending deposits" />
           )}
 
           <div className="mt-4 space-y-3">
-            {depositRequests.filter(isPending).map(request => (
-              <div
-                key={request.id}
-                className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
-              >
-                <RequestHeading request={request} />
+            {depositRequests
+              .filter(isPending)
+              .map(request => (
+                <div
+                  key={request.id}
+                  className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
+                >
+                  <RequestHeading request={request} />
 
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <InfoBox label="AMOUNT" value={`₹${money(request.amount)}`} />
-                  <InfoBox
-                    label="REFERENCE / UTR"
-                    value={request.referenceNumber || request.reference || '—'}
-                  />
-                  <InfoBox
-                    label="METHOD"
-                    value={request.paymentMethod || request.method || '—'}
-                  />
-                  <InfoBox
-                    label="CUSTOMER ID"
-                    value={request.customerId || '—'}
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <InfoBox
+                      label="AMOUNT"
+                      value={`₹${money(request.amount)}`}
+                    />
+
+                    <InfoBox
+                      label="REFERENCE / UTR"
+                      value={
+                        request.referenceNumber ||
+                        request.reference ||
+                        "—"
+                      }
+                    />
+
+                    <InfoBox
+                      label="METHOD"
+                      value={
+                        request.paymentMethod ||
+                        request.method ||
+                        "—"
+                      }
+                    />
+
+                    <InfoBox
+                      label="CUSTOMER ID"
+                      value={request.customerId || "—"}
+                    />
+                  </div>
+
+                  {request.proofName && (
+                    <div className="mt-2">
+                      <InfoBox
+                        label="PROOF FILE"
+                        value={request.proofName}
+                      />
+                    </div>
+                  )}
+
+                  <RequestDate value={request.createdAt} />
+
+                  <ReviewButtons
+                    onApprove={() =>
+                      reviewDeposit(
+                        request.id,
+                        "APPROVED",
+                      )
+                    }
+                    onReject={() =>
+                      reviewDeposit(
+                        request.id,
+                        "REJECTED",
+                      )
+                    }
                   />
                 </div>
-
-                {request.proofName && (
-                  <div className="mt-2">
-                    <InfoBox label="PROOF FILE" value={request.proofName} />
-                  </div>
-                )}
-
-                <RequestDate value={request.createdAt} />
-
-                <ReviewButtons
-                  onApprove={() => reviewDeposit(request.id, 'APPROVED')}
-                  onReject={() => reviewDeposit(request.id, 'REJECTED')}
-                />
-              </div>
-            ))}
+              ))}
           </div>
         </AdminPage>
       )}
 
-      {activeSection === 'Pending Withdrawals' && (
-        <AdminPage title="Pending Withdrawals" icon="💸" onBack={goBack}>
+      {activeSection === "Pending Withdrawals" && (
+        <AdminPage
+          title="Pending Withdrawals"
+          icon="💸"
+          onBack={goBack}
+        >
           <div className="grid grid-cols-2 gap-2">
             <InfoBox
               label="TOTAL PENDING"
-              value={withdrawalLoading ? '...' : pendingWithdrawals}
+              value={
+                withdrawalLoading
+                  ? "..."
+                  : pendingWithdrawals
+              }
             />
+
             <RefreshButton
               loading={withdrawalLoading}
               onClick={loadWithdrawalRequests}
             />
           </div>
 
-          {withdrawalError && <MessageBox text={withdrawalError} error />}
-
-          {!withdrawalLoading && pendingWithdrawals === 0 && (
-            <EmptyState text="No pending withdrawals" />
+          {withdrawalError && (
+            <MessageBox text={withdrawalError} error />
           )}
 
+          {!withdrawalLoading &&
+            pendingWithdrawals === 0 && (
+              <EmptyState text="No pending withdrawals" />
+            )}
+
           <div className="mt-4 space-y-3">
-            {withdrawalRequests.filter(isPending).map(request => (
-              <div
-                key={request.id}
-                className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
-              >
-                <RequestHeading request={request} />
+            {withdrawalRequests
+              .filter(isPending)
+              .map(request => (
+                <div
+                  key={request.id}
+                  className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
+                >
+                  <RequestHeading request={request} />
 
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <InfoBox label="REQUESTED COINS" value={money(request.amount)} />
-                  <InfoBox label="CUSTOMER ID" value={request.customerId || '—'} />
-                  <InfoBox label="ACCOUNT HOLDER" value={request.accountHolderName || '—'} />
-                  <InfoBox label="BANK NAME" value={request.bankName || '—'} />
-                  <InfoBox label="ACCOUNT NUMBER" value={request.accountNumber || '—'} />
-                  <InfoBox label="IFSC CODE" value={request.ifscCode || '—'} />
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <InfoBox
+                      label="REQUESTED COINS"
+                      value={money(request.amount)}
+                    />
+
+                    <InfoBox
+                      label="CUSTOMER ID"
+                      value={request.customerId || "—"}
+                    />
+
+                    <InfoBox
+                      label="ACCOUNT HOLDER"
+                      value={request.accountHolderName || "—"}
+                    />
+
+                    <InfoBox
+                      label="BANK NAME"
+                      value={request.bankName || "—"}
+                    />
+
+                    <InfoBox
+                      label="ACCOUNT NUMBER"
+                      value={request.accountNumber || "—"}
+                    />
+
+                    <InfoBox
+                      label="IFSC CODE"
+                      value={request.ifscCode || "—"}
+                    />
+                  </div>
+
+                  <RequestDate value={request.createdAt} />
+
+                  <ReviewButtons
+                    onApprove={() =>
+                      reviewWithdrawal(
+                        request.id,
+                        "APPROVED",
+                      )
+                    }
+                    onReject={() =>
+                      reviewWithdrawal(
+                        request.id,
+                        "REJECTED",
+                      )
+                    }
+                  />
                 </div>
-
-                <RequestDate value={request.createdAt} />
-
-                <ReviewButtons
-                  onApprove={() => reviewWithdrawal(request.id, 'APPROVED')}
-                  onReject={() => reviewWithdrawal(request.id, 'REJECTED')}
-                />
-              </div>
-            ))}
+              ))}
           </div>
         </AdminPage>
       )}
 
-      {activeSection === 'Customers' && (
-        <AdminPage title="Customers" icon="👥" onBack={goBack}>
+      {activeSection === "Customers" && (
+        <AdminPage
+          title="Customers"
+          icon="👥"
+          onBack={goBack}
+        >
           <form
             onSubmit={createCustomer}
             className="rounded-xl border border-amber-500/30 bg-black/10 p-4"
@@ -802,17 +987,24 @@ export default function AdminDashboard({ admin, onLogout }) {
               CREATE CUSTOMER ID
             </p>
 
-            <fieldset disabled={customerCreating} className="mt-4 space-y-3">
+            <fieldset
+              disabled={customerCreating}
+              className="mt-4 space-y-3"
+            >
               <CustomerInput
                 label="CUSTOMER NAME"
                 value={customerName}
-                onChange={event => setCustomerName(event.target.value)}
+                onChange={event =>
+                  setCustomerName(event.target.value)
+                }
               />
 
               <CustomerInput
                 label="LOGIN ID"
                 value={customerLoginId}
-                onChange={event => setCustomerLoginId(event.target.value)}
+                onChange={event =>
+                  setCustomerLoginId(event.target.value)
+                }
               />
 
               <CustomerInput
@@ -821,39 +1013,53 @@ export default function AdminDashboard({ admin, onLogout }) {
                 maxLength={30}
                 placeholder="Example: SATISH05"
                 onChange={event =>
-                  setCustomerPromoCode(event.target.value.toUpperCase())
+                  setCustomerPromoCode(
+                    event.target.value.toUpperCase(),
+                  )
                 }
               />
 
               <p className="text-[9px] leading-5 text-cyan-200">
                 Assign a unique Promo Code to this customer.
-                Use 4–30 letters, numbers, underscores or hyphens.
+                Use 4–30 letters, numbers, underscores or
+                hyphens.
               </p>
 
               <CustomerInput
                 label="LOGIN PASSWORD"
                 type="password"
                 value={loginPassword}
-                onChange={event => setLoginPassword(event.target.value)}
+                onChange={event =>
+                  setLoginPassword(event.target.value)
+                }
               />
 
               <CustomerInput
                 label="WITHDRAWAL PASSWORD"
                 type="password"
                 value={withdrawalPassword}
-                onChange={event => setWithdrawalPassword(event.target.value)}
+                onChange={event =>
+                  setWithdrawalPassword(event.target.value)
+                }
               />
             </fieldset>
 
-            {customerError && <MessageBox text={customerError} error />}
-            {customerMessage && <MessageBox text={customerMessage} />}
+            {customerError && (
+              <MessageBox text={customerError} error />
+            )}
+
+            {customerMessage && (
+              <MessageBox text={customerMessage} />
+            )}
 
             <button
               type="submit"
               disabled={customerCreating || customerLoading}
               className="mt-4 h-[46px] w-full rounded-lg bg-amber-500 text-[10px] font-black text-black disabled:opacity-50"
             >
-              {customerCreating ? 'PLEASE WAIT...' : 'CREATE CUSTOMER'}
+              {customerCreating
+                ? "PLEASE WAIT..."
+                : "CREATE CUSTOMER"}
             </button>
           </form>
 
@@ -876,31 +1082,43 @@ export default function AdminDashboard({ admin, onLogout }) {
               >
                 <div className="flex justify-between gap-3">
                   <div>
-                    <p className="text-sm font-black">{customer.name}</p>
+                    <p className="text-sm font-black">
+                      {customer.name}
+                    </p>
+
                     <p className="mt-1 text-[9px] text-amber-300">
                       {customer.loginId}
                     </p>
                   </div>
+
                   <StatusBadge status={customer.status} />
                 </div>
 
                 <div className="mt-3 space-y-2">
                   <InfoBox
                     label="PROMO CODE"
-                    value={getPromoCode(customer) || 'NOT ASSIGNED'}
+                    value={
+                      getPromoCode(customer) || "NOT ASSIGNED"
+                    }
                   />
+
                   <InfoBox
                     label="LOGIN PASSWORD"
-                    value={customer.mustChangePassword ? 'CHANGE REQUIRED' : 'SET'}
+                    value={
+                      customer.mustChangePassword
+                        ? "CHANGE REQUIRED"
+                        : "SET"
+                    }
                   />
+
                   <InfoBox
                     label="WITHDRAWAL PASSWORD"
                     value={
                       !customer.withdrawalPasswordConfigured
-                        ? 'NOT CONFIGURED'
+                        ? "NOT CONFIGURED"
                         : customer.mustChangeWithdrawalPassword
-                          ? 'CHANGE REQUIRED'
-                          : 'SET'
+                          ? "CHANGE REQUIRED"
+                          : "SET"
                     }
                   />
                 </div>
@@ -908,7 +1126,9 @@ export default function AdminDashboard({ admin, onLogout }) {
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => resetLoginPassword(customer)}
+                    onClick={() =>
+                      resetLoginPassword(customer)
+                    }
                     className="min-h-[42px] rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 text-[8px] font-black text-amber-300"
                   >
                     RESET LOGIN PASSWORD
@@ -916,7 +1136,9 @@ export default function AdminDashboard({ admin, onLogout }) {
 
                   <button
                     type="button"
-                    onClick={() => resetWithdrawalPassword(customer)}
+                    onClick={() =>
+                      resetWithdrawalPassword(customer)
+                    }
                     className="min-h-[42px] rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-2 text-[8px] font-black text-cyan-300"
                   >
                     RESET WITHDRAWAL PASSWORD
@@ -928,15 +1150,21 @@ export default function AdminDashboard({ admin, onLogout }) {
         </AdminPage>
       )}
 
-      {activeSection === 'WhatsApp Settings' && (
-        <AdminPage title="WhatsApp Settings" icon="📱" onBack={goBack}>
+      {activeSection === "WhatsApp Settings" && (
+        <AdminPage
+          title="WhatsApp Settings"
+          icon="📱"
+          onBack={goBack}
+        >
           <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-4">
             <p className="text-xs font-black text-green-300">
               GLOBAL WHATSAPP CONTACT
             </p>
+
             <p className="mt-2 text-[9px] leading-5 text-gray-400">
               Change the WhatsApp contact used by the website.
-              Customers will receive the current saved number from the server.
+              Customers will receive the current saved number
+              from the server.
             </p>
 
             <div className="mt-4">
@@ -944,24 +1172,33 @@ export default function AdminDashboard({ admin, onLogout }) {
                 label="CURRENT WHATSAPP NUMBER"
                 value={
                   whatsappLoading
-                    ? 'Loading...'
-                    : `+${whatsappNumber || DEFAULT_WHATSAPP_NUMBER}`
+                    ? "Loading..."
+                    : `+${
+                        whatsappNumber ||
+                        DEFAULT_WHATSAPP_NUMBER
+                      }`
                 }
               />
             </div>
 
-            <form onSubmit={saveWhatsAppNumber} className="mt-4">
+            <form
+              onSubmit={saveWhatsAppNumber}
+              className="mt-4"
+            >
               <label className="block">
                 <span className="text-[8px] font-black text-gray-400">
                   NEW WHATSAPP NUMBER
                 </span>
+
                 <input
                   type="tel"
                   inputMode="numeric"
                   value={whatsappInput}
                   disabled={whatsappLoading}
                   onChange={event =>
-                    setWhatsappInput(event.target.value.replace(/\D/g, ''))
+                    setWhatsappInput(
+                      event.target.value.replace(/\D/g, ""),
+                    )
                   }
                   placeholder="Example: 919346824432"
                   autoComplete="off"
@@ -970,37 +1207,55 @@ export default function AdminDashboard({ admin, onLogout }) {
               </label>
 
               <p className="mt-2 text-[8px] leading-4 text-gray-500">
-                Enter country code + mobile number without spaces.
-                Example: 919346824432
+                Enter country code + mobile number without
+                spaces. Example: 919346824432
               </p>
 
-              {whatsappError && <MessageBox text={whatsappError} error />}
-              {whatsappMessage && <MessageBox text={whatsappMessage} />}
+              {whatsappError && (
+                <MessageBox text={whatsappError} error />
+              )}
+
+              {whatsappMessage && (
+                <MessageBox text={whatsappMessage} />
+              )}
 
               <button
                 type="submit"
                 disabled={whatsappLoading}
                 className="mt-4 h-[48px] w-full rounded-lg bg-[#20c968] text-[10px] font-black text-white disabled:opacity-50"
               >
-                {whatsappLoading ? 'PLEASE WAIT...' : 'SAVE WHATSAPP NUMBER'}
+                {whatsappLoading
+                  ? "PLEASE WAIT..."
+                  : "SAVE WHATSAPP NUMBER"}
               </button>
             </form>
           </div>
 
           <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
-            <p className="text-[9px] font-black text-amber-300">IMPORTANT</p>
+            <p className="text-[9px] font-black text-amber-300">
+              IMPORTANT
+            </p>
+
             <p className="mt-2 text-[8px] leading-5 text-gray-400">
-              Saving here updates the global website contact in the database.
-              The customer WhatsApp button must use the public settings API.
+              Saving here updates the global website contact in
+              the database. The customer WhatsApp button must
+              use the public settings API.
             </p>
           </div>
         </AdminPage>
       )}
 
-      {activeSection === 'Coin Management' && (
-        <AdminPage title="Coin Management" icon="🪙" onBack={goBack}>
+      {activeSection === "Coin Management" && (
+        <AdminPage
+          title="Coin Management"
+          icon="🪙"
+          onBack={goBack}
+        >
           <div className="rounded-xl border border-[#28655f] bg-[#083d37] p-4">
-            <p className="text-xs font-black text-amber-300">COIN CONTROL</p>
+            <p className="text-xs font-black text-amber-300">
+              COIN CONTROL
+            </p>
+
             <label className="mt-4 block text-[8px] font-black text-gray-400">
               CUSTOMER
             </label>
@@ -1008,47 +1263,60 @@ export default function AdminDashboard({ admin, onLogout }) {
             <select
               value={coinCustomerId}
               disabled={coinBusy}
-              onChange={event => setCoinCustomerId(event.target.value)}
+              onChange={event =>
+                setCoinCustomerId(event.target.value)
+              }
               className="mt-2 h-[46px] w-full rounded-lg border border-[#28655f] bg-[#061c1a] px-3 text-xs text-white"
             >
               <option value="">Select Customer</option>
+
               {customers.map(customer => (
-                <option key={customer.id} value={customer.id}>
+                <option
+                  key={customer.id}
+                  value={customer.id}
+                >
                   {customer.name} - {customer.loginId}
                 </option>
               ))}
             </select>
 
-            {customerError && <MessageBox text={customerError} error />}
+            {customerError && (
+              <MessageBox text={customerError} error />
+            )}
 
             <CustomerInput
               label="COINS"
               type="number"
               value={coinAmount}
               disabled={coinBusy}
-              onChange={event => setCoinAmount(event.target.value)}
+              onChange={event =>
+                setCoinAmount(event.target.value)
+              }
             />
 
             <div className="mt-4 grid grid-cols-2 gap-2">
               <button
                 type="button"
                 disabled={coinBusy}
-                onClick={() => changeDemoCoins('ADD')}
+                onClick={() => changeDemoCoins("ADD")}
                 className="h-[46px] rounded-lg bg-green-700 text-[10px] font-black disabled:opacity-50"
               >
-                {coinBusy ? 'PLEASE WAIT...' : '+ ADD COINS'}
+                {coinBusy ? "PLEASE WAIT..." : "+ ADD COINS"}
               </button>
+
               <button
                 type="button"
                 disabled={coinBusy}
-                onClick={() => changeDemoCoins('REMOVE')}
+                onClick={() => changeDemoCoins("REMOVE")}
                 className="h-[46px] rounded-lg bg-red-700 text-[10px] font-black disabled:opacity-50"
               >
                 − REMOVE COINS
               </button>
             </div>
 
-            {coinMessage && <MessageBox text={coinMessage} />}
+            {coinMessage && (
+              <MessageBox text={coinMessage} />
+            )}
           </div>
 
           <p className="mt-5 text-[10px] font-black text-amber-300">
@@ -1066,16 +1334,30 @@ export default function AdminDashboard({ admin, onLogout }) {
                 >
                   <div className="flex justify-between gap-3">
                     <div>
-                      <p className="text-[9px] font-black">{item.customerName}</p>
+                      <p className="text-[9px] font-black">
+                        {item.customerName}
+                      </p>
+
                       <p className="mt-1 text-[8px] text-gray-400">
                         {item.customerId}
                       </p>
                     </div>
-                    <span className={item.type === 'ADD' ? 'text-green-300' : 'text-red-300'}>
-                      {item.type === 'ADD' ? '+' : '-'}{money(item.amount)}
+
+                    <span
+                      className={
+                        item.type === "ADD"
+                          ? "text-green-300"
+                          : "text-red-300"
+                      }
+                    >
+                      {item.type === "ADD" ? "+" : "-"}
+                      {money(item.amount)}
                     </span>
                   </div>
-                  <p className="mt-2 text-[7px] text-gray-500">{item.date}</p>
+
+                  <p className="mt-2 text-[7px] text-gray-500">
+                    {item.date}
+                  </p>
                 </div>
               ))
             )}
@@ -1083,11 +1365,28 @@ export default function AdminDashboard({ admin, onLogout }) {
         </AdminPage>
       )}
 
-      {activeSection === 'Transaction History' && (
-        <AdminPage title="Transaction History" icon="📒" onBack={goBack}>
+      {activeSection === "Transaction History" && (
+        <AdminPage
+          title="Transaction History"
+          icon="📒"
+          onBack={goBack}
+        >
           <div className="grid grid-cols-2 gap-2">
-            <InfoBox label="DEPOSITS" value={depositLoading ? '...' : depositRequests.length} />
-            <InfoBox label="WITHDRAWALS" value={withdrawalLoading ? '...' : withdrawalRequests.length} />
+            <InfoBox
+              label="DEPOSITS"
+              value={
+                depositLoading ? "..." : depositRequests.length
+              }
+            />
+
+            <InfoBox
+              label="WITHDRAWALS"
+              value={
+                withdrawalLoading
+                  ? "..."
+                  : withdrawalRequests.length
+              }
+            />
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-2">
@@ -1096,6 +1395,7 @@ export default function AdminDashboard({ admin, onLogout }) {
               onClick={loadDepositRequests}
               text="↻ REFRESH DEPOSITS"
             />
+
             <RefreshButton
               loading={withdrawalLoading}
               onClick={loadWithdrawalRequests}
@@ -1106,7 +1406,10 @@ export default function AdminDashboard({ admin, onLogout }) {
           <p className="mt-5 text-[10px] font-black text-amber-300">
             DEPOSIT HISTORY
           </p>
-          {depositError && <MessageBox text={depositError} error />}
+
+          {depositError && (
+            <MessageBox text={depositError} error />
+          )}
 
           <div className="mt-3 space-y-2">
             {!depositLoading && depositRequests.length === 0 ? (
@@ -1119,22 +1422,34 @@ export default function AdminDashboard({ admin, onLogout }) {
                 >
                   <div className="flex justify-between gap-3">
                     <div>
-                      <p className="text-[9px] font-black">₹{money(item.amount)}</p>
-                      <p className="mt-1 text-[8px] text-gray-400">
-                        {item.customerName || 'Customer'}
+                      <p className="text-[9px] font-black">
+                        ₹{money(item.amount)}
                       </p>
+
+                      <p className="mt-1 text-[8px] text-gray-400">
+                        {item.customerName || "Customer"}
+                      </p>
+
                       <p className="mt-1 text-[8px] text-amber-300">
-                        {item.loginId || item.customerId || '—'}
+                        {item.loginId || item.customerId || "—"}
                       </p>
                     </div>
+
                     <StatusBadge status={item.status} />
                   </div>
+
                   <p className="mt-2 break-all text-[8px] text-gray-500">
-                    UTR: {item.referenceNumber || item.reference || '—'}
+                    UTR:{" "}
+                    {item.referenceNumber ||
+                      item.reference ||
+                      "—"}
                   </p>
+
                   {item.createdAt && (
                     <p className="mt-1 text-[7px] text-gray-500">
-                      {new Date(item.createdAt).toLocaleString('en-IN')}
+                      {new Date(
+                        item.createdAt,
+                      ).toLocaleString("en-IN")}
                     </p>
                   )}
                 </div>
@@ -1145,10 +1460,14 @@ export default function AdminDashboard({ admin, onLogout }) {
           <p className="mt-6 text-[10px] font-black text-amber-300">
             WITHDRAWAL HISTORY
           </p>
-          {withdrawalError && <MessageBox text={withdrawalError} error />}
+
+          {withdrawalError && (
+            <MessageBox text={withdrawalError} error />
+          )}
 
           <div className="mt-3 space-y-2">
-            {!withdrawalLoading && withdrawalRequests.length === 0 ? (
+            {!withdrawalLoading &&
+            withdrawalRequests.length === 0 ? (
               <EmptyState text="No withdrawal history" />
             ) : (
               withdrawalRequests.map(item => (
@@ -1161,23 +1480,29 @@ export default function AdminDashboard({ admin, onLogout }) {
                       <p className="text-[9px] font-black">
                         {money(item.amount)} COINS
                       </p>
+
                       <p className="mt-1 text-[8px] text-gray-400">
-                        {item.customerName || 'Customer'}
+                        {item.customerName || "Customer"}
                       </p>
+
                       <p className="mt-1 text-[8px] text-amber-300">
-                        {item.loginId || item.customerId || '—'}
+                        {item.loginId || item.customerId || "—"}
                       </p>
+
                       <p className="mt-2 text-[8px] text-gray-500">
-                        {item.bankName || '—'} • {item.accountNumber || '—'}
-                                            </p>
+                        {item.bankName || "—"} •{" "}
+                        {item.accountNumber || "—"}
+                      </p>
 
                       <p className="mt-1 text-[8px] text-gray-500">
-                        IFSC: {item.ifscCode || '—'}
+                        IFSC: {item.ifscCode || "—"}
                       </p>
 
                       {item.createdAt && (
                         <p className="mt-1 text-[7px] text-gray-500">
-                          {new Date(item.createdAt).toLocaleString('en-IN')}
+                          {new Date(
+                            item.createdAt,
+                          ).toLocaleString("en-IN")}
                         </p>
                       )}
                     </div>
@@ -1191,17 +1516,17 @@ export default function AdminDashboard({ admin, onLogout }) {
         </AdminPage>
       )}
 
-      {activeSection === 'API Settings' && (
+      {activeSection === "API Settings" && (
         <AdminPage
           title="API Settings"
           icon="🔌"
           onBack={goBack}
         >
-          <EmptyState text="API configuration section" />
+          <AdminSportsApiSettings />
         </AdminPage>
       )}
 
-      {activeSection === 'Admin Settings' && (
+      {activeSection === "Admin Settings" && (
         <AdminPage
           title="Admin Settings"
           icon="⚙️"
@@ -1209,7 +1534,7 @@ export default function AdminDashboard({ admin, onLogout }) {
         >
           <InfoBox
             label="ADMIN ID"
-            value={admin?.username || 'admin'}
+            value={admin?.username || "admin"}
           />
         </AdminPage>
       )}
@@ -1235,9 +1560,7 @@ function AdminPage({
 
       <section className="rounded-xl border border-[#28655f] bg-[#072d29] p-4">
         <div className="mb-5 flex items-center gap-3">
-          <span className="text-3xl">
-            {icon}
-          </span>
+          <span className="text-3xl">{icon}</span>
 
           <div>
             <p className="text-[8px] font-black text-gray-500">
@@ -1258,7 +1581,7 @@ function AdminPage({
 
 function CustomerInput({
   label,
-  type = 'text',
+  type = "text",
   value,
   onChange,
   ...props
@@ -1281,10 +1604,7 @@ function CustomerInput({
   );
 }
 
-function InfoBox({
-  label,
-  value,
-}) {
+function InfoBox({ label, value }) {
   return (
     <div className="rounded-lg border border-[#28655f] bg-black/10 p-3">
       <p className="text-[7px] font-black text-gray-500">
@@ -1298,28 +1618,24 @@ function InfoBox({
   );
 }
 
-function StatusBadge({
-  status,
-}) {
+function StatusBadge({ status }) {
   const value = String(
-    status || 'PENDING',
+    status || "PENDING",
   ).toUpperCase();
 
   let style =
-    'border-amber-500/30 bg-amber-500/10 text-amber-300';
+    "border-amber-500/30 bg-amber-500/10 text-amber-300";
 
   if (
-    ['APPROVED', 'ACTIVE', 'SUCCESS'].includes(value)
+    ["APPROVED", "ACTIVE", "SUCCESS"].includes(value)
   ) {
     style =
-      'border-green-500/30 bg-green-500/10 text-green-300';
+      "border-green-500/30 bg-green-500/10 text-green-300";
   }
 
-  if (
-    ['REJECTED', 'REJECT'].includes(value)
-  ) {
+  if (["REJECTED", "REJECT"].includes(value)) {
     style =
-      'border-red-500/30 bg-red-500/10 text-red-300';
+      "border-red-500/30 bg-red-500/10 text-red-300";
   }
 
   return (
@@ -1331,9 +1647,7 @@ function StatusBadge({
   );
 }
 
-function EmptyState({
-  text,
-}) {
+function EmptyState({ text }) {
   return (
     <div className="mt-4 rounded-xl border border-dashed border-[#28655f] px-4 py-8 text-center">
       <p className="text-[10px] text-gray-500">
@@ -1349,11 +1663,11 @@ function MessageBox({
 }) {
   return (
     <div
-      role={error ? 'alert' : 'status'}
+      role={error ? "alert" : "status"}
       className={`mt-3 rounded-lg border p-3 text-[9px] font-bold ${
         error
-          ? 'border-red-500/40 bg-red-500/10 text-red-300'
-          : 'border-green-500/40 bg-green-500/10 text-green-300'
+          ? "border-red-500/40 bg-red-500/10 text-red-300"
+          : "border-green-500/40 bg-green-500/10 text-green-300"
       }`}
     >
       {text}
@@ -1364,7 +1678,7 @@ function MessageBox({
 function RefreshButton({
   loading,
   onClick,
-  text = '↻ REFRESH',
+  text = "↻ REFRESH",
 }) {
   return (
     <button
@@ -1373,19 +1687,17 @@ function RefreshButton({
       onClick={onClick}
       className="w-full rounded-lg border border-cyan-500/40 bg-cyan-500/10 p-3 text-[9px] font-black text-cyan-300 disabled:opacity-50"
     >
-      {loading ? 'LOADING...' : text}
+      {loading ? "LOADING..." : text}
     </button>
   );
 }
 
-function RequestHeading({
-  request,
-}) {
+function RequestHeading({ request }) {
   return (
     <div className="flex items-start justify-between gap-3">
       <div>
         <p className="text-sm font-black">
-          {request.customerName || 'Customer'}
+          {request.customerName || "Customer"}
         </p>
 
         <p className="mt-1 text-[9px] font-black text-amber-300">
@@ -1398,16 +1710,14 @@ function RequestHeading({
   );
 }
 
-function RequestDate({
-  value,
-}) {
+function RequestDate({ value }) {
   if (!value) return null;
 
   return (
     <div className="mt-2">
       <InfoBox
         label="REQUEST DATE"
-        value={new Date(value).toLocaleString('en-IN')}
+        value={new Date(value).toLocaleString("en-IN")}
       />
     </div>
   );
