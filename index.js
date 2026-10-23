@@ -1157,7 +1157,9 @@ app.get(
 
     res.json({
       status: "ok",
-      provider: "odds_api",
+      provider: sportsService.demoMode
+        ? "mock"
+        : "sportmonks",
       apiConnected,
       databaseConnected,
     });
@@ -1167,42 +1169,88 @@ app.get(
 app.get(
   "/api/sports/events",
   wrap(async (req, res) => {
-    res.json({
-      data:
-        (await sportsService.getEvents(
-          req.query.sport || "all",
-        )) || [],
-    });
+    res.set("Cache-Control", "no-store");
+
+    res.json(
+      await sportsService.getFeedState(
+        req.query.sport || "all",
+      ),
+    );
   }),
 );
 
 app.get(
   "/api/sports/stream",
-  (req, res) => {
+  wrap(async (req, res) => {
+    await sportsService.readSaved();
+
     res.set({
       "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
+      "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
     });
 
     res.flushHeaders();
+    sportsService.addClient(res);
 
-    if (
-      typeof sportsService.addClient ===
-      "function"
-    ) {
-      sportsService.addClient(res);
-    }
+    const heartbeat = setInterval(() => {
+      if (!res.destroyed && !res.writableEnded) {
+        res.write(": keep-alive\n\n");
+      }
+    }, 15000);
+
+    heartbeat.unref?.();
 
     req.on("close", () => {
-      if (
-        typeof sportsService.removeClient ===
-        "function"
-      ) {
-        sportsService.removeClient(res);
-      }
+      clearInterval(heartbeat);
+      sportsService.removeClient(res);
     });
-  },
+  }),
+);
+
+app.get(
+  "/api/admin/settings/sports-feed",
+  wrap(async (req, res) => {
+    res.set("Cache-Control", "no-store");
+
+    res.json(
+      await sportsService.getAdminState(),
+    );
+  }),
+);
+
+app.post(
+  "/api/admin/settings/sports-feed",
+  wrap(async (req, res) => {
+    if (req.headers.origin) {
+      let valid = false;
+
+      try {
+        valid =
+          new URL(req.headers.origin).host ===
+          req.headers.host;
+      } catch {
+        valid = false;
+      }
+
+      if (!valid) {
+        return res.status(403).json({
+          error: "Invalid request origin.",
+        });
+      }
+    }
+
+    res.set("Cache-Control", "no-store");
+
+    res.json(
+      await sportsService.setEnabled(
+        req.body?.enabled,
+        req.body?.version,
+        req.verifiedAdminId,
+      ),
+    );
+  }),
 );
 
 const depositJSON = row => ({
@@ -1904,6 +1952,9 @@ app.get("*", (req, res) =>
 
 async function startServer() {
   await initializeDatabase();
+
+  await sportsService.initialize(pool);
+  sportsService.start();
 
   startAutoGames();
   animatedCricket.start();
