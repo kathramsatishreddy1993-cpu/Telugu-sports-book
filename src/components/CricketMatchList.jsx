@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 
-const ist = (value) =>
+const ist = value =>
   new Intl.DateTimeFormat("en-IN", {
     timeZone: "Asia/Kolkata",
     day: "2-digit",
@@ -64,8 +64,8 @@ export function normalizeApiMatch(item, feed = "") {
 
   const names = Array.isArray(item.teams)
     ? item.teams
-        .map((t) =>
-          typeof t === "string" ? t : t?.name,
+        .map(team =>
+          typeof team === "string" ? team : team?.name,
         )
         .filter(Boolean)
     : [];
@@ -182,9 +182,9 @@ export default function CricketMatchList({
 
   const [error, setError] = useState("");
   const [sportsError, setSportsError] = useState("");
-  const [sportsLoaded, setSportsLoaded] =
-    useState(false);
+  const [sportsLoaded, setSportsLoaded] = useState(false);
   const [feedDemo, setFeedDemo] = useState(false);
+  const [feedMeta, setFeedMeta] = useState(null);
 
   const [anchor, setAnchor] = useState({
     server: Date.now(),
@@ -199,6 +199,7 @@ export default function CricketMatchList({
 
     const load = async () => {
       if (loading) return;
+
       loading = true;
 
       try {
@@ -219,25 +220,27 @@ export default function CricketMatchList({
           setVirtual(
             (data.matches || [])
               .slice(0, 3)
-              .map((m) => ({
-                key: `so-${m.startAt}`,
+              .map(match => ({
+                key: `so-${match.startAt}`,
                 type: "SO",
-                start: Date.parse(m.startAt),
+                start: Date.parse(match.startAt),
                 end:
-                  Date.parse(m.endsAt || "") ||
-                  Date.parse(m.startAt) + 120000,
-                teams: m.teams.join(" vs "),
-                phase: m.phase,
+                  Date.parse(match.endsAt || "") ||
+                  Date.parse(match.startAt) + 120000,
+                teams: match.teams.join(" vs "),
+                phase: match.phase,
               }))
-              .filter((m) =>
-                Number.isFinite(m.start),
+              .filter(match =>
+                Number.isFinite(match.start),
               ),
           );
 
           setError("");
         }
-      } catch (e) {
-        if (alive) setError(e.message);
+      } catch (requestError) {
+        if (alive) {
+          setError(requestError.message);
+        }
       } finally {
         loading = false;
       }
@@ -256,9 +259,35 @@ export default function CricketMatchList({
   useEffect(() => {
     let alive = true;
     let loading = false;
+    let connected = false;
+    let stream;
+
+    const apply = data => {
+      if (!alive) return;
+
+      const feed = String(
+        data.source || data.provider || "",
+      );
+
+      const rows = eventRows(data);
+
+      const unique = new Map(
+        rows
+          .map(item => normalizeApiMatch(item, feed))
+          .filter(Boolean)
+          .map(match => [match.key, match]),
+      );
+
+      setReal([...unique.values()]);
+      setFeedDemo(/mock|demo|sample/i.test(feed));
+      setFeedMeta(data);
+      setSportsError("");
+      setSportsLoaded(true);
+    };
 
     const load = async () => {
-      if (loading) return;
+      if (loading || !alive) return;
+
       loading = true;
 
       try {
@@ -266,36 +295,12 @@ export default function CricketMatchList({
           "/api/sports/events?sport=cricket",
         );
 
-        const feed = String(
-          data.dataFeedType ||
-            data.feedType ||
-            data.provider ||
-            data.source ||
-            "",
-        );
-
-        const rows = eventRows(data);
-
-        if (alive) {
-          const unique = new Map(
-            rows
-              .map((item) =>
-                normalizeApiMatch(item, feed),
-              )
-              .filter(Boolean)
-              .map((m) => [m.key, m]),
-          );
-
-          setReal([...unique.values()]);
-          setFeedDemo(
-            /mock|demo|sample/i.test(feed),
-          );
-          setSportsError("");
-          setSportsLoaded(true);
+        if (!connected) {
+          apply(data);
         }
-      } catch (e) {
-        if (alive) {
-          setSportsError(e.message);
+      } catch (requestError) {
+        if (alive && !connected) {
+          setSportsError(requestError.message);
           setSportsLoaded(true);
         }
       } finally {
@@ -303,13 +308,51 @@ export default function CricketMatchList({
       }
     };
 
-    load();
+    void load();
 
-    const timer = setInterval(load, 30000);
+    if (typeof EventSource !== "undefined") {
+      stream = new EventSource(
+        "/api/sports/stream",
+      );
+
+      stream.onmessage = event => {
+        try {
+          const data = JSON.parse(event.data);
+
+          if (!Array.isArray(data.events)) return;
+
+          connected = true;
+
+          apply({
+            ...data,
+            events: data.events.filter(
+              item =>
+                String(item.sport || "").toLowerCase() ===
+                "cricket",
+            ),
+          });
+        } catch {
+          connected = false;
+        }
+      };
+
+      stream.onerror = () => {
+        connected = false;
+      };
+    }
+
+    // Reads our server's saved cache only.
+    // This does not trigger a Sportmonks request.
+    const timer = setInterval(() => {
+      if (!connected) {
+        void load();
+      }
+    }, 5000);
 
     return () => {
       alive = false;
       clearInterval(timer);
+      stream?.close();
     };
   }, []);
 
@@ -329,7 +372,7 @@ export default function CricketMatchList({
   }, [anchor]);
 
   const fixtures = [
-    ...virtual.filter((m) => m.end > now),
+    ...virtual.filter(match => match.end > now),
     ...real,
   ].sort(
     (a, b) =>
@@ -340,6 +383,28 @@ export default function CricketMatchList({
 
   return (
     <div aria-label="Cricket match list">
+      {feedMeta && (
+        <p
+          role="status"
+          className="my-3 text-xs leading-5 text-slate-600"
+        >
+          {feedMeta.enabled === false
+            ? "Sports API OFF · Showing saved matches. Scores are not updating."
+            : feedMeta.stale
+              ? "Waiting for live updates · Showing saved matches."
+              : "Automatic sports updates ON · Every 5 seconds."}
+
+          {feedMeta.lastUpdated &&
+          Number.isFinite(
+            Date.parse(feedMeta.lastUpdated),
+          )
+            ? ` Last update: ${ist(
+                feedMeta.lastUpdated,
+              )} IST.`
+            : " No successful sports update saved yet."}
+        </p>
+      )}
+
       {(error || sportsError) && (
         <p
           role="alert"
@@ -372,7 +437,7 @@ export default function CricketMatchList({
         </div>
       )}
 
-      {fixtures.map((match) => {
+      {fixtures.map(match => {
         const live =
           match.type === "SO"
             ? now >= match.start && now < match.end
