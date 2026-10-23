@@ -3,6 +3,10 @@ import {
   createHash,
 } from 'node:crypto';
 
+import {
+  sportsService,
+} from './sportsService.js';
+
 /* SERVER-CONTROLLED DEMO MARKETS */
 
 export const DEMO_MARKETS = [
@@ -90,27 +94,70 @@ export const DEMO_MARKETS = [
     '8',
     '9',
   ],
-].map(([id, title, subtitle, no, yes]) => ({
-  id,
-  title,
-  subtitle,
-  no,
-  yes,
-}));
+].map(
+  ([id, title, subtitle, no, yes]) => ({
+    id,
+    title,
+    subtitle,
+    no,
+    yes,
+  }),
+);
 
-const hash = (token) =>
+const hash = token =>
   createHash('sha256')
     .update(token)
     .digest('hex');
 
 const demoMode = () =>
-  String(process.env.SPORTS_API_MODE || 'demo')
+  String(
+    process.env.SPORTS_API_MODE || 'demo',
+  )
     .trim()
     .toLowerCase() === 'demo';
 
+const reject = (
+  message,
+  status = 409,
+) =>
+  Object.assign(
+    new Error(message),
+    { status },
+  );
+
+/* DEMO ODDS FOR THE SELECTED MATCH */
+
+function teams(event) {
+  return [
+    {
+      name: event.homeTeam,
+      back: '1.85',
+      lay: '1.90',
+    },
+    {
+      name: 'Draw',
+      back: '3.20',
+      lay: '3.30',
+    },
+    {
+      name: event.awayTeam,
+      back: '2.10',
+      lay: '2.15',
+    },
+  ].filter(
+    (item, index, all) =>
+      all.findIndex(
+        other =>
+          other.name === item.name,
+      ) === index,
+  );
+}
+
 /* DATABASE TABLES */
 
-export async function initializeDemoBets(pool) {
+export async function initializeDemoBets(
+  pool,
+) {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS demo_customer_sessions (
       token_hash TEXT PRIMARY KEY,
@@ -144,10 +191,13 @@ export async function initializeDemoBets(pool) {
       payout_rate NUMERIC(12,4) NOT NULL,
 
       stake INTEGER NOT NULL
-        CHECK (stake BETWEEN 100 AND 25000),
+        CHECK(stake BETWEEN 100 AND 25000),
 
-      status VARCHAR(20) NOT NULL DEFAULT 'MATCHED',
-      result VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+      status VARCHAR(20) NOT NULL
+        DEFAULT 'MATCHED',
+
+      result VARCHAR(20) NOT NULL
+        DEFAULT 'PENDING',
 
       payout INTEGER NOT NULL DEFAULT 0,
       profit_loss INTEGER NOT NULL DEFAULT 0,
@@ -155,16 +205,18 @@ export async function initializeDemoBets(pool) {
       balance_before INTEGER NOT NULL,
       balance_after INTEGER NOT NULL,
 
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMPTZ NOT NULL
+        DEFAULT NOW(),
+
       settled_at TIMESTAMPTZ,
 
-      UNIQUE(customer_id, request_key)
+      UNIQUE(customer_id,request_key)
     );
 
     CREATE INDEX IF NOT EXISTS
       demo_bets_customer_match_idx
 
-      ON demo_bets (
+      ON demo_bets(
         customer_id,
         match_id,
         created_at DESC
@@ -177,34 +229,45 @@ export async function initializeDemoBets(pool) {
 export async function issueCustomerSession(
   pool,
   res,
-  customerId
+  customerId,
 ) {
-  const token = randomBytes(32).toString('hex');
+  const token =
+    randomBytes(32).toString('hex');
 
   await pool.query(
     `
-      INSERT INTO demo_customer_sessions (
+      INSERT INTO demo_customer_sessions(
         token_hash,
         customer_id,
         expires_at
       )
-
-      VALUES (
+      VALUES(
         $1,
         $2,
-        NOW() + INTERVAL '30 days'
+        NOW()+INTERVAL '30 days'
       )
     `,
-    [hash(token), customerId]
+    [
+      hash(token),
+      customerId,
+    ],
   );
 
-  res.cookie('tsb_demo_session', token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 30 * 24 * 60 * 60 * 1000,
-    path: '/',
-  });
+  res.cookie(
+    'tsb_demo_session',
+    token,
+    {
+      httpOnly: true,
+      sameSite: 'lax',
+
+      secure:
+        process.env.NODE_ENV ===
+        'production',
+
+      maxAge: 30 * 86400000,
+      path: '/',
+    },
+  );
 }
 
 /* RESPONSE FORMAT */
@@ -224,17 +287,28 @@ export function publicBet(row) {
 
     type: row.bet_type,
     rate: row.rate,
-    payoutRate: Number(row.payout_rate),
+
+    payoutRate: Number(
+      row.payout_rate,
+    ),
 
     stake: Number(row.stake),
     status: row.status,
     result: row.result,
 
     payout: Number(row.payout),
-    profitLoss: Number(row.profit_loss),
 
-    balanceBefore: Number(row.balance_before),
-    balanceAfter: Number(row.balance_after),
+    profitLoss: Number(
+      row.profit_loss,
+    ),
+
+    balanceBefore: Number(
+      row.balance_before,
+    ),
+
+    balanceAfter: Number(
+      row.balance_after,
+    ),
 
     createdAt: row.created_at,
     settledAt: row.settled_at,
@@ -242,18 +316,15 @@ export function publicBet(row) {
 }
 
 /*
-  Rule helper for a future verified final-score feed.
+  Use only a verified final market score.
 
   48 NO / 49 YES:
     NO wins at 48 or below.
     YES wins at 49 or above.
 
-  21 NO / 21 YES:
-    NO wins below 21.
-    YES wins at 21 or above.
-
-  Do not pass an incomplete/current score
-  as if it were a final market result.
+  Equal lines:
+    NO wins below the line.
+    YES wins at or above the line.
 */
 
 export function resolveFancyResult({
@@ -263,12 +334,18 @@ export function resolveFancyResult({
   selection,
 }) {
   if (
-    ![noLine, yesLine, finalScore].every(
-      Number.isSafeInteger
-    ) ||
-    !['NO', 'YES'].includes(selection)
+    ![
+      noLine,
+      yesLine,
+      finalScore,
+    ].every(Number.isSafeInteger) ||
+    !['NO', 'YES'].includes(
+      selection,
+    )
   ) {
-    throw new Error('Invalid result input.');
+    throw new Error(
+      'Invalid result input.',
+    );
   }
 
   if (
@@ -277,13 +354,18 @@ export function resolveFancyResult({
       yesLine === noLine + 1
     )
   ) {
-    throw new Error('Unsupported line gap.');
+    throw new Error(
+      'Unsupported line gap.',
+    );
   }
 
-  const yesWon = finalScore >= yesLine;
+  const yesWon =
+    finalScore >= yesLine;
 
   return (
-    selection === 'YES' ? yesWon : !yesWon
+    selection === 'YES'
+      ? yesWon
+      : !yesWon
   )
     ? 'WON'
     : 'LOST';
@@ -291,29 +373,37 @@ export function resolveFancyResult({
 
 /* ROUTES */
 
-export function registerDemoBetRoutes(app, pool) {
-  const wrap = (fn) => (req, res, next) =>
-    Promise.resolve(
-      fn(req, res, next)
-    ).catch(next);
+export function registerDemoBetRoutes(
+  app,
+  pool,
+) {
+  const wrap = fn =>
+    (req, res, next) =>
+      Promise.resolve(
+        fn(req, res, next),
+      ).catch(next);
 
   const requireCustomer = wrap(
     async (req, res, next) => {
       const cookie = String(
-        req.headers.cookie || ''
+        req.headers.cookie || '',
       )
         .split(';')
-        .map((value) => value.trim())
-        .find((value) =>
-          value.startsWith('tsb_demo_session=')
+        .map(value => value.trim())
+        .find(value =>
+          value.startsWith(
+            'tsb_demo_session=',
+          ),
         );
 
       const token =
         cookie?.slice(
-          'tsb_demo_session='.length
+          'tsb_demo_session='.length,
         ) || '';
 
-      if (!/^[a-f0-9]{64}$/.test(token)) {
+      if (
+        !/^[a-f0-9]{64}$/.test(token)
+      ) {
         return res.status(401).json({
           error:
             'Please logout and login again to enable server demo bets.',
@@ -322,21 +412,22 @@ export function registerDemoBetRoutes(app, pool) {
 
       const result = await pool.query(
         `
-          SELECT c.id, c.status
+          SELECT c.id,c.status
 
           FROM demo_customer_sessions s
 
           JOIN customers c
-            ON c.id = s.customer_id
+            ON c.id=s.customer_id
 
           WHERE
-            s.token_hash = $1
-            AND s.expires_at > NOW()
+            s.token_hash=$1
+            AND s.expires_at>NOW()
         `,
-        [hash(token)]
+        [hash(token)],
       );
 
-      const customer = result.rows[0];
+      const customer =
+        result.rows[0];
 
       if (
         !customer ||
@@ -348,12 +439,18 @@ export function registerDemoBetRoutes(app, pool) {
         });
       }
 
-      req.demoCustomerId = customer.id;
+      req.demoCustomerId =
+        customer.id;
+
       next();
-    }
+    },
   );
 
-  const requireDemo = (req, res, next) => {
+  const requireDemo = (
+    req,
+    res,
+    next,
+  ) => {
     if (!demoMode()) {
       return res.status(409).json({
         error:
@@ -370,15 +467,59 @@ export function registerDemoBetRoutes(app, pool) {
     '/api/demo-bets/markets',
     requireCustomer,
     requireDemo,
-    (req, res) => {
-      res.set('Cache-Control', 'no-store');
+
+    wrap(async (req, res) => {
+      const id = String(
+        req.query.matchId || '',
+      );
+
+      await sportsService.readSaved();
+
+      const event =
+        sportsService
+          .getEvents()
+          .find(
+            item =>
+              String(
+                item.eventId,
+              ) === id ||
+              (item.id != null &&
+                String(item.id) ===
+                  id),
+          );
+
+      res.set(
+        'Cache-Control',
+        'no-store',
+      );
+
+      if (!event) {
+        return res.status(404).json({
+          error:
+            'Match unavailable. Open a current match from the list.',
+        });
+      }
 
       res.json({
         success: true,
-        markets: DEMO_MARKETS,
+
+        markets:
+          event.sport === 'cricket'
+            ? DEMO_MARKETS
+            : [],
+
+        teams: teams(event),
+        event,
+
+        bettingAllowed:
+          event.bettingAllowed,
+
+        bettingReason:
+          event.bettingReason,
+
         source: 'DEMO_MOCK',
       });
-    }
+    }),
   );
 
   /* CUSTOMER BETS AND BALANCE */
@@ -386,9 +527,10 @@ export function registerDemoBetRoutes(app, pool) {
   app.get(
     '/api/demo-bets',
     requireCustomer,
+
     wrap(async (req, res) => {
       const matchId = String(
-        req.query.matchId || ''
+        req.query.matchId || '',
       ).slice(0, 200);
 
       const result = await pool.query(
@@ -408,153 +550,110 @@ export function registerDemoBetRoutes(app, pool) {
                 FROM demo_bets b
 
                 WHERE
-                  b.customer_id = c.id
+                  b.customer_id=c.id
+
                   AND (
-                    $2::TEXT = ''
-                    OR b.match_id = $2::TEXT
+                    $2::TEXT=''
+                    OR b.match_id=$2::TEXT
                   )
               ),
               '[]'::JSON
             ) AS bets
 
           FROM customers c
-          WHERE c.id = $1
+          WHERE c.id=$1
         `,
-        [req.demoCustomerId, matchId]
+        [
+          req.demoCustomerId,
+          matchId,
+        ],
       );
 
       const row = result.rows[0];
 
-      res.set('Cache-Control', 'no-store');
+      if (!row) {
+        throw reject(
+          'Customer account unavailable.',
+          401,
+        );
+      }
+
+      res.set(
+        'Cache-Control',
+        'no-store',
+      );
 
       res.json({
         success: true,
-        customerId: req.demoCustomerId,
-        balance: Number(row.demo_coin_balance),
-        bets: row.bets.map(publicBet),
+
+        customerId:
+          req.demoCustomerId,
+
+        balance: Number(
+          row.demo_coin_balance,
+        ),
+
+        bets:
+          row.bets.map(publicBet),
       });
-    })
+    }),
   );
 
-  /* CREATE BET + DEDUCT COINS ATOMICALLY */
+  /* CREATE BET AND DEDUCT COINS */
 
   app.post(
     '/api/demo-bets',
     requireCustomer,
     requireDemo,
+
     wrap(async (req, res) => {
       const body = req.body || {};
-      const amount = Number(body.stake);
+
+      const amount = Number(
+        body.stake,
+      );
 
       const requestKey = String(
-        body.requestKey || ''
+        body.requestKey || '',
       );
 
       const matchId = String(
-        body.matchId ?? ''
+        body.matchId ?? '',
       );
 
       if (
-        !Number.isSafeInteger(amount) ||
+        !Number.isSafeInteger(
+          amount,
+        ) ||
         amount < 100 ||
         amount > 25000
       ) {
-        return res.status(400).json({
-          error:
-            'Demo stake must be 100–25,000 whole coins.',
-        });
+        throw reject(
+          'Demo stake must be 100–25,000 whole coins.',
+          400,
+        );
       }
 
       if (
         !/^[a-zA-Z0-9_-]{16,100}$/.test(
-          requestKey
+          requestKey,
         ) ||
         !matchId ||
         matchId.length > 200
       ) {
-        return res.status(400).json({
-          error:
-            'Invalid request key or match ID.',
-        });
-      }
-
-      let market;
-      let selection;
-      let type;
-      let rate;
-      let payoutRate;
-
-      if (body.type === 'FANCY') {
-        const item = DEMO_MARKETS.find(
-          (entry) => entry.id === body.marketId
+        throw reject(
+          'Invalid request key or match ID.',
+          400,
         );
-
-        if (
-          !item ||
-          !['NO', 'YES'].includes(body.selection)
-        ) {
-          return res.status(400).json({
-            error:
-              'Invalid demo market or selection.',
-          });
-        }
-
-        market = item.title;
-        selection = body.selection;
-        type = 'FANCY';
-
-        rate =
-          selection === 'YES'
-            ? item.yes
-            : item.no;
-
-        payoutRate = 2;
-      } else {
-        const selections = {
-          India: ['1.85', '1.90'],
-          Draw: ['3.20', '3.30'],
-          Australia: ['2.10', '2.15'],
-        };
-
-        if (
-          body.marketId !== 'match-odds' ||
-          !Object.hasOwn(
-            selections,
-            body.selection
-          ) ||
-          !['BACK', 'LAY'].includes(body.type)
-        ) {
-          return res.status(400).json({
-            error:
-              'Invalid demo odds selection.',
-          });
-        }
-
-        market = 'Match Odds';
-        selection = body.selection;
-        type = body.type;
-
-        rate =
-          selections[selection][
-            type === 'BACK' ? 0 : 1
-          ];
-
-        /*
-          Demo LAY stake represents liability.
-          Return includes the held liability.
-        */
-        payoutRate =
-          type === 'LAY'
-            ? 1 + 1 / (Number(rate) - 1)
-            : Number(rate);
       }
 
-      const client = await pool.connect();
+      const client =
+        await pool.connect();
 
       try {
         await client.query('BEGIN');
 
-        const customerResult =
+        const customer = (
           await client.query(
             `
               SELECT
@@ -562,189 +661,323 @@ export function registerDemoBetRoutes(app, pool) {
                 demo_coin_balance
 
               FROM customers
-              WHERE id = $1
+              WHERE id=$1
+
               FOR UPDATE
             `,
-            [req.demoCustomerId]
-          );
-
-        const customer =
-          customerResult.rows[0];
+            [req.demoCustomerId],
+          )
+        ).rows[0];
 
         if (
           !customer ||
-          customer.status !== 'ACTIVE'
+          customer.status !==
+            'ACTIVE'
         ) {
-          await client.query('ROLLBACK');
-
-          return res.status(403).json({
-            error:
-              'Customer account is not active.',
-          });
+          throw reject(
+            'Customer account is not active.',
+            403,
+          );
         }
 
-        const previous = await client.query(
-          `
-            SELECT *
-            FROM demo_bets
+        const previous = (
+          await client.query(
+            `
+              SELECT *
+              FROM demo_bets
 
-            WHERE
-              customer_id = $1
-              AND request_key = $2
-          `,
-          [
-            req.demoCustomerId,
-            requestKey,
-          ]
-        );
+              WHERE
+                customer_id=$1
+                AND request_key=$2
+            `,
+            [
+              req.demoCustomerId,
+              requestKey,
+            ],
+          )
+        ).rows[0];
 
         /*
-          Retrying the same request does not
-          deduct the stake a second time.
+          A previously accepted request can
+          be replayed after API OFF.
+
+          It returns the existing bet only.
+          No second deduction is performed.
         */
 
-        if (previous.rows.length) {
-          const old = previous.rows[0];
-
+        if (previous) {
           if (
-            old.match_id !== matchId ||
-            old.market_id !== body.marketId ||
-            old.selection !== selection ||
-            old.bet_type !== type ||
-            Number(old.stake) !== amount
+            previous.match_id !==
+              matchId ||
+            previous.market_id !==
+              body.marketId ||
+            previous.selection !==
+              body.selection ||
+            previous.bet_type !==
+              body.type ||
+            Number(
+              previous.stake,
+            ) !== amount
           ) {
-            await client.query('ROLLBACK');
-
-            return res.status(409).json({
-              error:
-                'This request key belongs to a different selection.',
-            });
+            throw reject(
+              'This request key belongs to a different selection.',
+            );
           }
 
-          await client.query('COMMIT');
+          await client.query(
+            'COMMIT',
+          );
 
           return res.json({
             success: true,
             replayed: true,
 
             balance: Number(
-              customer.demo_coin_balance
+              customer.demo_coin_balance,
             ),
 
-            bet: publicBet(old),
+            bet: publicBet(
+              previous,
+            ),
           });
+        }
+
+        /*
+          Resolve the match from server data.
+
+          This checks the category API switch,
+          feed freshness and demo eligibility.
+
+          The database locks remain held until
+          this wallet transaction completes.
+        */
+
+        const event =
+          await sportsService.lockBetEvent(
+            client,
+            matchId,
+          );
+
+        let market;
+        let selection;
+        let type;
+        let rate;
+        let payoutRate;
+
+        if (
+          body.type === 'FANCY'
+        ) {
+          const item =
+            event.sport ===
+              'cricket' &&
+            DEMO_MARKETS.find(
+              entry =>
+                entry.id ===
+                body.marketId,
+            );
+
+          if (
+            !item ||
+            !['NO', 'YES'].includes(
+              body.selection,
+            )
+          ) {
+            throw reject(
+              'Invalid demo market or selection.',
+              400,
+            );
+          }
+
+          market = item.title;
+          selection =
+            body.selection;
+
+          type = 'FANCY';
+
+          rate =
+            selection === 'YES'
+              ? item.yes
+              : item.no;
+
+          payoutRate = 2;
+        } else {
+          const team =
+            teams(event).find(
+              item =>
+                item.name ===
+                body.selection,
+            );
+
+          if (
+            body.marketId !==
+              'match-odds' ||
+            !team ||
+            ![
+              'BACK',
+              'LAY',
+            ].includes(body.type) ||
+            String(
+              body.selection,
+            ).length > 100
+          ) {
+            throw reject(
+              'Invalid demo odds selection.',
+              400,
+            );
+          }
+
+          market = 'Match Odds';
+          selection =
+            body.selection;
+
+          type = body.type;
+
+          rate =
+            type === 'BACK'
+              ? team.back
+              : team.lay;
+
+          // LAY stake represents liability.
+          payoutRate =
+            type === 'LAY'
+              ? 1 +
+                1 /
+                  (Number(rate) -
+                    1)
+              : Number(rate);
         }
 
         const before = Number(
-          customer.demo_coin_balance
+          customer.demo_coin_balance,
         );
 
         if (amount > before) {
-          await client.query('ROLLBACK');
-
-          return res.status(400).json({
-            error:
+          throw Object.assign(
+            reject(
               'Insufficient demo balance.',
-            balance: before,
-          });
+              400,
+            ),
+            {
+              balance: before,
+            },
+          );
         }
 
-        const after = before - amount;
+        const after =
+          before - amount;
 
-        const inserted = await client.query(
-          `
-            INSERT INTO demo_bets (
-              customer_id,
-              request_key,
-              match_id,
-              match_name,
-              match_date,
-              market_id,
+        const inserted = (
+          await client.query(
+            `
+              INSERT INTO demo_bets(
+                customer_id,
+                request_key,
+                match_id,
+                match_name,
+                match_date,
+                market_id,
+                market,
+                selection,
+                bet_type,
+                rate,
+                payout_rate,
+                stake,
+                balance_before,
+                balance_after
+              )
+
+              VALUES(
+                $1,$2,$3,$4,$5,$6,$7,
+                $8,$9,$10,$11,$12,$13,$14
+              )
+
+              RETURNING *
+            `,
+            [
+              req.demoCustomerId,
+              requestKey,
+              matchId,
+
+              `${event.homeTeam} vs ${event.awayTeam}`.slice(
+                0,
+                300,
+              ),
+
+              String(
+                event.startTime ||
+                  '',
+              ).slice(0, 200),
+
+              body.marketId,
               market,
               selection,
-              bet_type,
+              type,
               rate,
-              payout_rate,
-              stake,
-              balance_before,
-              balance_after
-            )
-
-            VALUES (
-              $1, $2, $3, $4, $5, $6, $7,
-              $8, $9, $10, $11, $12, $13, $14
-            )
-
-            RETURNING *
-          `,
-          [
-            req.demoCustomerId,
-            requestKey,
-            matchId,
-
-            String(
-              body.matchName || 'Demo Match'
-            ).slice(0, 300),
-
-            String(
-              body.matchDate || ''
-            ).slice(0, 200),
-
-            body.marketId,
-            market,
-            selection,
-            type,
-            rate,
-            payoutRate,
-            amount,
-            before,
-            after,
-          ]
-        );
+              payoutRate,
+              amount,
+              before,
+              after,
+            ],
+          )
+        ).rows[0];
 
         await client.query(
           `
             UPDATE customers
             SET
-              demo_coin_balance = $1,
-              updated_at = NOW()
-            WHERE id = $2
+              demo_coin_balance=$1,
+              updated_at=NOW()
+
+            WHERE id=$2
           `,
-          [after, req.demoCustomerId]
+          [
+            after,
+            req.demoCustomerId,
+          ],
         );
 
         await client.query(
           `
-            INSERT INTO demo_coin_transactions (
+            INSERT INTO demo_coin_transactions(
               customer_id,
               amount,
               transaction_type,
               note
             )
 
-            VALUES ($1, $2, 'BET_STAKE', $3)
+            VALUES(
+              $1,
+              $2,
+              'BET_STAKE',
+              $3
+            )
           `,
           [
             req.demoCustomerId,
             -amount,
-            `Demo bet #${inserted.rows[0].id}`,
-          ]
+            `Demo bet #${inserted.id}`,
+          ],
         );
 
-        await client.query('COMMIT');
+        await client.query(
+          'COMMIT',
+        );
 
         res.status(201).json({
           success: true,
           balance: after,
-          bet: publicBet(inserted.rows[0]),
+          bet: publicBet(inserted),
         });
       } catch (error) {
-        await client.query('ROLLBACK');
+        await client.query(
+          'ROLLBACK',
+        );
+
         throw error;
       } finally {
         client.release();
       }
-    })
+    }),
   );
 
   /* MANUAL DEMO SETTLEMENT */
@@ -753,33 +986,40 @@ export function registerDemoBetRoutes(app, pool) {
     '/api/demo-bets/:id/simulate-settlement',
     requireCustomer,
     requireDemo,
+
     wrap(async (req, res) => {
-      const betId = String(req.params.id);
+      const betId = String(
+        req.params.id,
+      );
 
       const outcome = String(
-        req.body?.outcome || ''
+        req.body?.outcome || '',
       );
 
       if (
-        !/^\d{1,18}$/.test(betId) ||
-        !['WON', 'LOST'].includes(outcome)
+        !/^\d{1,18}$/.test(
+          betId,
+        ) ||
+        ![
+          'WON',
+          'LOST',
+        ].includes(outcome)
       ) {
-        return res.status(400).json({
-          error: 'Invalid demo settlement.',
-        });
+        throw reject(
+          'Invalid demo settlement.',
+          400,
+        );
       }
 
-      const client = await pool.connect();
+      const client =
+        await pool.connect();
 
       try {
-        await client.query('BEGIN');
+        await client.query(
+          'BEGIN',
+        );
 
-        /*
-          Lock customer first for every wallet
-          operation to prevent lost updates.
-        */
-
-        const customerResult =
+        const customer = (
           await client.query(
             `
               SELECT
@@ -787,66 +1027,71 @@ export function registerDemoBetRoutes(app, pool) {
                 demo_coin_balance
 
               FROM customers
-              WHERE id = $1
+              WHERE id=$1
+
               FOR UPDATE
             `,
-            [req.demoCustomerId]
-          );
-
-        const customer =
-          customerResult.rows[0];
+            [req.demoCustomerId],
+          )
+        ).rows[0];
 
         if (
           !customer ||
-          customer.status !== 'ACTIVE'
+          customer.status !==
+            'ACTIVE'
         ) {
-          await client.query('ROLLBACK');
-
-          return res.status(403).json({
-            error:
-              'Customer account is not active.',
-          });
+          throw reject(
+            'Customer account is not active.',
+            403,
+          );
         }
 
-        const result = await client.query(
-          `
-            SELECT *
-            FROM demo_bets
+        const bet = (
+          await client.query(
+            `
+              SELECT *
+              FROM demo_bets
 
-            WHERE
-              id = $1
-              AND customer_id = $2
+              WHERE
+                id=$1
+                AND customer_id=$2
 
-            FOR UPDATE
-          `,
-          [betId, req.demoCustomerId]
-        );
-
-        const bet = result.rows[0];
+              FOR UPDATE
+            `,
+            [
+              betId,
+              req.demoCustomerId,
+            ],
+          )
+        ).rows[0];
 
         if (!bet) {
-          await client.query('ROLLBACK');
-
-          return res.status(404).json({
-            error: 'Demo bet not found.',
-          });
+          throw reject(
+            'Demo bet not found.',
+            404,
+          );
         }
 
         /*
           Already settled:
-          return current balance without
-          crediting coins a second time.
+          return the result without
+          crediting coins again.
         */
 
-        if (bet.status === 'SETTLED') {
-          await client.query('COMMIT');
+        if (
+          bet.status ===
+          'SETTLED'
+        ) {
+          await client.query(
+            'COMMIT',
+          );
 
           return res.json({
             success: true,
             alreadySettled: true,
 
             balance: Number(
-              customer.demo_coin_balance
+              customer.demo_coin_balance,
             ),
 
             bet: publicBet(bet),
@@ -856,68 +1101,82 @@ export function registerDemoBetRoutes(app, pool) {
         const payout =
           outcome === 'WON'
             ? Math.round(
-                Number(bet.stake) *
-                  Number(bet.payout_rate)
+                Number(
+                  bet.stake,
+                ) *
+                  Number(
+                    bet.payout_rate,
+                  ),
               )
             : 0;
 
         const after =
-          Number(customer.demo_coin_balance) +
-          payout;
+          Number(
+            customer.demo_coin_balance,
+          ) + payout;
 
         if (
-          !Number.isSafeInteger(after) ||
+          !Number.isSafeInteger(
+            after,
+          ) ||
           after > 2147483647
         ) {
           throw new Error(
-            'Demo balance limit exceeded.'
+            'Demo balance limit exceeded.',
           );
         }
 
-        const updated = await client.query(
-          `
-            UPDATE demo_bets
-            SET
-              status = 'SETTLED',
-              result = $1,
-              payout = $2,
-              profit_loss = $2 - stake,
-              balance_after = $3,
-              settled_at = NOW()
+        const updated = (
+          await client.query(
+            `
+              UPDATE demo_bets
+              SET
+                status='SETTLED',
+                result=$1,
+                payout=$2,
+                profit_loss=$2-stake,
+                balance_after=$3,
+                settled_at=NOW()
 
-            WHERE id = $4
-            RETURNING *
-          `,
-          [
-            outcome,
-            payout,
-            after,
-            betId,
-          ]
-        );
+              WHERE id=$4
+
+              RETURNING *
+            `,
+            [
+              outcome,
+              payout,
+              after,
+              betId,
+            ],
+          )
+        ).rows[0];
 
         await client.query(
           `
             UPDATE customers
             SET
-              demo_coin_balance = $1,
-              updated_at = NOW()
-            WHERE id = $2
+              demo_coin_balance=$1,
+              updated_at=NOW()
+
+            WHERE id=$2
           `,
-          [after, req.demoCustomerId]
+          [
+            after,
+            req.demoCustomerId,
+          ],
         );
 
         if (payout > 0) {
           await client.query(
             `
-              INSERT INTO demo_coin_transactions (
+              INSERT INTO demo_coin_transactions(
                 customer_id,
                 amount,
                 transaction_type,
                 note
               )
 
-              VALUES (
+              VALUES(
                 $1,
                 $2,
                 'BET_PAYOUT',
@@ -928,23 +1187,28 @@ export function registerDemoBetRoutes(app, pool) {
               req.demoCustomerId,
               payout,
               `Demo bet #${betId} WON — includes returned stake`,
-            ]
+            ],
           );
         }
 
-        await client.query('COMMIT');
+        await client.query(
+          'COMMIT',
+        );
 
         res.json({
           success: true,
           balance: after,
-          bet: publicBet(updated.rows[0]),
+          bet: publicBet(updated),
         });
       } catch (error) {
-        await client.query('ROLLBACK');
+        await client.query(
+          'ROLLBACK',
+        );
+
         throw error;
       } finally {
         client.release();
       }
-    })
+    }),
   );
 }
