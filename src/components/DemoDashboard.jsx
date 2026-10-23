@@ -1,4 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import DepositPage from "./DepositPage";
 import WithdrawalPage from "./WithdrawalPage";
@@ -16,7 +20,8 @@ import GameArtwork from "./GameArtwork";
 const LOGO =
   "/games/file_0000000092bc82118617f615539c5f17.png";
 
-const HEADER_BACKGROUND = "/games/tsb-header-bg.jpg";
+const HEADER_BACKGROUND =
+  "/games/tsb-header-bg.jpg";
 
 const WINE_LABEL = {
   backgroundColor: "#791b3e",
@@ -30,13 +35,16 @@ const GREEN_LABEL = {
 
 function gridLabelColor(index) {
   const column = index % 4;
+
   return column === 0 || column === 3
     ? WINE_LABEL
     : GREEN_LABEL;
 }
 
 function sliderLabelColor(index) {
-  return index % 2 === 0 ? WINE_LABEL : GREEN_LABEL;
+  return index % 2 === 0
+    ? WINE_LABEL
+    : GREEN_LABEL;
 }
 
 const GAMES = [
@@ -93,27 +101,57 @@ const sports = [
 
 const newLaunch = [
   { name: "JILI", image: "/games/jili.png" },
-  { name: "GOLDEN KICK", image: "/games/golden-kick.png" },
+  {
+    name: "GOLDEN KICK",
+    image: "/games/golden-kick.png",
+  },
   {
     name: "SNAKES & LADDERS",
     image: "/games/snakes-ladders.png",
   },
-  { name: "PREDIX", image: "/games/predix.png" },
-  { name: "MONEY HEIST", image: "/games/money-heist.png" },
-  { name: "FOOTBALL X", image: "/games/football-x.png" },
-  { name: "TWIST X", image: "/games/twist-x.png" },
+  {
+    name: "PREDIX",
+    image: "/games/predix.png",
+  },
+  {
+    name: "MONEY HEIST",
+    image: "/games/money-heist.png",
+  },
+  {
+    name: "FOOTBALL X",
+    image: "/games/football-x.png",
+  },
+  {
+    name: "TWIST X",
+    image: "/games/twist-x.png",
+  },
   {
     name: "INSTANT RUMMY",
     image: "/games/instant-rummy.png",
   },
-  { name: "JHANDI MUNDA", image: "/games/jhandi-munda.png" },
-  { name: "BLACKJACK", image: "/games/blackjack.png" },
-  { name: "LOOT BOXES", image: "/games/loot-boxes.png" },
+  {
+    name: "JHANDI MUNDA",
+    image: "/games/jhandi-munda.png",
+  },
+  {
+    name: "BLACKJACK",
+    image: "/games/blackjack.png",
+  },
+  {
+    name: "LOOT BOXES",
+    image: "/games/loot-boxes.png",
+  },
 ];
 
 const favourites = [
-  { name: "AVIATOR X", image: "/games/aviator-x.png" },
-  { name: "FANTASY 11", image: "/games/fantasy-11.png" },
+  {
+    name: "AVIATOR X",
+    image: "/games/aviator-x.png",
+  },
+  {
+    name: "FANTASY 11",
+    image: "/games/fantasy-11.png",
+  },
   {
     name: "CRICKET BATTLE",
     image: "/games/cricket-battle.png",
@@ -122,20 +160,53 @@ const favourites = [
     name: "LIGHTNING ROULETTE",
     image: "/games/lightning-roulette.png",
   },
-  { name: "BACCARAT", image: "/games/baccarat.png" },
-  { name: "TEEN PATTI", image: "/games/teen-patti.png" },
+  {
+    name: "BACCARAT",
+    image: "/games/baccarat.png",
+  },
+  {
+    name: "TEEN PATTI",
+    image: "/games/teen-patti.png",
+  },
 ];
 
 const providers = [
-  { name: "MAC88", image: "/games/mac88.png" },
-  { name: "EZUGI", image: "/games/ezugi-provider.png" },
-  { name: "SMARTSOFT", image: "/games/smartsoft.png" },
-  { name: "SPRIBE", image: "/games/spribe.png" },
-  { name: "EVOLUTION", image: "/games/evolution.png" },
-  { name: "JILI", image: "/games/jili-provider.png" },
-  { name: "TURBO GAMES", image: "/games/turbo-games.png" },
-  { name: "GAMZIX", image: "/games/gamzix.png" },
-  { name: "KING MIDAS", image: "/games/king-midas.png" },
+  {
+    name: "MAC88",
+    image: "/games/mac88.png",
+  },
+  {
+    name: "EZUGI",
+    image: "/games/ezugi-provider.png",
+  },
+  {
+    name: "SMARTSOFT",
+    image: "/games/smartsoft.png",
+  },
+  {
+    name: "SPRIBE",
+    image: "/games/spribe.png",
+  },
+  {
+    name: "EVOLUTION",
+    image: "/games/evolution.png",
+  },
+  {
+    name: "JILI",
+    image: "/games/jili-provider.png",
+  },
+  {
+    name: "TURBO GAMES",
+    image: "/games/turbo-games.png",
+  },
+  {
+    name: "GAMZIX",
+    image: "/games/gamzix.png",
+  },
+  {
+    name: "KING MIDAS",
+    image: "/games/king-midas.png",
+  },
 ];
 
 const MENU_ITEMS = [
@@ -211,7 +282,9 @@ function GameSection({
           >
             <div
               className={`relative w-full overflow-hidden bg-black ${
-                compact ? "aspect-[3/2]" : "aspect-square"
+                compact
+                  ? "aspect-[3/2]"
+                  : "aspect-square"
               }`}
             >
               <GameImage game={game} />
@@ -246,11 +319,13 @@ function TopGamesSlider({ onGameClick }) {
   const gestureRef = useRef(null);
 
   const pause = () => {
-    pauseUntilRef.current = performance.now() + 3000;
+    pauseUntilRef.current =
+      performance.now() + 3000;
   };
 
   useEffect(() => {
     const scroller = scrollerRef.current;
+
     if (!scroller) return undefined;
 
     const motion = window.matchMedia(
@@ -277,12 +352,14 @@ function TopGamesSlider({ onGameClick }) {
         now < pauseUntilRef.current;
 
       const maximum =
-        scroller.scrollWidth - scroller.clientWidth;
+        scroller.scrollWidth -
+        scroller.clientWidth;
 
       if (paused || maximum <= 0) {
         position = scroller.scrollLeft;
       } else {
-        position += direction * elapsed * 0.025;
+        position +=
+          direction * elapsed * 0.025;
 
         if (position >= maximum) {
           position = maximum;
@@ -295,18 +372,31 @@ function TopGamesSlider({ onGameClick }) {
         scroller.scrollLeft = position;
       }
 
-      frameId = window.requestAnimationFrame(animate);
+      frameId =
+        window.requestAnimationFrame(
+          animate,
+        );
     };
 
-    frameId = window.requestAnimationFrame(animate);
+    frameId =
+      window.requestAnimationFrame(
+        animate,
+      );
 
     return () => {
-      window.cancelAnimationFrame(frameId);
+      window.cancelAnimationFrame(
+        frameId,
+      );
     };
   }, []);
 
   const handlePointerDown = event => {
-    if (!event.isPrimary || event.button !== 0) return;
+    if (
+      !event.isPrimary ||
+      event.button !== 0
+    ) {
+      return;
+    }
 
     pause();
     suppressClickUntilRef.current = 0;
@@ -316,7 +406,8 @@ function TopGamesSlider({ onGameClick }) {
       type: event.pointerType,
       x: event.clientX,
       y: event.clientY,
-      scrollLeft: event.currentTarget.scrollLeft,
+      scrollLeft:
+        event.currentTarget.scrollLeft,
       moved: false,
     };
   };
@@ -324,12 +415,18 @@ function TopGamesSlider({ onGameClick }) {
   const handlePointerMove = event => {
     const gesture = gestureRef.current;
 
-    if (!gesture || gesture.id !== event.pointerId) {
+    if (
+      !gesture ||
+      gesture.id !== event.pointerId
+    ) {
       return;
     }
 
-    const distanceX = event.clientX - gesture.x;
-    const distanceY = event.clientY - gesture.y;
+    const distanceX =
+      event.clientX - gesture.x;
+
+    const distanceY =
+      event.clientY - gesture.y;
 
     if (
       Math.abs(distanceX) > 8 ||
@@ -345,9 +442,13 @@ function TopGamesSlider({ onGameClick }) {
       event.preventDefault();
 
       if (
-        !event.currentTarget.hasPointerCapture(event.pointerId)
+        !event.currentTarget.hasPointerCapture(
+          event.pointerId,
+        )
       ) {
-        event.currentTarget.setPointerCapture(event.pointerId);
+        event.currentTarget.setPointerCapture(
+          event.pointerId,
+        );
       }
 
       event.currentTarget.scrollLeft =
@@ -358,7 +459,10 @@ function TopGamesSlider({ onGameClick }) {
   const finishGesture = event => {
     const gesture = gestureRef.current;
 
-    if (!gesture || gesture.id !== event.pointerId) {
+    if (
+      !gesture ||
+      gesture.id !== event.pointerId
+    ) {
       return;
     }
 
@@ -371,9 +475,13 @@ function TopGamesSlider({ onGameClick }) {
     pause();
 
     if (
-      event.currentTarget.hasPointerCapture(event.pointerId)
+      event.currentTarget.hasPointerCapture(
+        event.pointerId,
+      )
     ) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
+      event.currentTarget.releasePointerCapture(
+        event.pointerId,
+      );
     }
   };
 
@@ -392,7 +500,9 @@ function TopGamesSlider({ onGameClick }) {
         onPointerLeave={event => {
           if (
             event.pointerType === "mouse" &&
-            !event.currentTarget.hasPointerCapture(event.pointerId)
+            !event.currentTarget.hasPointerCapture(
+              event.pointerId,
+            )
           ) {
             finishGesture(event);
           }
@@ -406,7 +516,11 @@ function TopGamesSlider({ onGameClick }) {
           }
         }}
         onFocusCapture={event => {
-          if (event.target.matches(":focus-visible")) {
+          if (
+            event.target.matches(
+              ":focus-visible",
+            )
+          ) {
             focusedRef.current = true;
           }
 
@@ -414,7 +528,9 @@ function TopGamesSlider({ onGameClick }) {
         }}
         onBlurCapture={event => {
           if (
-            !event.currentTarget.contains(event.relatedTarget)
+            !event.currentTarget.contains(
+              event.relatedTarget,
+            )
           ) {
             focusedRef.current = false;
             pause();
@@ -423,13 +539,16 @@ function TopGamesSlider({ onGameClick }) {
         onClickCapture={event => {
           if (
             event.detail !== 0 &&
-            performance.now() < suppressClickUntilRef.current
+            performance.now() <
+              suppressClickUntilRef.current
           ) {
             event.preventDefault();
             event.stopPropagation();
           }
         }}
-        onDragStart={event => event.preventDefault()}
+        onDragStart={event =>
+          event.preventDefault()
+        }
       >
         <div className="flex w-max gap-2 px-3 pb-1">
           {GAMES.map((game, index) => (
@@ -437,16 +556,22 @@ function TopGamesSlider({ onGameClick }) {
               key={game.id}
               type="button"
               aria-label={`Open ${game.name}`}
-              onClick={() => onGameClick(game)}
+              onClick={() =>
+                onGameClick(game)
+              }
               className="w-[82px] shrink-0 select-none rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#08b7bc]"
             >
               <div className="pointer-events-none h-[54px] overflow-hidden rounded-lg border border-slate-200 bg-black">
-                <GameArtwork game={game.id} />
+                <GameArtwork
+                  game={game.id}
+                />
               </div>
 
               <span
                 className="pointer-events-none mt-1 block truncate rounded-full text-center text-[7px] font-black"
-                style={sliderLabelColor(index)}
+                style={sliderLabelColor(
+                  index,
+                )}
               >
                 {game.name}
               </span>
@@ -458,25 +583,62 @@ function TopGamesSlider({ onGameClick }) {
   );
 }
 
-export default function DemoDashboard({ user, onLogout }) {
-  const [page, setPage] = useState("home");
-  const [selectedSport, setSelectedSport] = useState("CRICKET");
-  const [selectedTab, setSelectedTab] = useState("INPLAY");
-  const [matchFilter, setMatchFilter] = useState("LIVE");
-  const [showCustomerMenu, setShowCustomerMenu] = useState(false);
-  const [selectedMatch, setSelectedMatch] = useState(null);
-  const [demoBalance, setDemoBalance] = useState(0);
-  const [balanceError, setBalanceError] = useState("");
-  const [notice, setNotice] = useState("");
+export default function DemoDashboard({
+  user,
+  onLogout,
+}) {
+  const [page, setPage] =
+    useState("home");
+
+  const [
+    selectedSport,
+    setSelectedSport,
+  ] = useState("CRICKET");
+
+  const [
+    selectedTab,
+    setSelectedTab,
+  ] = useState("INPLAY");
+
+  const [
+    matchFilter,
+    setMatchFilter,
+  ] = useState("LIVE");
+
+  const [
+    showCustomerMenu,
+    setShowCustomerMenu,
+  ] = useState(false);
+
+  const [
+    selectedMatch,
+    setSelectedMatch,
+  ] = useState(null);
+
+  const [
+    demoBalance,
+    setDemoBalance,
+  ] = useState(0);
+
+  const [
+    balanceError,
+    setBalanceError,
+  ] = useState("");
+
+  const [notice, setNotice] =
+    useState("");
 
   const customerId =
-    user?.id || user?.customerId || user?.customer_id;
+    user?.id ||
+    user?.customerId ||
+    user?.customer_id;
 
   useEffect(() => {
     let active = true;
     let loading = false;
 
-    const controller = new AbortController();
+    const controller =
+      new AbortController();
 
     const loadBalance = async () => {
       if (loading) return;
@@ -484,6 +646,7 @@ export default function DemoDashboard({ user, onLogout }) {
       if (!customerId) {
         if (active) {
           setDemoBalance(0);
+
           setBalanceError(
             "Customer ID is missing. Please login again.",
           );
@@ -496,7 +659,9 @@ export default function DemoDashboard({ user, onLogout }) {
 
       try {
         const response = await fetch(
-          `/api/customers/${encodeURIComponent(customerId)}/demo-balance`,
+          `/api/customers/${encodeURIComponent(
+            customerId,
+          )}/demo-balance`,
           {
             credentials: "same-origin",
             cache: "no-store",
@@ -504,49 +669,76 @@ export default function DemoDashboard({ user, onLogout }) {
           },
         );
 
-        const data = await response.json();
+        const data =
+          await response.json();
 
         if (!response.ok) {
           throw new Error(
-            data.error || "Unable to load balance.",
+            data.error ||
+              "Unable to load balance.",
           );
         }
 
         if (active) {
-          setDemoBalance(Number(data.balance) || 0);
+          setDemoBalance(
+            Number(data.balance) || 0,
+          );
+
           setBalanceError("");
         }
       } catch (requestError) {
-        if (active && requestError.name !== "AbortError") {
-          setBalanceError(requestError.message);
+        if (
+          active &&
+          requestError.name !==
+            "AbortError"
+        ) {
+          setBalanceError(
+            requestError.message,
+          );
         }
       } finally {
         loading = false;
       }
     };
 
-    loadBalance();
+    void loadBalance();
 
-    window.addEventListener("focus", loadBalance);
-    window.addEventListener("demo-balance-updated", loadBalance);
+    window.addEventListener(
+      "focus",
+      loadBalance,
+    );
+
+    window.addEventListener(
+      "demo-balance-updated",
+      loadBalance,
+    );
 
     return () => {
       active = false;
       controller.abort();
 
-      window.removeEventListener("focus", loadBalance);
+      window.removeEventListener(
+        "focus",
+        loadBalance,
+      );
+
       window.removeEventListener(
         "demo-balance-updated",
         loadBalance,
       );
     };
-  }, [customerId, page, selectedMatch]);
+  }, [
+    customerId,
+    page,
+    selectedMatch,
+  ]);
 
   const goHome = () => {
     setPage("home");
     setSelectedMatch(null);
     setShowCustomerMenu(false);
     setNotice("");
+
     window.scrollTo(0, 0);
   };
 
@@ -554,40 +746,76 @@ export default function DemoDashboard({ user, onLogout }) {
     setShowCustomerMenu(false);
     setPage(nextPage);
     setNotice("");
+
     window.scrollTo(0, 0);
   };
 
   const handleGameClick = game => {
     if (game.href) {
-      window.location.assign(game.href);
+      window.location.assign(
+        game.href,
+      );
+
       return;
     }
 
-    setNotice(`${game.name} is not available yet.`);
+    setNotice(
+      `${game.name} is not available yet.`,
+    );
   };
 
   if (page === "deposit") {
-    return <DepositPage user={user} onBack={goHome} />;
+    return (
+      <DepositPage
+        user={user}
+        onBack={goHome}
+      />
+    );
   }
 
   if (page === "withdrawal") {
-    return <WithdrawalPage user={user} onBack={goHome} />;
+    return (
+      <WithdrawalPage
+        user={user}
+        onBack={goHome}
+      />
+    );
   }
 
   if (page === "statement") {
-    return <AccountStatementPage user={user} onBack={goHome} />;
+    return (
+      <AccountStatementPage
+        user={user}
+        onBack={goHome}
+      />
+    );
   }
 
   if (page === "history") {
-    return <BetHistoryPage user={user} onBack={goHome} />;
+    return (
+      <BetHistoryPage
+        user={user}
+        onBack={goHome}
+      />
+    );
   }
 
   if (page === "unsettled") {
-    return <UnsettledBetPage user={user} onBack={goHome} />;
+    return (
+      <UnsettledBetPage
+        user={user}
+        onBack={goHome}
+      />
+    );
   }
 
   if (page === "buttons") {
-    return <SetButtonValuesPage user={user} onBack={goHome} />;
+    return (
+      <SetButtonValuesPage
+        user={user}
+        onBack={goHome}
+      />
+    );
   }
 
   if (page === "password") {
@@ -602,11 +830,21 @@ export default function DemoDashboard({ user, onLogout }) {
   }
 
   if (page === "promo") {
-    return <MyPromoCodePage user={user} onBack={goHome} />;
+    return (
+      <MyPromoCodePage
+        user={user}
+        onBack={goHome}
+      />
+    );
   }
 
   if (page === "rules") {
-    return <RulesPage user={user} onBack={goHome} />;
+    return (
+      <RulesPage
+        user={user}
+        onBack={goHome}
+      />
+    );
   }
 
   if (selectedMatch) {
@@ -623,14 +861,28 @@ export default function DemoDashboard({ user, onLogout }) {
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-white text-slate-900">
+    <div className="tsb-dashboard min-h-screen bg-white text-slate-900">
       <style>{`
+        .tsb-dashboard {
+          overflow-x: clip;
+        }
+
+        .tsb-match-scroller {
+          max-height: 420px;
+          overflow-y: auto;
+          overscroll-behavior-y: auto;
+          touch-action: pan-y pinch-zoom;
+          -webkit-overflow-scrolling: touch;
+          scroll-behavior: auto;
+        }
+
         .tsb-game-scroller {
           width: 100%;
           overflow-x: auto;
           overflow-y: hidden;
           touch-action: pan-x pan-y;
           overscroll-behavior-x: contain;
+          overscroll-behavior-y: auto;
           -webkit-overflow-scrolling: touch;
           scroll-behavior: auto;
           cursor: grab;
@@ -673,8 +925,13 @@ export default function DemoDashboard({ user, onLogout }) {
         }
 
         @keyframes tsbNeonSlide {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
+          from {
+            transform: translateX(0);
+          }
+
+          to {
+            transform: translateX(-50%);
+          }
         }
 
         .tsb-scrollbar {
@@ -721,7 +978,8 @@ export default function DemoDashboard({ user, onLogout }) {
       <header
         className="tsb-header border-b border-slate-200 px-4 pb-3 pt-4 text-white"
         style={{
-          "--tsb-header-image": `url("${HEADER_BACKGROUND}")`,
+          "--tsb-header-image":
+            `url("${HEADER_BACKGROUND}")`,
         }}
       >
         <div className="flex items-start justify-between gap-3">
@@ -732,7 +990,9 @@ export default function DemoDashboard({ user, onLogout }) {
 
             <div className="min-w-0">
               <h1 className="text-base font-black tracking-wide sm:text-lg">
-                <span className="text-amber-400">TELUGU</span>{" "}
+                <span className="text-amber-400">
+                  TELUGU
+                </span>{" "}
                 SPORTS
               </h1>
 
@@ -749,16 +1009,23 @@ export default function DemoDashboard({ user, onLogout }) {
               </p>
 
               <p className="mt-1 text-sm font-black text-amber-300">
-                🪙 {demoBalance.toLocaleString("en-IN")}
+                🪙{" "}
+                {demoBalance.toLocaleString(
+                  "en-IN",
+                )}
               </p>
             </div>
 
             <button
               type="button"
-              aria-expanded={showCustomerMenu}
+              aria-expanded={
+                showCustomerMenu
+              }
               aria-controls="customer-menu"
               onClick={() =>
-                setShowCustomerMenu(value => !value)
+                setShowCustomerMenu(
+                  value => !value,
+                )
               }
               className="mt-2 max-w-[135px] truncate rounded-lg border border-cyan-400/50 bg-[#031b29]/90 px-3 py-2 text-[10px] font-black text-cyan-200"
             >
@@ -774,24 +1041,28 @@ export default function DemoDashboard({ user, onLogout }) {
                 id="customer-menu"
                 className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-56 overflow-y-auto rounded-xl border border-slate-200 bg-white text-left shadow-2xl"
               >
-                {MENU_ITEMS.map(([label, target]) => (
-                  <button
-                    key={target}
-                    type="button"
-                    onClick={() =>
-                      target === "home"
-                        ? goHome()
-                        : openPage(target)
-                    }
-                    className={`block w-full border-b border-slate-100 px-4 py-3 text-left text-[11px] font-bold hover:bg-slate-50 ${
-                      target === "promo"
-                        ? "text-violet-700"
-                        : "text-slate-900"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+                {MENU_ITEMS.map(
+                  ([label, target]) => (
+                    <button
+                      key={target}
+                      type="button"
+                      onClick={() =>
+                        target === "home"
+                          ? goHome()
+                          : openPage(
+                              target,
+                            )
+                      }
+                      className={`block w-full border-b border-slate-100 px-4 py-3 text-left text-[11px] font-bold hover:bg-slate-50 ${
+                        target === "promo"
+                          ? "text-violet-700"
+                          : "text-slate-900"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ),
+                )}
 
                 <button
                   type="button"
@@ -817,11 +1088,15 @@ export default function DemoDashboard({ user, onLogout }) {
         <div className="mt-4 grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={() => openPage("deposit")}
+            onClick={() =>
+              openPage("deposit")
+            }
             className="rounded-2xl border border-[#08b7bc] bg-[#08b7bc] px-3 py-3 text-left shadow-[0_0_8px_rgba(8,183,188,.25)] active:scale-95"
           >
             <span className="flex items-center gap-2">
-              <span className="text-2xl">💰</span>
+              <span className="text-2xl">
+                💰
+              </span>
 
               <span className="relative">
                 <span
@@ -851,11 +1126,15 @@ export default function DemoDashboard({ user, onLogout }) {
 
           <button
             type="button"
-            onClick={() => openPage("withdrawal")}
+            onClick={() =>
+              openPage("withdrawal")
+            }
             className="rounded-2xl border border-[#791b3e] bg-[#791b3e] px-3 py-3 text-left shadow-[0_0_8px_rgba(121,27,62,.25)] active:scale-95"
           >
             <span className="flex items-center gap-2">
-              <span className="text-2xl">💵</span>
+              <span className="text-2xl">
+                💵
+              </span>
 
               <span className="relative">
                 <span
@@ -889,18 +1168,24 @@ export default function DemoDashboard({ user, onLogout }) {
             {[0, 1].map(index => (
               <span
                 key={index}
-                aria-hidden={index === 1}
+                aria-hidden={
+                  index === 1
+                }
                 className="tsb-neon-text"
               >
-                ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS
-                & ENTERTAINMENT ✦
+                ✦ TELUGU SPORTS BOOK • PREMIUM
+                SPORTS & ENTERTAINMENT ✦
               </span>
             ))}
           </div>
         </div>
       </header>
 
-      <TopGamesSlider onGameClick={handleGameClick} />
+      <TopGamesSlider
+        onGameClick={
+          handleGameClick
+        }
+      />
 
       <div className="px-4 py-3">
         <p className="rounded-lg border border-[#08b7bc] bg-[#08b7bc] px-3 py-2 text-center text-[9px] font-black uppercase tracking-wider text-black">
@@ -921,7 +1206,9 @@ export default function DemoDashboard({ user, onLogout }) {
             <button
               key={tab}
               type="button"
-              onClick={() => setSelectedTab(tab)}
+              onClick={() =>
+                setSelectedTab(tab)
+              }
               className={`shrink-0 rounded-lg border px-4 py-2 text-[9px] font-black text-white ${
                 selectedTab === tab
                   ? "border-[#a72a55] bg-[#a12450] shadow-[0_0_10px_rgba(161,36,80,.2)]"
@@ -940,9 +1227,14 @@ export default function DemoDashboard({ user, onLogout }) {
             <button
               key={sport.name}
               type="button"
-              onClick={() => setSelectedSport(sport.name)}
+              onClick={() =>
+                setSelectedSport(
+                  sport.name,
+                )
+              }
               className={`w-[90px] shrink-0 rounded-xl border bg-[#08b7bc] px-2 py-2 text-center text-black ${
-                selectedSport === sport.name
+                selectedSport ===
+                sport.name
                   ? "border-[#087f83] shadow-[inset_0_0_0_1px_#087f83]"
                   : "border-[#08b7bc]"
               }`}
@@ -969,11 +1261,19 @@ export default function DemoDashboard({ user, onLogout }) {
         </div>
 
         <div className="mt-3 flex gap-2">
-          {["LIVE", "VIRTUAL", "PREMIUM"].map(filter => (
+          {[
+            "LIVE",
+            "VIRTUAL",
+            "PREMIUM",
+          ].map(filter => (
             <button
               key={filter}
               type="button"
-              onClick={() => setMatchFilter(filter)}
+              onClick={() =>
+                setMatchFilter(
+                  filter,
+                )
+              }
               className={`rounded-lg border px-4 py-2 text-[8px] font-black text-white ${
                 matchFilter === filter
                   ? "border-[#ac2854] bg-[#ac2854]"
@@ -987,20 +1287,33 @@ export default function DemoDashboard({ user, onLogout }) {
       </section>
 
       <section className="px-3 pb-4">
-        <div className="tsb-scrollbar max-h-[420px] overflow-y-auto overscroll-contain rounded-xl">
-          {selectedSport === "CRICKET" &&
+        <div
+          className="tsb-match-scroller tsb-scrollbar rounded-xl"
+          role="region"
+          aria-label="Matches. Scroll through matches, then continue scrolling the page."
+          tabIndex={0}
+        >
+          {selectedSport ===
+            "CRICKET" &&
           matchFilter === "LIVE" ? (
             <CricketMatchList
               onOpenMatch={match => {
-                setSelectedMatch(match);
-                window.scrollTo(0, 0);
+                setSelectedMatch(
+                  match,
+                );
+
+                window.scrollTo(
+                  0,
+                  0,
+                );
               }}
             />
           ) : (
             <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs leading-6 text-slate-600">
-              No {matchFilter.toLowerCase()}{" "}
-              {selectedSport.toLowerCase()} fixtures
-              are available in this view.
+              No{" "}
+              {matchFilter.toLowerCase()}{" "}
+              {selectedSport.toLowerCase()}{" "}
+              fixtures are available in this view.
             </p>
           )}
         </div>
@@ -1016,7 +1329,9 @@ export default function DemoDashboard({ user, onLogout }) {
           <button
             type="button"
             aria-label="Dismiss message"
-            onClick={() => setNotice("")}
+            onClick={() =>
+              setNotice("")
+            }
             className="px-2 text-lg"
           >
             ×
@@ -1028,32 +1343,42 @@ export default function DemoDashboard({ user, onLogout }) {
         title="FEATURED GAMES"
         games={GAMES.slice(0, 4)}
         compact
-        onGameClick={handleGameClick}
+        onGameClick={
+          handleGameClick
+        }
       />
 
       <GameSection
         title="CARD GAMES"
         games={GAMES.slice(4, 8)}
         compact
-        onGameClick={handleGameClick}
+        onGameClick={
+          handleGameClick
+        }
       />
 
       <GameSection
         title="NEW LAUNCH"
         games={newLaunch}
-        onGameClick={handleGameClick}
+        onGameClick={
+          handleGameClick
+        }
       />
 
       <GameSection
         title="MY FAVOURITES"
         games={favourites}
-        onGameClick={handleGameClick}
+        onGameClick={
+          handleGameClick
+        }
       />
 
       <GameSection
         title="OUR PROVIDERS"
         games={providers}
-        onGameClick={handleGameClick}
+        onGameClick={
+          handleGameClick
+        }
       />
 
       <footer className="border-t border-slate-200 bg-white px-5 py-8 text-center">
@@ -1066,9 +1391,9 @@ export default function DemoDashboard({ user, onLogout }) {
         </p>
 
         <p className="mx-auto mt-3 max-w-xl text-[9px] leading-5 text-slate-500">
-          Demonstration and informational purposes
-          only. No real-money transactions are
-          processed.
+          Demonstration and informational
+          purposes only. No real-money
+          transactions are processed.
         </p>
       </footer>
     </div>
