@@ -2,27 +2,48 @@ import React, {
   useEffect,
   useRef,
   useState,
-} from "react";
+} from 'react';
+
+const sports = [
+  ['cricket', 'Cricket', 5],
+  ['football', 'Football', 30],
+  ['tennis', 'Tennis', 30],
+  ['fantasy_eleven', 'Fantasy Eleven', 30],
+  ['fight_events', 'Fight Events', 30],
+  ['horse_racing', 'Horse Racing', 30],
+  ['politics', 'Politics', 30],
+  ['kabaddi', 'Kabaddi', 30],
+];
 
 async function request(options = {}) {
   const response = await fetch(
-    "/api/admin/settings/sports-feed",
+    '/api/admin/settings/sports-feed',
     {
-      credentials: "same-origin",
-      cache: "no-store",
+      credentials: 'same-origin',
+      cache: 'no-store',
       ...options,
+
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
+        ...options.headers,
       },
     },
   );
 
-  const data = await response.json();
+  let data;
+
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(
+      'Server response was not JSON. Verify deployment.',
+    );
+  }
 
   if (!response.ok) {
     throw new Error(
       data.error ||
-        "Unable to load Sports API settings.",
+        'Unable to load API settings.',
     );
   }
 
@@ -30,30 +51,42 @@ async function request(options = {}) {
 }
 
 function time(value) {
-  return value
-    ? new Date(value).toLocaleString("en-IN", {
-        timeZone: "Asia/Kolkata",
-      }) + " IST"
-    : "No update saved yet";
+  return value &&
+    Number.isFinite(
+      new Date(value).getTime(),
+    )
+    ? new Date(value).toLocaleString(
+        'en-IN',
+        {
+          timeZone: 'Asia/Kolkata',
+        },
+      ) + ' IST'
+    : 'No fresh update saved';
 }
 
 export default function AdminSportsApiSettings() {
   const [data, setData] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
 
-  const mounted = useRef(false);
+  const alive = useRef(false);
   const pending = useRef(false);
   const revision = useRef(0);
 
   useEffect(() => {
-    mounted.current = true;
+    alive.current = true;
 
     let loading = false;
+    let active = true;
 
     const load = async () => {
-      if (loading || pending.current) return;
+      if (
+        loading ||
+        pending.current
+      ) {
+        return;
+      }
 
       loading = true;
 
@@ -63,20 +96,20 @@ export default function AdminSportsApiSettings() {
         const next = await request();
 
         if (
-          mounted.current &&
+          active &&
           current === revision.current &&
           !pending.current
         ) {
           setData(next);
-          setError("");
+          setError('');
         }
-      } catch (requestError) {
+      } catch (failure) {
         if (
-          mounted.current &&
+          active &&
           current === revision.current &&
           !pending.current
         ) {
-          setError(requestError.message);
+          setError(failure.message);
         }
       } finally {
         loading = false;
@@ -85,114 +118,243 @@ export default function AdminSportsApiSettings() {
 
     void load();
 
-    const timer = setInterval(load, 5000);
+    const timer = setInterval(
+      load,
+      5000,
+    );
 
     return () => {
-      mounted.current = false;
+      active = false;
+      alive.current = false;
       clearInterval(timer);
     };
   }, []);
 
-  const change = async enabled => {
-    if (!data || pending.current) return;
+  const change = async (
+    sport,
+    enabled,
+  ) => {
+    if (
+      !data?.sports ||
+      pending.current
+    ) {
+      return;
+    }
 
     pending.current = true;
     revision.current += 1;
 
-    setBusy(true);
-    setMessage("");
-    setError("");
+    setBusy(sport);
+    setMessage('');
+    setError('');
 
     try {
       const next = await request({
-        method: "POST",
+        method: 'POST',
+
         body: JSON.stringify({
-          enabled,
+          enabled: {
+            sport,
+            enabled,
+          },
+
           version: data.version,
         }),
       });
 
-      if (mounted.current) {
+      if (alive.current) {
         setData(next);
 
+        const name = sports.find(
+          item => item[0] === sport,
+        )[1];
+
         setMessage(
-          enabled
-            ? "ON saved. Sports updates run automatically every 5 seconds."
-            : "OFF saved. Provider calls stopped; saved matches remain visible.",
+          `${name} ${
+            enabled
+              ? 'ON saved. Waiting for fresh supported data.'
+              : 'OFF saved. New provider calls and new bets paused; saved matches remain visible.'
+          }`,
         );
       }
-    } catch (requestError) {
-      if (mounted.current) {
-        setError(requestError.message);
+    } catch (failure) {
+      if (alive.current) {
+        setError(failure.message);
       }
 
       try {
         const next = await request();
 
-        if (mounted.current) {
+        if (alive.current) {
           setData(next);
         }
       } catch {
-        // Keep the previous state visible.
-        // The next automatic refresh retries.
+        // Automatic refresh retries.
       }
     } finally {
       pending.current = false;
 
-      if (mounted.current) {
-        setBusy(false);
+      if (alive.current) {
+        setBusy('');
       }
     }
   };
 
   return (
     <section className="rounded-2xl border border-teal-700 bg-[#083d37] p-5 text-white">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-black text-amber-200">
-          SPORTS API · SPORTMONKS
-        </h2>
-
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-black ${
-            data?.enabled
-              ? "bg-emerald-300 text-black"
-              : "bg-slate-700 text-white"
-          }`}
-        >
-          {!data
-            ? "LOADING"
-            : data.enabled
-              ? "ON"
-              : "OFF"}
-        </span>
-      </div>
+      <h2 className="text-lg font-black text-amber-200">
+        SPORTS API SETTINGS
+      </h2>
 
       <p className="mt-3 text-sm leading-6 text-cyan-100">
-        ON: the server updates live scores every
-        5 seconds for all customers. OFF: provider
-        calls stop. Saved live and upcoming matches
-        remain visible, including after a refresh
-        or server restart.
+        ప్రతి విభాగానికి ప్రత్యేక ON/OFF.
+        Cricket: 5 seconds. Others: 30 seconds.
+        OFFలో సేవ్ అయిన మ్యాచ్‌లు కనిపిస్తాయి;
+        కొత్త బెట్‌లు ఆగుతాయి.
       </p>
 
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          disabled={!data || busy || data.enabled}
-          onClick={() => change(true)}
-          className="rounded-xl bg-emerald-300 py-3 font-black text-black disabled:opacity-40"
-        >
-          {busy ? "SAVING…" : "ON"}
-        </button>
+      <p className="mt-2 text-xs text-cyan-100">
+        Mode:{' '}
+        {data?.mode === 'demo'
+          ? 'DEMO / MOCK'
+          : data?.mode === 'live'
+            ? 'LIVE'
+            : 'LOADING'}
+        {' · '}
+        Shared server feed for all customers.
+      </p>
 
-        <button
-          type="button"
-          disabled={!data || busy || !data.enabled}
-          onClick={() => change(false)}
-          className="rounded-xl bg-rose-600 py-3 font-black text-white disabled:opacity-40"
+      {data && !data.sports && (
+        <p
+          role="alert"
+          className="mt-4 text-amber-200"
         >
-          {busy ? "SAVING…" : "OFF"}
-        </button>
+          Server update pending. Replace
+          sportsService.js and restart before
+          using these controls.
+        </p>
+      )}
+
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        {sports.map(
+          ([id, name, seconds]) => {
+            const state =
+              data?.sports?.[id];
+
+            return (
+              <article
+                key={id}
+                className="rounded-xl border border-teal-600 bg-black/15 p-4"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="font-black text-amber-200">
+                    {name}
+                  </h3>
+
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-black ${
+                      state?.enabled
+                        ? 'bg-emerald-300 text-black'
+                        : 'bg-slate-700 text-white'
+                    }`}
+                  >
+                    {!state
+                      ? 'LOADING'
+                      : state.enabled
+                        ? 'ON'
+                        : 'OFF'}
+                  </span>
+                </div>
+
+                <p className="mt-2 text-xs">
+                  Update interval:{' '}
+                  <strong>
+                    {seconds} seconds while ON
+                  </strong>
+                </p>
+
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  {[true, false].map(
+                    enabled => (
+                      <button
+                        key={String(enabled)}
+                        type="button"
+                        disabled={
+                          !state ||
+                          Boolean(busy) ||
+                          state.enabled ===
+                            enabled
+                        }
+                        onClick={() =>
+                          change(id, enabled)
+                        }
+                        className={`rounded-lg py-3 font-black disabled:opacity-40 ${
+                          enabled
+                            ? 'bg-emerald-300 text-black'
+                            : 'bg-rose-600 text-white'
+                        }`}
+                      >
+                        {busy === id
+                          ? 'SAVING…'
+                          : enabled
+                            ? 'ON'
+                            : 'OFF'}
+                      </button>
+                    ),
+                  )}
+                </div>
+
+                {state && (
+                  <div className="mt-3 space-y-2 text-xs leading-5 text-slate-200">
+                    <p>
+                      {!state.enabled
+                        ? 'API OFF — Betting Paused'
+                        : !state.supported
+                          ? 'Provider integration pending'
+                          : state.stale
+                            ? 'Waiting / unavailable — Betting Paused'
+                            : data.mode === 'demo'
+                              ? 'Demo feed active'
+                              : 'Live scores active · Verified markets pending'}
+                    </p>
+
+                    <p>
+                      Saved matches:{' '}
+                      {state.savedMatches}
+                      {' · '}
+                      Last fresh update:{' '}
+                      {time(
+                        state.lastUpdated,
+                      )}
+                    </p>
+
+                    {state.error && (
+                      <p className="text-amber-200">
+                        {state.error}
+                      </p>
+                    )}
+
+                    {state.scheduleError && (
+                      <p className="text-amber-200">
+                        Schedule:{' '}
+                        {state.scheduleError}
+                      </p>
+                    )}
+
+                    {state.retryAt && (
+                      <p className="text-amber-200">
+                        Provider retry after:{' '}
+                        {time(
+                          state.retryAt,
+                        )}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </article>
+            );
+          },
+        )}
       </div>
 
       {message && (
@@ -213,91 +375,16 @@ export default function AdminSportsApiSettings() {
         </p>
       )}
 
-      {data && (
-        <div className="mt-5 space-y-2 text-sm text-slate-200">
-          <p>
-            Mode:{" "}
-            <strong>
-              {data.mode === "demo"
-                ? "DEMO / MOCK"
-                : "LIVE"}
-            </strong>
-          </p>
-
-          <p>
-            Live score interval:{" "}
-            <strong>5 seconds</strong>
-          </p>
-
-          <p>
-            Upcoming schedule refresh:{" "}
-            <strong>
-              every 5 minutes while ON
-            </strong>
-          </p>
-
-          <p>
-            Saved matches:{" "}
-            <strong>{data.savedMatches}</strong>
-          </p>
-
-          <p>
-            Last score update:{" "}
-            {time(data.lastUpdated)}
-          </p>
-
-          <p>
-            Last schedule update:{" "}
-            {time(data.scheduleUpdatedAt)}
-          </p>
-
-          <p>
-            Connection:{" "}
-            {data.mode === "demo"
-              ? "Demo feed"
-              : data.apiConnected
-                ? "Connected"
-                : data.enabled
-                  ? "Waiting / unavailable"
-                  : "Paused by Admin"}
-          </p>
-
-          {!data.configured && (
-            <p className="text-amber-200">
-              SPORTMONKS_API_TOKEN is missing
-              in Render Environment.
-            </p>
-          )}
-
-          {data.error && (
-            <p className="text-amber-200">
-              {data.error}
-            </p>
-          )}
-
-          {data.scheduleError && (
-            <p className="text-amber-200">
-              Schedule: {data.scheduleError}
-            </p>
-          )}
-
-          {data.retryAt && (
-            <p className="text-amber-200">
-              Provider retry after:{" "}
-              {time(data.retryAt)}
-            </p>
-          )}
-
-          <p className="pt-2 text-xs leading-5 text-slate-300">
-            The current live integration supplies
-            Cricket. Football and other sports need
-            their own provider integration.
-            Settings are saved automatically.
-            You can close this page after
-            switching ON or OFF.
-          </p>
-        </div>
-      )}
+      <p className="mt-5 text-xs leading-5 text-slate-300">
+        Settings save automatically and survive
+        restart. Current live integration:
+        Sportmonks Cricket scores only, without
+        odds. Other live categories need their
+        provider integration. Cricket upcoming
+        schedule refresh remains every 5 minutes
+        while ON. Demo fixtures appear only where
+        the existing mock provider supplies them.
+      </p>
     </section>
   );
 }
