@@ -10,6 +10,7 @@ import DemoDashboard from "./components/DemoDashboard";
 import ChangePasswordPage from "./components/ChangePasswordPage";
 import AdminLoginPage from "./components/AdminLoginPage";
 import AdminManagementShell from "./components/AdminManagementShell";
+import NewAdminPortal from "./components/NewAdminPortal";
 import GameControlPage from "./components/GameControlPage";
 import RoulettePage from "./components/RoulettePage";
 import TSBFlightPage from "./components/TSBFlightPage";
@@ -71,6 +72,9 @@ export default function App() {
   const cleanPath = window.location.pathname
     .replace(/\/+$/, "")
     .toLowerCase();
+
+  const isNewAdminMode =
+    cleanPath === "/new-admin";
 
   const isAdminMode =
     cleanPath === "/admin";
@@ -146,12 +150,17 @@ export default function App() {
 
         if (active) {
           setAdmin(
-            response.ok ? data.admin : null,
+            response.ok &&
+              data.admin?.historyOnly !== true
+              ? data.admin
+              : null,
           );
         }
       })
       .catch(() => {
-        if (active) setAdmin(null);
+        if (active) {
+          setAdmin(null);
+        }
       })
       .finally(() => {
         if (active) {
@@ -308,6 +317,10 @@ export default function App() {
 
     setAdmin(null);
   };
+
+  if (isNewAdminMode) {
+    return <NewAdminPortal />;
+  }
 
   if (isDealOrNoDealControl) {
     return <DealOrNoDealControlPage />;
