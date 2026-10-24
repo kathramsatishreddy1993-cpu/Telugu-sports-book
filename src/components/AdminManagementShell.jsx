@@ -227,7 +227,7 @@ function AdminAccounts() {
       });
 
       setMessage(
-        "New Admin created. They sign in at /admin and change their temporary password.",
+        "New Admin created. They sign in at /new-admin and change their temporary password.",
       );
 
       await load();
@@ -607,13 +607,13 @@ export default function AdminManagementShell({
 
           <p className="mt-4 text-sm">
             Create and manage History Admin IDs.
-            New Admins sign in at /admin.
+            New Admins sign in at /new-admin.
           </p>
 
           <div className="mt-4 rounded-xl bg-[#063f39] p-3">
             <LinkBox
-              label="New Admin Accounts — Main Admin access"
-              path="/admin#new-admin-accounts"
+              label="NEW ADMIN LOGIN LINK"
+              path="/new-admin"
             />
           </div>
 
