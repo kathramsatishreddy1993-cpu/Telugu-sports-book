@@ -197,11 +197,13 @@ const actorView=actor=>({username:actor.loginId,name:actor.name,role:'ADMIN',isA
 
 async function readActor(connection,req,lock=false) {
   const mainToken=cookie(req,'tsb_old_admin'),mainId=String(process.env.ADMIN_LOGIN_ID||'').trim(),password=String(process.env.ADMIN_LOGIN_PASSWORD||'');
-  if(/^[a-f0-9]{64}$/.test(mainToken)&&mainId&&validPassword(password)){
+  const newPortal=req.historyPortal==='NEW_ADMIN'||req.headers['x-tsb-admin-portal']==='new-admin'||(req.originalUrl?.split('?')[0]==='/api/playing-history/stream'&&req.query?.portal==='new-admin');
+  if(!newPortal&&/^[a-f0-9]{64}$/.test(mainToken)&&mainId&&validPassword(password)){
     const row=(await connection.query(`SELECT admin_id FROM tsb_admin_sessions WHERE token_hash=$1 AND expires_at>clock_timestamp() AND credential_fingerprint=$2${lock?' FOR SHARE':''}`,
       [digest(mainToken),digest(`${mainId}:${password}`)])).rows[0];
     if(row)return {main:true,id:row.admin_id,loginId:row.admin_id,name:row.admin_id,canView:true,canSettle:true,mustChangePassword:false,key:`main:${row.admin_id}`};
   }
+  if(!newPortal)throw fail(401,'Main Admin login required.');
   const token=cookie(req,'tsb_history_admin');
   if(!/^[a-f0-9]{64}$/.test(token))throw fail(401,'Admin login required.');
   const row=(await connection.query(`SELECT a.* FROM tsb_history_admin_sessions s JOIN tsb_history_admins a ON a.id=s.account_id
@@ -257,33 +259,26 @@ export function registerPlayingHistoryRoutes(app,pool) {
     if(attempts.size>10000&&!attempts.has(key))throw fail(429,'Login busy. Try again later.');
     value.count++;attempts.set(key,value);return()=>attempts.delete(key);
   };
-  // Intercept delegated admin login; ordinary Main Admin routes continue unchanged.
-  app.post('/api/auth/admin-login',origin,wrap(async(req,res,next)=>{
-    const name=normalized(req.body?.username),main=String(process.env.ADMIN_LOGIN_ID||'').trim();
-    if(safeEqual(String(req.body?.username||'').trim(),main)){res.clearCookie('tsb_history_admin',{path:'/'});return next();}
-    const reset=limit(req);
-    const row=(await pool.query('SELECT * FROM tsb_history_admins WHERE login_id=$1',[name])).rows[0];
-    if(!row)return next();
+  // New Admin uses separate endpoints and cookie. Main Admin auth is untouched.
+  app.use('/api/new-admin',origin,(req,res,next)=>{req.historyPortal='NEW_ADMIN';next();});
+  app.post('/api/new-admin/login',wrap(async(req,res)=>{
+    const reset=limit(req),name=normalized(req.body?.username);
     const password=String(req.body?.password||'');
-    if(!row.active||Buffer.byteLength(password,'utf8')>72||!(await bcrypt.compare(password,row.password_hash)))throw fail(401,'Invalid Admin ID or Password.');
+    const row=(await pool.query('SELECT * FROM tsb_history_admins WHERE login_id=$1',[name])).rows[0];
+    if(!row||!row.active||Buffer.byteLength(password,'utf8')>72||!(await bcrypt.compare(password,row.password_hash)))throw fail(401,'Invalid New Admin ID or Password.');
     await transaction(pool,async client=>{
       const locked=(await client.query('SELECT * FROM tsb_history_admins WHERE id=$1 FOR UPDATE',[row.id])).rows[0];
       if(!locked?.active||locked.auth_version!==row.auth_version)throw fail(401,'Account changed. Login again.');
       await issueSession(client,res,locked);
-      await client.query('DELETE FROM tsb_admin_sessions WHERE token_hash=$1',[digest(cookie(req,'tsb_old_admin'))]);
     });
-    res.clearCookie('tsb_old_admin',{path:'/'});reset();
-    res.json({success:true,admin:actorView({main:false,loginId:row.login_id,name:row.name,canView:row.can_view,canSettle:row.can_settle,mustChangePassword:row.must_change_password})});
+    reset();res.json({success:true,admin:actorView({main:false,loginId:row.login_id,name:row.name,canView:row.can_view,canSettle:row.can_settle,mustChangePassword:row.must_change_password})});
   }));
-  app.get('/api/auth/admin-session',wrap(async(req,res,next)=>{
-    if(!cookie(req,'tsb_history_admin'))return next();
+  app.get('/api/new-admin/session',wrap(async(req,res)=>{
     const actor=await readActor(pool,req);res.json({success:true,admin:actorView(actor)});
   }));
-  app.post('/api/auth/admin-logout',origin,wrap(async(req,res,next)=>{
-    if(!cookie(req,'tsb_history_admin'))return next();
+  app.post('/api/new-admin/logout',wrap(async(req,res)=>{
     await pool.query('DELETE FROM tsb_history_admin_sessions WHERE token_hash=$1',[digest(cookie(req,'tsb_history_admin'))]);
-    await pool.query('DELETE FROM tsb_admin_sessions WHERE token_hash=$1',[digest(cookie(req,'tsb_old_admin'))]);
-    res.clearCookie('tsb_history_admin',{path:'/'});res.clearCookie('tsb_old_admin',{path:'/'});res.json({success:true});
+    res.clearCookie('tsb_history_admin',{path:'/'});res.json({success:true});
   }));
   app.get('/api/playing-history/me',guard('password'),(req,res)=>res.json({success:true,admin:actorView(req.historyActor)}));
   app.post('/api/playing-history/change-password',guard('password'),wrap(async(req,res)=>{
