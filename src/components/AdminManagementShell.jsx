@@ -1,10 +1,11 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import AdminDashboard from "./AdminDashboard";
 import AdminControllerAccounts from "./AdminControllerAccounts";
 import AutoGameControls from "./AutoGameControls";
 import ManualSuperOverControls from "./ManualSuperOverControls";
 import AdminPromoCodes from "./AdminPromoCodes";
+import AdminPlayingHistory from "./AdminPlayingHistory";
 
 const CONTROLLER_GAMES = [
   {
@@ -132,6 +133,85 @@ export default function AdminManagementShell({
   onLogout,
 }) {
   const [view, setView] = useState("HOME");
+  const [identity, setIdentity] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+
+    fetch("/api/playing-history/me", {
+      credentials: "same-origin",
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async response => {
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.error || "Unable to verify Admin permissions.",
+          );
+        }
+
+        if (active) {
+          setIdentity(data.admin);
+        }
+      })
+      .catch(failure => {
+        if (active && failure.name !== "AbortError") {
+          setError(failure.message);
+        }
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [admin?.username]);
+
+  if (error) {
+    return (
+      <main className="min-h-screen bg-[#061c1a] p-6 text-white">
+        <p role="alert">{error}</p>
+
+        <button
+          type="button"
+          onClick={onLogout}
+          className="mt-4 rounded bg-rose-700 px-4 py-2"
+        >
+          Logout and login again
+        </button>
+      </main>
+    );
+  }
+
+  if (!identity) {
+    return (
+      <main className="min-h-screen bg-[#061c1a] p-6 text-white">
+        Verifying Admin permissions…
+      </main>
+    );
+  }
+
+  if (identity.historyOnly) {
+    return (
+      <AdminPlayingHistory
+        admin={identity}
+        onLogout={onLogout}
+      />
+    );
+  }
+
+  if (view === "PLAYING_HISTORY") {
+    return (
+      <AdminPlayingHistory
+        admin={identity}
+        onBack={() => setView("HOME")}
+        onLogout={onLogout}
+      />
+    );
+  }
 
   if (view === "PROMO_CODES") {
     return (
@@ -283,7 +363,7 @@ export default function AdminManagementShell({
   return (
     <>
       <div className="border-b border-teal-700 bg-[#061c1a] p-3 text-white">
-        <div className="mx-auto grid max-w-5xl grid-cols-2 gap-3">
+        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-3 sm:grid-cols-3">
           <button
             type="button"
             onClick={() => setView("GAMES")}
@@ -309,6 +389,20 @@ export default function AdminManagementShell({
 
             <span className="mt-1 block text-xs leading-5 text-slate-300">
               Assign / Update Customer Promo Codes ›
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setView("PLAYING_HISTORY")}
+            className="rounded-xl border border-cyan-400/40 bg-teal-700/30 p-4 text-left"
+          >
+            <span className="block font-black text-cyan-100">
+              📋 CUSTOMER PLAYING HISTORY
+            </span>
+
+            <span className="mt-1 block text-xs leading-5 text-slate-200">
+              8 Games + Sports · New Admin IDs · Settlement ›
             </span>
           </button>
         </div>
