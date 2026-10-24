@@ -38,9 +38,13 @@ const time = value =>
 
 const newKey = () =>
   globalThis.crypto?.randomUUID?.() ||
-  `history-${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2)}`;
+  `history-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+const isNewAdminPortal = () =>
+  typeof window !== "undefined" &&
+  window.location.pathname
+    .replace(/\/+$/, "")
+    .toLowerCase() === "/new-admin";
 
 async function request(path, options = {}) {
   const response = await fetch(
@@ -49,13 +53,13 @@ async function request(path, options = {}) {
       credentials: "same-origin",
       cache: "no-store",
       ...options,
-
       headers: {
         Accept: "application/json",
+        ...(isNewAdminPortal()
+          ? { "X-TSB-Admin-Portal": "new-admin" }
+          : {}),
         ...(options.body
-          ? {
-              "Content-Type": "application/json",
-            }
+          ? { "Content-Type": "application/json" }
           : {}),
         ...options.headers,
       },
@@ -100,7 +104,6 @@ function PasswordChange({ onDone, onLogout }) {
 
   const submit = async event => {
     event.preventDefault();
-
     if (busy) return;
 
     setBusy(true);
@@ -136,10 +139,7 @@ function PasswordChange({ onDone, onLogout }) {
         </p>
 
         {Object.keys(form).map(name => (
-          <label
-            key={name}
-            className="block text-sm"
-          >
+          <label key={name} className="block text-sm">
             {name === "currentPassword"
               ? "Current password"
               : name === "newPassword"
@@ -173,10 +173,7 @@ function PasswordChange({ onDone, onLogout }) {
           </p>
         )}
 
-        <button
-          className={buttonClass}
-          disabled={busy}
-        >
+        <button className={buttonClass} disabled={busy}>
           {busy ? "SAVING…" : "SAVE PASSWORD"}
         </button>
 
@@ -209,7 +206,6 @@ function AdminAccounts() {
   const load = useCallback(async () => {
     try {
       const data = await request("/admins");
-
       setAccounts(data.accounts);
       setError("");
     } catch (failure) {
@@ -223,7 +219,6 @@ function AdminAccounts() {
 
   const create = async event => {
     event.preventDefault();
-
     if (busy) return;
 
     setBusy(true);
@@ -244,7 +239,7 @@ function AdminAccounts() {
       });
 
       setMessage(
-        "New Admin created. They sign in at /admin and change their temporary password.",
+        "New Admin created. They sign in at /new-admin and change their temporary password.",
       );
 
       await load();
@@ -265,7 +260,6 @@ function AdminAccounts() {
     try {
       await request(`/admins/${account.id}`, {
         method: "PATCH",
-
         body: JSON.stringify({
           active: account.active,
           canView: account.canView,
@@ -310,10 +304,7 @@ function AdminAccounts() {
             "Temporary password (12+ characters)",
           ],
         ].map(([name, label]) => (
-          <label
-            key={name}
-            className="text-xs font-bold"
-          >
+          <label key={name} className="text-xs font-bold">
             {label}
 
             <input
@@ -352,28 +343,19 @@ function AdminAccounts() {
           Allow Sports Manual Settlement
         </label>
 
-        <button
-          className={buttonClass}
-          disabled={busy}
-        >
+        <button className={buttonClass} disabled={busy}>
           CREATE NEW ADMIN
         </button>
       </form>
 
       {error && (
-        <p
-          role="alert"
-          className="mt-3 text-sm text-red-700"
-        >
+        <p role="alert" className="mt-3 text-sm text-red-700">
           {error}
         </p>
       )}
 
       {message && (
-        <p
-          role="status"
-          className="mt-3 text-sm text-teal-800"
-        >
+        <p role="status" className="mt-3 text-sm text-teal-800">
           {message}
         </p>
       )}
@@ -390,16 +372,13 @@ function AdminAccounts() {
 
             <p className="mt-1 text-xs">
               {account.active ? "ACTIVE" : "BLOCKED"}
-              {" · "}
-              History: {account.canView ? "YES" : "NO"}
-              {" · "}
-              Sports settlement:{" "}
+              {" · "}History: {account.canView ? "YES" : "NO"}
+              {" · "}Sports settlement:{" "}
               {account.canSettle ? "YES" : "NO"}
             </p>
 
             <div className="mt-3 flex flex-wrap gap-2">
               <button
-                type="button"
                 className={buttonClass}
                 disabled={busy}
                 onClick={() =>
@@ -412,7 +391,6 @@ function AdminAccounts() {
               </button>
 
               <button
-                type="button"
                 className={buttonClass}
                 disabled={busy}
                 onClick={() =>
@@ -430,7 +408,6 @@ function AdminAccounts() {
               </button>
 
               <button
-                type="button"
                 className={buttonClass}
                 disabled={busy || !account.canView}
                 onClick={() =>
@@ -445,7 +422,6 @@ function AdminAccounts() {
               </button>
 
               <button
-                type="button"
                 className={buttonClass}
                 disabled={busy}
                 onClick={() => {
@@ -470,11 +446,7 @@ function AdminAccounts() {
   );
 }
 
-function Settlement({
-  bet,
-  onClose,
-  onSaved,
-}) {
+function Settlement({ bet, onClose, onSaved }) {
   const [form, setForm] = useState({
     outcome: "",
     reason: "",
@@ -494,8 +466,7 @@ function Settlement({
       ? bet.stake
       : form.outcome === "WON"
         ? Math.round(
-            bet.stake *
-              Number(bet.extra?.payoutRate),
+            bet.stake * Number(bet.extra?.payoutRate),
           )
         : form.outcome === "LOST"
           ? 0
@@ -503,26 +474,21 @@ function Settlement({
 
   const submit = async event => {
     event.preventDefault();
-
     if (pending.current) return;
 
     if (!form.confirmed || !form.outcome) {
-      setError(
-        "Choose and confirm the verified result.",
-      );
+      setError("Choose and confirm the verified result.");
       return;
     }
 
-    const payload =
-      frozen.current || {
-        ...form,
-        version: bet.version,
-        requestKey: requestKey.current,
-      };
+    const payload = frozen.current || {
+      ...form,
+      version: bet.version,
+      requestKey: requestKey.current,
+    };
 
     frozen.current = payload;
     pending.current = true;
-
     setBusy(true);
     setError("");
 
@@ -541,8 +507,7 @@ function Settlement({
     }
   };
 
-  const locked =
-    busy || Boolean(frozen.current);
+  const locked = busy || Boolean(frozen.current);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/60 p-3">
@@ -562,8 +527,7 @@ function Settlement({
           <br />
           {bet.selection}
           <br />
-          Held: {money(bet.held)} demo coins ·
-          Rate: {bet.rate}
+          Held: {money(bet.held)} demo coins · Rate: {bet.rate}
         </p>
 
         <label className="block text-sm font-bold">
@@ -584,9 +548,7 @@ function Settlement({
             <option value="">Choose result</option>
             <option value="WON">WIN</option>
             <option value="LOST">LOSS</option>
-            <option value="VOID">
-              VOID — Return stake
-            </option>
+            <option value="VOID">VOID — Return stake</option>
           </select>
         </label>
 
@@ -631,15 +593,11 @@ function Settlement({
         <p className="rounded bg-amber-50 p-3 text-sm">
           Payout including returned stake:{" "}
           <strong>{money(expected)}</strong> demo coins.
-          {" "}
           Net profit / loss:{" "}
           <strong>
-            {expected == null
-              ? ""
-              : money(expected - bet.held)}
+            {expected == null ? "" : money(expected - bet.held)}
           </strong>
-          . This settles the bet and credits any
-          return once.
+          . This settles the bet and credits any return once.
         </p>
 
         <label className="flex gap-2 text-sm">
@@ -655,15 +613,12 @@ function Settlement({
               })
             }
           />
-          I verified this market result and the
-          payout above.
+
+          I verified this market result and the payout above.
         </label>
 
         {error && (
-          <p
-            role="alert"
-            className="text-sm text-red-700"
-          >
+          <p role="alert" className="text-sm text-red-700">
             {error}
             {frozen.current
               ? " Retry uses the same request to prevent a second credit."
@@ -672,10 +627,7 @@ function Settlement({
         )}
 
         <div className="flex gap-3">
-          <button
-            className={buttonClass}
-            disabled={busy}
-          >
+          <button className={buttonClass} disabled={busy}>
             {busy
               ? "SETTLING…"
               : frozen.current
@@ -728,7 +680,7 @@ export default function AdminPlayingHistory({
 
     return () => {
       alive.current = false;
-      generation.current += 1;
+      generation.current++;
     };
   }, []);
 
@@ -756,9 +708,7 @@ export default function AdminPlayingHistory({
   const refresh = useCallback(async () => {
     const current = generation.current;
 
-    if (inflight.current === current) {
-      return;
-    }
+    if (inflight.current === current) return;
 
     inflight.current = current;
 
@@ -767,34 +717,23 @@ export default function AdminPlayingHistory({
       search,
       date,
       result,
-
-      ...(cursor
-        ? { before: cursor }
-        : {}),
+      ...(cursor ? { before: cursor } : {}),
     });
 
     try {
       const data = await request(`?${params}`);
 
-      if (
-        alive.current &&
-        current === generation.current
-      ) {
+      if (alive.current && current === generation.current) {
         setItems(data.items);
         setNext(data.nextBefore);
         setIdentity(data.admin);
         setError("");
       }
     } catch (failure) {
-      if (
-        alive.current &&
-        current === generation.current
-      ) {
+      if (alive.current && current === generation.current) {
         setError(failure.message);
 
-        if (
-          [401, 403].includes(failure.status)
-        ) {
+        if ([401, 403].includes(failure.status)) {
           setItems([]);
           setSelected(null);
         }
@@ -804,96 +743,60 @@ export default function AdminPlayingHistory({
         inflight.current = null;
       }
 
-      if (
-        alive.current &&
-        current === generation.current
-      ) {
+      if (alive.current && current === generation.current) {
         setLoading(false);
       }
     }
-  }, [
-    game,
-    search,
-    date,
-    result,
-    cursor,
-  ]);
+  }, [game, search, date, result, cursor]);
 
   const hasIdentity = Boolean(identity);
-  const mustChangePassword =
-    identity?.mustChangePassword;
+  const mustChangePassword = identity?.mustChangePassword;
 
   useEffect(() => {
-    if (
-      !hasIdentity ||
-      mustChangePassword
-    ) {
-      return;
-    }
+    if (!hasIdentity || mustChangePassword) return;
 
     let active = true;
     let stream;
 
-    generation.current += 1;
-
+    generation.current++;
     setLoading(true);
     setItems([]);
-
     void refresh();
 
-    if (
-      typeof EventSource !== "undefined"
-    ) {
+    if (typeof EventSource !== "undefined") {
       stream = new EventSource(
-        "/api/playing-history/stream",
+        "/api/playing-history/stream" +
+          (isNewAdminPortal() ? "?portal=new-admin" : ""),
       );
 
       stream.onmessage = () => {
-        if (active) {
-          void refresh();
-        }
+        if (active) void refresh();
       };
 
       stream.onerror = () => {
-        if (active) {
-          void refresh();
-        }
+        if (active) void refresh();
       };
     }
 
     const timer = setInterval(() => {
-      if (active) {
-        void refresh();
-      }
+      if (active) void refresh();
     }, 2000);
 
-    const focus = () => {
-      void refresh();
-    };
+    const focus = () => void refresh();
 
     window.addEventListener("focus", focus);
 
     return () => {
       active = false;
-      generation.current += 1;
-
+      generation.current++;
       clearInterval(timer);
       stream?.close();
-
-      window.removeEventListener(
-        "focus",
-        focus,
-      );
+      window.removeEventListener("focus", focus);
     };
-  }, [
-    refresh,
-    mustChangePassword,
-    hasIdentity,
-  ]);
+  }, [refresh, mustChangePassword, hasIdentity]);
 
   const filter = (setter, value) => {
-    generation.current += 1;
-
+    generation.current++;
     setter(value);
     setCursor(null);
     setPages([]);
@@ -902,13 +805,9 @@ export default function AdminPlayingHistory({
 
   const inspect = async bet => {
     try {
-      const data = await request(
-        `/${bet.betNo}/changes`,
-      );
-
       setChanges({
         betNo: bet.betNo,
-        ...data,
+        ...(await request(`/${bet.betNo}/changes`)),
       });
     } catch (failure) {
       setError(failure.message);
@@ -925,8 +824,7 @@ export default function AdminPlayingHistory({
   }
 
   const canManage =
-    identity?.permissions
-      ?.manageHistoryAdmins === true;
+    identity?.permissions?.manageHistoryAdmins === true;
 
   void admin;
 
@@ -935,10 +833,8 @@ export default function AdminPlayingHistory({
       <header className="bg-[#063f39] px-4 py-4 text-white">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3">
           <p className="font-black">
-            <span className="text-amber-300">
-              TSB
-            </span>{" "}
-            · TELUGU SPORTS BOOK
+            <span className="text-amber-300">TSB</span>
+            {" · "}TELUGU SPORTS BOOK
           </p>
 
           <div className="flex items-center gap-3">
@@ -948,7 +844,6 @@ export default function AdminPlayingHistory({
 
             {onBack && (
               <button
-                type="button"
                 className="rounded border border-white/30 px-3 py-2 text-xs font-bold"
                 onClick={onBack}
               >
@@ -957,7 +852,6 @@ export default function AdminPlayingHistory({
             )}
 
             <button
-              type="button"
               className="rounded border border-white/30 px-3 py-2 text-xs font-bold"
               onClick={onLogout}
             >
@@ -975,30 +869,23 @@ export default function AdminPlayingHistory({
             </h1>
 
             <p className="mt-1 text-sm text-slate-600">
-              Demo coins · All times IST ·
-              Win / Loss stays blank until final
-              settlement.
+              Demo coins · All times IST · Win / Loss stays
+              blank until final settlement.
             </p>
           </div>
 
           <div className="flex gap-2">
             <button
-              type="button"
               className={buttonClass}
-              onClick={() =>
-                filter(setGame, "ALL")
-              }
+              onClick={() => filter(setGame, "ALL")}
             >
               ALL GAMES
             </button>
 
             {canManage && (
               <button
-                type="button"
                 className={buttonClass}
-                onClick={() =>
-                  setAccounts(value => !value)
-                }
+                onClick={() => setAccounts(value => !value)}
               >
                 NEW ADMIN ACCOUNTS
               </button>
@@ -1006,18 +893,14 @@ export default function AdminPlayingHistory({
           </div>
         </div>
 
-        {accounts && canManage && (
-          <AdminAccounts />
-        )}
+        {accounts && canManage && <AdminAccounts />}
 
         <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           {GAMES.map(([id, label]) => (
             <button
               key={id}
               type="button"
-              onClick={() =>
-                filter(setGame, id)
-              }
+              onClick={() => filter(setGame, id)}
               className={`rounded-lg border px-3 py-3 text-sm font-black ${
                 game === id
                   ? "border-teal-600 bg-[#08b7bc] text-black"
@@ -1032,47 +915,35 @@ export default function AdminPlayingHistory({
         <div className="mt-4 flex flex-wrap gap-3 rounded-xl border border-slate-200 bg-white p-3">
           <label className="text-xs font-bold">
             Customer / Bet No.
-
             <input
               className={`${inputClass} ml-2`}
               value={search}
               placeholder="Name, ID or number"
               onChange={event =>
-                filter(
-                  setSearch,
-                  event.target.value,
-                )
+                filter(setSearch, event.target.value)
               }
             />
           </label>
 
           <label className="text-xs font-bold">
             Date (IST)
-
             <input
               type="date"
               className={`${inputClass} ml-2`}
               value={date}
               onChange={event =>
-                filter(
-                  setDate,
-                  event.target.value,
-                )
+                filter(setDate, event.target.value)
               }
             />
           </label>
 
           <label className="text-xs font-bold">
             Result
-
             <select
               className={`${inputClass} ml-2`}
               value={result}
               onChange={event =>
-                filter(
-                  setResult,
-                  event.target.value,
-                )
+                filter(setResult, event.target.value)
               }
             >
               {[
@@ -1083,15 +954,12 @@ export default function AdminPlayingHistory({
                 "REFUND",
                 "VOID",
               ].map(value => (
-                <option key={value}>
-                  {value}
-                </option>
+                <option key={value}>{value}</option>
               ))}
             </select>
           </label>
 
           <button
-            type="button"
             className={buttonClass}
             onClick={() => void refresh()}
           >
@@ -1109,25 +977,19 @@ export default function AdminPlayingHistory({
         )}
 
         {loading && (
-          <p
-            role="status"
-            className="p-4 text-sm"
-          >
+          <p role="status" className="p-4 text-sm">
             Loading history…
           </p>
         )}
 
-        {!loading &&
-          items.length === 0 &&
-          !error && (
-            <p className="mt-4 rounded-xl bg-white p-6 text-sm">
-              No bets match these filters.
-            </p>
-          )}
+        {!loading && items.length === 0 && !error && (
+          <p className="mt-4 rounded-xl bg-white p-6 text-sm">
+            No bets match these filters.
+          </p>
+        )}
 
         {GAMES.filter(
-          ([id]) =>
-            game === "ALL" || id === game,
+          ([id]) => game === "ALL" || id === game,
         ).map(([id, label]) => {
           const rows = items.filter(
             item => item.game === id,
@@ -1183,7 +1045,6 @@ export default function AdminPlayingHistory({
 
                         <td className="px-3 py-3">
                           {bet.loginId}
-
                           <span className="block text-slate-500">
                             {bet.customerName}
                           </span>
@@ -1199,7 +1060,6 @@ export default function AdminPlayingHistory({
 
                         <td className="px-3 py-3">
                           {money(bet.stake)}
-
                           <span className="block text-slate-500">
                             Held: {money(bet.held)}
                           </span>
@@ -1257,22 +1117,16 @@ export default function AdminPlayingHistory({
                           <div className="flex flex-col gap-2">
                             {bet.canSettle && (
                               <button
-                                type="button"
                                 className="rounded bg-[#791b3e] px-2 py-2 font-bold text-white"
-                                onClick={() =>
-                                  setSelected(bet)
-                                }
+                                onClick={() => setSelected(bet)}
                               >
                                 MANUAL SETTLEMENT
                               </button>
                             )}
 
                             <button
-                              type="button"
                               className="underline"
-                              onClick={() =>
-                                void inspect(bet)
-                              }
+                              onClick={() => void inspect(bet)}
                             >
                               Audit / changes
                             </button>
@@ -1289,18 +1143,12 @@ export default function AdminPlayingHistory({
 
         <div className="mt-5 flex items-center justify-between gap-3">
           <button
-            type="button"
             className={buttonClass}
             disabled={!pages.length || loading}
             onClick={() => {
-              generation.current += 1;
-
+              generation.current++;
               const history = [...pages];
-
-              setCursor(
-                history.pop() || null,
-              );
-
+              setCursor(history.pop() || null);
               setPages(history);
             }}
           >
@@ -1313,17 +1161,11 @@ export default function AdminPlayingHistory({
           </p>
 
           <button
-            type="button"
             className={buttonClass}
             disabled={!next || loading}
             onClick={() => {
-              generation.current += 1;
-
-              setPages(previous => [
-                ...previous,
-                cursor,
-              ]);
-
+              generation.current++;
+              setPages(previous => [...previous, cursor]);
               setCursor(next);
             }}
           >
@@ -1335,9 +1177,7 @@ export default function AdminPlayingHistory({
       {selected && (
         <Settlement
           bet={selected}
-          onClose={() =>
-            setSelected(null)
-          }
+          onClose={() => setSelected(null)}
           onSaved={() => {
             setSelected(null);
             void refresh();
@@ -1359,11 +1199,8 @@ export default function AdminPlayingHistory({
               </h2>
 
               <button
-                type="button"
                 className="underline"
-                onClick={() =>
-                  setChanges(null)
-                }
+                onClick={() => setChanges(null)}
               >
                 Close
               </button>
