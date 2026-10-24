@@ -1,4 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import AdminDashboard from "./AdminDashboard";
 import AdminControllerAccounts from "./AdminControllerAccounts";
@@ -30,6 +35,49 @@ const CONTROLLER_GAMES = [
     controllerPath: "/game-control/deal-or-no-deal",
   },
 ];
+
+const inputClass =
+  "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900";
+
+const buttonClass =
+  "rounded-lg bg-[#791b3e] px-4 py-2 text-sm font-bold text-white disabled:opacity-40";
+
+async function request(path, options = {}) {
+  const response = await fetch(
+    `/api/playing-history${path}`,
+    {
+      credentials: "same-origin",
+      cache: "no-store",
+      ...options,
+      headers: {
+        Accept: "application/json",
+        ...(options.body
+          ? { "Content-Type": "application/json" }
+          : {}),
+        ...options.headers,
+      },
+    },
+  );
+
+  let data;
+
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(
+      "Server response was not JSON. Check deployment.",
+    );
+  }
+
+  if (!response.ok) {
+    throw Object.assign(
+      new Error(data.error || "Request failed."),
+      { status: response.status },
+    );
+  }
+
+  return data;
+}
 
 function LinkBox({ label, path }) {
   const inputRef = useRef(null);
@@ -128,15 +176,341 @@ function LinkBox({ label, path }) {
   );
 }
 
+function AdminAccounts() {
+  const [accounts, setAccounts] = useState([]);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const [form, setForm] = useState({
+    name: "",
+    loginId: "",
+    temporaryPassword: "",
+    canSettle: false,
+  });
+
+  const load = useCallback(async () => {
+    try {
+      const data = await request("/admins");
+
+      setAccounts(data.accounts);
+      setError("");
+    } catch (failure) {
+      setError(failure.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const create = async event => {
+    event.preventDefault();
+
+    if (busy) return;
+
+    setBusy(true);
+    setError("");
+    setMessage("");
+
+    try {
+      await request("/admins", {
+        method: "POST",
+        body: JSON.stringify(form),
+      });
+
+      setForm({
+        name: "",
+        loginId: "",
+        temporaryPassword: "",
+        canSettle: false,
+      });
+
+      setMessage(
+        "New Admin created. They sign in at /admin and change their temporary password.",
+      );
+
+      await load();
+    } catch (failure) {
+      setError(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const update = async (account, changes) => {
+    if (busy) return;
+
+    setBusy(true);
+    setError("");
+    setMessage("");
+
+    try {
+      await request(`/admins/${account.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          active: account.active,
+          canView: account.canView,
+          canSettle: account.canSettle,
+          version: account.version,
+          ...changes,
+        }),
+      });
+
+      setMessage(
+        "Account saved. Previous sessions revoked; the New Admin must log in again.",
+      );
+
+      await load();
+    } catch (failure) {
+      setError(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="mt-5 rounded-xl border border-teal-200 bg-white p-4">
+      <h2 className="font-black text-[#063f39]">
+        NEW ADMIN ACCOUNTS
+      </h2>
+
+      <p className="mt-1 text-xs text-slate-600">
+        These accounts access Playing History only.
+        Game Controller IDs remain separate.
+      </p>
+
+      <form
+        onSubmit={create}
+        className="mt-3 grid gap-3 sm:grid-cols-2"
+      >
+        {[
+          ["name", "Name"],
+          ["loginId", "Admin ID"],
+          [
+            "temporaryPassword",
+            "Temporary password (12+ characters)",
+          ],
+        ].map(([name, label]) => (
+          <label
+            key={name}
+            className="text-xs font-bold"
+          >
+            {label}
+
+            <input
+              className={`${inputClass} mt-1 w-full`}
+              type={
+                name === "temporaryPassword"
+                  ? "password"
+                  : "text"
+              }
+              required
+              value={form[name]}
+              autoComplete="off"
+              disabled={busy}
+              onChange={event =>
+                setForm({
+                  ...form,
+                  [name]: event.target.value,
+                })
+              }
+            />
+          </label>
+        ))}
+
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={form.canSettle}
+            disabled={busy}
+            onChange={event =>
+              setForm({
+                ...form,
+                canSettle: event.target.checked,
+              })
+            }
+          />
+
+          Allow Sports Manual Settlement
+        </label>
+
+        <button
+          type="submit"
+          className={buttonClass}
+          disabled={busy}
+        >
+          CREATE NEW ADMIN
+        </button>
+      </form>
+
+      {error && (
+        <p
+          role="alert"
+          className="mt-3 text-sm text-red-700"
+        >
+          {error}
+        </p>
+      )}
+
+      {message && (
+        <p
+          role="status"
+          className="mt-3 text-sm text-teal-800"
+        >
+          {message}
+        </p>
+      )}
+
+      <div className="mt-4 space-y-3">
+        {accounts.map(account => (
+          <article
+            key={account.id}
+            className="rounded border border-slate-200 p-3"
+          >
+            <p className="font-bold">
+              {account.name} · {account.loginId}
+            </p>
+
+            <p className="mt-1 text-xs">
+              {account.active ? "ACTIVE" : "BLOCKED"}
+              {" · "}
+              History: {account.canView ? "YES" : "NO"}
+              {" · "}
+              Sports settlement:{" "}
+              {account.canSettle ? "YES" : "NO"}
+            </p>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className={buttonClass}
+                disabled={busy}
+                onClick={() =>
+                  update(account, {
+                    active: !account.active,
+                  })
+                }
+              >
+                {account.active ? "BLOCK" : "ACTIVATE"}
+              </button>
+
+              <button
+                type="button"
+                className={buttonClass}
+                disabled={busy}
+                onClick={() =>
+                  update(account, {
+                    canView: !account.canView,
+                    canSettle: account.canView
+                      ? false
+                      : account.canSettle,
+                  })
+                }
+              >
+                {account.canView
+                  ? "REMOVE HISTORY ACCESS"
+                  : "ALLOW HISTORY"}
+              </button>
+
+              <button
+                type="button"
+                className={buttonClass}
+                disabled={busy || !account.canView}
+                onClick={() =>
+                  update(account, {
+                    canSettle: !account.canSettle,
+                  })
+                }
+              >
+                {account.canSettle
+                  ? "REMOVE SETTLEMENT"
+                  : "ALLOW SETTLEMENT"}
+              </button>
+
+              <button
+                type="button"
+                className={buttonClass}
+                disabled={busy}
+                onClick={() => {
+                  const password = window.prompt(
+                    `New temporary password for ${account.loginId} (12+ characters):`,
+                  );
+
+                  if (password) {
+                    void update(account, {
+                      temporaryPassword: password,
+                    });
+                  }
+                }}
+              >
+                RESET PASSWORD
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function viewFromLocation() {
+  const name = window.location.hash.slice(1);
+
+  if (name === "new-admin-accounts") {
+    return "NEW_ADMIN_ACCOUNTS";
+  }
+
+  if (name === "playing-history") {
+    return "PLAYING_HISTORY";
+  }
+
+  return "HOME";
+}
+
 export default function AdminManagementShell({
   admin,
   onLogout,
 }) {
-  const [view, setView] = useState("HOME");
+  const [view, updateView] = useState(viewFromLocation);
   const [identity, setIdentity] = useState(null);
   const [error, setError] = useState("");
 
+  const setView = next => {
+    updateView(next);
+
+    const hash =
+      next === "NEW_ADMIN_ACCOUNTS"
+        ? "#new-admin-accounts"
+        : next === "PLAYING_HISTORY"
+          ? "#playing-history"
+          : "";
+
+    window.history.replaceState(
+      null,
+      "",
+      window.location.pathname +
+        window.location.search +
+        hash,
+    );
+  };
+
   useEffect(() => {
+    const changed = () => {
+      updateView(viewFromLocation());
+    };
+
+    window.addEventListener("hashchange", changed);
+
+    return () => {
+      window.removeEventListener("hashchange", changed);
+    };
+  }, []);
+
+  useEffect(() => {
+    setIdentity(null);
+    setError("");
+
     let active = true;
     const controller = new AbortController();
 
@@ -200,6 +574,52 @@ export default function AdminManagementShell({
         admin={identity}
         onLogout={onLogout}
       />
+    );
+  }
+
+  if (view === "NEW_ADMIN_ACCOUNTS") {
+    return (
+      <main className="min-h-screen bg-slate-100 p-4 text-slate-900">
+        <div className="mx-auto max-w-5xl">
+          <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#063f39] p-4 text-white">
+            <h1 className="text-xl font-black">
+              NEW ADMIN ACCOUNTS
+            </h1>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setView("HOME")}
+                className="rounded border border-white/30 px-3 py-2"
+              >
+                ← ADMIN DASHBOARD
+              </button>
+
+              <button
+                type="button"
+                onClick={onLogout}
+                className="rounded border border-white/30 px-3 py-2"
+              >
+                LOGOUT
+              </button>
+            </div>
+          </header>
+
+          <p className="mt-4 text-sm">
+            Create and manage History Admin IDs.
+            New Admins sign in at /admin.
+          </p>
+
+          <div className="mt-4 rounded-xl bg-[#063f39] p-3">
+            <LinkBox
+              label="New Admin Accounts — Main Admin access"
+              path="/admin#new-admin-accounts"
+            />
+          </div>
+
+          <AdminAccounts />
+        </div>
+      </main>
     );
   }
 
@@ -363,7 +783,7 @@ export default function AdminManagementShell({
   return (
     <>
       <div className="border-b border-teal-700 bg-[#061c1a] p-3 text-white">
-        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <button
             type="button"
             onClick={() => setView("GAMES")}
@@ -403,6 +823,20 @@ export default function AdminManagementShell({
 
             <span className="mt-1 block text-xs leading-5 text-slate-200">
               8 Games + Sports · New Admin IDs · Settlement ›
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setView("NEW_ADMIN_ACCOUNTS")}
+            className="rounded-xl border border-amber-300/40 bg-amber-400/10 p-4 text-left"
+          >
+            <span className="block font-black text-amber-200">
+              NEW ADMIN ACCOUNTS
+            </span>
+
+            <span className="mt-1 block text-xs text-slate-200">
+              Create IDs · Permissions · Reset Password ›
             </span>
           </button>
         </div>
