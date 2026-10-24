@@ -6,6 +6,10 @@ import {
 
 import bcrypt from "bcryptjs";
 
+import {
+  registerPlayingHistoryRoutes,
+} from "./playingHistory.js";
+
 export const CONTROLLER_GAMES = Object.freeze([
   "AVIATOR",
   "ROULETTE",
@@ -98,8 +102,11 @@ async function transaction(pool, fn) {
 
   try {
     await client.query("BEGIN");
+
     const result = await fn(client);
+
     await client.query("COMMIT");
+
     return result;
   } catch (error) {
     await client.query("ROLLBACK");
@@ -339,6 +346,10 @@ export async function verifyControllerForMutation(
 }
 
 export function registerControllerAccountRoutes(app, pool) {
+  // Install before existing login and admin middleware.
+  // The first API request waits for history initialization.
+  registerPlayingHistoryRoutes(app, pool);
+
   app.use("/api/game-control", (req, res, next) => {
     res.set("Cache-Control", "no-store");
     next();
@@ -441,14 +452,15 @@ export function registerControllerAccountRoutes(app, pool) {
   app.get(
     "/api/auth/admin-session",
     admin,
-    (req, res) => res.json({
-      success: true,
-      admin: {
-        username: req.verifiedAdminId,
-        role: "ADMIN",
-        isAuthenticated: true,
-      },
-    }),
+    (req, res) =>
+      res.json({
+        success: true,
+        admin: {
+          username: req.verifiedAdminId,
+          role: "ADMIN",
+          isAuthenticated: true,
+        },
+      }),
   );
 
   app.post(
@@ -529,7 +541,10 @@ export function registerControllerAccountRoutes(app, pool) {
       const account = await transaction(pool, async client => {
         const result = await client.query(
           `INSERT INTO tsb_game_controller_accounts(
-             name,login_id,password_hash,game
+             name,
+             login_id,
+             password_hash,
+             game
            )
            VALUES($1,$2,$3,$4)
            RETURNING *`,
@@ -538,7 +553,9 @@ export function registerControllerAccountRoutes(app, pool) {
 
         await client.query(
           `INSERT INTO tsb_game_account_audit(
-             admin_id,account_id,action
+             admin_id,
+             account_id,
+             action
            )
            VALUES($1,$2,'CREATE')`,
           [req.verifiedAdminId, result.rows[0].id],
@@ -591,13 +608,16 @@ export function registerControllerAccountRoutes(app, pool) {
         }
 
         await client.query(
-          "DELETE FROM tsb_game_account_sessions WHERE account_id=$1",
+          `DELETE FROM tsb_game_account_sessions
+           WHERE account_id=$1`,
           [id],
         );
 
         await client.query(
           `INSERT INTO tsb_game_account_audit(
-             admin_id,account_id,action
+             admin_id,
+             account_id,
+             action
            )
            VALUES($1,$2,'PASSWORD_RESET')`,
           [req.verifiedAdminId, id],
@@ -618,7 +638,10 @@ export function registerControllerAccountRoutes(app, pool) {
     admin,
     wrap(async (req, res) => {
       const id = Number(req.params.id);
-      const status = String(req.body?.status || "").toUpperCase();
+
+      const status = String(
+        req.body?.status || "",
+      ).toUpperCase();
 
       if (
         !Number.isSafeInteger(id) ||
@@ -647,13 +670,16 @@ export function registerControllerAccountRoutes(app, pool) {
         }
 
         await client.query(
-          "DELETE FROM tsb_game_account_sessions WHERE account_id=$1",
+          `DELETE FROM tsb_game_account_sessions
+           WHERE account_id=$1`,
           [id],
         );
 
         await client.query(
           `INSERT INTO tsb_game_account_audit(
-             admin_id,account_id,action
+             admin_id,
+             account_id,
+             action
            )
            VALUES($1,$2,$3)`,
           [req.verifiedAdminId, id, status],
@@ -706,6 +732,7 @@ export function registerControllerAccountRoutes(app, pool) {
         }
 
         await issueController(client, res, account);
+
         return account;
       });
 
@@ -731,6 +758,7 @@ export function registerControllerAccountRoutes(app, pool) {
       );
 
       res.clearCookie("tsb_game_controller", { path: "/" });
+
       res.json({ success: true });
     }),
   );
@@ -739,7 +767,10 @@ export function registerControllerAccountRoutes(app, pool) {
     "/api/game-control/change-password",
     controller,
     wrap(async (req, res) => {
-      const current = String(req.body?.currentPassword || "");
+      const current = String(
+        req.body?.currentPassword || "",
+      );
+
       const password = req.body?.newPassword;
       const confirm = req.body?.confirmPassword;
 
@@ -794,11 +825,13 @@ export function registerControllerAccountRoutes(app, pool) {
         );
 
         await client.query(
-          "DELETE FROM tsb_game_account_sessions WHERE account_id=$1",
+          `DELETE FROM tsb_game_account_sessions
+           WHERE account_id=$1`,
           [account.id],
         );
 
         await issueController(client, res, updated.rows[0]);
+
         return updated.rows[0];
       });
 
