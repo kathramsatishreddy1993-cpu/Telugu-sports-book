@@ -436,4 +436,7 @@ if (
   } catch {
     console.error(
       'ODDSPAPI_V2: Set ODDSPAPI_API_KEY privately in server Environment.',
-   
+    );
+    process.exitCode = 1;
+  }
+}
