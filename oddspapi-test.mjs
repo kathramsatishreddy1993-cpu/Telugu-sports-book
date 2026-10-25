@@ -1,13 +1,8 @@
-// Requires Node.js 18 or newer.
-// Run once: node oddspapi-test.mjs
-// Reads ODDSPAPI_API_KEY from environment or local .env.
-// Do not import this file into index.js.
-
+// Node.js 18+. Run once; do not import into index.js.
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
 const BASE = 'https://api.oddspapi.io/v4/';
-
 const isRecord = value =>
   value !== null &&
   typeof value === 'object' &&
@@ -24,9 +19,7 @@ export function summarizeOdds(body) {
     !isRecord(body) ||
     !isRecord(body.bookmakerOdds)
   ) {
-    throw new Error(
-      'Odds response has no bookmakerOdds object.',
-    );
+    throw new Error('Invalid odds response.');
   }
 
   const rows = [];
@@ -36,10 +29,7 @@ export function summarizeOdds(body) {
     body.bookmakerOdds,
   ).map(([bookmaker, book]) => {
     if (!isRecord(book)) {
-      return {
-        bookmaker,
-        invalid: true,
-      };
+      return { bookmaker, invalid: true };
     }
 
     const markets = isRecord(book.markets)
@@ -51,26 +41,18 @@ export function summarizeOdds(body) {
     for (const [marketId, market] of markets) {
       if (!isRecord(market)) continue;
 
-      for (
-        const [outcomeId, outcome] of
-        Object.entries(market.outcomes || {})
-      ) {
-        for (
-          const [playerId, price] of
-          Object.entries(outcome?.players || {})
-        ) {
+      for (const [outcomeId, outcome] of
+        Object.entries(market.outcomes || {})) {
+        for (const [playerId, price] of
+          Object.entries(outcome?.players || {})) {
           if (!isRecord(price)) continue;
 
-          const p = price.price;
-          const active = flag(price.active);
+          const suspended = flag(book.suspended);
           const marketActive = flag(
             market.marketActive,
           );
-          const suspended = flag(
-            book.suspended,
-          );
+          const active = flag(price.active);
 
-          // Missing fields remain UNKNOWN.
           const observableState =
             suspended === true
               ? 'BOOK_SUSPENDED'
@@ -89,30 +71,16 @@ export function summarizeOdds(body) {
             marketId,
             outcomeId,
             playerId,
-
-            bookmakerOutcomeId:
-              price.bookmakerOutcomeId ?? null,
-
-            playerName:
-              price.playerName ?? null,
-
             price:
-              typeof p === 'number' &&
-              Number.isFinite(p)
-                ? p
+              typeof price.price === 'number' &&
+              Number.isFinite(price.price)
+                ? price.price
                 : null,
-
             suspended,
             marketActive,
             active,
             observableState,
-
-            changedAt:
-              price.changedAt ?? null,
-
-            bookmakerChangedAt:
-              price.bookmakerChangedAt ?? null,
-
+            changedAt: price.changedAt ?? null,
             exchangeMetadataPresent:
               isRecord(price.exchangeMeta) &&
               Object.keys(price.exchangeMeta)
@@ -134,16 +102,42 @@ export function summarizeOdds(body) {
     statusId: body.statusId ?? null,
     statusName: body.statusName ?? null,
     providerUpdatedAt: body.updatedAt ?? null,
-
     books,
     marketCount,
     selectionCount: rows.length,
-
-    selections: rows.slice(0, 40),
-    selectionsTruncated: rows.length > 40,
-
+    selections: rows.slice(0, 6),
+    selectionsTruncated: rows.length > 6,
     note:
-      'One snapshot only. No suspension timing, fancy format or betting permission inferred. Market/outcome IDs need the provider market dictionary.',
+      'Snapshot only. Market counts include bookmaker duplicates. Market IDs need the provider dictionary.',
+  };
+}
+
+// This checks names only, not whether a match is real.
+export function simulated(fixture) {
+  return /\bsrl\b|simulated|virtual|\be-?cricket\b/i.test(
+    [
+      fixture.participant1Name,
+      fixture.participant2Name,
+      fixture.tournamentName,
+      fixture.tournamentSlug,
+      fixture.categoryName,
+      fixture.categorySlug,
+    ].join(' '),
+  );
+}
+
+function fixtureSummary(fixture) {
+  return {
+    fixtureId: fixture.fixtureId,
+    homeTeam: fixture.participant1Name,
+    awayTeam: fixture.participant2Name,
+    tournament: fixture.tournamentName,
+    startTime: fixture.startTime,
+    statusId: fixture.statusId,
+    statusName: fixture.statusName,
+    hasOdds: fixture.hasOdds,
+    classification:
+      'NO_SIMULATION_LABEL_FOUND_UNVERIFIED',
   };
 }
 
@@ -152,43 +146,31 @@ export async function runDiagnostic({
   fetcher = fetch,
   now = () => Date.now(),
   wait = sleep,
-  scores = false,
 } = {}) {
   if (!apiKey?.trim()) {
-    throw new Error(
-      'ODDSPAPI_API_KEY is missing. Set it in the server environment or in .env.',
-    );
+    throw new Error('Missing API key.');
   }
 
   const key = apiKey.trim();
 
   const report = {
-    provider: 'oddspapi',
-    test: 'ONE_SHOT',
+    test: 'LIVE_AND_NON_SRL_V2',
     requestsSent: 0,
     steps: [],
   };
 
-  const redact = text =>
-    String(text)
-      .split(key)
-      .join('[REDACTED]')
-      .split(encodeURIComponent(key))
-      .join('[REDACTED]');
-
-  const finish = () =>
+  const clean = () =>
     JSON.parse(
-      redact(JSON.stringify(report)),
+      JSON.stringify(report)
+        .split(key)
+        .join('[REDACTED]')
+        .split(encodeURIComponent(key))
+        .join('[REDACTED]'),
     );
 
-  const get = async (
-    endpoint,
-    params = {},
-  ) => {
+  async function get(endpoint, params = {}) {
     if (report.requestsSent >= 4) {
-      throw new Error(
-        'Diagnostic request limit reached.',
-      );
+      throw new Error('Request limit reached.');
     }
 
     if (report.requestsSent) {
@@ -196,29 +178,20 @@ export async function runDiagnostic({
     }
 
     const url = new URL(endpoint, BASE);
-
     url.searchParams.set('apiKey', key);
     url.searchParams.set('language', 'en');
 
-    for (
-      const [name, value] of
-      Object.entries(params)
-    ) {
-      url.searchParams.set(
-        name,
-        String(value),
-      );
+    for (const [name, value] of
+      Object.entries(params)) {
+      url.searchParams.set(name, String(value));
     }
 
-    const controller =
-      new AbortController();
+    const controller = new AbortController();
 
     const timer = setTimeout(
       () => controller.abort(),
       15000,
     );
-
-    const started = now();
 
     report.requestsSent++;
 
@@ -233,28 +206,14 @@ export async function runDiagnostic({
 
       report.steps.push({
         endpoint,
+        statusId: params.statusId ?? null,
         httpStatus: response.status,
-        roundTripMs: now() - started,
       });
 
       if (!response.ok) {
-        // Provider bodies may echo the API key.
-        // Therefore they are not printed.
-        const explanation =
-          {
-            400:
-              'Request rejected; check endpoint parameters.',
-            401:
-              'Authentication rejected.',
-            403:
-              'Access denied; this key or plan may lack this resource.',
-            429:
-              'Quota or rate limit reached. No automatic retry.',
-          }[response.status] ||
-          'Provider returned an error. No automatic retry.';
-
-        throw new Error(
-          `HTTP ${response.status}: ${explanation}`,
+        throw Object.assign(
+          new Error(`HTTP ${response.status}`),
+          { httpStatus: response.status },
         );
       }
 
@@ -262,204 +221,168 @@ export async function runDiagnostic({
     } finally {
       clearTimeout(timer);
     }
-  };
+  }
 
   try {
     const sports = await get('sports');
 
     if (!Array.isArray(sports)) {
-      throw new Error(
-        'Unexpected sports response shape; expected an array.',
-      );
+      throw new Error('Unexpected sports data.');
     }
-
-    report.sportsReturned = sports.map(
-      sport => ({
-        sportId: sport.sportId,
-        name: sport.sportName,
-        slug: sport.slug,
-      }),
-    );
 
     const cricket = sports.find(
       sport =>
         String(sport.slug).toLowerCase() ===
           'cricket' ||
-        String(
-          sport.sportName,
-        ).toLowerCase() === 'cricket',
+        String(sport.sportName).toLowerCase() ===
+          'cricket',
     );
 
     if (cricket?.sportId == null) {
-      report.result =
-        'CRICKET_NOT_RETURNED';
-
-      report.nextStep =
-        'Ask provider whether Cricket is included for this key. No other sport is substituted.';
-
-      return finish();
+      report.result = 'CRICKET_NOT_RETURNED';
+      return clean();
     }
 
-    report.cricketSportId =
-      cricket.sportId;
+    const params = {
+      sportId: cricket.sportId,
+      from: new Date(
+        now() - 2 * 86400000,
+      ).toISOString(),
+      to: new Date(
+        now() + 7 * 86400000,
+      ).toISOString(),
+    };
 
-    // Test upcoming fixtures first.
-    // The account screenshot showed no live access.
-    const fixtures = await get(
-      'fixtures',
-      {
-        sportId: cricket.sportId,
-        statusId: 0,
+    let chosen;
+    let chosenLive = false;
 
-        from: new Date(
-          now(),
-        ).toISOString(),
+    // First live, then upcoming if needed.
+    for (const statusId of [1, 0]) {
+      const label =
+        statusId === 1 ? 'live' : 'upcoming';
 
-        to: new Date(
-          now() + 7 * 86400000,
-        ).toISOString(),
-      },
-    );
+      let fixtures;
 
-    if (!Array.isArray(fixtures)) {
-      throw new Error(
-        'Unexpected fixtures response shape; expected an array.',
+      try {
+        fixtures = await get('fixtures', {
+          ...params,
+          statusId,
+        });
+      } catch (error) {
+        if (
+          statusId === 1 &&
+          error.httpStatus === 403
+        ) {
+          report.live = {
+            result: 'HTTP_403_LIVE_LIST_DENIED',
+          };
+          continue;
+        }
+
+        throw error;
+      }
+
+      if (!Array.isArray(fixtures)) {
+        throw new Error(
+          'Unexpected fixtures data.',
+        );
+      }
+
+      const candidates = fixtures.filter(
+        fixture =>
+          isRecord(fixture) &&
+          !simulated(fixture),
       );
+
+      report[label] = {
+        returned: fixtures.length,
+        excludedSimulationLabels:
+          fixtures.length - candidates.length,
+        unverifiedNonSRL: candidates.length,
+        sample: candidates
+          .slice(0, 3)
+          .map(fixtureSummary),
+      };
+
+      chosen = candidates.find(
+        fixture =>
+          fixture.fixtureId &&
+          fixture.hasOdds === true &&
+          Number(fixture.statusId) === statusId,
+      );
+
+      if (chosen) {
+        chosenLive = statusId === 1;
+        break;
+      }
     }
 
-    report.fixturesReturned =
-      fixtures.length;
+    if (!chosen) {
+      report.result =
+        'NO_NON_SRL_FIXTURE_WITH_ODDS_FOUND';
 
-    report.fixturesSample = fixtures
-      .slice(0, 10)
-      .map(fixture => ({
-        fixtureId: fixture.fixtureId,
-        homeTeam: fixture.participant1Name,
-        awayTeam: fixture.participant2Name,
-        tournament: fixture.tournamentName,
-        startTime: fixture.startTime,
-        statusId: fixture.statusId,
-        statusName: fixture.statusName,
-        hasOdds: fixture.hasOdds,
-      }));
+      report.note =
+        'Only this response/window was checked; not proof of no real cricket coverage.';
 
-    const fixture = fixtures.find(
-      item =>
-        item.fixtureId &&
-        item.hasOdds === true,
-    );
-
-    if (!fixture) {
-      report.result = fixtures.length
-        ? 'FIXTURES_FOUND_NO_ODDS_FLAG'
-        : 'NO_UPCOMING_FIXTURES_IN_WINDOW';
-
-      report.nextStep =
-        'This does not prove no coverage. Ask provider which cricket fixture has odds accessible to this Free key.';
-
-      return finish();
+      return clean();
     }
 
-    const odds = await get('odds', {
-      fixtureId: fixture.fixtureId,
+    report.selectedMatch =
+      fixtureSummary(chosen);
+
+    const body = await get('odds', {
+      fixtureId: chosen.fixtureId,
       oddsFormat: 'decimal',
       verbosity: 3,
     });
 
     if (
-      odds?.fixtureId !== fixture.fixtureId
+      String(body?.fixtureId) !==
+      String(chosen.fixtureId)
     ) {
-      throw new Error(
-        'Returned odds fixture ID does not match requested fixture.',
-      );
+      throw new Error('Fixture ID mismatch.');
     }
 
-    report.odds = summarizeOdds(odds);
+    report.odds = summarizeOdds(body);
 
     report.result =
-      report.odds.selectionCount
-        ? 'PREMATCH_ODDS_RETURNED'
-        : 'ODDS_EMPTY_FOR_THIS_KEY_AND_FIXTURE';
+      !report.odds.selectionCount
+        ? 'ODDS_EMPTY'
+        : chosenLive &&
+            Number(body.statusId) === 1
+          ? 'LIVE_ODDS_SNAPSHOT_RETURNED'
+          : !chosenLive &&
+              Number(body.statusId) === 0
+            ? 'PREMATCH_ODDS_SNAPSHOT_RETURNED'
+            : 'ODDS_RETURNED_RECHECK_MATCH_STATUS';
 
-    if (scores) {
-      const data = await get('scores', {
-        fixtureId: fixture.fixtureId,
-      });
-
-      if (
-        !isRecord(data) ||
-        data.fixtureId !==
-          fixture.fixtureId ||
-        !isRecord(data.scores)
-      ) {
-        throw new Error(
-          'Unexpected scores response shape.',
-        );
-      }
-
-      report.scores = {
-        fixtureId: data.fixtureId,
-
-        periods: Object.entries(
-          data.scores,
-        )
-          .slice(0, 12)
-          .map(([period, score]) => ({
-            period,
-
-            participant1Score:
-              score?.participant1Score ??
-              null,
-
-            participant2Score:
-              score?.participant2Score ??
-              null,
-
-            updatedAt:
-              score?.updatedAt ?? null,
-          })),
-      };
-
-      report.scoreNote =
-        'An upcoming fixture may have empty scores. This does not verify cricket ball-by-ball coverage.';
-    }
-
-    report.nextStep =
-      'Share this report. Live/WebSocket access, market names and suspension timing still require verification. This test does not connect the website.';
+    report.note =
+      'REST snapshot only. No WebSocket, pre-ball timing, fancy/back-lay or website integration verified.';
   } catch (error) {
     report.result = 'TEST_STOPPED';
 
-    report.error =
-      error?.name === 'AbortError'
+    report.error = error.httpStatus
+      ? `HTTP ${error.httpStatus}; no retry.`
+      : error.name === 'AbortError'
         ? 'Request timed out; no retry.'
-        : error instanceof SyntaxError
-          ? 'Provider response was not valid JSON.'
-          : /^HTTP |^Unexpected |^Returned |^Odds response |^Diagnostic /.test(
-                error?.message || '',
-              )
-            ? redact(error.message)
-            : 'Request failed; no automatic retry. Check network and provider availability.';
+        : 'Request or response validation failed; no retry.';
   }
 
-  return finish();
+  return clean();
 }
 
 async function loadKey() {
   if (
     process.env.ODDSPAPI_API_KEY?.trim()
   ) {
-    return process.env
-      .ODDSPAPI_API_KEY
-      .trim();
+    return process.env.ODDSPAPI_API_KEY.trim();
   }
 
   try {
     const content = await readFile(
       new URL(
         '.env',
-        pathToFileURL(
-          process.cwd() + '/',
-        ),
+        pathToFileURL(process.cwd() + '/'),
       ),
       'utf8',
     );
@@ -485,271 +408,32 @@ async function loadKey() {
       .replace(/\s+#.*$/, '')
       .trim();
   } catch (error) {
-    if (error.code === 'ENOENT') {
-      return '';
-    }
-
-    throw new Error(
-      'Unable to read .env.',
-    );
+    if (error.code === 'ENOENT') return '';
+    throw new Error('Unable to read .env.');
   }
-}
-
-async function selfTest() {
-  const { strict: assert } =
-    await import('node:assert');
-
-  const body = {
-    fixtureId: 'match1',
-
-    bookmakerOdds: {
-      sample: {
-        suspended: false,
-
-        markets: {
-          '101': {
-            marketActive: true,
-
-            outcomes: {
-              home: {
-                players: {
-                  '0': {
-                    active: true,
-                    price: 1.9,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  };
-
-  assert.equal(
-    summarizeOdds(body)
-      .selections[0]
-      .observableState,
-    'ACTIVE_SNAPSHOT',
-  );
-
-  body.bookmakerOdds
-    .sample.suspended = true;
-
-  assert.equal(
-    summarizeOdds(body)
-      .selections[0]
-      .observableState,
-    'BOOK_SUSPENDED',
-  );
-
-  delete body.bookmakerOdds
-    .sample.suspended;
-
-  assert.equal(
-    summarizeOdds(body)
-      .selections[0]
-      .observableState,
-    'UNKNOWN',
-  );
-
-  body.bookmakerOdds.sample
-    .markets['101']
-    .marketActive = false;
-
-  assert.equal(
-    summarizeOdds(body)
-      .selections[0]
-      .observableState,
-    'MARKET_INACTIVE',
-  );
-
-  const queue = [
-    [
-      {
-        sportId: 77,
-        slug: 'cricket',
-      },
-    ],
-    [
-      {
-        fixtureId: 'match1',
-        hasOdds: true,
-      },
-    ],
-    body,
-  ];
-
-  let calls = 0;
-
-  const result = await runDiagnostic({
-    apiKey: 'test-secret',
-    wait: async () => {},
-    now: () => 1800000000000,
-
-    fetcher: async url => {
-      assert.equal(
-        url.origin,
-        'https://api.oddspapi.io',
-      );
-
-      assert.equal(
-        url.searchParams.get('apiKey'),
-        'test-secret',
-      );
-
-      if (calls === 1) {
-        assert.equal(
-          url.searchParams.get('sportId'),
-          '77',
-        );
-
-        assert.equal(
-          url.searchParams.get('statusId'),
-          '0',
-        );
-      }
-
-      const data = queue[calls++];
-
-      return {
-        ok: true,
-        status: 200,
-        json: async () => data,
-      };
-    },
-  });
-
-  assert.equal(
-    result.requestsSent,
-    3,
-  );
-
-  assert.equal(
-    result.result,
-    'PREMATCH_ODDS_RETURNED',
-  );
-
-  const empty = await runDiagnostic({
-    apiKey: 'x',
-
-    fetcher: async () => ({
-      ok: true,
-      status: 200,
-      json: async () => [],
-    }),
-  });
-
-  assert.equal(
-    empty.requestsSent,
-    1,
-  );
-
-  assert.equal(
-    empty.result,
-    'CRICKET_NOT_RETURNED',
-  );
-
-  for (
-    const status of
-    [401, 403, 429, 500]
-  ) {
-    const failed = await runDiagnostic({
-      apiKey: 'secret',
-
-      fetcher: async () => ({
-        ok: false,
-        status,
-      }),
-    });
-
-    assert.equal(
-      failed.requestsSent,
-      1,
-    );
-
-    assert.equal(
-      failed.result,
-      'TEST_STOPPED',
-    );
-  }
-
-  const leaked = await runDiagnostic({
-    apiKey: 'hide-me',
-
-    fetcher: async () => ({
-      ok: true,
-      status: 200,
-
-      json: async () => [
-        {
-          sportName: 'hide-me',
-        },
-      ],
-    }),
-  });
-
-  assert.ok(
-    !JSON.stringify(leaked)
-      .includes('hide-me'),
-  );
-
-  await assert.rejects(
-    runDiagnostic({
-      apiKey: '',
-    }),
-    /missing/,
-  );
-
-  console.log(
-    'Offline tests passed. No real API requests were made.',
-  );
 }
 
 if (
   process.argv[1] &&
-  pathToFileURL(
-    process.argv[1],
-  ).href === import.meta.url
+  pathToFileURL(process.argv[1]).href ===
+    import.meta.url
 ) {
   try {
-    if (
-      process.argv.includes(
-        '--self-test',
-      )
-    ) {
-      await selfTest();
-    } else {
-      const report =
-        await runDiagnostic({
-          apiKey: await loadKey(),
+    const report = await runDiagnostic({
+      apiKey: await loadKey(),
+    });
 
-          scores:
-            process.argv.includes(
-              '--scores',
-            ),
-        });
-
+    for (const [section, value] of
+      Object.entries(report)) {
       console.log(
-        JSON.stringify(
-          report,
-          null,
-          2,
-        ),
+        `ODDSPAPI_V2 ${section}: ${JSON.stringify(value)}`,
       );
+    }
 
-      if (
-        report.result ===
-        'TEST_STOPPED'
-      ) {
-        process.exitCode = 1;
-      }
+    if (report.result === 'TEST_STOPPED') {
+      process.exitCode = 1;
     }
   } catch {
     console.error(
-      'Set ODDSPAPI_API_KEY in your environment or local .env file, then run again. Do not paste your key into chat.',
-    );
-
-    process.exitCode = 1;
-  }
-}
+      'ODDSPAPI_V2: Set ODDSPAPI_API_KEY privately in server Environment.',
+   
