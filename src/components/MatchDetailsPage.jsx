@@ -1244,13 +1244,11 @@ function ProviderMatch({
           </p>
         </div>
 
-        <div className="shrink-0 text-right text-[10px]">
-          <span>DEMO COINS</span>
-
-          <strong className="block text-sm text-amber-300">
+        <div className="shrink-0 text-right">
+          <strong className="block whitespace-nowrap text-sm tabular-nums text-amber-300">
             {wallet.balance == null
               ? '…'
-              : wallet.balance.toLocaleString('en-IN')}
+              : `₹${wallet.balance.toLocaleString('en-IN')}`}
           </strong>
         </div>
       </header>
