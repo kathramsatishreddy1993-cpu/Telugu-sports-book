@@ -11,6 +11,12 @@ import {
   useFlightState,
 } from "./flightClient";
 
+import {
+  SoundControls,
+  useGameSound,
+  useDealSound,
+} from "./GameSound";
+
 const BASE = "/api/deal-or-no-deal";
 
 const LEVELS = [
@@ -45,11 +51,14 @@ export default function DealOrNoDealPage({
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(null);
   const [message, setMessage] = useState("");
+
   const [showHistory, setShowHistory] =
     useState(false);
 
   const inFlight = useRef(false);
   const confirmBox = useRef(null);
+
+  const sound = useGameSound();
 
   useEffect(() => {
     const timer = setInterval(
@@ -176,6 +185,13 @@ export default function DealOrNoDealPage({
       ? selection.number
       : null;
 
+  useDealSound(sound, {
+    session,
+    entry,
+    fresh,
+    now,
+  });
+
   useEffect(() => {
     setSelection(null);
   }, [session?.id, session?.level]);
@@ -184,7 +200,6 @@ export default function DealOrNoDealPage({
     if (inFlight.current || !request) return;
 
     inFlight.current = true;
-
     setBusy(true);
     setMessage("");
     setPending(request);
@@ -207,6 +222,13 @@ export default function DealOrNoDealPage({
               ? "Bet cancelled. Stake returned."
               : "Demo coins collected.",
       );
+
+      if (
+        request.kind === "BET" ||
+        request.kind === "CONTINUE"
+      ) {
+        sound.cue("confirm");
+      }
 
       notifyFlightWallet();
     } catch (requestError) {
@@ -334,6 +356,7 @@ export default function DealOrNoDealPage({
     });
 
     setMessage("");
+    sound.cue("select");
 
     confirmBox.current?.scrollIntoView({
       behavior: "smooth",
@@ -378,6 +401,8 @@ export default function DealOrNoDealPage({
             </p>
           </div>
         </header>
+
+        <SoundControls sound={sound} />
 
         {unauthorized && (
           <button
@@ -671,9 +696,7 @@ export default function DealOrNoDealPage({
               <button
                 type="button"
                 disabled={busy}
-                onClick={() =>
-                  sendRequest(pending)
-                }
+                onClick={() => sendRequest(pending)}
                 className="w-full rounded-lg bg-amber-200 p-3 text-xs font-black text-black disabled:opacity-40"
               >
                 RETRY SAME REQUEST
@@ -795,9 +818,7 @@ export default function DealOrNoDealPage({
                       key={number}
                       className="border-t border-white/10"
                     >
-                      <td className="p-2">
-                        {number}
-                      </td>
+                      <td className="p-2">{number}</td>
 
                       <td className="p-2">
                         {winners} of 9
