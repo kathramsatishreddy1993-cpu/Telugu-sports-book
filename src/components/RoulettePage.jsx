@@ -57,14 +57,11 @@ export default function RoulettePage({
   const [password, setPassword] = useState('');
   const [number, setNumber] = useState('9');
   const [confirmed, setConfirmed] = useState(false);
-
   const [chip, setChip] = useState(50);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-
   const [pendingPayload, setPendingPayload] =
     useState(null);
-
   const [advanced, setAdvanced] = useState(false);
   const [type, setType] = useState('S');
   const [first, setFirst] = useState('1');
@@ -116,7 +113,6 @@ export default function RoulettePage({
 
   const bets = entry?.bets || {};
   const total = entry?.total || 0;
-
   const current = useRef({});
 
   current.current = {
@@ -315,19 +311,22 @@ export default function RoulettePage({
             TSB ROULETTE {controller ? 'CONTROL' : ''}
           </h1>
 
-          <span className="text-xs">
-            {controller
-              ? data?.controllerId
-              : `Available: ${Number(
-                  data?.balance || 0,
-                ).toLocaleString('en-IN')}`}
-          </span>
+          {controller ? (
+            <span className="text-xs">
+              {data?.controllerId}
+            </span>
+          ) : (
+            <div className="shrink-0 rounded-xl border border-amber-400/30 bg-[#03121d]/90 px-3 py-2 text-right">
+              <p className="whitespace-nowrap text-sm font-black tabular-nums text-amber-300">
+                {data
+                  ? `₹${Number(
+                      data.balance || 0,
+                    ).toLocaleString('en-IN')}`
+                  : 'Loading...'}
+              </p>
+            </div>
+          )}
         </header>
-
-        <p className="text-[10px] text-slate-400">
-          Controller-selected demo · Demo coins only
-          {' · '}Standard payouts
-        </p>
 
         {(error || message) && (
           <p
@@ -424,9 +423,7 @@ export default function RoulettePage({
                       className={field}
                       value={number}
                       onChange={event =>
-                        setNumber(
-                          event.target.value,
-                        )
+                        setNumber(event.target.value)
                       }
                     />
                   </label>
@@ -534,9 +531,7 @@ export default function RoulettePage({
                 key={round?.id}
                 phase={phase}
                 number={round?.number}
-                landingNumber={
-                  round?.landingNumber
-                }
+                landingNumber={round?.landingNumber}
                 elapsed={Math.max(
                   0,
                   (now - close) / 1000,
@@ -551,22 +546,21 @@ export default function RoulettePage({
                     Chip
                   </span>
 
-                  {[
-                    10, 50, 100,
-                    500, 1000, 5000,
-                  ].map(value => (
-                    <button
-                      key={value}
-                      onClick={() => setChip(value)}
-                      className={`rounded-full border px-3 py-2 text-xs ${
-                        chip === value
-                          ? 'border-amber-200 bg-amber-300 text-black'
-                          : 'border-white/20'
-                      }`}
-                    >
-                      {value}
-                    </button>
-                  ))}
+                  {[10, 50, 100, 500, 1000, 5000].map(
+                    value => (
+                      <button
+                        key={value}
+                        onClick={() => setChip(value)}
+                        className={`rounded-full border px-3 py-2 text-xs ${
+                          chip === value
+                            ? 'border-amber-200 bg-amber-300 text-black'
+                            : 'border-white/20'
+                        }`}
+                      >
+                        {value}
+                      </button>
+                    ),
+                  )}
                 </div>
 
                 <p className="text-xs">
@@ -623,8 +617,7 @@ export default function RoulettePage({
                           gridRow: `${
                             2 + index * 2
                           } / span 2`,
-                          writingMode:
-                            'vertical-rl',
+                          writingMode: 'vertical-rl',
                         },
                       ),
                     )}
@@ -646,8 +639,7 @@ export default function RoulettePage({
                             gridRow: `${
                               2 + index * 4
                             } / span 4`,
-                            writingMode:
-                              'vertical-rl',
+                            writingMode: 'vertical-rl',
                           },
                         ),
                     )}
@@ -733,9 +725,7 @@ export default function RoulettePage({
                       onClick={() =>
                         update(
                           Object.fromEntries(
-                            Object.entries(
-                              bets,
-                            ).map(
+                            Object.entries(bets).map(
                               ([key, value]) => [
                                 key,
                                 value * 2,
@@ -827,9 +817,7 @@ export default function RoulettePage({
                         max="36"
                         value={second}
                         onChange={event =>
-                          setSecond(
-                            event.target.value,
-                          )
+                          setSecond(event.target.value)
                         }
                         className={field}
                       />
@@ -851,9 +839,7 @@ export default function RoulettePage({
                                 Number(first),
                                 Number(second),
                               )}`
-                            : `${type}:${Number(
-                                first,
-                              )}`,
+                            : `${type}:${Number(first)}`,
                         )
                       }
                       className="rounded-lg bg-amber-300 p-3 text-black"
@@ -1066,6 +1052,7 @@ function Wheel({
     >
       <div className="flex justify-between px-3 pt-2 text-[9px] font-bold tracking-widest text-amber-200/70">
         <span>TSB · EUROPEAN ROULETTE</span>
+
         <span>
           {spinning ? 'SPINNING' : 'RESULT'}
         </span>
@@ -1090,30 +1077,12 @@ function Wheel({
             y2="1"
           >
             <stop stopColor="#44230c" />
-            <stop
-              offset=".18"
-              stopColor="#d69c37"
-            />
-            <stop
-              offset=".34"
-              stopColor="#fff1b8"
-            />
-            <stop
-              offset=".48"
-              stopColor="#9a5b17"
-            />
-            <stop
-              offset=".65"
-              stopColor="#f5d47e"
-            />
-            <stop
-              offset=".85"
-              stopColor="#96601f"
-            />
-            <stop
-              offset="1"
-              stopColor="#39200b"
-            />
+            <stop offset=".18" stopColor="#d69c37" />
+            <stop offset=".34" stopColor="#fff1b8" />
+            <stop offset=".48" stopColor="#9a5b17" />
+            <stop offset=".65" stopColor="#f5d47e" />
+            <stop offset=".85" stopColor="#96601f" />
+            <stop offset="1" stopColor="#39200b" />
           </linearGradient>
 
           <radialGradient
@@ -1122,18 +1091,9 @@ function Wheel({
             cy="25%"
           >
             <stop stopColor="#82411e" />
-            <stop
-              offset=".35"
-              stopColor="#431b0d"
-            />
-            <stop
-              offset=".7"
-              stopColor="#602811"
-            />
-            <stop
-              offset="1"
-              stopColor="#170b08"
-            />
+            <stop offset=".35" stopColor="#431b0d" />
+            <stop offset=".7" stopColor="#602811" />
+            <stop offset="1" stopColor="#170b08" />
           </radialGradient>
 
           <radialGradient
@@ -1142,18 +1102,9 @@ function Wheel({
             cy="20%"
           >
             <stop stopColor="#b17b44" />
-            <stop
-              offset=".25"
-              stopColor="#4b2515"
-            />
-            <stop
-              offset=".65"
-              stopColor="#24130f"
-            />
-            <stop
-              offset="1"
-              stopColor="#080707"
-            />
+            <stop offset=".25" stopColor="#4b2515" />
+            <stop offset=".65" stopColor="#24130f" />
+            <stop offset="1" stopColor="#080707" />
           </radialGradient>
 
           <linearGradient
@@ -1164,14 +1115,8 @@ function Wheel({
             y2="1"
           >
             <stop stopColor="#ff3e45" />
-            <stop
-              offset=".5"
-              stopColor="#b60e21"
-            />
-            <stop
-              offset="1"
-              stopColor="#4b050c"
-            />
+            <stop offset=".5" stopColor="#b60e21" />
+            <stop offset="1" stopColor="#4b050c" />
           </linearGradient>
 
           <linearGradient
@@ -1182,14 +1127,8 @@ function Wheel({
             y2="1"
           >
             <stop stopColor="#50565d" />
-            <stop
-              offset=".5"
-              stopColor="#15191e"
-            />
-            <stop
-              offset="1"
-              stopColor="#030405"
-            />
+            <stop offset=".5" stopColor="#15191e" />
+            <stop offset="1" stopColor="#030405" />
           </linearGradient>
 
           <linearGradient
@@ -1200,14 +1139,8 @@ function Wheel({
             y2="1"
           >
             <stop stopColor="#32df8a" />
-            <stop
-              offset=".5"
-              stopColor="#078748"
-            />
-            <stop
-              offset="1"
-              stopColor="#023d20"
-            />
+            <stop offset=".5" stopColor="#078748" />
+            <stop offset="1" stopColor="#023d20" />
           </linearGradient>
 
           <radialGradient
@@ -1216,18 +1149,9 @@ function Wheel({
             cy="25%"
           >
             <stop stopColor="#ffffff" />
-            <stop
-              offset=".45"
-              stopColor="#fff8df"
-            />
-            <stop
-              offset=".8"
-              stopColor="#d4c8a9"
-            />
-            <stop
-              offset="1"
-              stopColor="#938365"
-            />
+            <stop offset=".45" stopColor="#fff8df" />
+            <stop offset=".8" stopColor="#d4c8a9" />
+            <stop offset="1" stopColor="#938365" />
           </radialGradient>
 
           <radialGradient
@@ -1236,22 +1160,10 @@ function Wheel({
             cy="20%"
           >
             <stop stopColor="#fff8ce" />
-            <stop
-              offset=".3"
-              stopColor="#e4bd58"
-            />
-            <stop
-              offset=".6"
-              stopColor="#7e4814"
-            />
-            <stop
-              offset=".78"
-              stopColor="#f2cf73"
-            />
-            <stop
-              offset="1"
-              stopColor="#35200d"
-            />
+            <stop offset=".3" stopColor="#e4bd58" />
+            <stop offset=".6" stopColor="#7e4814" />
+            <stop offset=".78" stopColor="#f2cf73" />
+            <stop offset="1" stopColor="#35200d" />
           </radialGradient>
 
           <filter
@@ -1346,8 +1258,7 @@ function Wheel({
           <g
             style={{
               transformOrigin: '300px 300px',
-              transform:
-                `rotate(${wheelAngle}deg)`,
+              transform: `rotate(${wheelAngle}deg)`,
             }}
           >
             {wheel.map((value, index) => {
@@ -1573,8 +1484,7 @@ function Wheel({
             }
             style={{
               transformOrigin: '300px 300px',
-              transform:
-                `rotate(${ballAngle}deg)`,
+              transform: `rotate(${ballAngle}deg)`,
             }}
           >
             <g
