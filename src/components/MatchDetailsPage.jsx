@@ -111,9 +111,18 @@ function rememberPair(
   };
 }
 
-function Price({ value, size, side }) {
+function Price({
+  value,
+  size,
+  side,
+  onPick,
+  disabled = true,
+}) {
   return (
-    <div
+    <button
+      type="button"
+      onClick={onPick}
+      disabled={disabled}
       className={`flex min-h-[62px] min-w-0 flex-col items-center justify-center rounded p-1 ${
         side === 'BACK'
           ? 'bg-sky-200'
@@ -127,7 +136,7 @@ function Price({ value, size, side }) {
       <span className="mt-1 text-[10px] text-slate-600">
         {size == null ? side : format(size)}
       </span>
-    </div>
+    </button>
   );
 }
 
@@ -136,6 +145,9 @@ function PricePair({
   fresh,
   enabled,
   first = 'BACK',
+  wallet,
+  marketId,
+  selectionId,
 }) {
   const label = !enabled
     ? 'FEED PAUSED'
@@ -144,6 +156,40 @@ function PricePair({
       : row.blocked;
 
   const values = row.values;
+
+  const choice = side =>
+    wallet?.quotes.find(
+      quote =>
+        quote.marketId === marketId &&
+        quote.selectionId === String(selectionId) &&
+        (
+          first === 'LAY'
+            ? quote.selection === (
+                side === 'LAY' ? 'NO' : 'YES'
+              )
+            : quote.type === side
+        ),
+    );
+
+  const ready = (quote, value, size) =>
+    !label &&
+    quote?.allowed &&
+    !wallet?.error &&
+    !wallet?.quoteError &&
+    !wallet?.busy &&
+    wallet?.balance != null &&
+    Date.now() - wallet.quoteAt < 15000 &&
+    Number(quote.rate) === Number(value) &&
+    (
+      first !== 'LAY' ||
+      Number(quote.sessionRate) === Number(size)
+    );
+
+  const a = choice(first);
+
+  const b = choice(
+    first === 'BACK' ? 'LAY' : 'BACK',
+  );
 
   return (
     <div
@@ -154,16 +200,16 @@ function PricePair({
         side={first}
         value={values.a}
         size={values.as}
+        disabled={!ready(a, values.a, values.as)}
+        onPick={() => wallet.pick(a)}
       />
 
       <Price
-        side={
-          first === 'BACK'
-            ? 'LAY'
-            : 'BACK'
-        }
+        side={first === 'BACK' ? 'LAY' : 'BACK'}
         value={values.b}
         size={values.bs}
+        disabled={!ready(b, values.b, values.bs)}
+        onPick={() => wallet.pick(b)}
       />
 
       {label && (
@@ -186,27 +232,716 @@ function PricePair({
   );
 }
 
-function ProviderMatch({ match, onBack }) {
+async function demoAPI(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    credentials: 'same-origin',
+    cache: 'no-store',
+
+    headers: {
+      Accept: 'application/json',
+
+      ...(options.body
+        ? {
+            'Content-Type': 'application/json',
+          }
+        : {}),
+    },
+  });
+
+  let data;
+
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(
+      'Server response was not JSON.',
+    );
+  }
+
+  if (!response.ok) {
+    throw Object.assign(
+      new Error(
+        data.error || 'Request failed.',
+      ),
+      { status: response.status },
+    );
+  }
+
+  return data;
+}
+
+function useDemoWallet(matchId, user) {
+  const customerId = String(
+    user?.id ??
+      user?.customerId ??
+      user?.customer_id ??
+      '',
+  );
+
+  const context = `${customerId}:${matchId}`;
+  const contextRef = useRef(context);
+  contextRef.current = context;
+
+  const [balance, setBalance] = useState(null);
+  const [bets, setBets] = useState([]);
+  const [quotes, setQuotes] = useState([]);
+
+  const [error, setError] = useState('');
+  const [quoteError, setQuoteError] = useState('');
+
+  const [quoteAt, setQuoteAt] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [stake, setStake] = useState('');
+
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [showBets, setShowBets] = useState(false);
+
+  const retry = useRef(null);
+  const requestKey = useRef('');
+  const busyRef = useRef(false);
+  const alive = useRef(false);
+  const refreshRef = useRef(null);
+  const revision = useRef(0);
+
+  useEffect(() => {
+    let active = true;
+    let loading = false;
+
+    alive.current = true;
+
+    setBalance(null);
+    setBets([]);
+    setQuotes([]);
+    setQuoteAt(0);
+    setSelected(null);
+    retry.current = null;
+
+    const load = async () => {
+      if (
+        !active ||
+        loading ||
+        busyRef.current
+      ) {
+        return;
+      }
+
+      loading = true;
+
+      const captured = revision.current;
+
+      const results = await Promise.allSettled([
+        demoAPI(
+          `/api/demo-bets?matchId=${encodeURIComponent(matchId)}`,
+        ),
+
+        demoAPI(
+          `/api/demo-bets/markets?matchId=${encodeURIComponent(matchId)}`,
+        ),
+      ]);
+
+      if (
+        active &&
+        !busyRef.current &&
+        captured === revision.current
+      ) {
+        const [wallet, market] = results;
+
+        if (
+          wallet.status === 'fulfilled' &&
+          String(wallet.value.customerId) ===
+            customerId
+        ) {
+          setBalance(
+            Number(wallet.value.balance),
+          );
+
+          setBets(wallet.value.bets || []);
+          setError('');
+        } else {
+          setError(
+            wallet.status === 'rejected'
+              ? wallet.reason.message
+              : 'Please logout and login again.',
+          );
+
+          setBalance(null);
+        }
+
+        if (market.status === 'fulfilled') {
+          setQuotes(
+            market.value.quotes || [],
+          );
+
+          setQuoteAt(Date.now());
+          setQuoteError('');
+        } else {
+          setQuotes([]);
+          setQuoteAt(0);
+          setQuoteError(
+            market.reason.message,
+          );
+        }
+      }
+
+      loading = false;
+    };
+
+    refreshRef.current = load;
+
+    void load();
+
+    const timer = setInterval(load, 5000);
+
+    window.addEventListener('focus', load);
+
+    window.addEventListener(
+      'demo-balance-updated',
+      load,
+    );
+
+    return () => {
+      active = false;
+      alive.current = false;
+
+      clearInterval(timer);
+
+      window.removeEventListener('focus', load);
+
+      window.removeEventListener(
+        'demo-balance-updated',
+        load,
+      );
+    };
+  }, [matchId, customerId]);
+
+  const notify = () => {
+    window.dispatchEvent(
+      new Event('demo-balance-updated'),
+    );
+
+    window.dispatchEvent(
+      new Event('demo-bets-updated'),
+    );
+  };
+
+  const pick = quote => {
+    if (
+      busyRef.current ||
+      error ||
+      quoteError ||
+      !quote?.allowed ||
+      balance == null
+    ) {
+      return;
+    }
+
+    retry.current = null;
+
+    requestKey.current =
+      globalThis.crypto?.randomUUID?.() ||
+      `demo-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}`;
+
+    setSelected(quote);
+    setStake('');
+    setMessage('');
+  };
+
+  const close = () => {
+    if (busyRef.current) return;
+
+    setSelected(null);
+    retry.current = null;
+    setMessage('');
+  };
+
+  const save = async canSubmit => {
+    if (
+      busyRef.current ||
+      !selected
+    ) {
+      return;
+    }
+
+    if (
+      !retry.current &&
+      !canSubmit
+    ) {
+      setMessage(
+        'Market paused or price changed. Close and select the latest price.',
+      );
+
+      return;
+    }
+
+    const amount = Number(stake);
+
+    if (
+      !retry.current &&
+      (
+        !Number.isSafeInteger(amount) ||
+        amount < selected.min ||
+        amount > selected.max
+      )
+    ) {
+      setMessage(
+        `Enter ${selected.min}–${selected.max} whole demo coins.`,
+      );
+
+      return;
+    }
+
+    const payload = retry.current || {
+      requestKey: requestKey.current,
+      matchId,
+      marketId: selected.marketId,
+      selection: selected.selection,
+      selectionId: selected.selectionId,
+      type: selected.type,
+      stake: amount,
+      expectedRate: selected.rate,
+      expectedPayoutRate: selected.payoutRate,
+    };
+
+    const captured = context;
+
+    retry.current = payload;
+    revision.current += 1;
+    busyRef.current = true;
+
+    setBusy(true);
+    setMessage('Saving to server...');
+
+    try {
+      const data = await demoAPI(
+        '/api/demo-bets',
+        {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        },
+      );
+
+      if (
+        alive.current &&
+        contextRef.current === captured
+      ) {
+        setBalance(Number(data.balance));
+
+        setBets(previous => [
+          data.bet,
+          ...previous.filter(
+            bet => bet.id !== data.bet.id,
+          ),
+        ]);
+
+        setSelected(null);
+        retry.current = null;
+        setMessage('Demo selection saved.');
+
+        notify();
+      }
+    } catch (failure) {
+      if (
+        alive.current &&
+        contextRef.current === captured
+      ) {
+        if (
+          failure.status &&
+          failure.status < 500
+        ) {
+          retry.current = null;
+        }
+
+        setMessage(
+          failure.message +
+          (
+            retry.current
+              ? ' Retry uses the same request key.'
+              : ''
+          ),
+        );
+      }
+    } finally {
+      busyRef.current = false;
+
+      if (
+        alive.current &&
+        contextRef.current === captured
+      ) {
+        setBusy(false);
+        void refreshRef.current?.();
+      }
+    }
+  };
+
+  const simulate = async (betId, outcome) => {
+    if (busyRef.current) return;
+
+    const captured = context;
+
+    revision.current += 1;
+    busyRef.current = true;
+
+    setBusy(true);
+    setMessage('');
+
+    try {
+      const data = await demoAPI(
+        `/api/demo-bets/${encodeURIComponent(betId)}/simulate-settlement`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ outcome }),
+        },
+      );
+
+      if (
+        alive.current &&
+        contextRef.current === captured
+      ) {
+        setBalance(Number(data.balance));
+
+        setBets(previous =>
+          previous.map(bet =>
+            bet.id === data.bet.id
+              ? data.bet
+              : bet,
+          ),
+        );
+
+        setMessage(
+          'Demo result simulated. This is not an official match result.',
+        );
+
+        notify();
+      }
+    } catch (failure) {
+      if (
+        alive.current &&
+        contextRef.current === captured
+      ) {
+        setMessage(failure.message);
+      }
+    } finally {
+      busyRef.current = false;
+
+      if (
+        alive.current &&
+        contextRef.current === captured
+      ) {
+        setBusy(false);
+        void refreshRef.current?.();
+      }
+    }
+  };
+
+  return {
+    balance,
+    bets,
+    quotes,
+    error,
+    quoteError,
+    quoteAt,
+    selected,
+    stake,
+    setStake,
+    message,
+    busy,
+    showBets,
+    setShowBets,
+    pick,
+    close,
+    save,
+    simulate,
+    retrying: Boolean(retry.current),
+  };
+}
+
+function WalletPanel({
+  wallet,
+  connected,
+  clock,
+}) {
+  const selected = wallet.selected;
+
+  const current = selected &&
+    wallet.quotes.find(
+      quote =>
+        quote.marketId === selected.marketId &&
+        quote.selectionId === selected.selectionId &&
+        quote.selection === selected.selection &&
+        quote.type === selected.type,
+    );
+
+  const canSubmit = Boolean(
+    connected &&
+    !wallet.error &&
+    !wallet.quoteError &&
+    clock - wallet.quoteAt < 15000 &&
+    current?.allowed &&
+    current.rate === selected?.rate &&
+    current.payoutRate === selected?.payoutRate,
+  );
+
+  const held = Number(wallet.stake) || 0;
+
+  return (
+    <>
+      {(wallet.error || wallet.quoteError) && (
+        <p
+          role="alert"
+          className="bg-red-50 p-3 text-xs text-red-800"
+        >
+          {wallet.error || wallet.quoteError}
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={() =>
+          wallet.setShowBets(!wallet.showBets)
+        }
+        className="w-full bg-[#9a5a00] p-3 text-xs font-black text-white"
+      >
+        {wallet.showBets ? 'HIDE' : 'SHOW'} MY DEMO BETS
+        {' '}({wallet.bets.length})
+      </button>
+
+      {wallet.message && !selected && (
+        <p
+          role="status"
+          className="bg-teal-50 p-3 text-xs"
+        >
+          {wallet.message}
+        </p>
+      )}
+
+      {wallet.showBets && (
+        <section className="space-y-2 p-3">
+          {!wallet.bets.length && (
+            <p className="text-xs">
+              No demo selections saved for this match.
+            </p>
+          )}
+
+          {wallet.bets.map(bet => (
+            <article
+              key={bet.id}
+              className="rounded border bg-white p-3 text-xs"
+            >
+              <strong>
+                {bet.market} · {bet.selection} · {bet.type}
+              </strong>
+
+              <p className="mt-1">
+                Line / price: {bet.rate}
+                {' · '}
+                Risk held: {bet.stake} coins
+              </p>
+
+              <p className="mt-1">
+                {bet.status} · {bet.result}
+                {' · '}
+                P/L: {bet.profitLoss}
+              </p>
+
+              {bet.status === 'MATCHED' && (
+                <div className="mt-2 flex gap-2">
+                  {['WON', 'LOST'].map(outcome => (
+                    <button
+                      key={outcome}
+                      type="button"
+                      disabled={wallet.busy}
+                      onClick={() =>
+                        wallet.simulate(
+                          bet.id,
+                          outcome,
+                        )
+                      }
+                      className="rounded bg-slate-700 p-2 text-[10px] text-white disabled:opacity-50"
+                    >
+                      SIMULATE {outcome}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </article>
+          ))}
+        </section>
+      )}
+
+      {selected && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="Demo bet slip"
+            className="max-h-[88vh] w-full max-w-xl overflow-y-auto rounded-t-xl bg-white p-4 shadow-xl"
+          >
+            <div className="flex justify-between">
+              <strong>DEMO BET SLIP</strong>
+
+              <button
+                type="button"
+                disabled={wallet.busy}
+                onClick={wallet.close}
+              >
+                ✕ CLOSE
+              </button>
+            </div>
+
+            <p className="mt-3 text-sm font-bold">
+              {selected.market}
+              {' · '}
+              {selected.selection}
+              {' · '}
+              {selected.type}
+            </p>
+
+            <p className="mt-2 text-xs">
+              Line / price: {selected.rate}
+
+              {selected.sessionRate
+                ? ` · Rate: ${selected.sessionRate}`
+                : ''}
+            </p>
+
+            <p className="mt-2 text-xs">
+              Wallet:{' '}
+              {wallet.balance == null
+                ? 'Unavailable'
+                : wallet.balance.toLocaleString('en-IN')}
+              {' '}demo coins
+            </p>
+
+            <label
+              htmlFor="provider-demo-risk"
+              className="mt-4 block text-xs font-bold"
+            >
+              Risk / coins held
+              {' '}({selected.min}–{selected.max})
+            </label>
+
+            <input
+              id="provider-demo-risk"
+              inputMode="numeric"
+              value={wallet.stake}
+              disabled={
+                wallet.busy || wallet.retrying
+              }
+              onChange={event => {
+                if (
+                  /^\d*$/.test(event.target.value)
+                ) {
+                  wallet.setStake(
+                    event.target.value,
+                  );
+                }
+              }}
+              className="mt-2 w-full rounded border-2 p-3 text-lg font-bold"
+              placeholder="Enter demo coins"
+            />
+
+            <div className="mt-2 grid grid-cols-4 gap-2">
+              {[100, 500, 1000, 5000].map(amount => (
+                <button
+                  key={amount}
+                  type="button"
+                  disabled={
+                    wallet.busy || wallet.retrying
+                  }
+                  onClick={() =>
+                    wallet.setStake(
+                      String(held + amount),
+                    )
+                  }
+                  className="rounded bg-slate-100 p-2 text-xs"
+                >
+                  +{amount}
+                </button>
+              ))}
+            </div>
+
+            <p className="mt-3 text-xs">
+              If simulated WON: return{' '}
+              {Math.round(
+                held * selected.payoutRate,
+              )}
+              {' '}coins, including {held} held coins.
+            </p>
+
+            <p className="mt-1 text-xs">
+              If simulated LOST: lose the {held} held
+              coins. LAY / NO risk is liability.
+            </p>
+
+            {!canSubmit && (
+              <p className="mt-3 text-xs font-bold text-amber-800">
+                Market paused or price changed.
+                Choose the latest price.
+              </p>
+            )}
+
+            {wallet.message && (
+              <p
+                role="status"
+                className="mt-3 bg-teal-50 p-3 text-xs"
+              >
+                {wallet.message}
+              </p>
+            )}
+
+            <button
+              type="button"
+              disabled={
+                wallet.busy ||
+                (!canSubmit && !wallet.retrying)
+              }
+              onClick={() =>
+                wallet.save(canSubmit)
+              }
+              className="mt-4 w-full rounded bg-[#063f39] p-3 font-bold text-white disabled:opacity-50"
+            >
+              {wallet.busy
+                ? 'SAVING...'
+                : wallet.retrying
+                  ? 'RETRY SAME REQUEST'
+                  : 'SAVE DEMO SELECTION'}
+            </button>
+
+            <p className="mt-3 text-[10px] text-slate-600">
+              Virtual coins only. Results are manually
+              simulated; no official result settlement
+              or real-money payout.
+            </p>
+          </section>
+        </div>
+      )}
+    </>
+  );
+}
+
+function ProviderMatch({
+  match,
+  user,
+  onBack,
+}) {
   const matchId = String(
     match.eventId ?? match.id ?? '',
   );
 
-  const history = useRef(new Map());
+  const wallet = useDemoWallet(matchId, user);
 
   const [event, setEvent] = useState(match);
+  const history = useRef(new Map());
+
   const [meta, setMeta] = useState(null);
-
-  const [receivedAt, setReceivedAt] =
-    useState(0);
-
-  const [clock, setClock] =
-    useState(Date.now());
-
-  const [error, setError] =
-    useState('');
-
-  const [available, setAvailable] =
-    useState(false);
+  const [receivedAt, setReceivedAt] = useState(0);
+  const [clock, setClock] = useState(Date.now());
+  const [error, setError] = useState('');
+  const [available, setAvailable] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -215,8 +950,7 @@ function ProviderMatch({ match, onBack }) {
     let stream;
     let metaForSnapshot = {};
 
-    const controller =
-      new AbortController();
+    const controller = new AbortController();
 
     history.current.clear();
 
@@ -230,17 +964,14 @@ function ProviderMatch({ match, onBack }) {
 
       const recent = value => {
         const age =
-          Date.now() -
-          Date.parse(value || '');
+          Date.now() - Date.parse(value || '');
 
         return (
           fresh &&
           Number.isFinite(age) &&
           age >= -1000 &&
           age < Math.max(
-            Number(
-              config.pollIntervalMs || 15000,
-            ) * 3,
+            Number(config.pollIntervalMs || 15000) * 3,
             30000,
           )
         );
@@ -345,14 +1076,13 @@ function ProviderMatch({ match, onBack }) {
 
       const found = rows.find(
         row =>
-          String(row.eventId ?? row.id) ===
-          matchId,
+          String(row.eventId ?? row.id) === matchId,
       );
+
+      setAvailable(Boolean(found));
 
       metaForSnapshot =
         body.sports?.cricket || body;
-
-      setAvailable(Boolean(found));
 
       if (found) {
         setEvent(decorate(found));
@@ -380,8 +1110,7 @@ function ProviderMatch({ match, onBack }) {
           },
         );
 
-        const body =
-          await response.json();
+        const body = await response.json();
 
         if (!response.ok) {
           throw new Error(
@@ -413,16 +1142,12 @@ function ProviderMatch({ match, onBack }) {
     };
 
     setEvent(match);
-    setMeta(null);
     setAvailable(false);
     setReceivedAt(0);
-    setError('');
 
     void load();
 
-    if (
-      typeof EventSource !== 'undefined'
-    ) {
+    if (typeof EventSource !== 'undefined') {
       stream = new EventSource(
         '/api/sports/stream',
       );
@@ -460,27 +1185,23 @@ function ProviderMatch({ match, onBack }) {
 
       clearInterval(timer);
       clearInterval(tick);
-
       stream?.close();
 
-      window.removeEventListener(
-        'focus',
-        focus,
-      );
+      window.removeEventListener('focus', focus);
     };
 
-    // Each server response replaces this event.
+    // Server responses replace the selected event.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchId]);
 
   const connected = Boolean(
     available &&
-      meta?.enabled === true &&
-      !meta?.stale &&
-      !event.stale &&
-      !error &&
-      receivedAt > 0 &&
-      clock - receivedAt < 15000,
+    meta?.enabled === true &&
+    !meta?.stale &&
+    !event.stale &&
+    !error &&
+    receivedAt > 0 &&
+    clock - receivedAt < 15000,
   );
 
   const odds = event.matchOdds;
@@ -491,31 +1212,29 @@ function ProviderMatch({ match, onBack }) {
   );
 
   const marketAge =
-    clock -
-    Date.parse(event.marketUpdatedAt || '');
+    clock - Date.parse(event.marketUpdatedAt || '');
 
   const pricesFresh = Boolean(
     connected &&
-      Number.isFinite(marketAge) &&
-      marketAge >= -1000 &&
-      marketAge < limit,
+    Number.isFinite(marketAge) &&
+    marketAge >= -1000 &&
+    marketAge < limit,
   );
 
   const fancyAge =
-    clock -
-    Date.parse(event.fancyUpdatedAt || '');
+    clock - Date.parse(event.fancyUpdatedAt || '');
 
   const fancyFresh = Boolean(
     connected &&
-      Number.isFinite(fancyAge) &&
-      fancyAge >= -1000 &&
-      fancyAge < limit,
+    Number.isFinite(fancyAge) &&
+    fancyAge >= -1000 &&
+    fancyAge < limit,
   );
 
   const live = Boolean(
     pricesFresh &&
-      event.status === 'LIVE' &&
-      odds?.inplay === true,
+    event.status === 'LIVE' &&
+    odds?.inplay === true,
   );
 
   return (
@@ -538,7 +1257,23 @@ function ProviderMatch({ match, onBack }) {
             SPORTBEX · PROVIDER MARKETS
           </p>
         </div>
+
+        <div className="shrink-0 text-right text-[10px]">
+          <span>DEMO COINS</span>
+
+          <strong className="block text-sm text-amber-300">
+            {wallet.balance == null
+              ? '…'
+              : wallet.balance.toLocaleString('en-IN')}
+          </strong>
+        </div>
       </header>
+
+      <WalletPanel
+        wallet={wallet}
+        connected={connected}
+        clock={clock}
+      />
 
       <section className="bg-white p-4 shadow-sm">
         <p
@@ -589,7 +1324,7 @@ function ProviderMatch({ match, onBack }) {
 
       <section className="mt-2 bg-[#082f2c] p-4 text-white">
         <p className="text-[10px] text-teal-200">
-          {connected ? 'SCORE' : 'SAVED SCORE'}
+          SCORE
         </p>
 
         <p className="mt-1 font-bold">
@@ -601,12 +1336,7 @@ function ProviderMatch({ match, onBack }) {
 
       <section className="mt-2 overflow-hidden bg-white">
         <h2 className="bg-[#0b6259] px-3 py-2 text-sm font-black text-white">
-          MATCH ODDS
-          {' · '}
-          {odds?.status || 'UNAVAILABLE'}
-          {!pricesFresh && odds
-            ? ' · SAVED'
-            : ''}
+          MATCH ODDS · {odds?.status || 'UNAVAILABLE'}
         </h2>
 
         <p className="px-3 py-2 text-[10px] text-slate-600">
@@ -651,6 +1381,9 @@ function ProviderMatch({ match, onBack }) {
               }
               fresh={pricesFresh}
               enabled={connected}
+              wallet={wallet}
+              marketId="match-odds"
+              selectionId={runner.selectionId}
             />
           </div>
         ))}
@@ -668,8 +1401,8 @@ function ProviderMatch({ match, onBack }) {
         </h2>
 
         <p className="p-3 text-[10px] text-slate-500">
-          Provider rate format · These values
-          are not decimal exchange odds.
+          Provider rate format · These values are
+          not decimal exchange odds.
         </p>
 
         <div className="grid grid-cols-[minmax(0,1fr)_156px] gap-2 bg-slate-100 p-2 text-[10px] font-black">
@@ -694,9 +1427,7 @@ function ProviderMatch({ match, onBack }) {
               <p className="mt-1 text-[9px]">
                 {row.status}
                 {' · '}
-                {fancyFresh
-                  ? 'Updated'
-                  : 'Saved'}
+                {fancyFresh ? 'Updated' : 'Saved'}
               </p>
             </div>
 
@@ -708,6 +1439,9 @@ function ProviderMatch({ match, onBack }) {
               }
               fresh={fancyFresh}
               enabled={connected}
+              wallet={wallet}
+              marketId={`bookmaker:${row.marketId}`}
+              selectionId={row.selectionId}
             />
           </div>
         ))}
@@ -748,9 +1482,7 @@ function ProviderMatch({ match, onBack }) {
                   ? 'Status not supplied'
                   : row.status}
                 {' · '}
-                {fancyFresh
-                  ? 'Updated'
-                  : 'Saved'}
+                {fancyFresh ? 'Updated' : 'Saved'}
               </p>
             </div>
 
@@ -763,23 +1495,26 @@ function ProviderMatch({ match, onBack }) {
               fresh={fancyFresh}
               enabled={connected}
               first="LAY"
+              wallet={wallet}
+              marketId={`fancy:${row.id}`}
+              selectionId={row.selectionId}
             />
           </div>
         ))}
 
         {!event.fancy?.length && (
           <p className="p-4 text-xs">
-            No fancy/session rows returned
-            for this event.
+            No fancy/session rows returned for this event.
           </p>
         )}
       </section>
 
       <p className="m-3 rounded border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-900">
-        Provider prices are for viewing.
-        Demo selections are currently unavailable
-        on these markets. A missing market status
-        does not mean the market is open.
+        Virtual demo coins only. Tap an available price
+        to select. Suspended or stale markets are paused.
+        Results are manually simulated, not settled from
+        live scores. A missing status does not verify
+        that a market is open.
       </p>
 
       <button
