@@ -8,31 +8,25 @@ export { SPORTS, canonicalSport };
 
 const BASE = 'https://trial-api.sportbex.com/api';
 
-function list(value) {
+const list = value => {
   if (Array.isArray(value)) return value;
   if (Array.isArray(value?.data)) return value.data;
-
   throw new Error('Sportbex invalid list response');
-}
+};
 
-function number(value) {
+const number = value => {
   if (value == null || value === '') return null;
-
   const result = Number(value);
-
   return Number.isFinite(result) ? result : null;
-}
+};
 
-function positive(value) {
+const positive = value => {
   const result = number(value);
-
   return result > 0 ? result : null;
-}
+};
 
 const text = value =>
-  typeof value === 'string'
-    ? value.slice(0, 200)
-    : '';
+  typeof value === 'string' ? value.slice(0, 200) : '';
 
 const id = value =>
   /^\d+$/.test(String(value ?? ''))
@@ -43,11 +37,7 @@ const stamp = value =>
   value ? Date.parse(value) : NaN;
 
 const teamName = value =>
-  text(
-    typeof value === 'object'
-      ? value?.name
-      : value,
-  );
+  text(typeof value === 'object' ? value?.name : value);
 
 const teamKey = value =>
   value.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -58,29 +48,24 @@ function matchedScore(rows, event) {
     .map(teamKey);
 
   const candidates = rows.filter(row => {
-    const home = teamName(
+    const a = teamName(
       row.homeTeam ?? row.team1 ?? row.teama,
     );
 
-    const away = teamName(
+    const b = teamName(
       row.awayTeam ?? row.team2 ?? row.teamb,
     );
 
-    const start = stamp(
-      row.startTime ??
-        row.startDate ??
-        row.date_start,
+    const date = stamp(
+      row.startTime ?? row.startDate ?? row.date_start,
     );
 
     return (
-      home &&
-      away &&
-      Number.isFinite(start) &&
-      Math.abs(start - stamp(event.startTime)) <
-        900000 &&
-      [teamKey(home), teamKey(away)]
-        .sort()
-        .join('|') ===
+      a &&
+      b &&
+      Number.isFinite(date) &&
+      Math.abs(date - stamp(event.startTime)) < 900000 &&
+      [teamKey(a), teamKey(b)].sort().join('|') ===
         [...names].sort().join('|')
     );
   });
@@ -89,12 +74,11 @@ function matchedScore(rows, event) {
 
   const row = candidates[0];
 
-  return (
-    typeof row.score === 'string' &&
-    row.score.trim()
-  )
-    ? text(row.score)
-    : null;
+  if (typeof row.score === 'string' && row.score.trim()) {
+    return text(row.score);
+  }
+
+  return null;
 }
 
 function configurationNumber(
@@ -120,9 +104,8 @@ export class SportsService extends ExistingSportsService {
 
     this.sportbex =
       this.mode === 'live' &&
-      String(
-        process.env.SPORTS_API_PROVIDER || '',
-      ).toLowerCase() === 'sportbex';
+      String(process.env.SPORTS_API_PROVIDER || '')
+        .toLowerCase() === 'sportbex';
 
     if (!this.sportbex) return;
 
@@ -146,11 +129,7 @@ export class SportsService extends ExistingSportsService {
       12,
     );
 
-    this.discovery = {
-      expires: 0,
-      events: [],
-    };
-
+    this.discovery = { expires: 0, events: [] };
     this.catalog = new Map();
     this.scoreRetryAt = 0;
   }
@@ -162,12 +141,9 @@ export class SportsService extends ExistingSportsService {
 
     const age =
       this.now() -
-      new Date(
-        row?.last_success_at || 0,
-      ).getTime();
+      new Date(row?.last_success_at || 0).getTime();
 
-    state.pollIntervalMs =
-      this.pollIntervalMs;
+    state.pollIntervalMs = this.pollIntervalMs;
 
     state.stale =
       !state.enabled ||
@@ -184,8 +160,7 @@ export class SportsService extends ExistingSportsService {
       state.configured && !state.stale;
 
     if (!this.apiKey && state.supported) {
-      state.error =
-        'SPORTBEX_API_KEY is missing.';
+      state.error = 'SPORTBEX_API_KEY is missing.';
     }
 
     state.provider = 'sportbex';
@@ -198,9 +173,7 @@ export class SportsService extends ExistingSportsService {
 
     if (this.sportbex) {
       result.provider = 'sportbex';
-
-      result.pollIntervalMs =
-        this.pollIntervalMs;
+      result.pollIntervalMs = this.pollIntervalMs;
     }
 
     return result;
@@ -211,22 +184,17 @@ export class SportsService extends ExistingSportsService {
       this.sportbex
         ? {
             ...config,
-            pollIntervalMs:
-              this.pollIntervalMs,
+            pollIntervalMs: this.pollIntervalMs,
           }
         : config,
     );
   }
 
   safeError(error) {
-    if (!this.sportbex) {
-      return super.safeError(error);
-    }
+    if (!this.sportbex) return super.safeError(error);
 
     if (
-      /^Sportbex HTTP \d{3}$/.test(
-        error?.message || '',
-      )
+      /^Sportbex HTTP \d{3}$/.test(error?.message || '')
     ) {
       return error.message;
     }
@@ -237,37 +205,99 @@ export class SportsService extends ExistingSportsService {
   }
 
   eventState(event, state) {
-    const result = super.eventState(
-      event,
-      state,
-    );
+    const result = super.eventState(event, state);
 
-    if (event.provider !== 'sportbex') {
-      return result;
-    }
+    if (event.provider !== 'sportbex') return result;
 
     const age =
-      this.now() -
-      stamp(event.marketUpdatedAt);
+      this.now() - stamp(event.marketUpdatedAt);
 
     const marketStale =
       !Number.isFinite(age) ||
       age < -1000 ||
-      age > Math.max(
-        this.pollIntervalMs * 3,
-        30000,
+      age > Math.max(this.pollIntervalMs * 3, 30000);
+
+    const fancyAge =
+      this.now() - stamp(event.fancyUpdatedAt);
+
+    const fancyFresh =
+      Number.isFinite(fancyAge) &&
+      fancyAge >= -1000 &&
+      fancyAge < Math.max(
+        this.pollIntervalMs * 2,
+        20000,
+      );
+
+    const allowedStatus = value =>
+      ['', 'UNKNOWN', 'ACTIVE', 'OPEN'].includes(
+        String(value || '').trim().toUpperCase(),
+      );
+
+    const exchangeReady =
+      !marketStale &&
+      event.matchOdds?.status === 'OPEN' &&
+      event.matchOdds.delayed === false &&
+      (event.matchOdds.runners || []).some(
+        runner =>
+          runner.status === 'ACTIVE' &&
+          [
+            ...(runner.back || []),
+            ...(runner.lay || []),
+          ].some(price => price.price > 1 && price.size > 0),
+      );
+
+    const bookmakerReady =
+      fancyFresh &&
+      (event.bookmaker || []).some(
+        row =>
+          allowedStatus(row.status) &&
+          (
+            (row.back > 0 && row.backSize > 0) ||
+            (row.lay > 0 && row.laySize > 0)
+          ),
+      );
+
+    const fancyReady =
+      fancyFresh &&
+      (event.fancy || []).some(
+        row =>
+          allowedStatus(row.status) &&
+          (
+            (
+              row.no != null &&
+              row.no >= 0 &&
+              row.noRate > 0
+            ) ||
+            (
+              row.yes != null &&
+              row.yes >= 0 &&
+              row.yesRate > 0
+            )
+          ),
+      );
+
+    const available =
+      state.enabled &&
+      !state.stale &&
+      (
+        exchangeReady ||
+        bookmakerReady ||
+        fancyReady
       );
 
     return {
       ...result,
       marketStale,
-      bettingAllowed: false,
+      bettingAllowed: Boolean(available),
+      demoOnly: true,
 
       bettingReason: !state.enabled
-        ? 'API OFF — Saved prices'
-        : state.stale || marketStale
+        ? 'API OFF — Demo selections paused'
+        : state.stale
           ? 'Waiting for fresh market data'
-          : 'Provider prices · Demo selection integration pending',
+          : available
+            ? ''
+            : 'Markets paused or unavailable',
     };
   }
 
@@ -282,21 +312,13 @@ export class SportsService extends ExistingSportsService {
       generation,
     );
 
-    const controller =
-      new AbortController();
+    const controller = new AbortController();
 
-    if (
-      !this.controllers.has('cricket')
-    ) {
-      this.controllers.set(
-        'cricket',
-        new Set(),
-      );
+    if (!this.controllers.has('cricket')) {
+      this.controllers.set('cricket', new Set());
     }
 
-    this.controllers
-      .get('cricket')
-      .add(controller);
+    this.controllers.get('cricket').add(controller);
 
     const timer = setTimeout(
       () => controller.abort(),
@@ -312,59 +334,37 @@ export class SportsService extends ExistingSportsService {
 
           headers: {
             Accept: 'application/json',
-            'sportbex-api-key':
-              this.apiKey,
+            'sportbex-api-key': this.apiKey,
           },
         },
       );
 
       if (!response.ok) {
         const retry =
-          response.headers?.get(
-            'retry-after',
-          );
+          response.headers?.get('retry-after');
 
         const seconds =
-          retry == null
-            ? NaN
-            : Number(retry);
+          retry == null ? NaN : Number(retry);
 
-        const retryDate = Date.parse(
-          retry || '',
-        );
+        const date = Date.parse(retry || '');
 
-        const delay =
-          response.status === 429
-            ? Number.isFinite(seconds)
-              ? Math.max(
-                  15000,
-                  seconds * 1000,
-                )
-              : Number.isFinite(
-                    retryDate,
-                  )
-                ? Math.max(
-                    15000,
-                    retryDate -
-                      this.now(),
-                  )
-                : 900000
-            : [401, 403].includes(
-                  response.status,
-                )
-              ? 900000
-              : 30000;
+        const delay = response.status === 429
+          ? Number.isFinite(seconds)
+            ? Math.max(15000, seconds * 1000)
+            : Number.isFinite(date)
+              ? Math.max(15000, date - this.now())
+              : 900000
+          : [401, 403].includes(response.status)
+            ? 900000
+            : 30000;
 
         throw Object.assign(
-          new Error(
-            `Sportbex HTTP ${response.status}`,
-          ),
+          new Error(`Sportbex HTTP ${response.status}`),
           { delay },
         );
       }
 
-      const body =
-        await response.json();
+      const body = await response.json();
 
       if (
         body?.status === false ||
@@ -372,9 +372,7 @@ export class SportsService extends ExistingSportsService {
         body?.success === false
       ) {
         throw Object.assign(
-          new Error(
-            'Sportbex rejected request',
-          ),
+          new Error('Sportbex rejected request'),
           { delay: 900000 },
         );
       }
@@ -382,21 +380,12 @@ export class SportsService extends ExistingSportsService {
       return body;
     } finally {
       clearTimeout(timer);
-
-      this.controllers
-        .get('cricket')
-        .delete(controller);
+      this.controllers.get('cricket').delete(controller);
     }
   }
 
-  async discover(
-    connection,
-    generation,
-  ) {
-    if (
-      this.discovery.expires >
-      this.now()
-    ) {
+  async discover(connection, generation) {
+    if (this.discovery.expires > this.now()) {
       return this.discovery.events;
     }
 
@@ -410,13 +399,8 @@ export class SportsService extends ExistingSportsService {
 
     const found = new Map();
 
-    for (
-      const item of
-      competitions.slice(0, 30)
-    ) {
-      const competitionId = id(
-        item.competition?.id,
-      );
+    for (const item of competitions.slice(0, 30)) {
+      const competitionId = id(item.competition?.id);
 
       if (!competitionId) continue;
 
@@ -431,28 +415,19 @@ export class SportsService extends ExistingSportsService {
       for (const row of rows) {
         const event = row?.event;
         const eventId = id(event?.id);
-
-        const start = stamp(
-          event?.openDate,
-        );
+        const start = stamp(event?.openDate);
 
         if (
           !eventId ||
-          !/\s+v(?:s\.?)?\s+/i.test(
-            event?.name || '',
-          ) ||
+          !/\s+v(?:s\.?)?\s+/i.test(event?.name || '') ||
           !Number.isFinite(start)
         ) {
           continue;
         }
 
         if (
-          start <
-            this.now() -
-              24 * 3600000 ||
-          start >
-            this.now() +
-              7 * 86400000
+          start < this.now() - 24 * 3600000 ||
+          start > this.now() + 7 * 86400000
         ) {
           continue;
         }
@@ -460,32 +435,19 @@ export class SportsService extends ExistingSportsService {
         found.set(eventId, {
           eventId,
           name: text(event.name),
-
-          startTime:
-            new Date(
-              start,
-            ).toISOString(),
-
+          startTime: new Date(start).toISOString(),
           league:
-            text(
-              item.competition?.name,
-            ) || 'Cricket',
+            text(item.competition?.name) || 'Cricket',
         });
       }
     }
 
-    const events = [
-      ...found.values(),
-    ].sort(
-      (a, b) =>
-        stamp(a.startTime) -
-        stamp(b.startTime),
+    const events = [...found.values()].sort(
+      (a, b) => stamp(a.startTime) - stamp(b.startTime),
     );
 
     this.discovery = {
-      expires:
-        this.now() +
-        this.scheduleIntervalMs,
+      expires: this.now() + this.scheduleIntervalMs,
       events,
     };
 
@@ -497,12 +459,9 @@ export class SportsService extends ExistingSportsService {
     generation,
     eventId,
   ) {
-    const cached =
-      this.catalog.get(eventId);
+    const cached = this.catalog.get(eventId);
 
-    if (
-      cached?.expires > this.now()
-    ) {
+    if (cached?.expires > this.now()) {
       return cached.value;
     }
 
@@ -514,23 +473,15 @@ export class SportsService extends ExistingSportsService {
       ),
     );
 
-    const value =
-      markets.find(
-        market =>
-          String(
-            market.event?.id,
-          ) === eventId &&
-          /^match odds$/i.test(
-            market.marketName || '',
-          ),
-      ) || null;
+    const value = markets.find(
+      market =>
+        String(market.event?.id) === eventId &&
+        /^match odds$/i.test(market.marketName || ''),
+    ) || null;
 
     this.catalog.set(eventId, {
       value,
-
-      expires:
-        this.now() +
-        (value ? 300000 : 60000),
+      expires: this.now() + (value ? 300000 : 60000),
     });
 
     return value;
@@ -551,33 +502,27 @@ export class SportsService extends ExistingSportsService {
 
     if (schedule) return [];
 
-    const events =
-      await this.discover(
-        connection,
-        generation,
-      );
+    const events = await this.discover(
+      connection,
+      generation,
+    );
 
     let scoreRows = [];
-    let scoreStatus =
-      'UNAVAILABLE';
+    let scoreStatus = 'UNAVAILABLE';
 
-    if (
-      this.now() >= this.scoreRetryAt
-    ) {
+    if (this.now() >= this.scoreRetryAt) {
       try {
-        const body =
-          await this.requestSportbex(
-            connection,
-            generation,
-            '/live-score/match/live',
-          );
+        const body = await this.requestSportbex(
+          connection,
+          generation,
+          '/live-score/match/live',
+        );
 
         scoreRows = list(body);
 
-        scoreStatus =
-          scoreRows.length
-            ? 'ROWS_RETURNED_MAPPING_REQUIRED'
-            : 'NO_LIVE_ROWS_RETURNED';
+        scoreStatus = scoreRows.length
+          ? 'ROWS_RETURNED_MAPPING_REQUIRED'
+          : 'NO_LIVE_ROWS_RETURNED';
       } catch (failure) {
         if (
           failure.stopped ||
@@ -589,133 +534,73 @@ export class SportsService extends ExistingSportsService {
         }
 
         this.scoreRetryAt =
-          this.now() +
-          (failure.delay || 60000);
+          this.now() + (failure.delay || 60000);
 
-        scoreStatus =
-          'SCORE_ENDPOINT_UNAVAILABLE';
+        scoreStatus = 'SCORE_ENDPOINT_UNAVAILABLE';
       }
     }
 
     const previous =
-      this.rows.get('cricket')
-        ?.live_events || [];
+      this.rows.get('cricket')?.live_events || [];
 
     const previousLive = new Set(
       previous
-        .filter(
-          event =>
-            event.status === 'LIVE',
-        )
-        .map(event =>
-          String(
-            event.providerEventId,
-          ),
-        ),
+        .filter(event => event.status === 'LIVE')
+        .map(event => String(event.providerEventId)),
     );
 
-    const ordered = [
-      ...events,
-    ].sort(
+    const ordered = [...events].sort(
       (a, b) =>
-        Number(
-          previousLive.has(
-            b.eventId,
-          ),
-        ) -
-          Number(
-            previousLive.has(
-              a.eventId,
-            ),
-          ) ||
-        stamp(a.startTime) -
-          stamp(b.startTime),
+        Number(previousLive.has(b.eventId)) -
+          Number(previousLive.has(a.eventId)) ||
+        stamp(a.startTime) - stamp(b.startTime),
     );
 
     const output = [];
 
     for (const event of ordered) {
-      if (
-        output.length >=
-        this.maxEvents
-      ) {
-        break;
-      }
+      if (output.length >= this.maxEvents) break;
 
       const cachedMarket =
-        this.catalog.get(
-          event.eventId,
-        )?.value;
+        this.catalog.get(event.eventId)?.value;
 
-      if (
-        cachedMarket?.closedUntil >
-        this.now()
-      ) {
+      if (cachedMarket?.closedUntil > this.now()) {
         continue;
       }
 
-      const catalog =
-        await this.marketCatalog(
-          connection,
-          generation,
-          event.eventId,
-        );
-
-      const names =
-        event.name.split(
-          /\s+v(?:s\.?)?\s+/i,
-        );
-
-      const score = matchedScore(
-        scoreRows,
-        event,
+      const catalog = await this.marketCatalog(
+        connection,
+        generation,
+        event.eventId,
       );
 
+      const names = event.name.split(
+        /\s+v(?:s\.?)?\s+/i,
+      );
+
+      const score = matchedScore(scoreRows, event);
+
       const match = {
-        eventId:
-          `sportbex_${event.eventId}`,
-
-        providerEventId:
-          event.eventId,
-
+        eventId: `sportbex_${event.eventId}`,
+        providerEventId: event.eventId,
         sport: 'cricket',
         provider: 'sportbex',
         source: 'REAL_API',
         league: event.league,
         homeTeam: names[0],
-
-        awayTeam: names
-          .slice(1)
-          .join(' vs '),
-
-        startTime:
-          event.startTime,
-
+        awayTeam: names.slice(1).join(' vs '),
+        startTime: event.startTime,
         status: 'UPCOMING',
         live: false,
         score,
-
-        scoreAvailable:
-          Boolean(score),
-
-        scoreFeedStatus:
-          scoreStatus,
-
-        odds: {
-          home: null,
-          away: null,
-        },
-
+        scoreAvailable: Boolean(score),
+        scoreFeedStatus: scoreStatus,
+        odds: { home: null, away: null },
         oddsAvailable: false,
         matchOdds: null,
         bookmaker: [],
         fancy: [],
-
-        lastUpdated:
-          new Date(
-            this.now(),
-          ).toISOString(),
-
+        lastUpdated: new Date(this.now()).toISOString(),
         marketUpdatedAt: null,
         fancyUpdatedAt: null,
 
@@ -726,142 +611,87 @@ export class SportsService extends ExistingSportsService {
 
       if (
         catalog &&
-        /^\d+\.\d+$/.test(
-          String(
-            catalog.marketId,
-          ),
-        )
+        /^\d+\.\d+$/.test(String(catalog.marketId))
       ) {
-        const body =
-          await this.requestSportbex(
-            connection,
-            generation,
-            `/betfair/market-odds/${event.eventId}/${encodeURIComponent(catalog.marketId)}`,
-          );
+        const body = await this.requestSportbex(
+          connection,
+          generation,
+          `/betfair/market-odds/${event.eventId}/${encodeURIComponent(catalog.marketId)}`,
+        );
 
         const book = body?.data;
 
         if (
           !book ||
-          String(
-            book.marketId,
-          ) !==
-            String(
-              catalog.marketId,
-            ) ||
-          !Array.isArray(
-            book.runners,
-          )
+          String(book.marketId) !==
+            String(catalog.marketId) ||
+          !Array.isArray(book.runners)
         ) {
           throw new Error(
             'Sportbex invalid market response',
           );
         }
 
-        match.live =
-          book.inplay === true;
+        match.live = book.inplay === true;
 
-        match.status =
-          book.status === 'CLOSED'
-            ? 'ENDED'
-            : match.live
-              ? 'LIVE'
-              : 'UPCOMING';
+        match.status = book.status === 'CLOSED'
+          ? 'ENDED'
+          : match.live
+            ? 'LIVE'
+            : 'UPCOMING';
 
-        match.providerStatus =
-          text(book.status);
+        match.providerStatus = text(book.status);
 
         match.marketUpdatedAt =
-          new Date(
-            this.now(),
-          ).toISOString();
+          new Date(this.now()).toISOString();
 
         match.matchOdds = {
-          marketId: String(
-            book.marketId,
-          ),
-
-          status:
-            text(book.status) ||
-            'UNKNOWN',
-
-          inplay:
-            book.inplay === true,
-
-          delayed:
-            book.isMarketDataDelayed !==
-            false,
-
-          lastTradeAt: text(
-            book.lastMatchTime,
-          ),
+          marketId: String(book.marketId),
+          status: text(book.status) || 'UNKNOWN',
+          inplay: book.inplay === true,
+          delayed: book.isMarketDataDelayed !== false,
+          lastTradeAt: text(book.lastMatchTime),
 
           runners: book.runners
             .slice(0, 3)
             .map(runner => {
               const metadata = (
-                catalog.runners ||
-                []
+                catalog.runners || []
               ).find(
                 item =>
-                  String(
-                    item.selectionId,
-                  ) ===
-                  String(
-                    runner.selectionId,
-                  ),
+                  String(item.selectionId) ===
+                  String(runner.selectionId),
               );
 
               const prices = side =>
-                (
-                  Array.isArray(side)
-                    ? side
-                    : []
-                )
+                (Array.isArray(side) ? side : [])
                   .slice(0, 3)
                   .map(price => ({
-                    price:
-                      positive(
-                        price.price,
-                      ),
-
-                    size: number(
-                      price.size,
-                    ),
+                    price: positive(price.price),
+                    size: number(price.size),
                   }))
                   .filter(
                     price =>
-                      price.price >
-                        1 &&
-                      price.size >
-                        0,
+                      price.price > 1 &&
+                      price.size > 0,
                   );
 
               return {
-                selectionId:
-                  String(
-                    runner.selectionId,
-                  ),
+                selectionId: String(runner.selectionId),
 
                 name:
-                  text(
-                    metadata?.runnerName,
-                  ) ||
+                  text(metadata?.runnerName) ||
                   'Unnamed selection',
 
                 status:
-                  text(
-                    runner.status,
-                  ) || 'UNKNOWN',
+                  text(runner.status) || 'UNKNOWN',
 
                 back: prices(
-                  runner.ex
-                    ?.availableToBack,
+                  runner.ex?.availableToBack,
                 ),
 
                 lay: prices(
-                  runner.ex
-                    ?.availableToLay,
+                  runner.ex?.availableToLay,
                 ),
               };
             }),
@@ -875,21 +705,15 @@ export class SportsService extends ExistingSportsService {
           );
 
         match.odds.home =
-          match.matchOdds
-            .runners[0]
-            ?.back[0]?.price ??
-          null;
+          match.matchOdds.runners[0]
+            ?.back[0]?.price ?? null;
 
         match.odds.away =
-          match.matchOdds
-            .runners[1]
-            ?.back[0]?.price ??
-          null;
+          match.matchOdds.runners[1]
+            ?.back[0]?.price ?? null;
       }
 
-      if (
-        match.status === 'ENDED'
-      ) {
+      if (match.status === 'ENDED') {
         if (catalog) {
           catalog.closedUntil =
             this.now() + 300000;
@@ -898,20 +722,15 @@ export class SportsService extends ExistingSportsService {
         continue;
       }
 
-      const fancy =
-        await this.requestSportbex(
-          connection,
-          generation,
-          `/betfair/fancy-bookmaker-odds/${event.eventId}`,
-        );
+      const fancy = await this.requestSportbex(
+        connection,
+        generation,
+        `/betfair/fancy-bookmaker-odds/${event.eventId}`,
+      );
 
       if (
-        !Array.isArray(
-          fancy?.bookmaker,
-        ) ||
-        !Array.isArray(
-          fancy?.fancy,
-        )
+        !Array.isArray(fancy?.bookmaker) ||
+        !Array.isArray(fancy?.fancy)
       ) {
         throw new Error(
           'Sportbex invalid fancy response',
@@ -919,78 +738,35 @@ export class SportsService extends ExistingSportsService {
       }
 
       match.fancyUpdatedAt =
-        new Date(
-          this.now(),
-        ).toISOString();
+        new Date(this.now()).toISOString();
 
-      match.bookmaker =
-        fancy.bookmaker
-          .slice(0, 30)
-          .map(row => ({
-            marketId:
-              String(row.mid),
-
-            selectionId:
-              String(row.sid),
-
-            name: text(row.nat),
-            title: text(row.mname),
-
-            status:
-              text(row.s) ||
-              'UNKNOWN',
-
-            back: positive(row.b1),
-            lay: positive(row.l1),
-
-            backSize:
-              number(row.bs1),
-
-            laySize:
-              number(row.ls1),
-
-            format:
-              'PROVIDER_BOOKMAKER',
-          }));
+      match.bookmaker = fancy.bookmaker
+        .slice(0, 30)
+        .map(row => ({
+          marketId: String(row.mid),
+          selectionId: String(row.sid),
+          name: text(row.nat),
+          title: text(row.mname),
+          status: text(row.s) || 'UNKNOWN',
+          back: positive(row.b1),
+          lay: positive(row.l1),
+          backSize: number(row.bs1),
+          laySize: number(row.ls1),
+          format: 'PROVIDER_BOOKMAKER',
+        }));
 
       match.fancy = fancy.fancy
         .slice(0, 250)
         .map(row => ({
-          id:
-            `${event.eventId}:${String(row.SelectionId)}:${String(row.gtype)}`,
-
-          selectionId:
-            String(
-              row.SelectionId,
-            ),
-
-          title: text(
-            row.RunnerName,
-          ),
-
+          id: `${event.eventId}:${String(row.SelectionId)}:${String(row.gtype)}`,
+          selectionId: String(row.SelectionId),
+          title: text(row.RunnerName),
           type: text(row.gtype),
-
-          status:
-            text(
-              row.GameStatus,
-            ) || 'UNKNOWN',
-
-          no: number(
-            row.LayPrice1,
-          ),
-
-          yes: number(
-            row.BackPrice1,
-          ),
-
-          noRate: number(
-            row.LaySize1,
-          ),
-
-          yesRate: number(
-            row.BackSize1,
-          ),
-
+          status: text(row.GameStatus) || 'UNKNOWN',
+          no: number(row.LayPrice1),
+          yes: number(row.BackPrice1),
+          noRate: number(row.LaySize1),
+          yesRate: number(row.BackSize1),
           min: number(row.min),
           max: number(row.max),
         }));
@@ -1006,5 +782,4 @@ export class SportsService extends ExistingSportsService {
   }
 }
 
-export const sportsService =
-  new SportsService();
+export const sportsService = new SportsService();
