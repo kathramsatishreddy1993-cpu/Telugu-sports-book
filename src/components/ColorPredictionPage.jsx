@@ -44,16 +44,25 @@ function numberBackground(number) {
     return "linear-gradient(135deg,#22c55e 50%,#a855f7 50%)";
   }
 
-  return number % 2 === 1 ? "#16a86b" : "#e44350";
+  return number % 2 === 1
+    ? "#16a86b"
+    : "#e44350";
 }
 
-function ResultBall({ number, small = false }) {
+function ResultBall({
+  number,
+  small = false,
+}) {
   return (
     <span
       className={`inline-flex shrink-0 items-center justify-center rounded-full border-2 border-white/40 font-black text-white shadow-lg ${
-        small ? "h-8 w-8 text-sm" : "h-12 w-12 text-xl"
+        small
+          ? "h-8 w-8 text-sm"
+          : "h-12 w-12 text-xl"
       }`}
-      style={{ background: numberBackground(number) }}
+      style={{
+        background: numberBackground(number),
+      }}
     >
       {number}
     </span>
@@ -75,7 +84,11 @@ export default function ColorPredictionPage({
   );
 }
 
-function ColorGame({ mode, onChangeMode, onBack }) {
+function ColorGame({
+  mode,
+  onChangeMode,
+  onBack,
+}) {
   const {
     data,
     error,
@@ -90,7 +103,10 @@ function ColorGame({ mode, onChangeMode, onBack }) {
   const [selection, setSelection] = useState(null);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(null);
-  const [pendingCancel, setPendingCancel] = useState(null);
+
+  const [pendingCancel, setPendingCancel] =
+    useState(null);
+
   const [message, setMessage] = useState("");
   const [tab, setTab] = useState("HISTORY");
   const [showRules, setShowRules] = useState(false);
@@ -113,19 +129,29 @@ function ColorGame({ mode, onChangeMode, onBack }) {
     };
   }, []);
 
-  const matchingData = data?.round?.mode === mode;
-  const round = matchingData ? data.round : null;
+  const matchingData =
+    data?.round?.mode === mode;
+
+  const round = matchingData
+    ? data.round
+    : null;
 
   const paused = Boolean(
     matchingData &&
-    (
-      data.paused === true ||
-      data.control?.paused === true
-    ),
+      (
+        data.paused === true ||
+        data.control?.paused === true
+      ),
   );
 
-  const elapsed = Math.max(0, clock - receivedAt);
-  const serverTime = Date.parse(data?.serverTime);
+  const elapsed = Math.max(
+    0,
+    clock - receivedAt,
+  );
+
+  const serverTime = Date.parse(
+    data?.serverTime,
+  );
 
   const now = Number.isFinite(serverTime)
     ? serverTime + (paused ? 0 : elapsed)
@@ -133,44 +159,66 @@ function ColorGame({ mode, onChangeMode, onBack }) {
 
   const fresh = Boolean(
     matchingData &&
-    !error &&
-    Number.isFinite(serverTime) &&
-    elapsed < 3500
+      !error &&
+      Number.isFinite(serverTime) &&
+      elapsed < 3500,
   );
 
-  const closesAt = Date.parse(round?.closesAt);
-  const endsAt = Date.parse(round?.endsAt);
+  const closesAt = Date.parse(
+    round?.closesAt,
+  );
+
+  const endsAt = Date.parse(
+    round?.endsAt,
+  );
 
   const open = Boolean(
     fresh &&
-    !paused &&
-    round?.phase === "BETTING" &&
-    now < closesAt
+      !paused &&
+      round?.phase === "BETTING" &&
+      now < closesAt,
   );
 
-  const drawing = Boolean(round && now >= closesAt);
+  const drawing = Boolean(
+    round && now >= closesAt,
+  );
 
   const seconds = round
     ? Math.max(
         0,
         Math.ceil(
-          ((drawing ? endsAt : closesAt) - now) / 1000,
+          (
+            (drawing ? endsAt : closesAt) -
+            now
+          ) / 1000,
         ),
       )
     : 0;
 
   const timerText =
-    `${String(Math.floor(seconds / 60)).padStart(2, "0")}:` +
+    `${String(
+      Math.floor(seconds / 60),
+    ).padStart(2, "0")}:` +
     String(seconds % 60).padStart(2, "0");
 
-  const bets = matchingData ? data.bets || [] : [];
-  const history = matchingData ? data.history || [] : [];
+  const bets = matchingData
+    ? data.bets || []
+    : [];
+
+  const history = matchingData
+    ? data.history || []
+    : [];
 
   const currentBets = bets.filter(
-    bet => String(bet.roundId) === String(round?.id),
+    bet =>
+      String(bet.roundId) ===
+      String(round?.id),
   );
 
-  const unresolved = Boolean(pending || pendingCancel);
+  const unresolved = Boolean(
+    pending || pendingCancel,
+  );
+
   const locked = busy || unresolved;
   const stake = Number(amount);
 
@@ -181,7 +229,8 @@ function ColorGame({ mode, onChangeMode, onBack }) {
 
   const selectedForRound = Boolean(
     selection &&
-    String(selection.roundId) === String(round?.id)
+      String(selection.roundId) ===
+        String(round?.id),
   );
 
   const canConfirm =
@@ -222,7 +271,12 @@ function ColorGame({ mode, onChangeMode, onBack }) {
     if (locked) return;
 
     setAmount(
-      String(Math.min(25000, Math.max(100, value))),
+      String(
+        Math.min(
+          25000,
+          Math.max(100, value),
+        ),
+      ),
     );
   };
 
@@ -235,7 +289,12 @@ function ColorGame({ mode, onChangeMode, onBack }) {
   };
 
   const requestBet = async (retry = false) => {
-    if (inFlight.current || pendingCancel) return;
+    if (
+      inFlight.current ||
+      pendingCancel
+    ) {
+      return;
+    }
 
     if (!retry && !canConfirm) {
       setMessage(
@@ -273,6 +332,7 @@ function ColorGame({ mode, onChangeMode, onBack }) {
       if (mounted.current) {
         setPending(null);
         setSelection(null);
+
         setMessage(
           result.bet?.status === "CANCELLED"
             ? "This bet was already cancelled."
@@ -289,7 +349,8 @@ function ColorGame({ mode, onChangeMode, onBack }) {
         }
 
         setMessage(
-          requestError.message || "Unable to confirm bet.",
+          requestError.message ||
+            "Unable to confirm bet.",
         );
       }
     } finally {
@@ -303,7 +364,12 @@ function ColorGame({ mode, onChangeMode, onBack }) {
   };
 
   const cancelBet = async betId => {
-    if (inFlight.current || pending) return;
+    if (
+      inFlight.current ||
+      pending
+    ) {
+      return;
+    }
 
     if (
       pendingCancel &&
@@ -336,7 +402,10 @@ function ColorGame({ mode, onChangeMode, onBack }) {
 
       if (mounted.current) {
         setPendingCancel(null);
-        setMessage("Bet cancelled. Full stake returned.");
+
+        setMessage(
+          "Bet cancelled. Full stake returned.",
+        );
       }
     } catch (requestError) {
       if (mounted.current) {
@@ -348,7 +417,8 @@ function ColorGame({ mode, onChangeMode, onBack }) {
         }
 
         setMessage(
-          requestError.message || "Unable to cancel bet.",
+          requestError.message ||
+            "Unable to cancel bet.",
         );
       }
     } finally {
@@ -362,8 +432,14 @@ function ColorGame({ mode, onChangeMode, onBack }) {
   };
 
   const reserved = currentBets
-    .filter(bet => bet.status === "PLACED")
-    .reduce((total, bet) => total + Number(bet.amount), 0);
+    .filter(
+      bet => bet.status === "PLACED",
+    )
+    .reduce(
+      (total, bet) =>
+        total + Number(bet.amount),
+      0,
+    );
 
   return (
     <main className="min-h-screen bg-[#111535] p-3 text-white">
@@ -378,17 +454,16 @@ function ColorGame({ mode, onChangeMode, onBack }) {
             ‹ HOME
           </button>
 
-          <h1 className="text-sm font-black">
+          <h1 className="min-w-0 text-center text-sm font-black">
             COLOR PREDICTION
           </h1>
 
-          <div className="text-right">
-            <p className="text-[9px] text-slate-300">
-              Demo coins
+          <div className="shrink-0 rounded-xl border border-amber-400/30 bg-[#03121d]/90 px-3 py-2 text-right">
+            <p className="whitespace-nowrap text-sm font-black tabular-nums text-amber-300">
+              {matchingData
+                ? `₹${coins(data.balance)}`
+                : "…"}
             </p>
-            <strong className="text-sm text-amber-200">
-              {matchingData ? coins(data.balance) : "…"}
-            </strong>
           </div>
         </header>
 
@@ -399,7 +474,9 @@ function ColorGame({ mode, onChangeMode, onBack }) {
               type="button"
               disabled={locked}
               aria-pressed={mode === item.id}
-              onClick={() => onChangeMode(item.id)}
+              onClick={() =>
+                onChangeMode(item.id)
+              }
               className={`rounded-xl border px-1 py-4 text-xs font-black disabled:opacity-40 ${
                 mode === item.id
                   ? "border-cyan-200/60 bg-blue-500"
@@ -428,6 +505,7 @@ function ColorGame({ mode, onChangeMode, onBack }) {
             <p className="text-sm font-black text-amber-200">
               Ⅱ PAUSED BY ADMIN
             </p>
+
             <p className="mt-1 text-xs leading-5 text-amber-100">
               All four time modes are paused.
               Existing bets remain reserved.
@@ -441,7 +519,9 @@ function ColorGame({ mode, onChangeMode, onBack }) {
             <div>
               <button
                 type="button"
-                onClick={() => setShowRules(value => !value)}
+                onClick={() =>
+                  setShowRules(value => !value)
+                }
                 aria-expanded={showRules}
                 className="rounded-full border border-white/50 px-3 py-1 text-xs font-bold"
               >
@@ -449,7 +529,10 @@ function ColorGame({ mode, onChangeMode, onBack }) {
               </button>
 
               <h2 className="mt-3 text-lg font-black">
-                Win Go {MODES.find(item => item.id === mode)?.label}
+                Win Go{" "}
+                {MODES.find(
+                  item => item.id === mode,
+                )?.label}
               </h2>
 
               <div className="mt-3 flex flex-wrap gap-1">
@@ -476,7 +559,9 @@ function ColorGame({ mode, onChangeMode, onBack }) {
 
               <p
                 className={`mt-2 font-mono text-4xl font-black ${
-                  paused ? "text-amber-200" : ""
+                  paused
+                    ? "text-amber-200"
+                    : ""
                 }`}
               >
                 {timerText}
@@ -508,8 +593,12 @@ function ColorGame({ mode, onChangeMode, onBack }) {
             </p>
 
             <ul className="mt-2 list-disc space-y-1 pl-4">
-              <li>Green: 1, 3, 7, 9 → 2×; 5 → 1.5×.</li>
-              <li>Red: 2, 4, 6, 8 → 2×; 0 → 1.5×.</li>
+              <li>
+                Green: 1, 3, 7, 9 → 2×; 5 → 1.5×.
+              </li>
+              <li>
+                Red: 2, 4, 6, 8 → 2×; 0 → 1.5×.
+              </li>
               <li>Violet: 0 or 5 → 2×.</li>
               <li>Exact number match → 9×.</li>
               <li>Big: 5–9 → 2×.</li>
@@ -545,6 +634,7 @@ function ColorGame({ mode, onChangeMode, onBack }) {
             <h2 className="text-sm font-black">
               BET AMOUNT
             </h2>
+
             <span className="text-[10px] text-slate-300">
               100–25,000 coins
             </span>
@@ -554,7 +644,9 @@ function ColorGame({ mode, onChangeMode, onBack }) {
             <button
               type="button"
               disabled={locked}
-              onClick={() => changeAmount((stake || 100) - 100)}
+              onClick={() =>
+                changeAmount((stake || 100) - 100)
+              }
               className="w-10 rounded-xl bg-black/25 text-xl disabled:opacity-40"
             >
               −
@@ -567,7 +659,9 @@ function ColorGame({ mode, onChangeMode, onBack }) {
               value={amount}
               disabled={locked}
               onChange={event => {
-                if (/^\d*$/.test(event.target.value)) {
+                if (
+                  /^\d*$/.test(event.target.value)
+                ) {
                   setAmount(event.target.value);
                 }
               }}
@@ -577,7 +671,9 @@ function ColorGame({ mode, onChangeMode, onBack }) {
             <button
               type="button"
               disabled={locked}
-              onClick={() => changeAmount((stake || 0) + 100)}
+              onClick={() =>
+                changeAmount((stake || 0) + 100)
+              }
               className="w-10 rounded-xl bg-black/25 text-xl disabled:opacity-40"
             >
               +
@@ -590,7 +686,11 @@ function ColorGame({ mode, onChangeMode, onBack }) {
                 key={value}
                 type="button"
                 disabled={locked}
-                onClick={() => changeAmount((stake || 0) + value)}
+                onClick={() =>
+                  changeAmount(
+                    (stake || 0) + value,
+                  )
+                }
                 className="rounded-full bg-black/20 py-2 text-[10px] font-black disabled:opacity-40"
               >
                 +{coins(value)}
@@ -622,9 +722,12 @@ function ColorGame({ mode, onChangeMode, onBack }) {
           {validAmount && (
             <p className="mt-1 text-[10px] text-slate-400">
               Fee 2% · Contract amount:{" "}
-              {(stake * 98 / 100).toLocaleString("en-IN", {
-                maximumFractionDigits: 2,
-              })}
+              {(stake * 98 / 100).toLocaleString(
+                "en-IN",
+                {
+                  maximumFractionDigits: 2,
+                },
+              )}
             </p>
           )}
 
@@ -657,7 +760,9 @@ function ColorGame({ mode, onChangeMode, onBack }) {
           <button
             type="button"
             disabled={busy}
-            onClick={() => cancelBet(pendingCancel)}
+            onClick={() =>
+              cancelBet(pendingCancel)
+            }
             className="w-full rounded-xl bg-amber-300 p-3 text-xs font-black text-black disabled:opacity-40"
           >
             RETRY SAME CANCEL REQUEST
@@ -676,11 +781,13 @@ function ColorGame({ mode, onChangeMode, onBack }) {
                 type="button"
                 disabled={!open || locked}
                 aria-pressed={
-                  selectedForRound && selection.key === key
+                  selectedForRound &&
+                  selection.key === key
                 }
                 onClick={() => chooseMarket(key)}
                 className={`rounded-xl py-3 text-sm font-black disabled:opacity-40 ${color} ${
-                  selectedForRound && selection.key === key
+                  selectedForRound &&
+                  selection.key === key
                     ? "ring-2 ring-amber-200"
                     : ""
                 }`}
@@ -691,32 +798,40 @@ function ColorGame({ mode, onChangeMode, onBack }) {
           </div>
 
           <div className="mt-4 grid grid-cols-5 gap-3">
-            {Array.from({ length: 10 }, (_, number) => {
-              const key = `NUMBER_${number}`;
+            {Array.from(
+              { length: 10 },
+              (_, number) => {
+                const key = `NUMBER_${number}`;
 
-              return (
-                <button
-                  key={number}
-                  type="button"
-                  aria-label={`Bet on number ${number}`}
-                  aria-pressed={
-                    selectedForRound && selection.key === key
-                  }
-                  disabled={!open || locked}
-                  onClick={() => chooseMarket(key)}
-                  style={{
-                    background: numberBackground(number),
-                  }}
-                  className={`aspect-square rounded-full border-4 border-white/40 text-2xl font-black shadow-lg disabled:opacity-40 ${
-                    selectedForRound && selection.key === key
-                      ? "ring-2 ring-amber-200 ring-offset-2 ring-offset-[#242e65]"
-                      : ""
-                  }`}
-                >
-                  {number}
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    key={number}
+                    type="button"
+                    aria-label={`Bet on number ${number}`}
+                    aria-pressed={
+                      selectedForRound &&
+                      selection.key === key
+                    }
+                    disabled={!open || locked}
+                    onClick={() =>
+                      chooseMarket(key)
+                    }
+                    style={{
+                      background:
+                        numberBackground(number),
+                    }}
+                    className={`aspect-square rounded-full border-4 border-white/40 text-2xl font-black shadow-lg disabled:opacity-40 ${
+                      selectedForRound &&
+                      selection.key === key
+                        ? "ring-2 ring-amber-200 ring-offset-2 ring-offset-[#242e65]"
+                        : ""
+                    }`}
+                  >
+                    {number}
+                  </button>
+                );
+              },
+            )}
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -729,11 +844,13 @@ function ColorGame({ mode, onChangeMode, onBack }) {
                 type="button"
                 disabled={!open || locked}
                 aria-pressed={
-                  selectedForRound && selection.key === key
+                  selectedForRound &&
+                  selection.key === key
                 }
                 onClick={() => chooseMarket(key)}
                 className={`rounded-full py-3 text-sm font-black disabled:opacity-40 ${color} ${
-                  selectedForRound && selection.key === key
+                  selectedForRound &&
+                  selection.key === key
                     ? "ring-2 ring-amber-200"
                     : ""
                 }`}
@@ -762,10 +879,13 @@ function ColorGame({ mode, onChangeMode, onBack }) {
             >
               <div>
                 <p className="text-xs font-black">
-                  {marketLabel(bet.market)} · {coins(bet.amount)}
+                  {marketLabel(bet.market)} ·{" "}
+                  {coins(bet.amount)}
                 </p>
+
                 <p className="mt-1 text-[10px] text-slate-300">
                   {bet.status}
+
                   {bet.status !== "PLACED"
                     ? ` · Returned ${coins(bet.payout)}`
                     : ""}
@@ -796,7 +916,9 @@ function ColorGame({ mode, onChangeMode, onBack }) {
               type="button"
               onClick={() => setTab(key)}
               className={`rounded-xl py-3 text-xs font-black ${
-                tab === key ? "bg-blue-500" : "bg-[#202951]"
+                tab === key
+                  ? "bg-blue-500"
+                  : "bg-[#202951]"
               }`}
             >
               {label}
@@ -841,20 +963,22 @@ function ColorGame({ mode, onChangeMode, onBack }) {
 
                     <td>
                       <div className="flex gap-1">
-                        {item.result.colors.map(color => (
-                          <span
-                            key={color}
-                            title={marketLabel(color)}
-                            aria-label={marketLabel(color)}
-                            className={`h-3 w-3 rounded-full ${
-                              color === "GREEN"
-                                ? "bg-emerald-400"
-                                : color === "RED"
-                                  ? "bg-red-400"
-                                  : "bg-violet-400"
-                            }`}
-                          />
-                        ))}
+                        {item.result.colors.map(
+                          color => (
+                            <span
+                              key={color}
+                              title={marketLabel(color)}
+                              aria-label={marketLabel(color)}
+                              className={`h-3 w-3 rounded-full ${
+                                color === "GREEN"
+                                  ? "bg-emerald-400"
+                                  : color === "RED"
+                                    ? "bg-red-400"
+                                    : "bg-violet-400"
+                              }`}
+                            />
+                          ),
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -869,7 +993,8 @@ function ColorGame({ mode, onChangeMode, onBack }) {
                   className="border-b border-white/10 pb-3 text-xs"
                 >
                   <p className="font-black">
-                    {marketLabel(bet.market)} · {coins(bet.amount)}
+                    {marketLabel(bet.market)} ·{" "}
+                    {coins(bet.amount)}
                   </p>
 
                   <p className="mt-1 text-[10px] text-slate-300">
@@ -884,8 +1009,10 @@ function ColorGame({ mode, onChangeMode, onBack }) {
             </div>
           )}
 
-          {((tab === "HISTORY" && !history.length) ||
-            (tab === "BETS" && !bets.length)) && (
+          {(
+            (tab === "HISTORY" && !history.length) ||
+            (tab === "BETS" && !bets.length)
+          ) && (
             <p className="py-5 text-center text-xs text-slate-400">
               No records yet.
             </p>
