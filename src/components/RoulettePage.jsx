@@ -3,16 +3,24 @@ import React, {
   useId,
   useRef,
   useState,
-} from 'react';
+} from "react";
 
 import {
   flightApi,
   useFlightState,
   flightRequestKey,
   notifyFlightWallet,
-} from './flightClient';
+} from "./flightClient";
 
-import { ControllerPasswordChange } from './GameControlPage';
+import {
+  ControllerPasswordChange,
+} from "./GameControlPage";
+
+import {
+  SoundControls,
+  useGameSound,
+  useRouletteSound,
+} from "./GameSound";
 
 const red = new Set([
   1, 3, 5, 7, 9, 12, 14, 16, 18,
@@ -28,17 +36,17 @@ const wheel = [
 
 const color = number =>
   number === 0
-    ? '#169c53'
+    ? "#169c53"
     : red.has(number)
-      ? '#d52e36'
-      : '#252b35';
+      ? "#d52e36"
+      : "#252b35";
 
 const field =
-  'w-full rounded-lg border border-white/20 bg-black/30 p-3 text-white';
+  "w-full rounded-lg border border-white/20 bg-black/30 p-3 text-white";
 
 export default function RoulettePage({
   controller = false,
-  onBack = () => window.location.assign('/'),
+  onBack = () => window.location.assign("/"),
 }) {
   const {
     data,
@@ -48,29 +56,33 @@ export default function RoulettePage({
     refresh,
   } = useFlightState(
     controller
-      ? '/api/game-control/roulette/state'
-      : '/api/roulette/state',
+      ? "/api/game-control/roulette/state"
+      : "/api/roulette/state",
   );
 
   const [clock, setClock] = useState(Date.now());
-  const [login, setLogin] = useState('');
-  const [password, setPassword] = useState('');
-  const [number, setNumber] = useState('9');
+  const [login, setLogin] = useState("");
+  const [password, setPassword] = useState("");
+  const [number, setNumber] = useState("9");
   const [confirmed, setConfirmed] = useState(false);
   const [chip, setChip] = useState(50);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+
   const [pendingPayload, setPendingPayload] =
     useState(null);
+
   const [advanced, setAdvanced] = useState(false);
-  const [type, setType] = useState('S');
-  const [first, setFirst] = useState('1');
-  const [second, setSecond] = useState('2');
+  const [type, setType] = useState("S");
+  const [first, setFirst] = useState("1");
+  const [second, setSecond] = useState("2");
 
   const undo = useRef([]);
   const previous = useRef({});
   const pending = useRef(false);
   const lastRound = useRef(null);
+
+  const sound = useGameSound();
 
   useEffect(() => {
     const timer = setInterval(
@@ -97,14 +109,27 @@ export default function RoulettePage({
     : 0;
 
   const phase = !round
-    ? 'WAITING'
-    : round.phase === 'RESULT'
-      ? 'RESULT'
+    ? "WAITING"
+    : round.phase === "RESULT"
+      ? "RESULT"
       : now < close
-        ? 'BETTING'
-        : 'SPINNING';
+        ? "BETTING"
+        : "SPINNING";
 
-  const open = fresh && phase === 'BETTING';
+  const spinElapsed = Math.max(
+    0,
+    (now - close) / 1000,
+  );
+
+  useRouletteSound(sound, {
+    roundId: round?.id,
+    phase,
+    elapsed: spinElapsed,
+    fresh,
+    controller,
+  });
+
+  const open = fresh && phase === "BETTING";
 
   const entry = data?.entries?.find(
     item =>
@@ -113,6 +138,7 @@ export default function RoulettePage({
 
   const bets = entry?.bets || {};
   const total = entry?.total || 0;
+
   const current = useRef({});
 
   current.current = {
@@ -132,7 +158,7 @@ export default function RoulettePage({
 
       undo.current = [];
       setPendingPayload(null);
-      setMessage('');
+      setMessage("");
       lastRound.current = round?.id;
     }
   }, [round?.id]);
@@ -144,22 +170,22 @@ export default function RoulettePage({
 
     pending.current = true;
     setBusy(true);
-    setMessage('');
+    setMessage("");
 
     try {
-      if (kind === 'login') {
-        await flightApi('/api/game-control/login', {
+      if (kind === "login") {
+        await flightApi("/api/game-control/login", {
           id: login,
           password,
-          game: 'ROULETTE',
+          game: "ROULETTE",
         });
 
-        setPassword('');
+        setPassword("");
       }
 
-      if (kind === 'logout') {
+      if (kind === "logout") {
         await flightApi(
-          '/api/game-control/logout',
+          "/api/game-control/logout",
           {},
         );
 
@@ -167,9 +193,9 @@ export default function RoulettePage({
         return;
       }
 
-      if (kind === 'lock') {
+      if (kind === "lock") {
         await flightApi(
-          '/api/game-control/roulette/rounds',
+          "/api/game-control/roulette/rounds",
           {
             number: Number(number),
             confirmed,
@@ -196,12 +222,12 @@ export default function RoulettePage({
     if (pending.current) return;
 
     if (!open) {
-      setMessage('WAIT FOR NEXT ROUND');
+      setMessage("WAIT FOR NEXT ROUND");
       return;
     }
 
     if (pendingPayload && !retry) {
-      setMessage('Retry the pending action first.');
+      setMessage("Retry the pending action first.");
       return;
     }
 
@@ -216,7 +242,7 @@ export default function RoulettePage({
 
     pending.current = true;
     setBusy(true);
-    setMessage('');
+    setMessage("");
 
     const snapshot = { ...bets };
 
@@ -224,7 +250,7 @@ export default function RoulettePage({
       setPendingPayload(payload);
 
       await flightApi(
-        '/api/roulette/bets',
+        "/api/roulette/bets",
         payload,
       );
 
@@ -240,6 +266,7 @@ export default function RoulettePage({
 
       setPendingPayload(null);
       notifyFlightWallet();
+
       await refresh();
     } catch (requestError) {
       setMessage(requestError.message);
@@ -263,7 +290,7 @@ export default function RoulettePage({
   const cell = (
     key,
     label,
-    background = '#fff1a8',
+    background = "#fff1a8",
     extra = {},
   ) => (
     <button
@@ -278,9 +305,9 @@ export default function RoulettePage({
       style={{
         background,
         color:
-          background === '#fff1a8'
-            ? '#b5262c'
-            : 'white',
+          background === "#fff1a8"
+            ? "#b5262c"
+            : "white",
         ...extra,
       }}
       className="relative min-w-0 border border-black/80 p-1 text-center font-black disabled:opacity-70"
@@ -308,7 +335,7 @@ export default function RoulettePage({
           </button>
 
           <h1 className="font-black text-amber-200">
-            TSB ROULETTE {controller ? 'CONTROL' : ''}
+            TSB ROULETTE {controller ? "CONTROL" : ""}
           </h1>
 
           {controller ? (
@@ -321,12 +348,16 @@ export default function RoulettePage({
                 {data
                   ? `₹${Number(
                       data.balance || 0,
-                    ).toLocaleString('en-IN')}`
-                  : 'Loading...'}
+                    ).toLocaleString("en-IN")}`
+                  : "Loading..."}
               </p>
             </div>
           )}
         </header>
+
+        {!controller && (
+          <SoundControls sound={sound} />
+        )}
 
         {(error || message) && (
           <p
@@ -340,7 +371,7 @@ export default function RoulettePage({
         {controller && (!data || unauthorized) ? (
           <form
             onSubmit={event =>
-              action('login', event)
+              action("login", event)
             }
             className="space-y-3 rounded-xl bg-[#142c31] p-4"
           >
@@ -350,6 +381,7 @@ export default function RoulettePage({
 
             <label className="block text-sm">
               Login ID
+
               <input
                 required
                 className={field}
@@ -362,6 +394,7 @@ export default function RoulettePage({
 
             <label className="block text-sm">
               Password
+
               <input
                 required
                 type="password"
@@ -380,8 +413,7 @@ export default function RoulettePage({
               LOGIN
             </button>
           </form>
-        ) : controller &&
-          data?.mustChangePassword ? (
+        ) : controller && data?.mustChangePassword ? (
           <ControllerPasswordChange
             onComplete={refresh}
           />
@@ -392,7 +424,7 @@ export default function RoulettePage({
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => action('logout')}
+                  onClick={() => action("logout")}
                   className="text-xs underline"
                 >
                   LOGOUT
@@ -400,7 +432,7 @@ export default function RoulettePage({
 
                 <form
                   onSubmit={event =>
-                    action('lock', event)
+                    action("lock", event)
                   }
                   className="space-y-3 rounded-xl bg-[#142c31] p-4"
                 >
@@ -410,14 +442,15 @@ export default function RoulettePage({
 
                   <label className="block text-sm">
                     Winning number (0–36)
+
                     <input
                       type="number"
                       min="0"
                       max="36"
                       required
                       disabled={
-                        phase === 'BETTING' ||
-                        phase === 'SPINNING' ||
+                        phase === "BETTING" ||
+                        phase === "SPINNING" ||
                         busy
                       }
                       className={field}
@@ -430,15 +463,15 @@ export default function RoulettePage({
 
                   <p className="text-xs">
                     {Number(number) === 0
-                      ? 'GREEN · ZERO'
+                      ? "GREEN · ZERO"
                       : `${
                           red.has(Number(number))
-                            ? 'RED'
-                            : 'BLACK'
+                            ? "RED"
+                            : "BLACK"
                         } · ${
                           Number(number) % 2
-                            ? 'ODD'
-                            : 'EVEN'
+                            ? "ODD"
+                            : "EVEN"
                         } · Dozen ${Math.ceil(
                           Number(number) / 12,
                         )} · Column ${
@@ -456,6 +489,7 @@ export default function RoulettePage({
                         )
                       }
                     />
+
                     I confirm this result is fixed
                     before bets open and cannot be
                     changed after locking.
@@ -466,8 +500,8 @@ export default function RoulettePage({
                       !confirmed ||
                       busy ||
                       !fresh ||
-                      phase === 'BETTING' ||
-                      phase === 'SPINNING'
+                      phase === "BETTING" ||
+                      phase === "SPINNING"
                     }
                     className="rounded-lg bg-amber-300 p-3 font-black text-black disabled:opacity-40"
                   >
@@ -477,7 +511,7 @@ export default function RoulettePage({
                   {round && (
                     <p className="text-xs text-cyan-200">
                       Round #{round.id}
-                      {' · '}Locked number{' '}
+                      {" · "}Locked number{" "}
                       {round.number}
                     </p>
                   )}
@@ -486,24 +520,22 @@ export default function RoulettePage({
             )}
 
             <div className="rounded-lg bg-amber-300 p-2 text-center font-black text-black">
-              {phase === 'BETTING'
+              {phase === "BETTING"
                 ? `Bets closing ${Math.max(
                     0,
-                    Math.ceil(
-                      (close - now) / 1000,
-                    ),
+                    Math.ceil((close - now) / 1000),
                   )}`
-                : phase === 'SPINNING'
-                  ? 'WAIT FOR NEXT GAME · SPINNING'
-                  : phase === 'RESULT'
+                : phase === "SPINNING"
+                  ? "WAIT FOR NEXT GAME · SPINNING"
+                  : phase === "RESULT"
                     ? `RESULT: ${round.number} · ${
                         round.number === 0
-                          ? 'GREEN'
+                          ? "GREEN"
                           : red.has(round.number)
-                            ? 'RED'
-                            : 'BLACK'
+                            ? "RED"
+                            : "BLACK"
                       }`
-                    : 'WAITING FOR NEXT ROUND'}
+                    : "WAITING FOR NEXT ROUND"}
             </div>
 
             <div className="flex gap-2 overflow-x-auto">
@@ -513,10 +545,10 @@ export default function RoulettePage({
                   style={{
                     color:
                       item.number === 0
-                        ? '#4ade80'
+                        ? "#4ade80"
                         : red.has(item.number)
-                          ? '#fb7185'
-                          : '#cbd5e1',
+                          ? "#fb7185"
+                          : "#cbd5e1",
                   }}
                   className="rounded bg-black px-3 py-1 font-bold"
                 >
@@ -525,17 +557,14 @@ export default function RoulettePage({
               ))}
             </div>
 
-            {(phase === 'SPINNING' ||
-              phase === 'RESULT') && (
+            {(phase === "SPINNING" ||
+              phase === "RESULT") && (
               <Wheel
                 key={round?.id}
                 phase={phase}
                 number={round?.number}
                 landingNumber={round?.landingNumber}
-                elapsed={Math.max(
-                  0,
-                  (now - close) / 1000,
-                )}
+                elapsed={spinElapsed}
               />
             )}
 
@@ -553,8 +582,8 @@ export default function RoulettePage({
                         onClick={() => setChip(value)}
                         className={`rounded-full border px-3 py-2 text-xs ${
                           chip === value
-                            ? 'border-amber-200 bg-amber-300 text-black'
-                            : 'border-white/20'
+                            ? "border-amber-200 bg-amber-300 text-black"
+                            : "border-white/20"
                         }`}
                       >
                         {value}
@@ -564,9 +593,8 @@ export default function RoulettePage({
                 </div>
 
                 <p className="text-xs">
-                  Bet:{' '}
-                  {total.toLocaleString('en-IN')}
-                  {' · '}Chips reserve demo coins
+                  Bet: {total.toLocaleString("en-IN")}
+                  {" · "}Chips reserve demo coins
                   immediately; clear or undo before
                   betting closes to release them.
                 </p>
@@ -576,48 +604,48 @@ export default function RoulettePage({
                     className="grid min-w-0 flex-1 grid-cols-[.8fr_.8fr_1fr_1fr_1fr]"
                     style={{
                       gridTemplateRows:
-                        '48px repeat(12,44px) 44px',
+                        "48px repeat(12,44px) 44px",
                     }}
                   >
                     {cell(
-                      'N:0',
-                      '0',
-                      '#169c53',
+                      "N:0",
+                      "0",
+                      "#169c53",
                       {
-                        gridColumn: '3 / 6',
-                        gridRow: '1',
+                        gridColumn: "3 / 6",
+                        gridRow: "1",
                       },
                     )}
 
                     {[
-                      'LOW',
-                      'EVEN',
-                      'RED',
-                      'BLACK',
-                      'ODD',
-                      'HIGH',
+                      "LOW",
+                      "EVEN",
+                      "RED",
+                      "BLACK",
+                      "ODD",
+                      "HIGH",
                     ].map((key, index) =>
                       cell(
                         key,
                         [
-                          '1–18',
-                          'EVEN',
-                          'RED',
-                          'BLACK',
-                          'ODD',
-                          '19–36',
+                          "1–18",
+                          "EVEN",
+                          "RED",
+                          "BLACK",
+                          "ODD",
+                          "19–36",
                         ][index],
-                        key === 'RED'
-                          ? '#d52e36'
-                          : key === 'BLACK'
-                            ? '#252b35'
-                            : '#fff1a8',
+                        key === "RED"
+                          ? "#d52e36"
+                          : key === "BLACK"
+                            ? "#252b35"
+                            : "#fff1a8",
                         {
-                          gridColumn: '1',
+                          gridColumn: "1",
                           gridRow: `${
                             2 + index * 2
                           } / span 2`,
-                          writingMode: 'vertical-rl',
+                          writingMode: "vertical-rl",
                         },
                       ),
                     )}
@@ -628,18 +656,18 @@ export default function RoulettePage({
                           `D:${value}`,
                           `${
                             value === 1
-                              ? '1st'
+                              ? "1st"
                               : value === 2
-                                ? '2nd'
-                                : '3rd'
+                                ? "2nd"
+                                : "3rd"
                           } 12`,
-                          '#fff1a8',
+                          "#fff1a8",
                           {
-                            gridColumn: '2',
+                            gridColumn: "2",
                             gridRow: `${
                               2 + index * 4
                             } / span 4`,
-                            writingMode: 'vertical-rl',
+                            writingMode: "vertical-rl",
                           },
                         ),
                     )}
@@ -662,7 +690,7 @@ export default function RoulettePage({
                                 (value - 1) / 3,
                               ),
                           ),
-                          fontSize: '22px',
+                          fontSize: "22px",
                         },
                       ),
                     )}
@@ -670,14 +698,12 @@ export default function RoulettePage({
                     {[1, 2, 3].map(value =>
                       cell(
                         `C:${value}`,
-                        '2 to 1',
-                        '#fff1a8',
+                        "2 to 1",
+                        "#fff1a8",
                         {
-                          gridColumn: String(
-                            value + 2,
-                          ),
-                          gridRow: '14',
-                          fontSize: '12px',
+                          gridColumn: String(value + 2),
+                          gridRow: "14",
+                          fontSize: "12px",
                         },
                       ),
                     )}
@@ -809,7 +835,7 @@ export default function RoulettePage({
                       className={field}
                     />
 
-                    {type === 'S' && (
+                    {type === "S" && (
                       <input
                         aria-label="Second number"
                         type="number"
@@ -831,7 +857,7 @@ export default function RoulettePage({
                       }
                       onClick={() =>
                         add(
-                          type === 'S'
+                          type === "S"
                             ? `S:${Math.min(
                                 Number(first),
                                 Number(second),
@@ -872,11 +898,11 @@ export default function RoulettePage({
                       className="mt-2 text-xs"
                     >
                       #{item.round_id}
-                      {' · '}Bet {item.total}
-                      {' · '}
-                      {item.status === 'SETTLED'
+                      {" · "}Bet {item.total}
+                      {" · "}
+                      {item.status === "SETTLED"
                         ? `Result ${item.number} · Returned ${item.payout}`
-                        : 'PLACED'}
+                        : "PLACED"}
                     </p>
                   ))}
                 </section>
@@ -897,7 +923,7 @@ export default function RoulettePage({
               </p>
 
               <p>
-                Commitment SHA-256(number:seed):{' '}
+                Commitment SHA-256(number:seed):{" "}
                 {round?.commitment}
               </p>
 
@@ -950,8 +976,8 @@ function Wheel({
   landingNumber,
   elapsed,
 }) {
-  const uid = useId().replace(/:/g, '');
-  const spinning = phase === 'SPINNING';
+  const uid = useId().replace(/:/g, "");
+  const spinning = phase === "SPINNING";
 
   const anchor = useRef({
     elapsed,
@@ -1039,14 +1065,16 @@ function Wheel({
   };
 
   const id = name => `${uid}-${name}`;
-  const paint = name => `url(#${id(name)})`;
+
+  const paint = name =>
+    `url(#${id(name)})`;
 
   return (
     <section
       className="overflow-hidden rounded-2xl border border-amber-200/20 bg-[#080d11] p-2 shadow-2xl"
       aria-label={
         spinning
-          ? 'Roulette wheel spinning'
+          ? "Roulette wheel spinning"
           : `Roulette result ${number}`
       }
     >
@@ -1054,7 +1082,7 @@ function Wheel({
         <span>TSB · EUROPEAN ROULETTE</span>
 
         <span>
-          {spinning ? 'SPINNING' : 'RESULT'}
+          {spinning ? "SPINNING" : "RESULT"}
         </span>
       </div>
 
@@ -1064,13 +1092,13 @@ function Wheel({
         role="img"
         aria-label={
           spinning
-            ? 'Gold roulette wheel and ivory ball rotating'
+            ? "Gold roulette wheel and ivory ball rotating"
             : `Ball in the ${number} inner pocket`
         }
       >
         <defs>
           <linearGradient
-            id={id('gold')}
+            id={id("gold")}
             x1="0"
             y1="0"
             x2="1"
@@ -1086,7 +1114,7 @@ function Wheel({
           </linearGradient>
 
           <radialGradient
-            id={id('wood')}
+            id={id("wood")}
             cx="35%"
             cy="25%"
           >
@@ -1097,7 +1125,7 @@ function Wheel({
           </radialGradient>
 
           <radialGradient
-            id={id('bowl')}
+            id={id("bowl")}
             cx="35%"
             cy="20%"
           >
@@ -1108,7 +1136,7 @@ function Wheel({
           </radialGradient>
 
           <linearGradient
-            id={id('red')}
+            id={id("red")}
             x1="0"
             y1="0"
             x2="0"
@@ -1120,7 +1148,7 @@ function Wheel({
           </linearGradient>
 
           <linearGradient
-            id={id('black')}
+            id={id("black")}
             x1="0"
             y1="0"
             x2="0"
@@ -1132,7 +1160,7 @@ function Wheel({
           </linearGradient>
 
           <linearGradient
-            id={id('green')}
+            id={id("green")}
             x1="0"
             y1="0"
             x2="0"
@@ -1144,7 +1172,7 @@ function Wheel({
           </linearGradient>
 
           <radialGradient
-            id={id('ball')}
+            id={id("ball")}
             cx="30%"
             cy="25%"
           >
@@ -1155,7 +1183,7 @@ function Wheel({
           </radialGradient>
 
           <radialGradient
-            id={id('hub')}
+            id={id("hub")}
             cx="30%"
             cy="20%"
           >
@@ -1167,7 +1195,7 @@ function Wheel({
           </radialGradient>
 
           <filter
-            id={id('shadow')}
+            id={id("shadow")}
             x="-50%"
             y="-50%"
             width="200%"
@@ -1206,8 +1234,8 @@ function Wheel({
             cx="300"
             cy="300"
             r="286"
-            fill={paint('wood')}
-            stroke={paint('gold')}
+            fill={paint("wood")}
+            stroke={paint("gold")}
             strokeWidth="5"
           />
 
@@ -1220,8 +1248,8 @@ function Wheel({
               fill="none"
               stroke={
                 radius === 266
-                  ? paint('gold')
-                  : '#ac7040'
+                  ? paint("gold")
+                  : "#ac7040"
               }
               strokeWidth={
                 radius === 266 ? 10 : 1
@@ -1238,7 +1266,7 @@ function Wheel({
               <path
                 key={index}
                 d="M 300 20 l 3 6 -3 6 -3 -6 Z"
-                fill={paint('gold')}
+                fill={paint("gold")}
                 transform={`rotate(${
                   index * 45
                 } 300 300)`}
@@ -1257,7 +1285,7 @@ function Wheel({
 
           <g
             style={{
-              transformOrigin: '300px 300px',
+              transformOrigin: "300px 300px",
               transform: `rotate(${wheelAngle}deg)`,
             }}
           >
@@ -1268,10 +1296,10 @@ function Wheel({
 
               const fill = paint(
                 value === 0
-                  ? 'green'
+                  ? "green"
                   : red.has(value)
-                    ? 'red'
-                    : 'black',
+                    ? "red"
+                    : "black",
               );
 
               const label = point(225, angle);
@@ -1320,7 +1348,7 @@ function Wheel({
 
                   <path
                     d={`M ${inner} L ${outer}`}
-                    stroke={paint('gold')}
+                    stroke={paint("gold")}
                     strokeWidth="2.4"
                   />
 
@@ -1360,7 +1388,7 @@ function Wheel({
                 cy="300"
                 r={radius}
                 fill="none"
-                stroke={paint('gold')}
+                stroke={paint("gold")}
                 strokeWidth={
                   radius === 206 ? 4 : 3
                 }
@@ -1372,7 +1400,7 @@ function Wheel({
             cx="300"
             cy="300"
             r="155"
-            fill={paint('bowl')}
+            fill={paint("bowl")}
             stroke="#b88843"
             strokeWidth="2"
           />
@@ -1392,23 +1420,23 @@ function Wheel({
             cx="300"
             cy="300"
             r="81"
-            fill={paint('wood')}
-            stroke={paint('gold')}
+            fill={paint("wood")}
+            stroke={paint("gold")}
             strokeWidth="5"
           />
 
-          <g filter={paint('shadow')}>
+          <g filter={paint("shadow")}>
             <ellipse
               cx="300"
               cy="307"
               rx="48"
               ry="25"
-              fill={paint('gold')}
+              fill={paint("gold")}
             />
 
             <path
               d="M 270 299 Q 284 277 286 244 L 314 244 Q 316 277 330 299 Z"
-              fill={paint('gold')}
+              fill={paint("gold")}
               stroke="#e8c472"
             />
 
@@ -1417,13 +1445,13 @@ function Wheel({
               cy="245"
               rx="31"
               ry="12"
-              fill={paint('gold')}
+              fill={paint("gold")}
               stroke="#f8df9a"
             />
 
             <path
               d="M 289 242 L 291 213 L 309 213 L 311 242 Z"
-              fill={paint('gold')}
+              fill={paint("gold")}
             />
 
             <ellipse
@@ -1431,20 +1459,20 @@ function Wheel({
               cy="212"
               rx="27"
               ry="9"
-              fill={paint('gold')}
+              fill={paint("gold")}
               stroke="#fce8ad"
             />
 
             <path
               d="M 292 210 L 293 195 L 307 195 L 308 210 Z"
-              fill={paint('gold')}
+              fill={paint("gold")}
             />
 
             <circle
               cx="300"
               cy="190"
               r="13"
-              fill={paint('hub')}
+              fill={paint("hub")}
             />
 
             <path
@@ -1458,7 +1486,7 @@ function Wheel({
             <path
               d="M 289 255 L 237 238 M 311 255 L 363 238"
               fill="none"
-              stroke={paint('gold')}
+              stroke={paint("gold")}
               strokeWidth="6"
               strokeLinecap="round"
             />
@@ -1467,23 +1495,23 @@ function Wheel({
               cx="235"
               cy="238"
               r="7"
-              fill={paint('hub')}
+              fill={paint("hub")}
             />
 
             <circle
               cx="365"
               cy="238"
               r="7"
-              fill={paint('hub')}
+              fill={paint("hub")}
             />
           </g>
 
           <g
             visibility={
-              ready ? 'visible' : 'hidden'
+              ready ? "visible" : "hidden"
             }
             style={{
-              transformOrigin: '300px 300px',
+              transformOrigin: "300px 300px",
               transform: `rotate(${ballAngle}deg)`,
             }}
           >
@@ -1506,10 +1534,10 @@ function Wheel({
                 cx="300"
                 cy="300"
                 r="8.5"
-                fill={paint('ball')}
+                fill={paint("ball")}
                 stroke="#e8ddbf"
                 strokeWidth=".7"
-                filter={paint('shadow')}
+                filter={paint("shadow")}
               />
 
               <circle
@@ -1527,13 +1555,13 @@ function Wheel({
       <div className="pb-3 text-center">
         <span className="rounded-full border border-amber-300/25 bg-black/40 px-4 py-2 text-xs font-bold text-amber-100">
           {spinning
-            ? 'BALL IN MOTION'
+            ? "BALL IN MOTION"
             : `${number} · ${
                 number === 0
-                  ? 'GREEN'
+                  ? "GREEN"
                   : red.has(number)
-                    ? 'RED'
-                    : 'BLACK'
+                    ? "RED"
+                    : "BLACK"
               } · RESULT`}
         </span>
       </div>
