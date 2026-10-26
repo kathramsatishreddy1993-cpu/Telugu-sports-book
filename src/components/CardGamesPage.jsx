@@ -1,4 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import {
   flightApi,
@@ -25,7 +29,9 @@ const coins = value =>
   Number(value || 0).toLocaleString("en-IN");
 
 function PlayingCard({ card, label }) {
-  const red = card?.suit === "H" || card?.suit === "D";
+  const red =
+    card?.suit === "H" ||
+    card?.suit === "D";
 
   return (
     <div className="text-center">
@@ -40,7 +46,9 @@ function PlayingCard({ card, label }) {
             : "Face-down card"
         }
         className={`relative mx-auto flex h-32 w-24 flex-col items-center justify-center rounded-xl border-2 border-amber-300/60 shadow-xl ${
-          card ? "bg-[#fff8df]" : "bg-[#15212e]"
+          card
+            ? "bg-[#fff8df]"
+            : "bg-[#15212e]"
         }`}
         style={{
           color: red ? "#c82d42" : "#17212d",
@@ -81,10 +89,13 @@ function score(events, team) {
   return {
     balls,
     runs: balls.reduce(
-      (total, value) => total + (value === "W" ? 0 : value),
+      (total, value) =>
+        total + (value === "W" ? 0 : value),
       0,
     ),
-    wickets: balls.filter(value => value === "W").length,
+    wickets: balls.filter(
+      value => value === "W",
+    ).length,
   };
 }
 
@@ -131,27 +142,34 @@ function GameStage({ game, round }) {
         </p>
 
         <div className="mt-3 flex gap-2">
-          {Array.from({ length: 6 }, (_, index) => (
-            <span
-              key={index}
-              className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-black ${
-                active.balls[index] === "W"
-                  ? "bg-red-600"
-                  : active.balls[index] >= 4
-                    ? "bg-emerald-600"
-                    : "bg-slate-800"
-              }`}
-            >
-              {active.balls[index] ?? "·"}
-            </span>
-          ))}
+          {Array.from(
+            { length: 6 },
+            (_, index) => (
+              <span
+                key={index}
+                className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-black ${
+                  active.balls[index] === "W"
+                    ? "bg-red-600"
+                    : active.balls[index] >= 4
+                      ? "bg-emerald-600"
+                      : "bg-slate-800"
+                }`}
+              >
+                {active.balls[index] ?? "·"}
+              </span>
+            ),
+          )}
         </div>
 
         <div className="mt-3 flex gap-2 text-xs text-slate-400">
           {active.balls.map((value, index) => (
             <span key={index}>
-              {value === "W" ? "K · WICKET" : value}
-              {index < active.balls.length - 1 ? " /" : ""}
+              {value === "W"
+                ? "K · WICKET"
+                : value}
+              {index < active.balls.length - 1
+                ? " /"
+                : ""}
             </span>
           ))}
         </div>
@@ -172,18 +190,26 @@ function GameStage({ game, round }) {
   }
 
   const find = side =>
-    events.filter(event => event.side === side).at(-1)?.card;
+    events
+      .filter(event => event.side === side)
+      .at(-1)?.card;
 
   if (game === "dragon-tiger") {
     return (
       <div className="flex min-h-[270px] items-center justify-evenly rounded-2xl border border-white/10 bg-black p-5">
-        <PlayingCard label="DRAGON" card={find("DRAGON")} />
+        <PlayingCard
+          label="DRAGON"
+          card={find("DRAGON")}
+        />
 
         <span className="font-black text-amber-300/40">
           VS
         </span>
 
-        <PlayingCard label="TIGER" card={find("TIGER")} />
+        <PlayingCard
+          label="TIGER"
+          card={find("TIGER")}
+        />
       </div>
     );
   }
@@ -197,7 +223,10 @@ function GameStage({ game, round }) {
           LOW
         </span>
 
-        <PlayingCard label="LUCKY SEVEN" card={find("CARD")} />
+        <PlayingCard
+          label="LUCKY SEVEN"
+          card={find("CARD")}
+        />
 
         <span className="text-xs font-black text-slate-500">
           8–K
@@ -210,16 +239,30 @@ function GameStage({ game, round }) {
 
   return (
     <div className="rounded-2xl border border-white/10 bg-black p-4">
-      <PlayingCard label="REFERENCE CARD" card={find("JOKER")} />
+      <PlayingCard
+        label="REFERENCE CARD"
+        card={find("JOKER")}
+      />
 
       <div className="mt-5 flex justify-evenly gap-4">
-        <PlayingCard label="A · ANDAR" card={find("A")} />
-        <PlayingCard label="B · BAHAR" card={find("B")} />
+        <PlayingCard
+          label="A · ANDAR"
+          card={find("A")}
+        />
+
+        <PlayingCard
+          label="B · BAHAR"
+          card={find("B")}
+        />
       </div>
 
       <p className="mt-4 text-center text-xs text-slate-400">
         Cards dealt:{" "}
-        {events.filter(event => event.side !== "JOKER").length}
+        {
+          events.filter(
+            event => event.side !== "JOKER",
+          ).length
+        }
       </p>
     </div>
   );
@@ -249,7 +292,9 @@ export default function CardGamesPage({
     unauthorized,
     receivedAt,
     refresh,
-  } = useFlightState(`/api/card-games/${game}/state`);
+  } = useFlightState(
+    `/api/card-games/${game}/state`,
+  );
 
   const [clock, setClock] = useState(Date.now());
   const [amount, setAmount] = useState("100");
@@ -262,7 +307,11 @@ export default function CardGamesPage({
   const confirmBox = useRef(null);
 
   useEffect(() => {
-    const timer = setInterval(() => setClock(Date.now()), 100);
+    const timer = setInterval(
+      () => setClock(Date.now()),
+      100,
+    );
+
     return () => clearInterval(timer);
   }, []);
 
@@ -270,18 +319,26 @@ export default function CardGamesPage({
 
   const now = data
     ? new Date(data.serverTime).getTime() +
-      (data.paused ? 0 : Math.max(0, clock - receivedAt))
+      (
+        data.paused
+          ? 0
+          : Math.max(0, clock - receivedAt)
+      )
     : clock;
 
   const fresh = Boolean(
-    data && !error && clock - receivedAt < 3500,
+    data &&
+      !error &&
+      clock - receivedAt < 3500,
   );
 
   const remaining = Math.max(
     0,
     Math.ceil(
       (
-        new Date(round?.bettingClosesAt).getTime() - now
+        new Date(
+          round?.bettingClosesAt,
+        ).getTime() - now
       ) / 1000,
     ),
   );
@@ -297,18 +354,21 @@ export default function CardGamesPage({
   const currentBets =
     data?.bets?.filter(
       bet =>
-        String(bet.round_id) === String(round?.id) &&
+        String(bet.round_id) ===
+          String(round?.id) &&
         bet.status !== "CANCELLED",
     ) || [];
 
   const held = currentBets.reduce(
-    (total, bet) => total + Number(bet.hold || 0),
+    (total, bet) =>
+      total + Number(bet.hold || 0),
     0,
   );
 
   const title =
-    ACTIVE_GAMES.find(item => item.id === game)?.name ||
-    "TSB GAME";
+    ACTIVE_GAMES.find(
+      item => item.id === game,
+    )?.name || "TSB GAME";
 
   useEffect(() => {
     setSelection(null);
@@ -317,12 +377,16 @@ export default function CardGamesPage({
 
   const selectionIsCurrent = Boolean(
     selection &&
-    selection.game === game &&
-    String(selection.roundId) === String(round?.id) &&
-    selection.stage === round?.stage
+      selection.game === game &&
+      String(selection.roundId) ===
+        String(round?.id) &&
+      selection.stage === round?.stage,
   );
 
-  const selectMarket = (market, direction) => {
+  const selectMarket = (
+    market,
+    direction,
+  ) => {
     if (
       !open ||
       busy ||
@@ -353,12 +417,19 @@ export default function CardGamesPage({
     const stake = Number(amount);
 
     if (!retry && pending) {
-      setMessage("Resolve the pending bet using RETRY SAME BET REQUEST.");
+      setMessage(
+        "Resolve the pending bet using RETRY SAME BET REQUEST.",
+      );
       return;
     }
 
-    if (!retry && (!open || !selectionIsCurrent)) {
-      setMessage("Choose a market during its betting window.");
+    if (
+      !retry &&
+      (!open || !selectionIsCurrent)
+    ) {
+      setMessage(
+        "Choose a market during its betting window.",
+      );
       return;
     }
 
@@ -370,7 +441,9 @@ export default function CardGamesPage({
         stake > 25000
       )
     ) {
-      setMessage("Enter 100–25,000 whole demo coins.");
+      setMessage(
+        "Enter 100–25,000 whole demo coins.",
+      );
       return;
     }
 
@@ -458,16 +531,17 @@ export default function CardGamesPage({
             ‹ HOME
           </button>
 
-          <h1 className="text-sm font-black text-amber-200">
+          <h1 className="min-w-0 text-center text-sm font-black text-amber-200">
             {title}
           </h1>
 
-          <span className="text-right text-xs text-slate-300">
-            Demo coins
-            <strong className="block text-base text-amber-200">
-              {coins(data?.balance)}
-            </strong>
-          </span>
+          <div className="shrink-0 rounded-xl border border-amber-400/30 bg-[#03121d]/90 px-3 py-2 text-right">
+            <p className="whitespace-nowrap text-sm font-black tabular-nums text-amber-300">
+              {data
+                ? `₹${coins(data.balance)}`
+                : "Loading..."}
+            </p>
+          </div>
         </header>
 
         {unauthorized && (
@@ -516,7 +590,10 @@ export default function CardGamesPage({
         </div>
 
         <div className="flex justify-between text-[10px] text-slate-500">
-          <span>ROUND #{round?.id || "—"}</span>
+          <span>
+            ROUND #{round?.id || "—"}
+          </span>
+
           <span>
             {round?.phase === "RESULT"
               ? "NEXT ROUND STARTS AUTOMATICALLY"
@@ -524,13 +601,17 @@ export default function CardGamesPage({
           </span>
         </div>
 
-        <GameStage game={game} round={round} />
+        <GameStage
+          game={game}
+          round={round}
+        />
 
         <section className="rounded-2xl border border-white/10 bg-[#101a29] p-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-black text-amber-200">
               BET AMOUNT
             </h2>
+
             <span className="text-[10px] text-slate-400">
               100–25,000 demo coins
             </span>
@@ -563,7 +644,9 @@ export default function CardGamesPage({
               max="25000"
               step="1"
               value={amount}
-              onChange={event => setAmount(event.target.value)}
+              onChange={event =>
+                setAmount(event.target.value)
+              }
               className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 p-3 text-center text-2xl font-black"
             />
 
@@ -625,10 +708,12 @@ export default function CardGamesPage({
 
               <p className="mt-2 text-xs text-slate-300">
                 Stake: {coins(amount)}
+
                 {selection.direction === "LAY"
                   ? ` · Reserved liability: ${coins(
                       Math.round(
-                        Number(amount) * (selection.returns - 1),
+                        Number(amount) *
+                          (selection.returns - 1),
                       ),
                     )}`
                   : ""}
@@ -651,7 +736,9 @@ export default function CardGamesPage({
             onClick={() => submit()}
             className="mt-3 w-full rounded-xl bg-emerald-400 p-3 font-black text-black disabled:opacity-40"
           >
-            {busy ? "PROCESSING…" : "CONFIRM BET"}
+            {busy
+              ? "PROCESSING…"
+              : "CONFIRM BET"}
           </button>
 
           {pending && (
@@ -667,7 +754,9 @@ export default function CardGamesPage({
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-sm font-black">MARKETS</h2>
+          <h2 className="text-sm font-black">
+            MARKETS
+          </h2>
 
           <div className="grid grid-cols-2 gap-2">
             {markets.map(market => {
@@ -687,15 +776,21 @@ export default function CardGamesPage({
                   </p>
 
                   <div className="flex gap-px">
-                    {(market.lay
-                      ? ["BACK", "LAY"]
-                      : ["BACK"]
+                    {(
+                      market.lay
+                        ? ["BACK", "LAY"]
+                        : ["BACK"]
                     ).map(direction => (
                       <button
                         key={direction}
                         type="button"
                         disabled={!enabled}
-                        onClick={() => selectMarket(market, direction)}
+                        onClick={() =>
+                          selectMarket(
+                            market,
+                            direction,
+                          )
+                        }
                         className={`min-w-0 flex-1 p-3 text-xs font-black disabled:opacity-35 ${
                           selectionIsCurrent &&
                           selection.key === market.key &&
@@ -714,7 +809,9 @@ export default function CardGamesPage({
                           : `${market.returns.toFixed(2)}×`}
 
                         {!enabled && (
-                          <span className="ml-1">🔒</span>
+                          <span className="ml-1">
+                            🔒
+                          </span>
                         )}
                       </button>
                     ))}
@@ -726,7 +823,9 @@ export default function CardGamesPage({
         </section>
 
         <section className="rounded-xl border border-white/10 p-4">
-          <h2 className="font-black">This round</h2>
+          <h2 className="font-black">
+            This round
+          </h2>
 
           {!currentBets.length && (
             <p className="mt-2 text-xs text-slate-500">
@@ -741,7 +840,8 @@ export default function CardGamesPage({
             >
               <p>
                 {markets.find(
-                  market => market.key === bet.market,
+                  market =>
+                    market.key === bet.market,
                 )?.label || bet.market}
                 {" · "}
                 {bet.direction}
@@ -759,7 +859,9 @@ export default function CardGamesPage({
                 bet.status === "PLACED" && (
                   <button
                     type="button"
-                    disabled={busy || Boolean(pending)}
+                    disabled={
+                      busy || Boolean(pending)
+                    }
                     onClick={() => cancel(bet.id)}
                     className="rounded-lg border border-white/20 px-3 py-2"
                   >
@@ -795,7 +897,9 @@ export default function CardGamesPage({
             Rules & payouts
           </summary>
 
-          <p className="mt-3">{rules[game]}</p>
+          <p className="mt-3">
+            {rules[game]}
+          </p>
 
           <p className="mt-3">
             All returns include original stake.
@@ -819,8 +923,10 @@ export default function CardGamesPage({
               <p className="break-all">
                 Seed: {round.seed}
               </p>
+
               <p className="break-all">
-                Outcome: {JSON.stringify(round.result)}
+                Outcome:{" "}
+                {JSON.stringify(round.result)}
               </p>
             </>
           )}
