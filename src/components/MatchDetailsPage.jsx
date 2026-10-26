@@ -1,5 +1,6 @@
 import React, {
   useEffect,
+  useRef,
   useState,
 } from 'react';
 
@@ -24,22 +25,163 @@ function formatDate(value) {
   );
 }
 
+function blockedStatus(value) {
+  const status = String(value || '')
+    .trim()
+    .toUpperCase();
+
+  if (/BALL[ _-]*RUNNING/.test(status)) {
+    return 'BALL RUNNING';
+  }
+
+  if (/SUSPEND/.test(status)) {
+    return 'SUSPENDED';
+  }
+
+  if (/CLOSE|ENDED|FINISHED|SETTLED/.test(status)) {
+    return 'CLOSED';
+  }
+
+  if (/INACTIVE|PAUSED|STOPPED/.test(status)) {
+    return 'SUSPENDED';
+  }
+
+  if (
+    ['', 'UNKNOWN', 'OPEN', 'ACTIVE'].includes(status)
+  ) {
+    return '';
+  }
+
+  return status.slice(0, 40);
+}
+
+function rememberPair(
+  cache,
+  key,
+  values,
+  status,
+  fresh,
+  session = false,
+) {
+  const valid = (price, size) =>
+    price != null &&
+    Number.isFinite(Number(price)) &&
+    Number(price) >= (
+      session ? 0 : 0.000001
+    ) &&
+    Number(size) > 0;
+
+  const usable =
+    valid(values.a, values.as) ||
+    valid(values.b, values.bs);
+
+  const blocked = blockedStatus(status);
+
+  if (fresh && usable && !blocked) {
+    cache.set(key, {
+      ...values,
+      at: Date.now(),
+    });
+  }
+
+  const previous = cache.get(key);
+
+  const saved =
+    previous &&
+    Date.now() - previous.at < 1800000
+      ? previous
+      : null;
+
+  return {
+    values: usable
+      ? values
+      : saved || {
+          a: null,
+          as: null,
+          b: null,
+          bs: null,
+        },
+
+    blocked:
+      blocked ||
+      (!usable ? 'UNAVAILABLE' : ''),
+
+    previous:
+      !usable && Boolean(saved),
+  };
+}
+
 function Price({ value, size, side }) {
   return (
     <div
-      className={`flex min-h-[50px] min-w-0 flex-col items-center justify-center rounded p-1 ${
+      className={`flex min-h-[62px] min-w-0 flex-col items-center justify-center rounded p-1 ${
         side === 'BACK'
           ? 'bg-sky-200'
           : 'bg-pink-200'
       }`}
     >
-      <strong className="text-sm">
+      <strong className="text-base">
         {format(value)}
       </strong>
 
-      <span className="text-[9px] text-slate-600">
+      <span className="mt-1 text-[10px] text-slate-600">
         {size == null ? side : format(size)}
       </span>
+    </div>
+  );
+}
+
+function PricePair({
+  row,
+  fresh,
+  enabled,
+  first = 'BACK',
+}) {
+  const label = !enabled
+    ? 'FEED PAUSED'
+    : !fresh
+      ? 'STALE DATA'
+      : row.blocked;
+
+  const values = row.values;
+
+  return (
+    <div
+      className="relative grid grid-cols-2 gap-1 overflow-hidden rounded"
+      aria-label={label || 'Provider prices'}
+    >
+      <Price
+        side={first}
+        value={values.a}
+        size={values.as}
+      />
+
+      <Price
+        side={
+          first === 'BACK'
+            ? 'LAY'
+            : 'BACK'
+        }
+        value={values.b}
+        size={values.bs}
+      />
+
+      {label && (
+        <div
+          role="status"
+          className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 px-1 text-center"
+        >
+          <strong className="text-[11px] font-black text-red-300 sm:text-sm">
+            {label}
+          </strong>
+
+          {row.previous && (
+            <span className="mt-1 text-[8px] text-white">
+              LAST RECEIVED PRICES
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -48,6 +190,8 @@ function ProviderMatch({ match, onBack }) {
   const matchId = String(
     match.eventId ?? match.id ?? '',
   );
+
+  const history = useRef(new Map());
 
   const [event, setEvent] = useState(match);
   const [meta, setMeta] = useState(null);
@@ -58,7 +202,8 @@ function ProviderMatch({ match, onBack }) {
   const [clock, setClock] =
     useState(Date.now());
 
-  const [error, setError] = useState('');
+  const [error, setError] =
+    useState('');
 
   const [available, setAvailable] =
     useState(false);
@@ -68,8 +213,122 @@ function ProviderMatch({ match, onBack }) {
     let loading = false;
     let sequence = 0;
     let stream;
+    let metaForSnapshot = {};
 
-    const controller = new AbortController();
+    const controller =
+      new AbortController();
+
+    history.current.clear();
+
+    const decorate = item => {
+      const config = metaForSnapshot;
+
+      const fresh =
+        config.enabled === true &&
+        !config.stale &&
+        !item.stale;
+
+      const recent = value => {
+        const age =
+          Date.now() -
+          Date.parse(value || '');
+
+        return (
+          fresh &&
+          Number.isFinite(age) &&
+          age >= -1000 &&
+          age < Math.max(
+            Number(
+              config.pollIntervalMs || 15000,
+            ) * 3,
+            30000,
+          )
+        );
+      };
+
+      const pair = (
+        key,
+        values,
+        status,
+        isFresh,
+        session = false,
+      ) =>
+        rememberPair(
+          history.current,
+          key,
+          values,
+          status,
+          isFresh,
+          session,
+        );
+
+      return {
+        ...item,
+
+        matchOdds: item.matchOdds
+          ? {
+              ...item.matchOdds,
+
+              runners: (
+                item.matchOdds.runners || []
+              ).map(runner => ({
+                ...runner,
+
+                display: pair(
+                  `odds:${item.matchOdds.marketId}:${runner.selectionId}`,
+                  {
+                    a: runner.back?.[0]?.price,
+                    as: runner.back?.[0]?.size,
+                    b: runner.lay?.[0]?.price,
+                    bs: runner.lay?.[0]?.size,
+                  },
+                  blockedStatus(
+                    item.matchOdds.status,
+                  ) || runner.status,
+                  recent(item.marketUpdatedAt),
+                ),
+              })),
+            }
+          : null,
+
+        bookmaker: (
+          item.bookmaker || []
+        ).map(row => ({
+          ...row,
+
+          display: pair(
+            `book:${row.marketId}:${row.selectionId}`,
+            {
+              a: row.back,
+              as: row.backSize,
+              b: row.lay,
+              bs: row.laySize,
+            },
+            row.status,
+            recent(item.fancyUpdatedAt),
+          ),
+        })),
+
+        fancy: (
+          item.fancy || []
+        ).map(row => ({
+          ...row,
+
+          display: pair(
+            `fancy:${row.id}`,
+            {
+              a: row.no,
+              as: row.noRate,
+              b: row.yes,
+              bs: row.yesRate,
+            },
+            row.status,
+            recent(item.fancyUpdatedAt),
+            true,
+          ),
+        })),
+      };
+    };
 
     const apply = body => {
       if (!active || !body) return;
@@ -90,13 +349,16 @@ function ProviderMatch({ match, onBack }) {
           matchId,
       );
 
+      metaForSnapshot =
+        body.sports?.cricket || body;
+
       setAvailable(Boolean(found));
 
       if (found) {
-        setEvent(found);
+        setEvent(decorate(found));
       }
 
-      setMeta(body.sports?.cricket || body);
+      setMeta(metaForSnapshot);
       setReceivedAt(Date.now());
       setError('');
     };
@@ -118,7 +380,8 @@ function ProviderMatch({ match, onBack }) {
           },
         );
 
-        const body = await response.json();
+        const body =
+          await response.json();
 
         if (!response.ok) {
           throw new Error(
@@ -206,7 +469,7 @@ function ProviderMatch({ match, onBack }) {
       );
     };
 
-    // Each server response replaces the selected event.
+    // Each server response replaces this event.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchId]);
 
@@ -222,7 +485,7 @@ function ProviderMatch({ match, onBack }) {
 
   const odds = event.matchOdds;
 
-  const freshnessLimit = Math.max(
+  const limit = Math.max(
     Number(meta?.pollIntervalMs || 15000) * 3,
     30000,
   );
@@ -235,7 +498,7 @@ function ProviderMatch({ match, onBack }) {
     connected &&
       Number.isFinite(marketAge) &&
       marketAge >= -1000 &&
-      marketAge < freshnessLimit,
+      marketAge < limit,
   );
 
   const fancyAge =
@@ -246,7 +509,7 @@ function ProviderMatch({ match, onBack }) {
     connected &&
       Number.isFinite(fancyAge) &&
       fancyAge >= -1000 &&
-      fancyAge < freshnessLimit,
+      fancyAge < limit,
   );
 
   const live = Boolean(
@@ -288,7 +551,7 @@ function ProviderMatch({ match, onBack }) {
           {live
             ? '● LIVE'
             : !pricesFresh
-              ? 'SAVED DATA / WAITING FOR MARKET UPDATE'
+              ? 'SAVED DATA / WAITING FOR UPDATE'
               : odds?.inplay === false
                 ? 'UPCOMING / NOT IN PLAY'
                 : 'MATCH STATUS UNAVAILABLE'}
@@ -341,7 +604,6 @@ function ProviderMatch({ match, onBack }) {
           MATCH ODDS
           {' · '}
           {odds?.status || 'UNAVAILABLE'}
-
           {!pricesFresh && odds
             ? ' · SAVED'
             : ''}
@@ -357,40 +619,38 @@ function ProviderMatch({ match, onBack }) {
             : ''}
         </p>
 
-        <div className="grid grid-cols-[1fr_96px_96px] bg-slate-100 px-3 py-2 text-center text-[10px] font-black">
-          <span className="text-left">
-            TEAM
-          </span>
+        <div className="grid grid-cols-[minmax(0,1fr)_180px] gap-2 bg-slate-100 p-2 text-[10px] font-black">
+          <span>TEAM</span>
 
-          <span>BACK · SIZE</span>
-          <span>LAY · SIZE</span>
+          <div className="grid grid-cols-2 text-center">
+            <span>BACK · SIZE</span>
+            <span>LAY · SIZE</span>
+          </div>
         </div>
 
         {(odds?.runners || []).map(runner => (
           <div
             key={runner.selectionId}
-            className="grid grid-cols-[1fr_96px_96px] items-center gap-1 border-b p-2"
+            className="grid grid-cols-[minmax(0,1fr)_180px] items-center gap-2 border-b p-2"
           >
-            <div>
-              <strong className="text-xs">
+            <div className="min-w-0">
+              <strong className="break-words text-xs">
                 {runner.name}
               </strong>
 
-              <p className="text-[9px]">
+              <p className="mt-1 text-[9px]">
                 {runner.status}
               </p>
             </div>
 
-            <Price
-              side="BACK"
-              value={runner.back?.[0]?.price}
-              size={runner.back?.[0]?.size}
-            />
-
-            <Price
-              side="LAY"
-              value={runner.lay?.[0]?.price}
-              size={runner.lay?.[0]?.size}
+            <PricePair
+              row={
+                runner.display || {
+                  values: {},
+                }
+              }
+              fresh={pricesFresh}
+              enabled={connected}
             />
           </div>
         ))}
@@ -408,46 +668,46 @@ function ProviderMatch({ match, onBack }) {
         </h2>
 
         <p className="p-3 text-[10px] text-slate-500">
-          Provider rate format · These values are
-          not decimal exchange odds.
+          Provider rate format · These values
+          are not decimal exchange odds.
         </p>
 
-        <div className="grid grid-cols-[1fr_78px_78px] bg-slate-100 p-2 text-center text-[10px] font-black">
-          <span className="text-left">
-            TEAM
-          </span>
+        <div className="grid grid-cols-[minmax(0,1fr)_156px] gap-2 bg-slate-100 p-2 text-[10px] font-black">
+          <span>TEAM</span>
 
-          <span>BACK</span>
-          <span>LAY</span>
+          <div className="grid grid-cols-2 text-center">
+            <span>BACK</span>
+            <span>LAY</span>
+          </div>
         </div>
 
         {(event.bookmaker || []).map(row => (
           <div
             key={`${row.marketId}:${row.selectionId}`}
-            className="grid grid-cols-[1fr_78px_78px] items-center gap-1 border-b p-2"
+            className="grid grid-cols-[minmax(0,1fr)_156px] items-center gap-2 border-b p-2"
           >
-            <div>
-              <strong className="text-xs">
+            <div className="min-w-0">
+              <strong className="break-words text-xs">
                 {row.name}
               </strong>
 
-              <p className="text-[9px]">
+              <p className="mt-1 text-[9px]">
                 {row.status}
                 {' · '}
-                {fancyFresh ? 'Updated' : 'Saved'}
+                {fancyFresh
+                  ? 'Updated'
+                  : 'Saved'}
               </p>
             </div>
 
-            <Price
-              side="BACK"
-              value={row.back}
-              size={row.backSize}
-            />
-
-            <Price
-              side="LAY"
-              value={row.lay}
-              size={row.laySize}
+            <PricePair
+              row={
+                row.display || {
+                  values: {},
+                }
+              }
+              fresh={fancyFresh}
+              enabled={connected}
             />
           </div>
         ))}
@@ -464,19 +724,19 @@ function ProviderMatch({ match, onBack }) {
           FANCY / SESSION
         </h2>
 
-        <div className="grid grid-cols-[1fr_78px_78px] bg-slate-100 p-2 text-center text-[10px] font-black">
-          <span className="text-left">
-            MARKET
-          </span>
+        <div className="grid grid-cols-[minmax(0,1fr)_156px] gap-2 bg-slate-100 p-2 text-[10px] font-black">
+          <span>MARKET</span>
 
-          <span>NO · RATE</span>
-          <span>YES · RATE</span>
+          <div className="grid grid-cols-2 text-center">
+            <span>NO · RATE</span>
+            <span>YES · RATE</span>
+          </div>
         </div>
 
         {(event.fancy || []).map(row => (
           <div
             key={row.id}
-            className="grid grid-cols-[1fr_78px_78px] items-center gap-1 border-b p-2"
+            className="grid grid-cols-[minmax(0,1fr)_156px] items-center gap-2 border-b p-2"
           >
             <div className="min-w-0">
               <strong className="break-words text-xs">
@@ -488,36 +748,37 @@ function ProviderMatch({ match, onBack }) {
                   ? 'Status not supplied'
                   : row.status}
                 {' · '}
-                {fancyFresh ? 'Updated' : 'Saved'}
+                {fancyFresh
+                  ? 'Updated'
+                  : 'Saved'}
               </p>
             </div>
 
-            <Price
-              side="LAY"
-              value={row.no}
-              size={row.noRate}
-            />
-
-            <Price
-              side="BACK"
-              value={row.yes}
-              size={row.yesRate}
+            <PricePair
+              row={
+                row.display || {
+                  values: {},
+                }
+              }
+              fresh={fancyFresh}
+              enabled={connected}
+              first="LAY"
             />
           </div>
         ))}
 
         {!event.fancy?.length && (
           <p className="p-4 text-xs">
-            No fancy/session rows returned for
-            this event.
+            No fancy/session rows returned
+            for this event.
           </p>
         )}
       </section>
 
       <p className="m-3 rounded border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-900">
-        Provider prices are for viewing. Demo
-        selections are currently unavailable on
-        these markets. A missing market status
+        Provider prices are for viewing.
+        Demo selections are currently unavailable
+        on these markets. A missing market status
         does not mean the market is open.
       </p>
 
