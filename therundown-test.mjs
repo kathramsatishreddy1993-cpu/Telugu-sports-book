@@ -1,4 +1,5 @@
-// Node.js 18+. Run once. Do not import into index.js.
+// Node.js 18+. One-shot only.
+// Never import this file into index.js.
 import { pathToFileURL } from 'node:url';
 
 const BASE = 'https://therundown.io/api/v2/';
@@ -8,7 +9,7 @@ const array = value =>
 const sleep = ms =>
   new Promise(resolve => setTimeout(resolve, ms));
 
-function summarizeEvent(event) {
+export function summarizeEvent(event) {
   const markets = array(event.markets);
   const prices = [];
   let priceRowsReturned = 0;
@@ -68,20 +69,22 @@ function summarizeEvent(event) {
   };
 }
 
-async function runDiagnostic() {
-  const key = String(
-    process.env.THERUNDOWN_API_KEY || '',
-  ).trim();
+export async function runDiagnostic({
+  apiKey = process.env.THERUNDOWN_API_KEY,
+  fetcher = fetch,
+  now = () => Date.now(),
+  wait = sleep,
+} = {}) {
+  const key = String(apiKey || '').trim();
 
   if (!key) {
     throw new Error('Missing key.');
   }
 
   const report = {
-    test: 'CRICKET_FREE_SNAPSHOT',
+    test: 'T20_MARKET_DISCOVERY_V2',
     requestsSent: 0,
     steps: [],
-    cricketCatalog: [],
     checks: [],
     reportedDataPoints: 0,
   };
@@ -96,12 +99,12 @@ async function runDiagnostic() {
     );
 
   async function get(endpoint, params = {}) {
-    if (report.requestsSent >= 5) {
+    if (report.requestsSent >= 6) {
       throw new Error('Request limit.');
     }
 
     if (report.requestsSent) {
-      await sleep(1200);
+      await wait(1200);
     }
 
     const url = new URL(endpoint, BASE);
@@ -124,7 +127,7 @@ async function runDiagnostic() {
     report.requestsSent++;
 
     try {
-      const response = await fetch(url, {
+      const response = await fetcher(url, {
         signal: controller.signal,
         redirect: 'error',
         headers: {
@@ -137,15 +140,14 @@ async function runDiagnostic() {
         'X-Datapoints',
       );
 
-      const delay = response.headers.get(
-        'X-Data-Delay-Seconds',
-      );
-
       report.steps.push({
         endpoint,
         httpStatus: response.status,
         billedDataPoints: billed,
-        dataDelaySeconds: delay,
+        dataDelaySeconds:
+          response.headers.get(
+            'X-Data-Delay-Seconds',
+          ),
       });
 
       if (
@@ -158,7 +160,7 @@ async function runDiagnostic() {
 
       if (!response.ok) {
         throw Object.assign(
-          new Error('Provider HTTP error.'),
+          new Error('HTTP error.'),
           { status: response.status },
         );
       }
@@ -170,89 +172,157 @@ async function runDiagnostic() {
   }
 
   try {
-    const body = await get('sports');
+    // ID 21 came from the previous catalog test.
+    report.sport = {
+      sportId: 21,
+      name: 'T20',
+    };
 
-    if (!Array.isArray(body?.sports)) {
-      throw new Error(
-        'Invalid sports response.',
-      );
+    const today = new Date(now())
+      .toISOString()
+      .slice(0, 10);
+
+    const datesBody = await get(
+      'sports/21/dates',
+    );
+
+    if (!Array.isArray(datesBody?.dates)) {
+      throw new Error('Invalid dates.');
     }
 
-    report.cricketCatalog = body.sports
-      .filter(sport =>
-        /cricket|\bipl\b|\bt20\b/i.test(
-          String(sport.sport_name || ''),
-        ),
-      )
-      .map(sport => ({
-        sportId: sport.sport_id,
-        name: sport.sport_name,
-      }));
+    const dates = [
+      ...new Set(
+        datesBody.dates
+          .filter(
+            date => typeof date === 'string',
+          )
+          .map(date => date.slice(0, 10))
+          .filter(
+            date =>
+              /^\d{4}-\d{2}-\d{2}$/.test(
+                date,
+              ) && date >= today,
+          ),
+      ),
+    ].sort();
 
-    if (!report.cricketCatalog.length) {
+    report.dateChecked = dates[0] ?? null;
+
+    if (!dates.length) {
       report.result =
-        'CRICKET_NOT_FOUND_IN_CATALOG';
+        'NO_TODAY_OR_FUTURE_DATE_RETURNED';
 
       return finish();
     }
 
-    const today = new Date()
-      .toISOString()
-      .slice(0, 10);
+    const listing = await get(
+      `sports/21/events/${dates[0]}`,
+      {
+        // Schedule/scores only at this step.
+        affiliate_ids: '0',
+      },
+    );
 
-    for (const sport of
-      report.cricketCatalog.slice(0, 2)) {
-      if (
-        !/^\d+$/.test(String(sport.sportId))
-      ) {
-        throw new Error('Invalid sport ID.');
-      }
+    if (!Array.isArray(listing?.events)) {
+      throw new Error('Invalid events.');
+    }
 
+    report.eventsReturned =
+      listing.events.length;
+
+    const candidates = listing.events
+      .filter(
+        event =>
+          typeof event.event_id ===
+            'string' &&
+          Number(event.sport_id) === 21 &&
+          event.score?.event_status ===
+            'STATUS_SCHEDULED' &&
+          Date.parse(event.event_date) >
+            now() &&
+          !/\bsrl\b|simulated|virtual/i.test(
+            JSON.stringify([
+              array(event.teams).map(
+                team => team.name,
+              ),
+              event.schedule,
+            ]),
+          ),
+      )
+      .sort(
+        (a, b) =>
+          Date.parse(a.event_date) -
+          Date.parse(b.event_date),
+      );
+
+    report.upcomingCandidates =
+      candidates.length;
+
+    for (const event of
+      candidates.slice(0, 2)) {
       if (
         report.reportedDataPoints >= 1000
       ) {
         break;
       }
 
-      const datesBody = await get(
-        `sports/${sport.sportId}/dates`,
-      );
-
-      if (
-        !Array.isArray(datesBody?.dates)
-      ) {
-        throw new Error(
-          'Invalid dates response.',
-        );
-      }
-
-      const dates = [
-        ...new Set(
-          datesBody.dates
-            .filter(
-              date =>
-                typeof date === 'string',
-            )
-            .map(date => date.slice(0, 10))
-            .filter(
-              date =>
-                /^\d{4}-\d{2}-\d{2}$/.test(
-                  date,
-                ) && date >= today,
-            ),
-        ),
-      ].sort();
-
       const check = {
-        ...sport,
-        upcomingDates: dates.slice(0, 3),
+        eventId: event.event_id,
+        teams: array(event.teams).map(
+          team => team.name,
+        ),
+        startTime: event.event_date,
+        league:
+          event.schedule?.league_name ??
+          null,
       };
 
       report.checks.push(check);
 
-      if (!dates.length) {
+      const path =
+        `events/${encodeURIComponent(
+          event.event_id,
+        )}`;
+
+      const catalog = await get(
+        `${path}/markets`,
+      );
+
+      if (!Array.isArray(catalog)) {
+        throw new Error(
+          'Invalid market catalog.',
+        );
+      }
+
+      check.marketsReturned =
+        catalog.length;
+
+      check.marketSample = catalog
+        .slice(0, 25)
+        .map(market => ({
+          id: market.id,
+          name: market.name,
+          periodId:
+            market.period_id ?? null,
+        }));
+
+      // Only main prematch markets.
+      // Catalog presence is not proof of access.
+      const ids = [
+        ...new Set(
+          catalog
+            .map(market => Number(market.id))
+            .filter(id =>
+              [1, 2, 3].includes(id),
+            ),
+        ),
+      ];
+
+      check.requestedMarketIds = ids;
+
+      if (!ids.length) {
         check.result =
-          'NO_TODAY_OR_FUTURE_DATE_RETURNED';
+          'NO_CORE_PREMATCH_MARKETS_LISTED';
 
         continue;
       }
@@ -263,68 +333,61 @@ async function runDiagnostic() {
         break;
       }
 
-      const eventsBody = await get(
-        `sports/${sport.sportId}/events/${dates[0]}`,
-        {
-          market_ids: '1',
-          affiliate_ids: '3,19,23',
-          main_line: true,
-          hide_closed: true,
-        },
+      const odds = await get(path, {
+        market_ids: ids.join(','),
+        affiliate_ids: '3,19,23',
+        main_line: true,
+        hide_closed: true,
+      });
+
+      if (!Array.isArray(odds?.events)) {
+        throw new Error('Invalid odds.');
+      }
+
+      const matched = odds.events.find(
+        item =>
+          item.event_id === event.event_id,
       );
 
+      if (!matched) {
+        check.result =
+          'REQUESTED_EVENT_NOT_RETURNED';
+
+        continue;
+      }
+
       if (
-        !Array.isArray(eventsBody?.events)
+        Number(matched.sport_id) !== 21
       ) {
-        throw new Error(
-          'Invalid events response.',
-        );
+        throw new Error('Sport mismatch.');
       }
 
-      check.dateChecked = dates[0];
-
-      check.eventsReturned =
-        eventsBody.events.length;
-
-      const summaries =
-        eventsBody.events.map(
-          summarizeEvent,
-        );
-
-      check.eventsWithPrices =
-        summaries.filter(
-          event =>
-            event.priceRowsReturned > 0,
-        ).length;
-
-      check.sample = summaries
-        .filter(
-          event =>
-            event.priceRowsReturned > 0,
-        )
-        .slice(0, 3);
-
-      if (!check.sample.length) {
-        check.sample =
-          summaries.slice(0, 3);
-      }
+      check.odds =
+        summarizeEvent(matched);
 
       check.result =
-        check.eventsWithPrices
-          ? 'PREMATCH_PRICE_ROWS_RETURNED'
-          : check.eventsReturned
-            ? 'EVENTS_RETURNED_NO_PRICES_IN_REQUESTED_SCOPE'
-            : 'NO_EVENTS_ON_CHECKED_DATE';
+        check.odds.priceRowsReturned > 0
+          ? 'PRICE_ROWS_RETURNED'
+          : 'NO_OPEN_MAIN_PRICES_FOR_FREE_BOOKS';
+
+      if (
+        check.odds.priceRowsReturned > 0
+      ) {
+        break;
+      }
     }
 
     report.result = report.checks.some(
-      check => check.eventsWithPrices > 0,
+      check =>
+        check.odds?.priceRowsReturned > 0,
     )
-      ? 'PREMATCH_ODDS_SNAPSHOT_RETURNED'
-      : 'NO_PRICES_FOUND_IN_LIMITED_CHECK';
+      ? 'PREMATCH_PRICE_ROWS_RETURNED'
+      : candidates.length
+        ? 'NO_PRICES_IN_CHECKED_SCOPE'
+        : 'NO_FUTURE_SCHEDULED_T20_EVENTS_ON_DATE';
 
     report.note =
-      'Limited check: up to two cricket catalog entries, one date each, market 1, books 3,19,23. Empty results do not prove no coverage. Closed rows filtered out. Prices are American format. Live timing, fancy, back/lay, ball-by-ball and website integration are not verified.';
+      'At most two future matches on one T20 date. Catalog entries do not prove Free-plan price entitlement. Only main prematch IDs 1,2,3 and books 3,19,23 were eligible. No real-time, fancy, back/lay, suspension timing or website connection verified. Prices are American. Missing closedAt does not prove an active market.';
   } catch (error) {
     report.result = 'TEST_STOPPED';
 
@@ -351,12 +414,12 @@ if (
       if (section === 'checks') {
         for (const check of value) {
           console.log(
-            `RUNDOWN_TEST check: ${JSON.stringify(check)}`,
+            `RUNDOWN_V2 check: ${JSON.stringify(check)}`,
           );
         }
       } else {
         console.log(
-          `RUNDOWN_TEST ${section}: ${JSON.stringify(value)}`,
+          `RUNDOWN_V2 ${section}: ${JSON.stringify(value)}`,
         );
       }
     }
@@ -368,7 +431,7 @@ if (
     }
   } catch {
     console.error(
-      'RUNDOWN_TEST: THERUNDOWN_API_KEY missing. Set it privately in Environment.',
+      'RUNDOWN_V2: THERUNDOWN_API_KEY missing. Set it privately in Environment.',
     );
 
     process.exitCode = 1;
