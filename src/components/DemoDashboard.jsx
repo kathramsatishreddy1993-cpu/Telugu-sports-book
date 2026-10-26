@@ -358,8 +358,7 @@ function TopGamesSlider({ onGameClick }) {
       if (paused || maximum <= 0) {
         position = scroller.scrollLeft;
       } else {
-        position +=
-          direction * elapsed * 0.025;
+        position += direction * elapsed * 0.025;
 
         if (position >= maximum) {
           position = maximum;
@@ -373,20 +372,14 @@ function TopGamesSlider({ onGameClick }) {
       }
 
       frameId =
-        window.requestAnimationFrame(
-          animate,
-        );
+        window.requestAnimationFrame(animate);
     };
 
     frameId =
-      window.requestAnimationFrame(
-        animate,
-      );
+      window.requestAnimationFrame(animate);
 
     return () => {
-      window.cancelAnimationFrame(
-        frameId,
-      );
+      window.cancelAnimationFrame(frameId);
     };
   }, []);
 
@@ -406,8 +399,7 @@ function TopGamesSlider({ onGameClick }) {
       type: event.pointerType,
       x: event.clientX,
       y: event.clientY,
-      scrollLeft:
-        event.currentTarget.scrollLeft,
+      scrollLeft: event.currentTarget.scrollLeft,
       moved: false,
     };
   };
@@ -422,11 +414,8 @@ function TopGamesSlider({ onGameClick }) {
       return;
     }
 
-    const distanceX =
-      event.clientX - gesture.x;
-
-    const distanceY =
-      event.clientY - gesture.y;
+    const distanceX = event.clientX - gesture.x;
+    const distanceY = event.clientY - gesture.y;
 
     if (
       Math.abs(distanceX) > 8 ||
@@ -517,9 +506,7 @@ function TopGamesSlider({ onGameClick }) {
         }}
         onFocusCapture={event => {
           if (
-            event.target.matches(
-              ":focus-visible",
-            )
+            event.target.matches(":focus-visible")
           ) {
             focusedRef.current = true;
           }
@@ -556,22 +543,16 @@ function TopGamesSlider({ onGameClick }) {
               key={game.id}
               type="button"
               aria-label={`Open ${game.name}`}
-              onClick={() =>
-                onGameClick(game)
-              }
+              onClick={() => onGameClick(game)}
               className="w-[82px] shrink-0 select-none rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#08b7bc]"
             >
               <div className="pointer-events-none h-[54px] overflow-hidden rounded-lg border border-slate-200 bg-black">
-                <GameArtwork
-                  game={game.id}
-                />
+                <GameArtwork game={game.id} />
               </div>
 
               <span
                 className="pointer-events-none mt-1 block truncate rounded-full text-center text-[7px] font-black"
-                style={sliderLabelColor(
-                  index,
-                )}
+                style={sliderLabelColor(index)}
               >
                 {game.name}
               </span>
@@ -587,46 +568,30 @@ export default function DemoDashboard({
   user,
   onLogout,
 }) {
-  const [page, setPage] =
-    useState("home");
+  const [page, setPage] = useState("home");
 
-  const [
-    selectedSport,
-    setSelectedSport,
-  ] = useState("CRICKET");
+  const [selectedSport, setSelectedSport] =
+    useState("CRICKET");
 
-  const [
-    selectedTab,
-    setSelectedTab,
-  ] = useState("INPLAY");
+  const [selectedTab, setSelectedTab] =
+    useState("INPLAY");
 
-  const [
-    matchFilter,
-    setMatchFilter,
-  ] = useState("LIVE");
+  const [matchFilter, setMatchFilter] =
+    useState("LIVE");
 
-  const [
-    showCustomerMenu,
-    setShowCustomerMenu,
-  ] = useState(false);
+  const [showCustomerMenu, setShowCustomerMenu] =
+    useState(false);
 
-  const [
-    selectedMatch,
-    setSelectedMatch,
-  ] = useState(null);
+  const [selectedMatch, setSelectedMatch] =
+    useState(null);
 
-  const [
-    demoBalance,
-    setDemoBalance,
-  ] = useState(0);
+  const [demoBalance, setDemoBalance] =
+    useState(0);
 
-  const [
-    balanceError,
-    setBalanceError,
-  ] = useState("");
-
-  const [notice, setNotice] =
+  const [balanceError, setBalanceError] =
     useState("");
+
+  const [notice, setNotice] = useState("");
 
   const customerId =
     user?.id ||
@@ -637,8 +602,7 @@ export default function DemoDashboard({
     let active = true;
     let loading = false;
 
-    const controller =
-      new AbortController();
+    const controller = new AbortController();
 
     const loadBalance = async () => {
       if (loading) return;
@@ -669,8 +633,7 @@ export default function DemoDashboard({
           },
         );
 
-        const data =
-          await response.json();
+        const data = await response.json();
 
         if (!response.ok) {
           throw new Error(
@@ -689,12 +652,9 @@ export default function DemoDashboard({
       } catch (requestError) {
         if (
           active &&
-          requestError.name !==
-            "AbortError"
+          requestError.name !== "AbortError"
         ) {
-          setBalanceError(
-            requestError.message,
-          );
+          setBalanceError(requestError.message);
         }
       } finally {
         loading = false;
@@ -727,11 +687,7 @@ export default function DemoDashboard({
         loadBalance,
       );
     };
-  }, [
-    customerId,
-    page,
-    selectedMatch,
-  ]);
+  }, [customerId, page, selectedMatch]);
 
   const goHome = () => {
     setPage("home");
@@ -752,10 +708,7 @@ export default function DemoDashboard({
 
   const handleGameClick = game => {
     if (game.href) {
-      window.location.assign(
-        game.href,
-      );
-
+      window.location.assign(game.href);
       return;
     }
 
@@ -1004,23 +957,14 @@ export default function DemoDashboard({
 
           <div className="relative shrink-0 text-right">
             <div className="rounded-xl border border-amber-400/30 bg-[#03121d]/90 px-3 py-2">
-              <p className="text-[8px] font-bold uppercase text-gray-300">
-                Demo Balance
-              </p>
-
-              <p className="mt-1 text-sm font-black text-amber-300">
-                🪙{" "}
-                {demoBalance.toLocaleString(
-                  "en-IN",
-                )}
+              <p className="whitespace-nowrap text-sm font-black tabular-nums text-amber-300">
+                ₹{demoBalance.toLocaleString("en-IN")}
               </p>
             </div>
 
             <button
               type="button"
-              aria-expanded={
-                showCustomerMenu
-              }
+              aria-expanded={showCustomerMenu}
               aria-controls="customer-menu"
               onClick={() =>
                 setShowCustomerMenu(
@@ -1049,9 +993,7 @@ export default function DemoDashboard({
                       onClick={() =>
                         target === "home"
                           ? goHome()
-                          : openPage(
-                              target,
-                            )
+                          : openPage(target)
                       }
                       className={`block w-full border-b border-slate-100 px-4 py-3 text-left text-[11px] font-bold hover:bg-slate-50 ${
                         target === "promo"
@@ -1088,9 +1030,7 @@ export default function DemoDashboard({
         <div className="mt-4 grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={() =>
-              openPage("deposit")
-            }
+            onClick={() => openPage("deposit")}
             className="rounded-2xl border border-[#08b7bc] bg-[#08b7bc] px-3 py-3 text-left shadow-[0_0_8px_rgba(8,183,188,.25)] active:scale-95"
           >
             <span className="flex items-center gap-2">
@@ -1126,9 +1066,7 @@ export default function DemoDashboard({
 
           <button
             type="button"
-            onClick={() =>
-              openPage("withdrawal")
-            }
+            onClick={() => openPage("withdrawal")}
             className="rounded-2xl border border-[#791b3e] bg-[#791b3e] px-3 py-3 text-left shadow-[0_0_8px_rgba(121,27,62,.25)] active:scale-95"
           >
             <span className="flex items-center gap-2">
@@ -1168,9 +1106,7 @@ export default function DemoDashboard({
             {[0, 1].map(index => (
               <span
                 key={index}
-                aria-hidden={
-                  index === 1
-                }
+                aria-hidden={index === 1}
                 className="tsb-neon-text"
               >
                 ✦ TELUGU SPORTS BOOK • PREMIUM
@@ -1182,9 +1118,7 @@ export default function DemoDashboard({
       </header>
 
       <TopGamesSlider
-        onGameClick={
-          handleGameClick
-        }
+        onGameClick={handleGameClick}
       />
 
       <div className="px-4 py-3">
@@ -1206,9 +1140,7 @@ export default function DemoDashboard({
             <button
               key={tab}
               type="button"
-              onClick={() =>
-                setSelectedTab(tab)
-              }
+              onClick={() => setSelectedTab(tab)}
               className={`shrink-0 rounded-lg border px-4 py-2 text-[9px] font-black text-white ${
                 selectedTab === tab
                   ? "border-[#a72a55] bg-[#a12450] shadow-[0_0_10px_rgba(161,36,80,.2)]"
@@ -1228,13 +1160,10 @@ export default function DemoDashboard({
               key={sport.name}
               type="button"
               onClick={() =>
-                setSelectedSport(
-                  sport.name,
-                )
+                setSelectedSport(sport.name)
               }
               className={`w-[90px] shrink-0 rounded-xl border bg-[#08b7bc] px-2 py-2 text-center text-black ${
-                selectedSport ===
-                sport.name
+                selectedSport === sport.name
                   ? "border-[#087f83] shadow-[inset_0_0_0_1px_#087f83]"
                   : "border-[#08b7bc]"
               }`}
@@ -1261,28 +1190,24 @@ export default function DemoDashboard({
         </div>
 
         <div className="mt-3 flex gap-2">
-          {[
-            "LIVE",
-            "VIRTUAL",
-            "PREMIUM",
-          ].map(filter => (
-            <button
-              key={filter}
-              type="button"
-              onClick={() =>
-                setMatchFilter(
-                  filter,
-                )
-              }
-              className={`rounded-lg border px-4 py-2 text-[8px] font-black text-white ${
-                matchFilter === filter
-                  ? "border-[#ac2854] bg-[#ac2854]"
-                  : "border-[#791b3e] bg-[#791b3e]"
-              }`}
-            >
-              {filter}
-            </button>
-          ))}
+          {["LIVE", "VIRTUAL", "PREMIUM"].map(
+            filter => (
+              <button
+                key={filter}
+                type="button"
+                onClick={() =>
+                  setMatchFilter(filter)
+                }
+                className={`rounded-lg border px-4 py-2 text-[8px] font-black text-white ${
+                  matchFilter === filter
+                    ? "border-[#ac2854] bg-[#ac2854]"
+                    : "border-[#791b3e] bg-[#791b3e]"
+                }`}
+              >
+                {filter}
+              </button>
+            ),
+          )}
         </div>
       </section>
 
@@ -1293,19 +1218,12 @@ export default function DemoDashboard({
           aria-label="Matches. Scroll through matches, then continue scrolling the page."
           tabIndex={0}
         >
-          {selectedSport ===
-            "CRICKET" &&
+          {selectedSport === "CRICKET" &&
           matchFilter === "LIVE" ? (
             <CricketMatchList
               onOpenMatch={match => {
-                setSelectedMatch(
-                  match,
-                );
-
-                window.scrollTo(
-                  0,
-                  0,
-                );
+                setSelectedMatch(match);
+                window.scrollTo(0, 0);
               }}
             />
           ) : (
@@ -1329,9 +1247,7 @@ export default function DemoDashboard({
           <button
             type="button"
             aria-label="Dismiss message"
-            onClick={() =>
-              setNotice("")
-            }
+            onClick={() => setNotice("")}
             className="px-2 text-lg"
           >
             ×
@@ -1343,42 +1259,32 @@ export default function DemoDashboard({
         title="FEATURED GAMES"
         games={GAMES.slice(0, 4)}
         compact
-        onGameClick={
-          handleGameClick
-        }
+        onGameClick={handleGameClick}
       />
 
       <GameSection
         title="CARD GAMES"
         games={GAMES.slice(4, 8)}
         compact
-        onGameClick={
-          handleGameClick
-        }
+        onGameClick={handleGameClick}
       />
 
       <GameSection
         title="NEW LAUNCH"
         games={newLaunch}
-        onGameClick={
-          handleGameClick
-        }
+        onGameClick={handleGameClick}
       />
 
       <GameSection
         title="MY FAVOURITES"
         games={favourites}
-        onGameClick={
-          handleGameClick
-        }
+        onGameClick={handleGameClick}
       />
 
       <GameSection
         title="OUR PROVIDERS"
         games={providers}
-        onGameClick={
-          handleGameClick
-        }
+        onGameClick={handleGameClick}
       />
 
       <footer className="border-t border-slate-200 bg-white px-5 py-8 text-center">
