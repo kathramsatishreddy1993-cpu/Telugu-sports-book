@@ -66,9 +66,7 @@ function rememberPair(
   const valid = (price, size) =>
     price != null &&
     Number.isFinite(Number(price)) &&
-    Number(price) >= (
-      session ? 0 : 0.000001
-    ) &&
+    Number(price) >= (session ? 0 : 0.000001) &&
     Number(size) > 0;
 
   const usable =
@@ -106,8 +104,7 @@ function rememberPair(
       blocked ||
       (!usable ? 'UNAVAILABLE' : ''),
 
-    previous:
-      !usable && Boolean(saved),
+    previous: !usable && Boolean(saved),
   };
 }
 
@@ -286,14 +283,11 @@ function useDemoWallet(matchId, user) {
   const [balance, setBalance] = useState(null);
   const [bets, setBets] = useState([]);
   const [quotes, setQuotes] = useState([]);
-
   const [error, setError] = useState('');
   const [quoteError, setQuoteError] = useState('');
-
   const [quoteAt, setQuoteAt] = useState(0);
   const [selected, setSelected] = useState(null);
   const [stake, setStake] = useState('');
-
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [showBets, setShowBets] = useState(false);
@@ -350,13 +344,9 @@ function useDemoWallet(matchId, user) {
 
         if (
           wallet.status === 'fulfilled' &&
-          String(wallet.value.customerId) ===
-            customerId
+          String(wallet.value.customerId) === customerId
         ) {
-          setBalance(
-            Number(wallet.value.balance),
-          );
-
+          setBalance(Number(wallet.value.balance));
           setBets(wallet.value.bets || []);
           setError('');
         } else {
@@ -370,18 +360,13 @@ function useDemoWallet(matchId, user) {
         }
 
         if (market.status === 'fulfilled') {
-          setQuotes(
-            market.value.quotes || [],
-          );
-
+          setQuotes(market.value.quotes || []);
           setQuoteAt(Date.now());
           setQuoteError('');
         } else {
           setQuotes([]);
           setQuoteAt(0);
-          setQuoteError(
-            market.reason.message,
-          );
+          setQuoteError(market.reason.message);
         }
       }
 
@@ -557,11 +542,11 @@ function useDemoWallet(matchId, user) {
 
         setMessage(
           failure.message +
-          (
-            retry.current
-              ? ' Retry uses the same request key.'
-              : ''
-          ),
+            (
+              retry.current
+                ? ' Retry uses the same request key.'
+                : ''
+            ),
         );
       }
     } finally {
@@ -666,7 +651,8 @@ function WalletPanel({
 }) {
   const selected = wallet.selected;
 
-  const current = selected &&
+  const current =
+    selected &&
     wallet.quotes.find(
       quote =>
         quote.marketId === selected.marketId &&
@@ -677,12 +663,12 @@ function WalletPanel({
 
   const canSubmit = Boolean(
     connected &&
-    !wallet.error &&
-    !wallet.quoteError &&
-    clock - wallet.quoteAt < 15000 &&
-    current?.allowed &&
-    current.rate === selected?.rate &&
-    current.payoutRate === selected?.payoutRate,
+      !wallet.error &&
+      !wallet.quoteError &&
+      clock - wallet.quoteAt < 15000 &&
+      current?.allowed &&
+      current.rate === selected?.rate &&
+      current.payoutRate === selected?.payoutRate,
   );
 
   const held = Number(wallet.stake) || 0;
@@ -1196,12 +1182,12 @@ function ProviderMatch({
 
   const connected = Boolean(
     available &&
-    meta?.enabled === true &&
-    !meta?.stale &&
-    !event.stale &&
-    !error &&
-    receivedAt > 0 &&
-    clock - receivedAt < 15000,
+      meta?.enabled === true &&
+      !meta?.stale &&
+      !event.stale &&
+      !error &&
+      receivedAt > 0 &&
+      clock - receivedAt < 15000,
   );
 
   const odds = event.matchOdds;
@@ -1216,9 +1202,9 @@ function ProviderMatch({
 
   const pricesFresh = Boolean(
     connected &&
-    Number.isFinite(marketAge) &&
-    marketAge >= -1000 &&
-    marketAge < limit,
+      Number.isFinite(marketAge) &&
+      marketAge >= -1000 &&
+      marketAge < limit,
   );
 
   const fancyAge =
@@ -1226,15 +1212,15 @@ function ProviderMatch({
 
   const fancyFresh = Boolean(
     connected &&
-    Number.isFinite(fancyAge) &&
-    fancyAge >= -1000 &&
-    fancyAge < limit,
+      Number.isFinite(fancyAge) &&
+      fancyAge >= -1000 &&
+      fancyAge < limit,
   );
 
   const live = Boolean(
     pricesFresh &&
-    event.status === 'LIVE' &&
-    odds?.inplay === true,
+      event.status === 'LIVE' &&
+      odds?.inplay === true,
   );
 
   return (
@@ -1508,14 +1494,6 @@ function ProviderMatch({
           </p>
         )}
       </section>
-
-      <p className="m-3 rounded border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-900">
-        Virtual demo coins only. Tap an available price
-        to select. Suspended or stale markets are paused.
-        Results are manually simulated, not settled from
-        live scores. A missing status does not verify
-        that a market is open.
-      </p>
 
       <button
         type="button"
