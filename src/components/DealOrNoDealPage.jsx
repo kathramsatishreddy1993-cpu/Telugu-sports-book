@@ -45,7 +45,8 @@ export default function DealOrNoDealPage({
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(null);
   const [message, setMessage] = useState("");
-  const [showHistory, setShowHistory] = useState(false);
+  const [showHistory, setShowHistory] =
+    useState(false);
 
   const inFlight = useRef(false);
   const confirmBox = useRef(null);
@@ -77,7 +78,8 @@ export default function DealOrNoDealPage({
 
   const entry = entries.find(
     item =>
-      String(item.sessionId) === String(session?.id) &&
+      String(item.sessionId) ===
+        String(session?.id) &&
       item.status !== "CANCELLED",
   );
 
@@ -94,7 +96,10 @@ export default function DealOrNoDealPage({
     ? Math.max(
         0,
         Math.ceil(
-          (new Date(deadline).getTime() - now) / 1000,
+          (
+            new Date(deadline).getTime() -
+            now
+          ) / 1000,
         ),
       )
     : 0;
@@ -116,7 +121,9 @@ export default function DealOrNoDealPage({
   );
 
   const canSelect =
-    (canJoin || canContinue) && !busy && !pending;
+    (canJoin || canContinue) &&
+    !busy &&
+    !pending;
 
   const canCollect = Boolean(
     fresh &&
@@ -144,7 +151,9 @@ export default function DealOrNoDealPage({
   );
 
   const canDeal = Boolean(
-    canCollect && entry?.offer && offerSeconds > 0,
+    canCollect &&
+      entry?.offer &&
+      offerSeconds > 0,
   );
 
   const choice = entry?.choices?.find(
@@ -175,12 +184,16 @@ export default function DealOrNoDealPage({
     if (inFlight.current || !request) return;
 
     inFlight.current = true;
+
     setBusy(true);
     setMessage("");
     setPending(request);
 
     try {
-      await flightApi(request.path, request.body);
+      await flightApi(
+        request.path,
+        request.body,
+      );
 
       setPending(null);
       setSelection(null);
@@ -277,9 +290,26 @@ export default function DealOrNoDealPage({
       return;
     }
 
-    if (action === "CANCEL" && !canCancel) return;
-    if (action === "COLLECT" && !canCollect) return;
-    if (action === "DEAL" && !canDeal) return;
+    if (
+      action === "CANCEL" &&
+      !canCancel
+    ) {
+      return;
+    }
+
+    if (
+      action === "COLLECT" &&
+      !canCollect
+    ) {
+      return;
+    }
+
+    if (
+      action === "DEAL" &&
+      !canDeal
+    ) {
+      return;
+    }
 
     sendRequest({
       kind: action,
@@ -336,22 +366,18 @@ export default function DealOrNoDealPage({
             ‹ HOME
           </button>
 
-          <h1 className="text-center text-sm font-black text-amber-300 sm:text-xl">
+          <h1 className="min-w-0 text-center text-sm font-black text-amber-300 sm:text-xl">
             DEAL OR NO DEAL
           </h1>
 
-          <div className="text-right text-[10px] text-slate-400">
-            DEMO COINS
-            <strong className="block text-base text-amber-200">
-              {coins(data?.balance)}
-            </strong>
+          <div className="shrink-0 rounded-xl border border-amber-400/30 bg-[#03121d]/90 px-3 py-2 text-right">
+            <p className="whitespace-nowrap text-sm font-black tabular-nums text-amber-300">
+              {data
+                ? `₹${coins(data.balance)}`
+                : "Loading..."}
+            </p>
           </div>
         </header>
-
-        <p className="rounded-lg border border-cyan-300/20 bg-cyan-300/10 p-3 text-center text-xs leading-5 text-cyan-100">
-          Admin-selected demo · Results are selected and
-          locked before betting opens.
-        </p>
 
         {unauthorized && (
           <button
@@ -645,7 +671,9 @@ export default function DealOrNoDealPage({
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => sendRequest(pending)}
+                onClick={() =>
+                  sendRequest(pending)
+                }
                 className="w-full rounded-lg bg-amber-200 p-3 text-xs font-black text-black disabled:opacity-40"
               >
                 RETRY SAME REQUEST
@@ -683,6 +711,7 @@ export default function DealOrNoDealPage({
                     <strong>
                       Session #{item.sessionId}
                     </strong>
+
                     <span>{item.status}</span>
                   </div>
 
@@ -766,10 +795,14 @@ export default function DealOrNoDealPage({
                       key={number}
                       className="border-t border-white/10"
                     >
-                      <td className="p-2">{number}</td>
+                      <td className="p-2">
+                        {number}
+                      </td>
+
                       <td className="p-2">
                         {winners} of 9
                       </td>
+
                       <td className="p-2">
                         {multiplier}×
                       </td>
