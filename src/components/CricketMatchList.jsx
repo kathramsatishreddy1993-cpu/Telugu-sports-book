@@ -3,6 +3,9 @@ import React, {
   useState,
 } from 'react';
 
+const TEAL = '#0bb3b8';
+const WINE = '#791b3e';
+
 const ist = value =>
   new Intl.DateTimeFormat('en-IN', {
     timeZone: 'Asia/Kolkata',
@@ -32,7 +35,7 @@ async function getJSON(url) {
 
   if (!response.ok) {
     throw new Error(
-      data.error ||
+      data?.error ||
         'Unable to load matches.',
     );
   }
@@ -82,9 +85,7 @@ export function normalizeApiMatch(
     item.team2?.name ||
     item.team2;
 
-  const names = Array.isArray(
-    item.teams,
-  )
+  const names = Array.isArray(item.teams)
     ? item.teams
         .map(team =>
           typeof team === 'string'
@@ -174,9 +175,7 @@ export function normalizeApiMatch(
       : 'Time unavailable',
 
     demo:
-      /mock|demo|sample/i.test(
-        source,
-      ) ||
+      /mock|demo|sample/i.test(source) ||
       item.isMock === true ||
       item.isDemo === true,
 
@@ -209,46 +208,170 @@ function eventRows(data) {
   );
 }
 
+/*
+ * Display only supplied decimal prices.
+ * Missing prices remain empty.
+ * Back prices are never copied into Lay.
+ */
+function priceText(value) {
+  if (
+    typeof value !== 'number' &&
+    typeof value !== 'string'
+  ) {
+    return '';
+  }
+
+  if (
+    typeof value === 'string' &&
+    !value.trim()
+  ) {
+    return '';
+  }
+
+  const number = Number(value);
+
+  return Number.isFinite(number) &&
+    number > 1
+    ? String(number)
+    : '';
+}
+
+function selectionPrices(selection) {
+  if (
+    selection &&
+    typeof selection === 'object' &&
+    !Array.isArray(selection)
+  ) {
+    return {
+      back: priceText(selection.back),
+      lay: priceText(selection.lay),
+    };
+  }
+
+  return {
+    back: priceText(selection),
+    lay: '',
+  };
+}
+
+function MatchOdds({ match, stopped }) {
+  const odds =
+    match.odds &&
+    typeof match.odds === 'object' &&
+    !Array.isArray(match.odds)
+      ? match.odds
+      : {};
+
+  const hidePrices =
+    stopped ||
+    match.suspended === true ||
+    [
+      'SUSPENDED',
+      'CLOSED',
+      'PAUSED',
+    ].includes(
+      String(
+        match.marketStatus ||
+          match.market_status ||
+          '',
+      ).toUpperCase(),
+    );
+
+  const columns = [
+    {
+      label: '1',
+      name: 'Team 1',
+      ...selectionPrices(odds.home),
+    },
+    {
+      label: 'X',
+      name: 'Draw',
+      ...selectionPrices(odds.draw),
+    },
+    {
+      label: '2',
+      name: 'Team 2',
+      ...selectionPrices(odds.away),
+    },
+  ];
+
+  return (
+    <div
+      className="border-t border-slate-200 px-4 pb-4 pt-3"
+      aria-label="Match odds preview"
+    >
+      <div className="grid grid-cols-3 gap-2">
+        {columns.map(column => (
+          <div
+            key={column.label}
+            className="min-w-0"
+          >
+            <div className="mb-1.5 text-center text-[11px] font-black text-slate-700">
+              {column.label}
+            </div>
+
+            <div className="grid grid-cols-2 gap-1">
+              {[
+                {
+                  side: 'Back',
+                  color: TEAL,
+                  price: column.back,
+                },
+                {
+                  side: 'Lay',
+                  color: WINE,
+                  price: column.lay,
+                },
+              ].map(cell => {
+                const value = hidePrices
+                  ? ''
+                  : cell.price;
+
+                return (
+                  <span
+                    key={cell.side}
+                    aria-label={`${column.name} ${cell.side}: ${
+                      value || 'unavailable'
+                    }`}
+                    className="flex h-9 min-w-0 items-center justify-center rounded-md px-1 text-[12px] font-black leading-none text-white"
+                    style={{
+                      backgroundColor:
+                        cell.color,
+                    }}
+                  >
+                    {value || '\u00A0'}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CricketMatchList({
   onOpenMatch,
 }) {
-  const [virtual, setVirtual] =
-    useState([]);
-
-  const [real, setReal] =
-    useState([]);
-
-  const [error, setError] =
+  const [virtual, setVirtual] = useState([]);
+  const [real, setReal] = useState([]);
+  const [error, setError] = useState('');
+  const [sportsError, setSportsError] =
     useState('');
-
-  const [
-    sportsError,
-    setSportsError,
-  ] = useState('');
-
-  const [loaded, setLoaded] =
-    useState(false);
-
+  const [loaded, setLoaded] = useState(false);
   const [feedDemo, setFeedDemo] =
     useState(false);
+  const [meta, setMeta] = useState(null);
+  const [receivedAt, setReceivedAt] =
+    useState(0);
 
-  const [meta, setMeta] =
-    useState(null);
+  const [anchor, setAnchor] = useState({
+    server: Date.now(),
+    local: performance.now(),
+  });
 
-  const [
-    receivedAt,
-    setReceivedAt,
-  ] = useState(0);
-
-  const [anchor, setAnchor] =
-    useState({
-      server: Date.now(),
-      local: performance.now(),
-    });
-
-  const [now, setNow] =
-    useState(Date.now());
-
+  const [now, setNow] = useState(Date.now());
   const [clock, setClock] =
     useState(Date.now());
 
@@ -273,13 +396,10 @@ export default function CricketMatchList({
             data.serverTime,
           );
 
-          if (
-            Number.isFinite(server)
-          ) {
+          if (Number.isFinite(server)) {
             setAnchor({
               server,
-              local:
-                performance.now(),
+              local: performance.now(),
             });
           }
 
@@ -287,36 +407,26 @@ export default function CricketMatchList({
             (data.matches || [])
               .slice(0, 3)
               .map(match => ({
-                key:
-                  `so-${match.startAt}`,
-
+                key: `so-${match.startAt}`,
                 type: 'SO',
-
                 start: Date.parse(
                   match.startAt,
                 ),
-
                 end:
                   Date.parse(
-                    match.endsAt ||
-                      '',
+                    match.endsAt || '',
                   ) ||
                   Date.parse(
                     match.startAt,
                   ) +
                     120000,
-
-                teams:
-                  match.teams.join(
-                    ' vs ',
-                  ),
-
+                teams: match.teams.join(
+                  ' vs ',
+                ),
                 phase: match.phase,
               }))
               .filter(match =>
-                Number.isFinite(
-                  match.start,
-                ),
+                Number.isFinite(match.start),
               ),
           );
 
@@ -324,9 +434,7 @@ export default function CricketMatchList({
         }
       } catch (failure) {
         if (alive) {
-          setError(
-            failure.message,
-          );
+          setError(failure.message);
         }
       } finally {
         loading = false;
@@ -335,10 +443,7 @@ export default function CricketMatchList({
 
     void load();
 
-    const timer = setInterval(
-      load,
-      5000,
-    );
+    const timer = setInterval(load, 5000);
 
     return () => {
       alive = false;
@@ -365,23 +470,18 @@ export default function CricketMatchList({
           '',
       );
 
-      const matches =
-        eventRows(data)
-          .filter(
-            item =>
-              !item.sport ||
-              String(
-                item.sport,
-              ).toLowerCase() ===
-                'cricket',
-          )
-          .map(item =>
-            normalizeApiMatch(
-              item,
-              feed,
-            ),
-          )
-          .filter(Boolean);
+      const matches = eventRows(data)
+        .filter(
+          item =>
+            !item.sport ||
+            String(
+              item.sport,
+            ).toLowerCase() === 'cricket',
+        )
+        .map(item =>
+          normalizeApiMatch(item, feed),
+        )
+        .filter(Boolean);
 
       const unique = new Map(
         matches.map(match => [
@@ -390,34 +490,23 @@ export default function CricketMatchList({
         ]),
       );
 
-      setReal([
-        ...unique.values(),
-      ]);
+      setReal([...unique.values()]);
 
       setFeedDemo(
-        /mock|demo|sample/i.test(
-          feed,
-        ),
+        /mock|demo|sample/i.test(feed),
       );
 
       setMeta(
-        data.sports?.cricket ||
-          data,
+        data.sports?.cricket || data,
       );
 
-      setReceivedAt(
-        Date.now(),
-      );
-
+      setReceivedAt(Date.now());
       setSportsError('');
       setLoaded(true);
     };
 
     const load = async () => {
-      if (
-        loading ||
-        !alive
-      ) {
+      if (loading || !alive) {
         return;
       }
 
@@ -430,9 +519,7 @@ export default function CricketMatchList({
           '/api/sports/events?sport=cricket',
         );
 
-        if (
-          current === sequence
-        ) {
+        if (current === sequence) {
           apply(data);
         }
       } catch (failure) {
@@ -440,10 +527,7 @@ export default function CricketMatchList({
           alive &&
           current === sequence
         ) {
-          setSportsError(
-            failure.message,
-          );
-
+          setSportsError(failure.message);
           setReceivedAt(0);
           setLoaded(true);
         }
@@ -455,44 +539,32 @@ export default function CricketMatchList({
     void load();
 
     if (
-      typeof EventSource !==
-      'undefined'
+      typeof EventSource !== 'undefined'
     ) {
       stream = new EventSource(
         '/api/sports/stream',
       );
 
-      stream.onmessage =
-        message => {
-          try {
-            const data =
-              JSON.parse(
-                message.data,
-              );
+      stream.onmessage = message => {
+        try {
+          const data = JSON.parse(
+            message.data,
+          );
 
-            if (
-              Array.isArray(
-                data.events,
-              )
-            ) {
-              apply(data);
-            }
-          } catch {
-            // Cached GET retries.
+          if (Array.isArray(data.events)) {
+            apply(data);
           }
-        };
+        } catch {
+          // Cached GET retries.
+        }
+      };
 
       stream.onerror = () => {
         void load();
       };
     }
 
-    // Reads the server's saved cache only.
-    // These reads do not call Sportmonks.
-    const timer = setInterval(
-      load,
-      5000,
-    );
+    const timer = setInterval(load, 5000);
 
     const focus = () => {
       void load();
@@ -505,7 +577,6 @@ export default function CricketMatchList({
 
     return () => {
       alive = false;
-
       clearInterval(timer);
       stream?.close();
 
@@ -531,10 +602,7 @@ export default function CricketMatchList({
 
     update();
 
-    const timer = setInterval(
-      update,
-      1000,
-    );
+    const timer = setInterval(update, 1000);
 
     return () => {
       clearInterval(timer);
@@ -543,8 +611,7 @@ export default function CricketMatchList({
 
   const fresh =
     receivedAt > 0 &&
-    clock - receivedAt <
-      15000 &&
+    clock - receivedAt < 15000 &&
     !sportsError;
 
   const paused =
@@ -554,17 +621,14 @@ export default function CricketMatchList({
 
   const fixtures = [
     ...virtual.filter(
-      match =>
-        match.end > now,
+      match => match.end > now,
     ),
     ...real,
   ].sort(
     (a, b) =>
       (a.start ?? Infinity) -
         (b.start ?? Infinity) ||
-      a.key.localeCompare(
-        b.key,
-      ),
+      a.key.localeCompare(b.key),
   );
 
   return (
@@ -582,9 +646,7 @@ export default function CricketMatchList({
 
           {meta.lastUpdated &&
           Number.isFinite(
-            Date.parse(
-              meta.lastUpdated,
-            ),
+            Date.parse(meta.lastUpdated),
           )
             ? ` Last update: ${ist(
                 meta.lastUpdated,
@@ -593,8 +655,7 @@ export default function CricketMatchList({
         </p>
       )}
 
-      {(error ||
-        sportsError) && (
+      {(error || sportsError) && (
         <p
           role="alert"
           className="my-3 text-xs text-amber-800"
@@ -633,14 +694,14 @@ export default function CricketMatchList({
 
         const stopped =
           match.type === 'API' &&
-          (paused ||
-            match.paused ||
-            match.stale);
+          Boolean(
+            paused ||
+              match.paused ||
+              match.stale,
+          );
 
         const open = () => {
-          if (
-            match.type === 'SO'
-          ) {
+          if (match.type === 'SO') {
             window.location.assign(
               `/games/animated-super-over?start=${match.start}`,
             );
@@ -650,8 +711,7 @@ export default function CricketMatchList({
 
               bettingAllowed:
                 !stopped &&
-                match.bettingAllowed ===
-                  true,
+                match.bettingAllowed === true,
             });
           }
         };
@@ -659,8 +719,25 @@ export default function CricketMatchList({
         return (
           <article
             key={match.key}
-            aria-label={match.teams}
-            className="mb-3 overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 shadow-xl"
+            role="button"
+            tabIndex={0}
+            aria-label={`Open ${match.teams}`}
+            onClick={open}
+            onKeyDown={event => {
+              if (
+                event.target ===
+                  event.currentTarget &&
+                !event.repeat &&
+                (
+                  event.key === 'Enter' ||
+                  event.key === ' '
+                )
+              ) {
+                event.preventDefault();
+                open();
+              }
+            }}
+            className="mb-3 cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 shadow-xl transition hover:border-[#0bb3b8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0bb3b8] focus-visible:ring-offset-2"
           >
             <div className="flex items-start justify-between gap-3 px-4 py-4">
               <div className="min-w-0 flex-1">
@@ -675,8 +752,7 @@ export default function CricketMatchList({
                 >
                   <span
                     className={
-                      live &&
-                      !stopped
+                      live && !stopped
                         ? 'animate-pulse'
                         : ''
                     }
@@ -686,8 +762,7 @@ export default function CricketMatchList({
 
                   {stopped
                     ? 'FEED PAUSED · SAVED MATCH'
-                    : match.type ===
-                        'SO'
+                    : match.type === 'SO'
                       ? 'SUPER OVER'
                       : match.demo
                         ? 'DEMO FEED'
@@ -696,35 +771,28 @@ export default function CricketMatchList({
                           : 'UPCOMING'}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={open}
-                  className="block w-full text-left text-[13px] font-black leading-5 text-slate-900"
-                >
+                <h3 className="block w-full text-left text-[13px] font-black leading-5 text-slate-900">
                   {match.teams}
-                </button>
+                </h3>
 
                 <p className="mt-2 text-[11px] font-bold text-teal-700">
-                  {match.start ===
-                  null
+                  {match.start == null
                     ? 'Time unavailable'
-                    : `${ist(
-                        match.start,
-                      )} IST`}
+                    : `${ist(match.start)} IST`}
                 </p>
 
-                {match.type ===
-                  'API' &&
+                {match.type === 'API' &&
                   match.score && (
                     <p className="mt-2 text-xs text-slate-600">
                       {match.score}
                     </p>
                   )}
 
-                {match.type ===
-                  'API' &&
-                  (stopped ||
-                    !match.bettingAllowed) && (
+                {match.type === 'API' &&
+                  (
+                    stopped ||
+                    !match.bettingAllowed
+                  ) && (
                     <p className="mt-2 text-[10px] font-bold text-amber-800">
                       {stopped
                         ? 'New bets paused'
@@ -734,14 +802,18 @@ export default function CricketMatchList({
                   )}
               </div>
 
-              <button
-                type="button"
-                onClick={open}
+              <span
+                aria-hidden="true"
                 className="shrink-0 rounded-lg border border-[#791b3e] bg-[#791b3e] px-3 py-2 text-[10px] font-black text-white"
               >
                 OPEN ›
-              </button>
+              </span>
             </div>
+
+            <MatchOdds
+              match={match}
+              stopped={stopped}
+            />
           </article>
         );
       })}
