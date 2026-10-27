@@ -32,10 +32,7 @@ const hash = value =>
     .digest('hex');
 
 const reject = (message, status = 409) =>
-  Object.assign(
-    new Error(message),
-    { status },
-  );
+  Object.assign(new Error(message), { status });
 
 const demoMode = () =>
   String(process.env.SPORTS_API_MODE || 'demo')
@@ -92,16 +89,13 @@ export function providerQuotes(
 ) {
   const recent = date => {
     const age =
-      now -
-      new Date(date || 0).getTime();
+      now - new Date(date || 0).getTime();
 
     return (
       Number.isFinite(age) &&
       age >= -1000 &&
       age < Math.max(
-        Number(
-          state.pollIntervalMs || 15000,
-        ) * 2,
+        Number(state.pollIntervalMs || 15000) * 2,
         20000,
       )
     );
@@ -130,44 +124,29 @@ export function providerQuotes(
     max,
     available,
   ) => {
-    const safePayout =
-      positive(payout)
-        ? rounded(payout)
-        : null;
+    const safePayout = positive(payout)
+      ? rounded(payout)
+      : null;
 
     const minimum =
-      Math.max(
-        100,
-        Number(min) || 100,
-      );
+      Math.max(100, Number(min) || 100);
 
     const maximum =
-      Math.min(
-        25000,
-        Number(max) || 25000,
-      );
+      Math.min(25000, Number(max) || 25000);
 
     result.push({
       ...fields,
-
-      rate:
-        rate == null
-          ? null
-          : String(rate),
-
+      rate: rate == null ? null : String(rate),
       payoutRate: safePayout,
       min: minimum,
       max: maximum,
 
       allowed: Boolean(
         ready &&
-          available &&
-          safePayout > 1 &&
-          (
-            max == null ||
-            positive(max)
-          ) &&
-          maximum >= minimum,
+        available &&
+        safePayout > 1 &&
+        (max == null || positive(max)) &&
+        maximum >= minimum,
       ),
 
       riskIsStake: true,
@@ -176,33 +155,24 @@ export function providerQuotes(
 
   const odds = event.matchOdds;
 
-  for (
-    const row of odds?.runners || []
-  ) {
-    for (
-      const type of ['BACK', 'LAY']
-    ) {
+  for (const row of odds?.runners || []) {
+    for (const type of ['BACK', 'LAY']) {
       const quote = (
         type === 'BACK'
           ? row.back
           : row.lay
       )?.[0];
 
-      const rate =
-        Number(quote?.price);
+      const rate = Number(quote?.price);
 
       add(
         {
           marketId: 'match-odds',
           market: 'Match Odds',
           selection: row.name,
-
-          selectionId:
-            String(row.selectionId),
-
+          selectionId: String(row.selectionId),
           type,
         },
-
         quote?.price,
 
         type === 'BACK'
@@ -222,35 +192,22 @@ export function providerQuotes(
     }
   }
 
-  for (
-    const row of event.bookmaker || []
-  ) {
-    for (
-      const type of ['BACK', 'LAY']
-    ) {
+  for (const row of event.bookmaker || []) {
+    for (const type of ['BACK', 'LAY']) {
       const rate = Number(
-        type === 'BACK'
-          ? row.back
-          : row.lay,
+        type === 'BACK' ? row.back : row.lay,
       );
 
       add(
         {
-          marketId:
-            `bookmaker:${row.marketId}`,
-
+          marketId: `bookmaker:${row.marketId}`,
           market: 'Bookmaker',
           selection: row.name,
-
-          selectionId:
-            String(row.selectionId),
-
+          selectionId: String(row.selectionId),
           type,
         },
 
-        type === 'BACK'
-          ? row.back
-          : row.lay,
+        type === 'BACK' ? row.back : row.lay,
 
         type === 'BACK'
           ? 1 + rate / 100
@@ -271,12 +228,8 @@ export function providerQuotes(
     }
   }
 
-  for (
-    const row of event.fancy || []
-  ) {
-    for (
-      const selection of ['NO', 'YES']
-    ) {
+  for (const row of event.fancy || []) {
+    for (const selection of ['NO', 'YES']) {
       const line =
         selection === 'YES'
           ? row.yes
@@ -290,15 +243,10 @@ export function providerQuotes(
 
       add(
         {
-          marketId:
-            `fancy:${row.id}`,
-
+          marketId: `fancy:${row.id}`,
           market: row.title,
           selection,
-
-          selectionId:
-            String(row.selectionId),
-
+          selectionId: String(row.selectionId),
           type: 'FANCY',
           sessionRate: rate,
         },
@@ -315,9 +263,7 @@ export function providerQuotes(
         recent(event.fancyUpdatedAt) &&
           !blocked(row.status) &&
           line != null &&
-          Number.isFinite(
-            Number(line),
-          ) &&
+          Number.isFinite(Number(line)) &&
           Number(line) >= 0 &&
           rate > 0,
       );
@@ -327,9 +273,7 @@ export function providerQuotes(
   return result;
 }
 
-export async function initializeDemoBets(
-  pool,
-) {
+export async function initializeDemoBets(pool) {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS demo_customer_sessions (
       token_hash TEXT PRIMARY KEY,
@@ -375,6 +319,12 @@ export async function initializeDemoBets(
     ALTER TABLE demo_bets
       ADD COLUMN IF NOT EXISTS quote_hash TEXT;
 
+    ALTER TABLE demo_bets
+      ADD COLUMN IF NOT EXISTS settled_by_admin TEXT;
+
+    ALTER TABLE demo_bets
+      ADD COLUMN IF NOT EXISTS settlement_note TEXT;
+
     CREATE INDEX IF NOT EXISTS
       demo_bets_customer_match_idx
       ON demo_bets(
@@ -401,98 +351,46 @@ export async function issueCustomerSession(
         expires_at
       )
       VALUES(
-        $1,
-        $2,
-        NOW()+INTERVAL '30 days'
+        $1,$2,NOW()+INTERVAL '30 days'
       )
     `,
     [hash(token), customerId],
   );
 
-  res.cookie(
-    'tsb_demo_session',
-    token,
-    {
-      httpOnly: true,
-      sameSite: 'lax',
-
-      secure:
-        process.env.NODE_ENV ===
-        'production',
-
-      maxAge: 30 * 86400000,
-      path: '/',
-    },
-  );
+  res.cookie('tsb_demo_session', token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure:
+      process.env.NODE_ENV === 'production',
+    maxAge: 30 * 86400000,
+    path: '/',
+  });
 }
 
 export function publicBet(row) {
   return {
     id: String(row.id),
-
-    customerId:
-      row.customer_id,
-
-    matchId:
-      row.match_id,
-
-    matchName:
-      row.match_name,
-
-    matchDate:
-      row.match_date,
-
-    marketId:
-      row.market_id,
-
-    market:
-      row.market,
-
-    selection:
-      row.selection,
-
-    selectionId:
-      row.selection_id,
-
-    type:
-      row.bet_type,
-
-    rate:
-      row.rate,
-
-    payoutRate:
-      Number(row.payout_rate),
-
-    stake:
-      Number(row.stake),
-
-    status:
-      row.status,
-
-    result:
-      row.result,
-
-    payout:
-      Number(row.payout),
-
-    profitLoss:
-      Number(row.profit_loss),
-
-    balanceBefore:
-      Number(row.balance_before),
-
-    balanceAfter:
-      Number(row.balance_after),
-
-    createdAt:
-      row.created_at,
-
-    settledAt:
-      row.settled_at,
-
-    provider:
-      row.provider || 'DEMO_MOCK',
-
+    customerId: row.customer_id,
+    matchId: row.match_id,
+    matchName: row.match_name,
+    matchDate: row.match_date,
+    marketId: row.market_id,
+    market: row.market,
+    selection: row.selection,
+    selectionId: row.selection_id,
+    type: row.bet_type,
+    rate: row.rate,
+    payoutRate: Number(row.payout_rate),
+    stake: Number(row.stake),
+    status: row.status,
+    result: row.result,
+    payout: Number(row.payout),
+    profitLoss: Number(row.profit_loss),
+    balanceBefore: Number(row.balance_before),
+    balanceAfter: Number(row.balance_after),
+    createdAt: row.created_at,
+    settledAt: row.settled_at,
+    provider: row.provider || 'DEMO_MOCK',
     simulationOnly: true,
   };
 }
@@ -504,16 +402,12 @@ export function resolveFancyResult({
   selection,
 }) {
   if (
-    ![
-      noLine,
-      yesLine,
-      finalScore,
-    ].every(Number.isSafeInteger) ||
+    ![noLine, yesLine, finalScore].every(
+      Number.isSafeInteger,
+    ) ||
     !['NO', 'YES'].includes(selection)
   ) {
-    throw new Error(
-      'Invalid result input.',
-    );
+    throw new Error('Invalid result input.');
   }
 
   if (
@@ -522,75 +416,47 @@ export function resolveFancyResult({
       yesLine === noLine + 1
     )
   ) {
-    throw new Error(
-      'Unsupported line gap.',
-    );
+    throw new Error('Unsupported line gap.');
   }
 
-  const yesWon =
-    finalScore >= yesLine;
+  const yesWon = finalScore >= yesLine;
 
   return (
-    selection === 'YES'
-      ? yesWon
-      : !yesWon
+    selection === 'YES' ? yesWon : !yesWon
   )
     ? 'WON'
     : 'LOST';
 }
 
-export function registerDemoBetRoutes(
-  app,
-  pool,
-) {
-  const wrap = fn =>
-    (req, res, next) =>
-      Promise.resolve(
-        fn(req, res, next),
-      ).catch(error => {
-        if (
-          error.status &&
-          !res.headersSent
-        ) {
-          return res
-            .status(error.status)
-            .json({
-              error: error.message,
+export function registerDemoBetRoutes(app, pool) {
+  const wrap = fn => (req, res, next) =>
+    Promise.resolve(
+      fn(req, res, next),
+    ).catch(error => {
+      if (error.status && !res.headersSent) {
+        return res.status(error.status).json({
+          error: error.message,
 
-              ...(
-                Number.isFinite(
-                  error.balance,
-                )
-                  ? {
-                      balance:
-                        error.balance,
-                    }
-                  : {}
-              ),
-            });
-        }
+          ...(Number.isFinite(error.balance)
+            ? { balance: error.balance }
+            : {}),
+        });
+      }
 
-        next(error);
-      });
+      next(error);
+    });
 
-  // Customer settlement is permanently disabled here.
-  // This also blocks older cached customer pages.
-  // Admin settlement must use a separate authenticated
-  // admin route, never customer cookies or client role flags.
+  // Old customer settlement endpoint stays blocked.
   app.post(
     '/api/demo-bets/:id/simulate-settlement',
 
     (req, res) => {
-      res.set(
-        'Cache-Control',
-        'no-store',
-      );
+      res.set('Cache-Control', 'no-store');
 
       return res.status(403).json({
         success: false,
 
-        code:
-          'CUSTOMER_SETTLEMENT_DISABLED',
+        code: 'CUSTOMER_SETTLEMENT_DISABLED',
 
         error:
           'Customer settlement is disabled. Results must be managed through the administrator panel.',
@@ -616,9 +482,7 @@ export function registerDemoBetRoutes(
           'tsb_demo_session='.length,
         ) || '';
 
-      if (
-        !/^[a-f0-9]{64}$/.test(token)
-      ) {
+      if (!/^[a-f0-9]{64}$/.test(token)) {
         throw reject(
           'Please logout and login again.',
           401,
@@ -639,10 +503,7 @@ export function registerDemoBetRoutes(
         )
       ).rows[0];
 
-      if (
-        !row ||
-        row.status !== 'ACTIVE'
-      ) {
+      if (!row || row.status !== 'ACTIVE') {
         throw reject(
           'Session expired. Please login again.',
           401,
@@ -655,37 +516,416 @@ export function registerDemoBetRoutes(
     },
   );
 
-  const sameOrigin = (
-    req,
-    res,
-    next,
-  ) => {
+  const sameOrigin = (req, res, next) => {
     if (req.headers.origin) {
       try {
         if (
-          new URL(
-            req.headers.origin,
-          ).host !== req.headers.host
+          new URL(req.headers.origin).host !==
+          req.headers.host
         ) {
-          return res
-            .status(403)
-            .json({
-              error:
-                'Invalid request origin.',
-            });
+          return res.status(403).json({
+            error: 'Invalid request origin.',
+          });
         }
       } catch {
-        return res
-          .status(403)
-          .json({
-            error:
-              'Invalid request origin.',
-          });
+        return res.status(403).json({
+          error: 'Invalid request origin.',
+        });
       }
     }
 
     next();
   };
+
+  // index.js applies requireOldAdmin(pool) to /api/admin
+  // before registering this module.
+  // Never trust a role or admin ID sent in the request body.
+  const requireVerifiedAdmin = (
+    req,
+    res,
+    next,
+  ) => {
+    const actor = req.verifiedAdminId;
+
+    if (
+      !['string', 'number'].includes(
+        typeof actor,
+      ) ||
+      !String(actor).trim()
+    ) {
+      return res.status(403).json({
+        error:
+          'Verified administrator session required.',
+      });
+    }
+
+    next();
+  };
+
+  app.get(
+    '/api/admin/demo-bets',
+    requireVerifiedAdmin,
+
+    wrap(async (req, res) => {
+      const status = String(
+        req.query.status || '',
+      ).trim().toUpperCase();
+
+      const customerId = String(
+        req.query.customerId || '',
+      ).trim();
+
+      const matchId = String(
+        req.query.matchId || '',
+      ).trim();
+
+      if (
+        (
+          status &&
+          ![
+            'MATCHED',
+            'UNMATCHED',
+            'SETTLED',
+          ].includes(status)
+        ) ||
+        (
+          customerId &&
+          !/^[1-9]\d{0,9}$/.test(customerId)
+        ) ||
+        Number(customerId) > 2147483647 ||
+        matchId.length > 200
+      ) {
+        throw reject(
+          'Invalid bet list filters.',
+          400,
+        );
+      }
+
+      const result = await pool.query(
+        `
+          SELECT
+            b.*,
+            c.name AS customer_name,
+            c.login_id
+          FROM demo_bets b
+          JOIN customers c
+            ON c.id=b.customer_id
+          WHERE (
+            $1::TEXT=''
+            OR b.status=$1::TEXT
+          )
+          AND (
+            $2::TEXT=''
+            OR b.customer_id::TEXT=$2::TEXT
+          )
+          AND (
+            $3::TEXT=''
+            OR b.match_id=$3::TEXT
+          )
+          ORDER BY
+            b.created_at DESC,
+            b.id DESC
+          LIMIT 200
+        `,
+        [status, customerId, matchId],
+      );
+
+      res.set('Cache-Control', 'no-store');
+
+      res.json({
+        success: true,
+
+        bets: result.rows.map(row => ({
+          ...publicBet(row),
+          customerName: row.customer_name,
+          loginId: row.login_id,
+
+          settledByAdmin:
+            row.settled_by_admin || null,
+
+          settlementNote:
+            row.settlement_note || null,
+        })),
+      });
+    }),
+  );
+
+  app.post(
+    '/api/admin/demo-bets/:id/settle',
+    requireVerifiedAdmin,
+    sameOrigin,
+
+    wrap(async (req, res) => {
+      const betId = String(
+        req.params.id || '',
+      );
+
+      const outcome = String(
+        req.body?.outcome || '',
+      ).trim().toUpperCase();
+
+      const note = String(
+        req.body?.note ||
+          'Admin demo settlement',
+      ).trim();
+
+      if (
+        !/^[1-9]\d{0,17}$/.test(betId) ||
+        !['WON', 'LOST'].includes(outcome) ||
+        !note ||
+        note.length > 500
+      ) {
+        throw reject(
+          'Valid bet ID, WON or LOST outcome, and a note up to 500 characters are required.',
+          400,
+        );
+      }
+
+      const client = await pool.connect();
+
+      try {
+        await client.query('BEGIN');
+
+        // Customer is locked before bet to match placement.
+        const identity = (
+          await client.query(
+            `
+              SELECT customer_id
+              FROM demo_bets
+              WHERE id=$1
+            `,
+            [betId],
+          )
+        ).rows[0];
+
+        if (!identity) {
+          throw reject(
+            'Demo bet not found.',
+            404,
+          );
+        }
+
+        const customer = (
+          await client.query(
+            `
+              SELECT
+                id,
+                status,
+                demo_coin_balance
+              FROM customers
+              WHERE id=$1
+              FOR UPDATE
+            `,
+            [identity.customer_id],
+          )
+        ).rows[0];
+
+        if (!customer) {
+          throw reject(
+            'Customer account not found.',
+            404,
+          );
+        }
+
+        const bet = (
+          await client.query(
+            `
+              SELECT *
+              FROM demo_bets
+              WHERE id=$1
+                AND customer_id=$2
+              FOR UPDATE
+            `,
+            [betId, identity.customer_id],
+          )
+        ).rows[0];
+
+        if (!bet) {
+          throw reject(
+            'Demo bet not found.',
+            404,
+          );
+        }
+
+        res.set(
+          'Cache-Control',
+          'no-store',
+        );
+
+        if (bet.status === 'SETTLED') {
+          if (bet.result !== outcome) {
+            throw reject(
+              'This bet is already settled with a different result.',
+            );
+          }
+
+          await client.query('COMMIT');
+
+          return res.json({
+            success: true,
+            alreadySettled: true,
+
+            balance: Number(
+              customer.demo_coin_balance,
+            ),
+
+            bet: publicBet(bet),
+            simulationOnly: true,
+          });
+        }
+
+        if (
+          bet.status !== 'MATCHED' ||
+          bet.result !== 'PENDING'
+        ) {
+          throw reject(
+            'Only matched pending bets can be settled.',
+          );
+        }
+
+        if (
+          customer.status !== 'ACTIVE'
+        ) {
+          throw reject(
+            'Customer account is not active.',
+            403,
+          );
+        }
+
+        if (
+          ![
+            'DEMO_MOCK',
+            'SPORTBEX_DEMO',
+          ].includes(
+            bet.provider || 'DEMO_MOCK',
+          )
+        ) {
+          throw reject(
+            'Unsupported demo bet provider.',
+          );
+        }
+
+        const stake =
+          Number(bet.stake);
+
+        const rate =
+          Number(bet.payout_rate);
+
+        const before = Number(
+          customer.demo_coin_balance,
+        );
+
+        if (
+          !Number.isSafeInteger(stake) ||
+          stake < 100 ||
+          stake > 25000 ||
+          !Number.isFinite(rate) ||
+          rate <= 1 ||
+          !Number.isSafeInteger(before) ||
+          before < 0
+        ) {
+          throw reject(
+            'Invalid saved demo bet or balance.',
+          );
+        }
+
+        const payout =
+          outcome === 'WON'
+            ? Math.round(stake * rate)
+            : 0;
+
+        const after = before + payout;
+
+        if (
+          !Number.isSafeInteger(payout) ||
+          payout < 0 ||
+          payout > 2147483647 ||
+          !Number.isSafeInteger(after) ||
+          after > 2147483647
+        ) {
+          throw reject(
+            'Demo balance limit exceeded.',
+          );
+        }
+
+        const actor = String(
+          req.verifiedAdminId,
+        );
+
+        const updated = (
+          await client.query(
+            `
+              UPDATE demo_bets
+              SET status='SETTLED',
+                  result=$1,
+                  payout=$2,
+                  profit_loss=$2-stake,
+                  balance_after=$3,
+                  settled_at=NOW(),
+                  settled_by_admin=$4,
+                  settlement_note=$5
+              WHERE id=$6
+              RETURNING *
+            `,
+            [
+              outcome,
+              payout,
+              after,
+              actor,
+              note,
+              betId,
+            ],
+          )
+        ).rows[0];
+
+        await client.query(
+          `
+            UPDATE customers
+            SET demo_coin_balance=$1,
+                updated_at=NOW()
+            WHERE id=$2
+          `,
+          [after, identity.customer_id],
+        );
+
+        if (payout > 0) {
+          await client.query(
+            `
+              INSERT INTO demo_coin_transactions(
+                customer_id,
+                amount,
+                transaction_type,
+                note
+              )
+              VALUES(
+                $1,$2,'BET_PAYOUT',$3
+              )
+            `,
+            [
+              identity.customer_id,
+              payout,
+
+              `Demo bet #${betId} WON; held stake included; Admin ${actor}; ${note}`,
+            ],
+          );
+        }
+
+        await client.query('COMMIT');
+
+        res.json({
+          success: true,
+          balance: after,
+          bet: publicBet(updated),
+          simulationOnly: true,
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    }),
+  );
 
   async function savedProviderEvent(
     client,
@@ -719,10 +959,7 @@ export function registerDemoBetRoutes(
     };
 
     const event = sportsService
-      .rawEvents(
-        'cricket',
-        row,
-      )
+      .rawEvents('cricket', row)
       .find(
         item =>
           String(
@@ -741,53 +978,28 @@ export function registerDemoBetRoutes(
 
     return {
       event,
-
       state:
-        sportsService.state(
-          'cricket',
-          row,
-        ),
+        sportsService.state('cricket', row),
     };
   }
 
   const requestHash = body =>
-    hash(
-      JSON.stringify([
-        String(
-          body.matchId || '',
-        ),
+    hash(JSON.stringify([
+      String(body.matchId || ''),
+      String(body.marketId || ''),
+      String(body.selection || ''),
+      String(body.selectionId || ''),
+      String(body.type || ''),
+      Number(body.stake),
 
-        String(
-          body.marketId || '',
-        ),
+      body.expectedRate == null
+        ? null
+        : String(body.expectedRate),
 
-        String(
-          body.selection || '',
-        ),
-
-        String(
-          body.selectionId || '',
-        ),
-
-        String(
-          body.type || '',
-        ),
-
-        Number(body.stake),
-
-        body.expectedRate == null
-          ? null
-          : String(
-              body.expectedRate,
-            ),
-
-        body.expectedPayoutRate == null
-          ? null
-          : Number(
-              body.expectedPayoutRate,
-            ),
-      ]),
-    );
+      body.expectedPayoutRate == null
+        ? null
+        : Number(body.expectedPayoutRate),
+    ]));
 
   app.get(
     '/api/demo-bets/markets',
@@ -798,16 +1010,11 @@ export function registerDemoBetRoutes(
         req.query.matchId || '',
       );
 
-      res.set(
-        'Cache-Control',
-        'no-store',
-      );
+      res.set('Cache-Control', 'no-store');
 
       if (
         providerMode() &&
-        matchId.startsWith(
-          'sportbex_',
-        )
+        matchId.startsWith('sportbex_')
       ) {
         const client =
           await pool.connect();
@@ -815,13 +1022,11 @@ export function registerDemoBetRoutes(
         try {
           await client.query('BEGIN');
 
-          const {
-            event,
-            state,
-          } = await savedProviderEvent(
-            client,
-            matchId,
-          );
+          const { event, state } =
+            await savedProviderEvent(
+              client,
+              matchId,
+            );
 
           const quotes = providerQuotes(
             event,
@@ -839,17 +1044,13 @@ export function registerDemoBetRoutes(
 
             bettingAllowed:
               quotes.some(
-                quote =>
-                  quote.allowed,
+                quote => quote.allowed,
               ),
 
             simulationOnly: true,
           });
         } catch (error) {
-          await client.query(
-            'ROLLBACK',
-          );
-
+          await client.query('ROLLBACK');
           throw error;
         } finally {
           client.release();
@@ -888,9 +1089,7 @@ export function registerDemoBetRoutes(
             ? DEMO_MARKETS
             : [],
 
-        teams:
-          teamRows(event),
-
+        teams: teamRows(event),
         event,
 
         bettingAllowed:
@@ -918,7 +1117,6 @@ export function registerDemoBetRoutes(
           `
             SELECT
               c.demo_coin_balance,
-
               COALESCE(
                 (
                   SELECT json_agg(
@@ -935,7 +1133,6 @@ export function registerDemoBetRoutes(
                 ),
                 '[]'::JSON
               ) AS bets
-
             FROM customers c
             WHERE c.id=$1
           `,
@@ -953,24 +1150,16 @@ export function registerDemoBetRoutes(
         );
       }
 
-      res.set(
-        'Cache-Control',
-        'no-store',
-      );
+      res.set('Cache-Control', 'no-store');
 
       res.json({
         success: true,
-
-        customerId:
-          req.demoCustomerId,
+        customerId: req.demoCustomerId,
 
         balance:
-          Number(
-            row.demo_coin_balance,
-          ),
+          Number(row.demo_coin_balance),
 
-        bets:
-          row.bets.map(publicBet),
+        bets: row.bets.map(publicBet),
       });
     }),
   );
@@ -982,9 +1171,7 @@ export function registerDemoBetRoutes(
 
     wrap(async (req, res) => {
       const body = req.body || {};
-
-      const amount =
-        Number(body.stake);
+      const amount = Number(body.stake);
 
       const requestKey = String(
         body.requestKey || '',
@@ -1072,8 +1259,7 @@ export function registerDemoBetRoutes(
 
         if (previous) {
           if (
-            previous.match_id !==
-              matchId ||
+            previous.match_id !== matchId ||
             previous.market_id !==
               body.marketId ||
             previous.selection !==
@@ -1093,35 +1279,27 @@ export function registerDemoBetRoutes(
             );
           }
 
-          await client.query(
-            'COMMIT',
-          );
+          await client.query('COMMIT');
 
           return res.json({
             success: true,
             replayed: true,
 
-            balance:
-              Number(
-                customer.demo_coin_balance,
-              ),
+            balance: Number(
+              customer.demo_coin_balance,
+            ),
 
-            bet:
-              publicBet(previous),
+            bet: publicBet(previous),
           });
         }
 
         let event;
         let quote;
-
-        let provider =
-          'DEMO_MOCK';
+        let provider = 'DEMO_MOCK';
 
         if (
           providerMode() &&
-          matchId.startsWith(
-            'sportbex_',
-          )
+          matchId.startsWith('sportbex_')
         ) {
           const saved =
             await savedProviderEvent(
@@ -1140,13 +1318,10 @@ export function registerDemoBetRoutes(
               item.marketId ===
                 body.marketId &&
               item.selectionId ===
-                String(
-                  body.selectionId,
-                ) &&
+                String(body.selectionId) &&
               item.selection ===
                 body.selection &&
-              item.type ===
-                body.type,
+              item.type === body.type,
           );
 
           if (!quote?.allowed) {
@@ -1157,9 +1332,8 @@ export function registerDemoBetRoutes(
 
           if (
             body.expectedRate == null ||
-            Number(
-              body.expectedRate,
-            ) !== Number(quote.rate) ||
+            Number(body.expectedRate) !==
+              Number(quote.rate) ||
             Number(
               body.expectedPayoutRate,
             ) !== quote.payoutRate
@@ -1179,8 +1353,7 @@ export function registerDemoBetRoutes(
             );
           }
 
-          provider =
-            'SPORTBEX_DEMO';
+          provider = 'SPORTBEX_DEMO';
         } else {
           if (!demoMode()) {
             throw reject(
@@ -1194,9 +1367,7 @@ export function registerDemoBetRoutes(
               matchId,
             );
 
-          if (
-            body.type === 'FANCY'
-          ) {
+          if (body.type === 'FANCY') {
             const item =
               event.sport === 'cricket' &&
               DEMO_MARKETS.find(
@@ -1218,14 +1389,9 @@ export function registerDemoBetRoutes(
             }
 
             quote = {
-              market:
-                item.title,
-
-              selection:
-                body.selection,
-
-              type:
-                'FANCY',
+              market: item.title,
+              selection: body.selection,
+              type: 'FANCY',
 
               rate:
                 body.selection === 'YES'
@@ -1262,15 +1428,9 @@ export function registerDemoBetRoutes(
                 : team.lay;
 
             quote = {
-              market:
-                'Match Odds',
-
-              selection:
-                body.selection,
-
-              type:
-                body.type,
-
+              market: 'Match Odds',
+              selection: body.selection,
+              type: body.type,
               rate,
 
               payoutRate:
@@ -1283,13 +1443,11 @@ export function registerDemoBetRoutes(
           }
         }
 
-        const before =
-          Number(
-            customer.demo_coin_balance,
-          );
+        const before = Number(
+          customer.demo_coin_balance,
+        );
 
-        const after =
-          before - amount;
+        const after = before - amount;
 
         if (after < 0) {
           throw Object.assign(
@@ -1302,14 +1460,10 @@ export function registerDemoBetRoutes(
         }
 
         const payoutRate =
-          rounded(
-            quote.payoutRate,
-          );
+          rounded(quote.payoutRate);
 
         if (
-          !Number.isFinite(
-            payoutRate,
-          ) ||
+          !Number.isFinite(payoutRate) ||
           payoutRate <= 1 ||
           payoutRate >= 100000000 ||
           !Number.isSafeInteger(
@@ -1376,10 +1530,7 @@ export function registerDemoBetRoutes(
               before,
               after,
               provider,
-
-              quote.selectionId ||
-                null,
-
+              quote.selectionId || null,
               fingerprint,
             ],
           )
@@ -1407,10 +1558,7 @@ export function registerDemoBetRoutes(
               note
             )
             VALUES(
-              $1,
-              $2,
-              'BET_STAKE',
-              $3
+              $1,$2,'BET_STAKE',$3
             )
           `,
           [
@@ -1420,22 +1568,15 @@ export function registerDemoBetRoutes(
           ],
         );
 
-        await client.query(
-          'COMMIT',
-        );
+        await client.query('COMMIT');
 
         res.status(201).json({
           success: true,
           balance: after,
-
-          bet:
-            publicBet(inserted),
+          bet: publicBet(inserted),
         });
       } catch (error) {
-        await client.query(
-          'ROLLBACK',
-        );
-
+        await client.query('ROLLBACK');
         throw error;
       } finally {
         client.release();
