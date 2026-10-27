@@ -25,14 +25,8 @@ const CONTROLLER_GAMES = [
     name: "ROULETTE",
     icon: "🎡",
     gamePath: "/games/roulette",
-    controllerPath: "/game-control/roulette",
-  },
-  {
-    id: "DEAL_OR_NO_DEAL",
-    name: "DEAL OR NO DEAL",
-    icon: "💼",
-    gamePath: "/games/deal-or-no-deal",
-    controllerPath: "/game-control/deal-or-no-deal",
+    controllerPath:
+      "/game-control/roulette",
   },
 ];
 
@@ -42,7 +36,10 @@ const inputClass =
 const buttonClass =
   "rounded-lg bg-[#791b3e] px-4 py-2 text-sm font-bold text-white disabled:opacity-40";
 
-async function jsonRequest(url, options = {}) {
+async function jsonRequest(
+  url,
+  options = {},
+) {
   const response = await fetch(url, {
     credentials: "same-origin",
     cache: "no-store",
@@ -52,7 +49,10 @@ async function jsonRequest(url, options = {}) {
       Accept: "application/json",
 
       ...(options.body
-        ? { "Content-Type": "application/json" }
+        ? {
+            "Content-Type":
+              "application/json",
+          }
         : {}),
 
       ...options.headers,
@@ -62,7 +62,8 @@ async function jsonRequest(url, options = {}) {
   let data;
 
   try {
-    data = await response.json();
+    data =
+      await response.json();
   } catch {
     throw new Error(
       "Server response was not JSON. Check deployment.",
@@ -71,15 +72,24 @@ async function jsonRequest(url, options = {}) {
 
   if (!response.ok) {
     throw Object.assign(
-      new Error(data.error || "Request failed."),
-      { status: response.status },
+      new Error(
+        data.error ||
+          "Request failed.",
+      ),
+      {
+        status:
+          response.status,
+      },
     );
   }
 
   return data;
 }
 
-const request = (path, options = {}) =>
+const request = (
+  path,
+  options = {},
+) =>
   jsonRequest(
     `/api/playing-history${path}`,
     options,
@@ -87,58 +97,96 @@ const request = (path, options = {}) =>
 
 const amountText = value =>
   value == null ||
-  !Number.isFinite(Number(value))
+  !Number.isFinite(
+    Number(value),
+  )
     ? "—"
-    : Number(value).toLocaleString("en-IN", {
-        maximumFractionDigits: 2,
-      });
+    : Number(value).toLocaleString(
+        "en-IN",
+        {
+          maximumFractionDigits: 2,
+        },
+      );
 
 const dateText = value => {
   if (!value) return "—";
 
-  const date = new Date(value);
+  const date =
+    new Date(value);
 
-  return Number.isFinite(date.getTime())
-    ? date.toLocaleString("en-IN", {
-        timeZone: "Asia/Kolkata",
-      }) + " IST"
+  return Number.isFinite(
+    date.getTime(),
+  )
+    ? date.toLocaleString(
+        "en-IN",
+        {
+          timeZone:
+            "Asia/Kolkata",
+        },
+      ) + " IST"
     : "—";
 };
 
-function LinkBox({ label, path }) {
-  const inputRef = useRef(null);
-  const [message, setMessage] = useState("");
+function LinkBox({
+  label,
+  path,
+}) {
+  const inputRef =
+    useRef(null);
 
-  const url = new URL(
-    path,
-    window.location.origin,
-  ).href;
+  const [message, setMessage] =
+    useState("");
+
+  const url =
+    new URL(
+      path,
+      window.location.origin,
+    ).href;
 
   const copy = async () => {
     setMessage("");
 
     try {
-      if (!navigator.clipboard?.writeText) {
-        throw new Error("Clipboard unavailable");
+      if (
+        !navigator.clipboard
+          ?.writeText
+      ) {
+        throw new Error(
+          "Clipboard unavailable",
+        );
       }
 
-      await navigator.clipboard.writeText(url);
-      setMessage("Link copied");
+      await navigator.clipboard
+        .writeText(url);
+
+      setMessage(
+        "Link copied",
+      );
     } catch {
-      const input = inputRef.current;
+      const input =
+        inputRef.current;
 
       if (!input) {
-        setMessage("Select the link and copy it.");
+        setMessage(
+          "Select the link and copy it.",
+        );
+
         return;
       }
 
       input.focus();
       input.select();
-      input.setSelectionRange(0, url.length);
+
+      input.setSelectionRange(
+        0,
+        url.length,
+      );
 
       try {
         setMessage(
-          document.execCommand("copy")
+          document.execCommand(
+            "copy",
+          )
             ? "Link copied"
             : "Link selected. Long press and copy.",
         );
@@ -163,7 +211,9 @@ function LinkBox({ label, path }) {
           readOnly
           value={url}
           spellCheck={false}
-          onFocus={event => event.target.select()}
+          onFocus={event =>
+            event.target.select()
+          }
           className="w-full min-w-0 rounded-lg border border-teal-700 bg-[#041f1c] px-2 py-2 text-[11px] text-white outline-none focus:border-cyan-300"
         />
       </label>
@@ -200,87 +250,206 @@ function LinkBox({ label, path }) {
   );
 }
 
+function ControllerAccountCards({
+  onOpen,
+}) {
+  return (
+    <section className="mt-5 rounded-xl border border-teal-700 bg-[#061c1a] p-4 text-white">
+      <h2 className="font-black text-amber-200">
+        AVIATOR &amp; ROULETTE
+        CONTROLLER ACCOUNTS
+      </h2>
+
+      <p className="mt-2 text-xs leading-6 text-cyan-100">
+        Create new IDs · Block / Unblock
+        old IDs · Remove IDs · Reset
+        passwords
+      </p>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        {CONTROLLER_GAMES.map(game => (
+          <article
+            key={game.id}
+            className="min-w-0 overflow-hidden rounded-xl border border-teal-700 bg-[#083d37]"
+          >
+            <div className="p-4">
+              <h3 className="font-black text-amber-200">
+                {game.icon} {game.name}
+              </h3>
+
+              <button
+                type="button"
+                onClick={() =>
+                  onOpen(game.id)
+                }
+                className="mt-4 w-full rounded-lg bg-amber-400 px-3 py-3 text-xs font-black text-black"
+              >
+                CREATE / MANAGE{" "}
+                {game.name} IDs ›
+              </button>
+            </div>
+
+            <div className="border-t border-teal-700 p-3">
+              <LinkBox
+                label={`${game.name} Controller Login Link`}
+                path={
+                  game.controllerPath
+                }
+              />
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function AdminAccounts() {
-  const [accounts, setAccounts] = useState([]);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [accounts, setAccounts] =
+    useState([]);
 
-  const [form, setForm] = useState({
-    name: "",
-    loginId: "",
-    temporaryPassword: "",
-    canSettle: false,
-  });
+  const [error, setError] =
+    useState("");
 
-  const load = useCallback(async () => {
-    try {
-      const data = await request("/admins");
+  const [message, setMessage] =
+    useState("");
 
-      setAccounts(data.accounts);
-      setError("");
-    } catch (failure) {
-      setError(failure.message);
-    }
-  }, []);
+  const [busy, setBusy] =
+    useState(false);
+
+  const [form, setForm] =
+    useState({
+      name: "",
+      loginId: "",
+      temporaryPassword: "",
+      canSettle: false,
+    });
+
+  const pending =
+    useRef(false);
+
+  const load =
+    useCallback(async () => {
+      try {
+        const data =
+          await request(
+            "/admins",
+          );
+
+        if (
+          !Array.isArray(
+            data.accounts,
+          )
+        ) {
+          throw new Error(
+            "Invalid Admin account list response.",
+          );
+        }
+
+        setAccounts(
+          data.accounts,
+        );
+
+        setError("");
+      } catch (failure) {
+        setError(
+          failure.message,
+        );
+      }
+    }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const create = async event => {
-    event.preventDefault();
+  const create =
+    async event => {
+      event.preventDefault();
 
-    if (busy) return;
+      if (
+        pending.current
+      ) {
+        return;
+      }
 
-    setBusy(true);
-    setError("");
-    setMessage("");
+      pending.current = true;
 
-    try {
-      await request("/admins", {
-        method: "POST",
-        body: JSON.stringify(form),
-      });
+      setBusy(true);
+      setError("");
+      setMessage("");
 
-      setForm({
-        name: "",
-        loginId: "",
-        temporaryPassword: "",
-        canSettle: false,
-      });
+      try {
+        await request(
+          "/admins",
+          {
+            method: "POST",
+            body:
+              JSON.stringify(
+                form,
+              ),
+          },
+        );
 
-      setMessage(
-        "New Admin created. They sign in at /new-admin and change their temporary password.",
-      );
+        setForm({
+          name: "",
+          loginId: "",
+          temporaryPassword: "",
+          canSettle: false,
+        });
 
-      await load();
-    } catch (failure) {
-      setError(failure.message);
-    } finally {
-      setBusy(false);
+        setMessage(
+          "New Admin created. They sign in at /new-admin and change their temporary password.",
+        );
+
+        await load();
+      } catch (failure) {
+        setError(
+          failure.message,
+        );
+      } finally {
+        pending.current =
+          false;
+
+        setBusy(false);
+      }
+    };
+
+  const update = async (
+    account,
+    changes,
+  ) => {
+    if (
+      pending.current
+    ) {
+      return;
     }
-  };
 
-  const update = async (account, changes) => {
-    if (busy) return;
+    pending.current = true;
 
     setBusy(true);
     setError("");
     setMessage("");
 
     try {
-      await request(`/admins/${account.id}`, {
-        method: "PATCH",
+      await request(
+        `/admins/${account.id}`,
+        {
+          method: "PATCH",
 
-        body: JSON.stringify({
-          active: account.active,
-          canView: account.canView,
-          canSettle: account.canSettle,
-          version: account.version,
-          ...changes,
-        }),
-      });
+          body:
+            JSON.stringify({
+              active:
+                account.active,
+              canView:
+                account.canView,
+              canSettle:
+                account.canSettle,
+              version:
+                account.version,
+              ...changes,
+            }),
+        },
+      );
 
       setMessage(
         "Account saved. Previous sessions revoked; the New Admin must log in again.",
@@ -288,8 +457,11 @@ function AdminAccounts() {
 
       await load();
     } catch (failure) {
-      setError(failure.message);
+      setError(
+        failure.message,
+      );
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   };
@@ -301,8 +473,9 @@ function AdminAccounts() {
       </h2>
 
       <p className="mt-1 text-xs text-slate-600">
-        These accounts access Playing History only.
-        Game Controller IDs remain separate.
+        These accounts access Playing
+        History only. Aviator and Roulette
+        Controller IDs are managed below.
       </p>
 
       <form
@@ -326,18 +499,31 @@ function AdminAccounts() {
             <input
               className={`${inputClass} mt-1 w-full`}
               type={
-                name === "temporaryPassword"
+                name ===
+                "temporaryPassword"
                   ? "password"
                   : "text"
               }
+              minLength={
+                name ===
+                "temporaryPassword"
+                  ? 12
+                  : undefined
+              }
               required
               value={form[name]}
-              autoComplete="off"
+              autoComplete={
+                name ===
+                "temporaryPassword"
+                  ? "new-password"
+                  : "off"
+              }
               disabled={busy}
               onChange={event =>
                 setForm({
                   ...form,
-                  [name]: event.target.value,
+                  [name]:
+                    event.target.value,
                 })
               }
             />
@@ -347,12 +533,15 @@ function AdminAccounts() {
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
-            checked={form.canSettle}
+            checked={
+              form.canSettle
+            }
             disabled={busy}
             onChange={event =>
               setForm({
                 ...form,
-                canSettle: event.target.checked,
+                canSettle:
+                  event.target.checked,
               })
             }
           />
@@ -393,17 +582,25 @@ function AdminAccounts() {
             key={account.id}
             className="rounded border border-slate-200 p-3"
           >
-            <p className="font-bold">
-              {account.name} · {account.loginId}
+            <p className="break-words font-bold">
+              {account.name} ·{" "}
+              {account.loginId}
             </p>
 
             <p className="mt-1 text-xs">
-              {account.active ? "ACTIVE" : "BLOCKED"}
+              {account.active
+                ? "ACTIVE"
+                : "BLOCKED"}
               {" · "}
-              History: {account.canView ? "YES" : "NO"}
+              History:{" "}
+              {account.canView
+                ? "YES"
+                : "NO"}
               {" · "}
               Sports settlement:{" "}
-              {account.canSettle ? "YES" : "NO"}
+              {account.canSettle
+                ? "YES"
+                : "NO"}
             </p>
 
             <div className="mt-3 flex flex-wrap gap-2">
@@ -412,12 +609,18 @@ function AdminAccounts() {
                 className={buttonClass}
                 disabled={busy}
                 onClick={() =>
-                  update(account, {
-                    active: !account.active,
-                  })
+                  update(
+                    account,
+                    {
+                      active:
+                        !account.active,
+                    },
+                  )
                 }
               >
-                {account.active ? "BLOCK" : "ACTIVATE"}
+                {account.active
+                  ? "BLOCK"
+                  : "ACTIVATE"}
               </button>
 
               <button
@@ -425,13 +628,17 @@ function AdminAccounts() {
                 className={buttonClass}
                 disabled={busy}
                 onClick={() =>
-                  update(account, {
-                    canView: !account.canView,
-
-                    canSettle: account.canView
-                      ? false
-                      : account.canSettle,
-                  })
+                  update(
+                    account,
+                    {
+                      canView:
+                        !account.canView,
+                      canSettle:
+                        account.canView
+                          ? false
+                          : account.canSettle,
+                    },
+                  )
                 }
               >
                 {account.canView
@@ -442,11 +649,18 @@ function AdminAccounts() {
               <button
                 type="button"
                 className={buttonClass}
-                disabled={busy || !account.canView}
+                disabled={
+                  busy ||
+                  !account.canView
+                }
                 onClick={() =>
-                  update(account, {
-                    canSettle: !account.canSettle,
-                  })
+                  update(
+                    account,
+                    {
+                      canSettle:
+                        !account.canSettle,
+                    },
+                  )
                 }
               >
                 {account.canSettle
@@ -459,14 +673,19 @@ function AdminAccounts() {
                 className={buttonClass}
                 disabled={busy}
                 onClick={() => {
-                  const password = window.prompt(
-                    `New temporary password for ${account.loginId} (12+ characters):`,
-                  );
+                  const password =
+                    window.prompt(
+                      `New temporary password for ${account.loginId} (12+ characters):`,
+                    );
 
                   if (password) {
-                    void update(account, {
-                      temporaryPassword: password,
-                    });
+                    void update(
+                      account,
+                      {
+                        temporaryPassword:
+                          password,
+                      },
+                    );
                   }
                 }}
               >
@@ -484,115 +703,173 @@ function AdminSportsSettlement({
   onBack,
   onLogout,
 }) {
-  const [bets, setBets] = useState([]);
-  const [status, setStatus] = useState("MATCHED");
+  const [bets, setBets] =
+    useState([]);
 
-  const [customerInput, setCustomerInput] =
+  const [status, setStatus] =
+    useState("MATCHED");
+
+  const [
+    customerInput,
+    setCustomerInput,
+  ] = useState("");
+
+  const [
+    customerId,
+    setCustomerId,
+  ] = useState("");
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [busy, setBusy] =
+    useState(false);
+
+  const [error, setError] =
     useState("");
 
-  const [customerId, setCustomerId] =
+  const [message, setMessage] =
     useState("");
 
-  const [loading, setLoading] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [
+    selection,
+    setSelection,
+  ] = useState(null);
 
-  const [selection, setSelection] =
-    useState(null);
+  const [note, setNote] =
+    useState("");
 
-  const [note, setNote] = useState("");
+  const mounted =
+    useRef(false);
 
-  const mounted = useRef(false);
-  const busyRef = useRef(false);
-  const selectedRef = useRef(null);
-  const listRequest = useRef(null);
-  const listVersion = useRef(0);
+  const busyRef =
+    useRef(false);
+
+  const selectedRef =
+    useRef(null);
+
+  const listRequest =
+    useRef(null);
+
+  const listVersion =
+    useRef(0);
 
   useEffect(() => {
     mounted.current = true;
 
     return () => {
       mounted.current = false;
-      listVersion.current += 1;
-      listRequest.current?.abort();
+      listVersion.current++;
+
+      listRequest.current
+        ?.abort();
     };
   }, []);
 
-  const load = useCallback(async () => {
-    if (
-      busyRef.current ||
-      selectedRef.current ||
-      !mounted.current
-    ) {
-      return;
-    }
-
-    listRequest.current?.abort();
-
-    const controller = new AbortController();
-
-    listRequest.current = controller;
-
-    const version = ++listVersion.current;
-
-    setLoading(true);
-
-    try {
-      const params = new URLSearchParams();
-
-      if (status) {
-        params.set("status", status);
-      }
-
-      if (customerId) {
-        params.set("customerId", customerId);
-      }
-
-      const data = await jsonRequest(
-        `/api/admin/demo-bets?${params}`,
-        {
-          signal: controller.signal,
-        },
-      );
-
-      if (!Array.isArray(data.bets)) {
-        throw new Error(
-          "Invalid bet list response. Check server deployment.",
-        );
-      }
-
+  const load =
+    useCallback(async () => {
       if (
-        mounted.current &&
-        version === listVersion.current
+        busyRef.current ||
+        selectedRef.current ||
+        !mounted.current
       ) {
-        setBets(data.bets);
-        setError("");
+        return;
       }
-    } catch (failure) {
-      if (
-        mounted.current &&
-        version === listVersion.current &&
-        failure.name !== "AbortError"
-      ) {
-        setBets([]);
-        setError(failure.message);
+
+      listRequest.current
+        ?.abort();
+
+      const controller =
+        new AbortController();
+
+      listRequest.current =
+        controller;
+
+      const version =
+        ++listVersion.current;
+
+      setLoading(true);
+
+      try {
+        const params =
+          new URLSearchParams();
+
+        if (status) {
+          params.set(
+            "status",
+            status,
+          );
+        }
+
+        if (customerId) {
+          params.set(
+            "customerId",
+            customerId,
+          );
+        }
+
+        const data =
+          await jsonRequest(
+            `/api/admin/demo-bets?${params}`,
+            {
+              signal:
+                controller.signal,
+            },
+          );
+
+        if (
+          !Array.isArray(
+            data.bets,
+          )
+        ) {
+          throw new Error(
+            "Invalid bet list response. Check server deployment.",
+          );
+        }
+
+        if (
+          mounted.current &&
+          version ===
+            listVersion.current
+        ) {
+          setBets(data.bets);
+          setError("");
+        }
+      } catch (failure) {
+        if (
+          mounted.current &&
+          version ===
+            listVersion.current &&
+          failure.name !==
+            "AbortError"
+        ) {
+          setBets([]);
+          setError(
+            failure.message,
+          );
+        }
+      } finally {
+        if (
+          mounted.current &&
+          version ===
+            listVersion.current
+        ) {
+          setLoading(false);
+        }
       }
-    } finally {
-      if (
-        mounted.current &&
-        version === listVersion.current
-      ) {
-        setLoading(false);
-      }
-    }
-  }, [status, customerId]);
+    }, [
+      status,
+      customerId,
+    ]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const choose = (bet, outcome) => {
+  const choose = (
+    bet,
+    outcome,
+  ) => {
     if (
       busyRef.current ||
       bet.status !== "MATCHED" ||
@@ -601,8 +878,10 @@ function AdminSportsSettlement({
       return;
     }
 
-    listVersion.current += 1;
-    listRequest.current?.abort();
+    listVersion.current++;
+
+    listRequest.current
+      ?.abort();
 
     const next = {
       bet,
@@ -619,7 +898,11 @@ function AdminSportsSettlement({
   };
 
   const close = () => {
-    if (busyRef.current) return;
+    if (
+      busyRef.current
+    ) {
+      return;
+    }
 
     selectedRef.current = null;
 
@@ -630,89 +913,117 @@ function AdminSportsSettlement({
     void load();
   };
 
-  const settle = async event => {
-    event.preventDefault();
+  const settle =
+    async event => {
+      event.preventDefault();
 
-    const chosen = selectedRef.current;
+      const chosen =
+        selectedRef.current;
 
-    if (
-      busyRef.current ||
-      !chosen ||
-      !note.trim()
-    ) {
-      return;
-    }
-
-    busyRef.current = true;
-
-    setBusy(true);
-    setError("");
-
-    try {
-      const data = await jsonRequest(
-        `/api/admin/demo-bets/${encodeURIComponent(chosen.bet.id)}/settle`,
-        {
-          method: "POST",
-
-          body: JSON.stringify({
-            outcome: chosen.outcome,
-            note: note.trim(),
-          }),
-        },
-      );
-
-      if (!data.success || !data.bet) {
-        throw new Error(
-          "Unable to confirm settlement. Refresh the list before retrying.",
-        );
+      if (
+        busyRef.current ||
+        !chosen ||
+        !note.trim()
+      ) {
+        return;
       }
 
-      if (mounted.current) {
-        selectedRef.current = null;
+      busyRef.current = true;
 
-        setSelection(null);
-        setNote("");
+      setBusy(true);
+      setError("");
 
-        setMessage(
-          `Bet #${chosen.bet.id} ${
-            data.alreadySettled
-              ? "was already settled"
-              : "settled"
-          }: ${data.bet.result}. Customer balance: ₹${amountText(data.balance)}.`,
-        );
+      try {
+        const data =
+          await jsonRequest(
+            `/api/admin/demo-bets/${encodeURIComponent(chosen.bet.id)}/settle`,
+            {
+              method: "POST",
 
-        window.dispatchEvent(
-          new Event("demo-balance-updated"),
-        );
+              body:
+                JSON.stringify({
+                  outcome:
+                    chosen.outcome,
+                  note:
+                    note.trim(),
+                }),
+            },
+          );
 
-        window.dispatchEvent(
-          new Event("demo-bets-updated"),
-        );
-      }
-    } catch (failure) {
-      if (mounted.current) {
-        setError(failure.message);
-      }
-    } finally {
-      busyRef.current = false;
+        if (
+          !data.success ||
+          !data.bet
+        ) {
+          throw new Error(
+            "Unable to confirm settlement. Refresh the list before retrying.",
+          );
+        }
 
-      if (mounted.current) {
-        setBusy(false);
+        if (mounted.current) {
+          selectedRef.current =
+            null;
 
-        if (!selectedRef.current) {
-          void load();
+          setSelection(null);
+          setNote("");
+
+          setMessage(
+            `Bet #${chosen.bet.id} ${
+              data.alreadySettled
+                ? "was already settled"
+                : "settled"
+            }: ${data.bet.result}. Customer balance: ${amountText(data.balance)} demo coins.`,
+          );
+
+          window.dispatchEvent(
+            new Event(
+              "demo-balance-updated",
+            ),
+          );
+
+          window.dispatchEvent(
+            new Event(
+              "demo-bets-updated",
+            ),
+          );
+        }
+      } catch (failure) {
+        if (
+          mounted.current
+        ) {
+          setError(
+            failure.message,
+          );
+        }
+      } finally {
+        busyRef.current = false;
+
+        if (
+          mounted.current
+        ) {
+          setBusy(false);
+
+          if (
+            !selectedRef.current
+          ) {
+            void load();
+          }
         }
       }
-    }
-  };
+    };
 
-  const pending = selection?.bet;
+  const pending =
+    selection?.bet;
 
   const returnAmount =
-    pending && selection.outcome === "WON"
+    pending &&
+    selection.outcome === "WON"
       ? Math.round(
-          Number(pending.stake) *
-          Number(pending.payoutRate),
+          Number(
+            pending.stake,
+          ) *
+          Number(
+            pending.payoutRate,
+          ),
         )
       : 0;
 
@@ -746,12 +1057,14 @@ function AdminSportsSettlement({
         </header>
 
         <p className="mt-4 text-xs leading-6 text-slate-600">
-          Administrator-managed demo balances.
-          WON / LOST describes the result of this
-          individual bet. For LAY or NO, stake is
-          the held liability. A winning return
-          includes the held stake; a loss does
-          not deduct the held stake a second time.
+          Administrator-managed demo
+          balances. WON / LOST describes
+          the result of this individual
+          bet. For LAY or NO, stake is
+          the held liability. A winning
+          return includes the held stake;
+          a loss does not deduct the held
+          stake a second time.
         </p>
 
         <form
@@ -766,13 +1079,17 @@ function AdminSportsSettlement({
               return;
             }
 
-            const value = customerInput.trim();
+            const value =
+              customerInput.trim();
 
             if (
               value &&
               (
-                !/^[1-9]\d{0,9}$/.test(value) ||
-                Number(value) > 2147483647
+                !/^[1-9]\d{0,9}$/.test(
+                  value,
+                ) ||
+                Number(value) >
+                  2147483647
               )
             ) {
               setError(
@@ -782,7 +1099,9 @@ function AdminSportsSettlement({
               return;
             }
 
-            if (value === customerId) {
+            if (
+              value === customerId
+            ) {
               void load();
             } else {
               setCustomerId(value);
@@ -794,9 +1113,14 @@ function AdminSportsSettlement({
 
             <select
               value={status}
-              disabled={busy || Boolean(selection)}
+              disabled={
+                busy ||
+                Boolean(selection)
+              }
               onChange={event =>
-                setStatus(event.target.value)
+                setStatus(
+                  event.target.value,
+                )
               }
               className={`${inputClass} mt-1 block w-full`}
             >
@@ -823,7 +1147,10 @@ function AdminSportsSettlement({
 
             <input
               value={customerInput}
-              disabled={busy || Boolean(selection)}
+              disabled={
+                busy ||
+                Boolean(selection)
+              }
               onChange={event =>
                 setCustomerInput(
                   event.target.value,
@@ -857,14 +1184,15 @@ function AdminSportsSettlement({
           </p>
         )}
 
-        {error && !selection && (
-          <p
-            role="alert"
-            className="mt-3 rounded-lg border border-rose-300 bg-white p-3 text-sm text-rose-800"
-          >
-            {error}
-          </p>
-        )}
+        {error &&
+          !selection && (
+            <p
+              role="alert"
+              className="mt-3 rounded-lg border border-rose-300 bg-white p-3 text-sm text-rose-800"
+            >
+              {error}
+            </p>
+          )}
 
         <p
           role="status"
@@ -893,18 +1221,21 @@ function AdminSportsSettlement({
                 <div>
                   <p className="text-sm font-black">
                     Bet #{bet.id} ·{" "}
-                    {bet.customerName || "Customer"}
+                    {bet.customerName ||
+                      "Customer"}
                   </p>
 
                   <p className="mt-1 text-[11px]">
                     {bet.loginId}
                     {" · "}
-                    Customer ID: {bet.customerId}
+                    Customer ID:{" "}
+                    {bet.customerId}
                   </p>
                 </div>
 
                 <span className="rounded-full border border-white/40 px-2 py-1 text-[10px] font-bold">
-                  {bet.status} · {bet.result}
+                  {bet.status} ·{" "}
+                  {bet.result}
                 </span>
               </div>
 
@@ -934,66 +1265,87 @@ function AdminSportsSettlement({
 
                   <div>
                     <dt className="text-slate-500">
-                      Stake / Risk
+                      Stake / Risk (coins)
                     </dt>
 
                     <dd className="mt-1 font-bold">
-                      ₹{amountText(bet.stake)}
+                      {amountText(
+                        bet.stake,
+                      )}
                     </dd>
                   </div>
 
                   <div>
                     <dt className="text-slate-500">
-                      Return credited
+                      Return credited (coins)
                     </dt>
 
                     <dd className="mt-1 font-bold">
-                      ₹{amountText(bet.payout)}
+                      {amountText(
+                        bet.payout,
+                      )}
                     </dd>
                   </div>
 
                   <div>
                     <dt className="text-slate-500">
-                      Settled P/L
+                      Settled P/L (coins)
                     </dt>
 
                     <dd className="mt-1 font-bold">
-                      ₹{amountText(bet.profitLoss)}
+                      {amountText(
+                        bet.profitLoss,
+                      )}
                     </dd>
                   </div>
                 </dl>
 
                 <p className="mt-3 text-[10px] text-slate-500">
-                  Placed: {dateText(bet.createdAt)}
+                  Placed:{" "}
+                  {dateText(
+                    bet.createdAt,
+                  )}
                 </p>
 
                 {bet.settledAt && (
                   <p className="mt-1 text-[10px] text-slate-500">
-                    Settled: {dateText(bet.settledAt)}
+                    Settled:{" "}
+                    {dateText(
+                      bet.settledAt,
+                    )}
                     {" · "}
                     Admin:{" "}
-                    {bet.settledByAdmin || "Not recorded"}
+                    {bet.settledByAdmin ||
+                      "Not recorded"}
                   </p>
                 )}
 
                 {bet.settlementNote && (
                   <p className="mt-2 break-words text-xs">
-                    Note: {bet.settlementNote}
+                    Note:{" "}
+                    {bet.settlementNote}
                   </p>
                 )}
 
-                {bet.status === "MATCHED" &&
-                  bet.result === "PENDING" && (
+                {bet.status ===
+                  "MATCHED" &&
+                  bet.result ===
+                    "PENDING" && (
                     <div className="mt-4 grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         disabled={
                           busy ||
                           loading ||
-                          Boolean(selection)
+                          Boolean(
+                            selection,
+                          )
                         }
                         onClick={() =>
-                          choose(bet, "WON")
+                          choose(
+                            bet,
+                            "WON",
+                          )
                         }
                         className="rounded-lg bg-[#08b7bc] px-3 py-3 text-xs font-black text-white disabled:opacity-40"
                       >
@@ -1005,12 +1357,19 @@ function AdminSportsSettlement({
                         disabled={
                           busy ||
                           loading ||
-                          Boolean(selection)
+                          Boolean(
+                            selection,
+                          )
                         }
                         onClick={() =>
-                          choose(bet, "LOST")
+                          choose(
+                            bet,
+                            "LOST",
+                          )
                         }
-                        className={buttonClass}
+                        className={
+                          buttonClass
+                        }
                       >
                         BET LOST
                       </button>
@@ -1025,7 +1384,10 @@ function AdminSportsSettlement({
           <div
             className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-3"
             onKeyDown={event => {
-              if (event.key === "Escape") {
+              if (
+                event.key ===
+                "Escape"
+              ) {
                 close();
               }
             }}
@@ -1041,7 +1403,8 @@ function AdminSportsSettlement({
                 id="settlement-title"
                 className="text-lg font-black text-[#791b3e]"
               >
-                CONFIRM BET {selection.outcome}
+                CONFIRM BET{" "}
+                {selection.outcome}
               </h2>
 
               <p className="mt-3 text-sm font-bold">
@@ -1066,22 +1429,30 @@ function AdminSportsSettlement({
 
               <p className="mt-3 text-sm">
                 Held stake / risk:{" "}
-                ₹{amountText(pending.stake)}
+                {amountText(
+                  pending.stake,
+                )}{" "}
+                demo coins
               </p>
 
               <p className="mt-2 text-sm font-bold">
                 Return to credit:{" "}
-                ₹{amountText(returnAmount)}
+                {amountText(
+                  returnAmount,
+                )}{" "}
+                demo coins
               </p>
 
               <p className="mt-2 text-xs leading-5 text-slate-600">
-                {selection.outcome === "WON"
+                {selection.outcome ===
+                "WON"
                   ? "This return includes the stake already held."
                   : "The held stake remains lost. No second debit will be made."}
                 {" "}
                 This action settles this bet.
                 A different result cannot be
-                applied afterward through this page.
+                applied afterward through
+                this page.
               </p>
 
               <label className="mt-4 block text-xs font-bold">
@@ -1094,7 +1465,9 @@ function AdminSportsSettlement({
                   value={note}
                   disabled={busy}
                   onChange={event =>
-                    setNote(event.target.value)
+                    setNote(
+                      event.target.value,
+                    )
                   }
                   placeholder="Reason / result reference"
                   className={`${inputClass} mt-2 min-h-[80px] w-full`}
@@ -1122,8 +1495,13 @@ function AdminSportsSettlement({
 
                 <button
                   type="submit"
-                  disabled={busy || !note.trim()}
-                  className={buttonClass}
+                  disabled={
+                    busy ||
+                    !note.trim()
+                  }
+                  className={
+                    buttonClass
+                  }
                 >
                   {busy
                     ? "SETTLING…"
@@ -1139,24 +1517,43 @@ function AdminSportsSettlement({
 }
 
 const VIEW_HASHES = {
-  NEW_ADMIN_ACCOUNTS: "new-admin-accounts",
-  PLAYING_HISTORY: "playing-history",
-  SPORTS_SETTLEMENT: "sports-settlement",
-  PROMO_CODES: "promo-codes",
-  GAMES: "games",
-  CONTROLLED_SO: "controlled-super-over",
-  AVIATOR: "aviator-controllers",
-  ROULETTE: "roulette-controllers",
-  DEAL_OR_NO_DEAL: "deal-or-no-deal-controllers",
+  NEW_ADMIN_ACCOUNTS:
+    "new-admin-accounts",
+  PLAYING_HISTORY:
+    "playing-history",
+  SPORTS_SETTLEMENT:
+    "sports-settlement",
+  PROMO_CODES:
+    "promo-codes",
+  GAMES:
+    "games",
+  CONTROLLED_SO:
+    "controlled-super-over",
+  AVIATOR:
+    "aviator-controllers",
+  ROULETTE:
+    "roulette-controllers",
 };
 
 function viewFromLocation() {
   const name =
-    window.location.hash.slice(1);
+    window.location.hash
+      .slice(1);
+
+  if (
+    name ===
+    "deal-or-no-deal-controllers"
+  ) {
+    return "NEW_ADMIN_ACCOUNTS";
+  }
 
   return (
-    Object.keys(VIEW_HASHES).find(
-      view => VIEW_HASHES[view] === name,
+    Object.keys(
+      VIEW_HASHES,
+    ).find(
+      view =>
+        VIEW_HASHES[view] ===
+        name,
     ) || "HOME"
   );
 }
@@ -1165,36 +1562,50 @@ export default function AdminManagementShell({
   admin,
   onLogout,
 }) {
-  const [view, updateView] =
-    useState(viewFromLocation);
+  const [
+    view,
+    updateView,
+  ] = useState(
+    viewFromLocation,
+  );
 
-  const [identity, setIdentity] =
-    useState(null);
+  const [
+    identity,
+    setIdentity,
+  ] = useState(null);
 
-  const [error, setError] =
-    useState("");
+  const [
+    error,
+    setError,
+  ] = useState("");
 
   const setView = next => {
     updateView(next);
 
-    const hash = VIEW_HASHES[next]
-      ? `#${VIEW_HASHES[next]}`
-      : "";
+    const hash =
+      VIEW_HASHES[next]
+        ? `#${VIEW_HASHES[next]}`
+        : "";
 
-    window.history.replaceState(
-      null,
-      "",
-      window.location.pathname +
-        window.location.search +
-        hash,
-    );
+    window.history
+      .replaceState(
+        null,
+        "",
+        window.location.pathname +
+          window.location.search +
+          hash,
+      );
 
     window.scrollTo(0, 0);
   };
 
   useEffect(() => {
     const changed = () => {
-      updateView(viewFromLocation());
+      updateView(
+        viewFromLocation(),
+      );
+
+      window.scrollTo(0, 0);
     };
 
     window.addEventListener(
@@ -1219,31 +1630,35 @@ export default function AdminManagementShell({
     const controller =
       new AbortController();
 
-    fetch("/api/playing-history/me", {
-      credentials: "same-origin",
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then(async response => {
-        const data = await response.json();
-
-        if (!response.ok || !data.admin) {
+    jsonRequest(
+      "/api/playing-history/me",
+      {
+        signal:
+          controller.signal,
+      },
+    )
+      .then(data => {
+        if (!data.admin) {
           throw new Error(
-            data.error ||
-              "Unable to verify Admin permissions.",
+            "Unable to verify Admin permissions.",
           );
         }
 
         if (active) {
-          setIdentity(data.admin);
+          setIdentity(
+            data.admin,
+          );
         }
       })
       .catch(failure => {
         if (
           active &&
-          failure.name !== "AbortError"
+          failure.name !==
+            "AbortError"
         ) {
-          setError(failure.message);
+          setError(
+            failure.message,
+          );
         }
       });
 
@@ -1256,7 +1671,9 @@ export default function AdminManagementShell({
   if (error) {
     return (
       <main className="min-h-screen bg-[#061c1a] p-6 text-white">
-        <p role="alert">{error}</p>
+        <p role="alert">
+          {error}
+        </p>
 
         <button
           type="button"
@@ -1277,7 +1694,9 @@ export default function AdminManagementShell({
     );
   }
 
-  if (identity.historyOnly) {
+  if (
+    identity.historyOnly
+  ) {
     return (
       <AdminPlayingHistory
         admin={identity}
@@ -1286,28 +1705,44 @@ export default function AdminManagementShell({
     );
   }
 
-  if (view === "SPORTS_SETTLEMENT") {
+  if (
+    view ===
+    "SPORTS_SETTLEMENT"
+  ) {
     return (
       <AdminSportsSettlement
-        onBack={() => setView("HOME")}
+        onBack={() =>
+          setView("HOME")
+        }
         onLogout={onLogout}
       />
     );
   }
 
-  if (view === "NEW_ADMIN_ACCOUNTS") {
+  if (
+    view ===
+    "NEW_ADMIN_ACCOUNTS"
+  ) {
     return (
       <main className="min-h-screen bg-slate-100 p-4 text-slate-900">
         <div className="mx-auto max-w-5xl">
           <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#063f39] p-4 text-white">
-            <h1 className="text-xl font-black">
-              NEW ADMIN ACCOUNTS
-            </h1>
+            <div>
+              <p className="text-[10px] font-bold tracking-widest text-amber-200">
+                ADMIN CONTROL PANEL
+              </p>
 
-            <div className="flex gap-3">
+              <h1 className="mt-1 text-xl font-black">
+                NEW ADMIN ACCOUNTS
+              </h1>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={() => setView("HOME")}
+                onClick={() =>
+                  setView("HOME")
+                }
                 className="rounded border border-white/30 px-3 py-2"
               >
                 ← ADMIN DASHBOARD
@@ -1324,8 +1759,9 @@ export default function AdminManagementShell({
           </header>
 
           <p className="mt-4 text-sm">
-            Create and manage History Admin IDs.
-            New Admins sign in at /new-admin.
+            Create and manage History
+            Admin IDs. New Admins sign
+            in at /new-admin.
           </p>
 
           <div className="mt-4 rounded-xl bg-[#063f39] p-3">
@@ -1336,42 +1772,61 @@ export default function AdminManagementShell({
           </div>
 
           <AdminAccounts />
+
+          <ControllerAccountCards
+            onOpen={setView}
+          />
         </div>
       </main>
     );
   }
 
-  if (view === "PLAYING_HISTORY") {
+  if (
+    view ===
+    "PLAYING_HISTORY"
+  ) {
     return (
       <AdminPlayingHistory
         admin={identity}
-        onBack={() => setView("HOME")}
+        onBack={() =>
+          setView("HOME")
+        }
         onLogout={onLogout}
       />
     );
   }
 
-  if (view === "PROMO_CODES") {
+  if (
+    view === "PROMO_CODES"
+  ) {
     return (
       <AdminPromoCodes
         admin={admin}
-        onBack={() => setView("HOME")}
+        onBack={() =>
+          setView("HOME")
+        }
         onLogout={onLogout}
       />
     );
   }
 
-  if (view === "CONTROLLED_SO") {
+  if (
+    view ===
+    "CONTROLLED_SO"
+  ) {
     return (
       <ManualSuperOverControls
-        onBack={() => setView("GAMES")}
+        onBack={() =>
+          setView("GAMES")
+        }
       />
     );
   }
 
   if (
     CONTROLLER_GAMES.some(
-      game => game.id === view,
+      game =>
+        game.id === view,
     )
   ) {
     return (
@@ -1379,71 +1834,69 @@ export default function AdminManagementShell({
         key={view}
         game={view}
         admin={admin}
-        onBack={() => setView("GAMES")}
+        onBack={() =>
+          setView(
+            "NEW_ADMIN_ACCOUNTS",
+          )
+        }
         onLogout={onLogout}
       />
     );
   }
 
-  if (view === "GAMES") {
+  if (
+    view === "GAMES"
+  ) {
     return (
       <main className="min-h-screen bg-[#061c1a] p-4 text-white">
         <div className="mx-auto max-w-5xl">
           <button
             type="button"
-            onClick={() => setView("HOME")}
+            onClick={() =>
+              setView("HOME")
+            }
             className="rounded-lg border border-white/20 px-4 py-2 text-sm"
           >
             ‹ ADMIN DASHBOARD
           </button>
 
           <h1 className="my-6 text-2xl font-black text-amber-300">
-            🔑 GAME IDs &amp; LINKS
+            GAME LINKS &amp; CONTROLS
           </h1>
 
           <p className="mb-5 text-sm leading-6 text-slate-300">
-            Create and manage separate Controller IDs
-            for Aviator, Roulette and Deal or No Deal.
-            Copy or open each game's links below.
+            Aviator and Roulette Controller
+            IDs are managed under
+            NEW ADMIN ACCOUNTS.
           </p>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <button
+            type="button"
+            onClick={() =>
+              setView(
+                "NEW_ADMIN_ACCOUNTS",
+              )
+            }
+            className="mb-5 rounded-lg bg-amber-400 px-4 py-3 text-xs font-black text-black"
+          >
+            OPEN NEW ADMIN ACCOUNTS ›
+          </button>
+
+          <div className="grid gap-3 sm:grid-cols-2">
             {CONTROLLER_GAMES.map(game => (
               <article
                 key={game.id}
-                className="min-w-0 overflow-hidden rounded-2xl border border-teal-700 bg-[#083d37]"
+                className="min-w-0 rounded-2xl border border-teal-700 bg-[#083d37] p-4"
               >
-                <button
-                  type="button"
-                  onClick={() =>
-                    setView(game.id)
-                  }
-                  className="block w-full px-4 py-6 text-left"
-                >
-                  <span className="text-3xl">
-                    {game.icon}
-                  </span>
+                <h2 className="mb-3 font-black text-amber-200">
+                  {game.icon}{" "}
+                  {game.name}
+                </h2>
 
-                  <span className="mt-4 block text-sm font-black text-white">
-                    {game.name}
-                  </span>
-
-                  <span className="mt-2 block text-xs leading-5 text-cyan-200">
-                    Create / Manage Controller IDs ›
-                  </span>
-                </button>
-
-                <div className="space-y-3 border-t border-teal-700/70 p-3">
-                  <LinkBox
-                    label={`${game.name} Game Link`}
-                    path={game.gamePath}
-                  />
-
-                  <LinkBox
-                    label={`${game.name} Controller Link`}
-                    path={game.controllerPath}
-                  />
-                </div>
+                <LinkBox
+                  label={`${game.name} Game Link`}
+                  path={game.gamePath}
+                />
               </article>
             ))}
           </div>
@@ -1452,7 +1905,9 @@ export default function AdminManagementShell({
             <button
               type="button"
               onClick={() =>
-                setView("CONTROLLED_SO")
+                setView(
+                  "CONTROLLED_SO",
+                )
               }
               className="block w-full p-6 text-left"
             >
@@ -1461,7 +1916,8 @@ export default function AdminManagementShell({
               </span>
 
               <span className="mt-2 block text-sm text-cyan-100">
-                Ball queue · Live rates · Publish match ›
+                Ball queue · Live rates ·
+                Publish match ›
               </span>
             </button>
 
@@ -1480,9 +1936,9 @@ export default function AdminManagementShell({
               </h2>
 
               <p className="mt-2 text-xs leading-6 text-cyan-100">
-                Automatic game with random results.
-                This game does not use a result
-                Controller ID.
+                Automatic game with random
+                results. This game does not
+                use a result Controller ID.
               </p>
             </div>
 
@@ -1490,6 +1946,19 @@ export default function AdminManagementShell({
               <LinkBox
                 label="Color Prediction Game Link"
                 path="/games/color-prediction"
+              />
+            </div>
+          </article>
+
+          <article className="mt-6 overflow-hidden rounded-2xl border border-teal-700 bg-[#083d37]">
+            <h2 className="p-5 font-black text-amber-200">
+              💼 DEAL OR NO DEAL
+            </h2>
+
+            <div className="border-t border-teal-700/70 p-3">
+              <LinkBox
+                label="Deal or No Deal Game Link"
+                path="/games/deal-or-no-deal"
               />
             </div>
           </article>
@@ -1504,26 +1973,59 @@ export default function AdminManagementShell({
 
   return (
     <>
-      <div className="border-b border-teal-700 bg-[#061c1a] p-3 text-white">
+      <AdminDashboard
+        admin={admin}
+        onLogout={onLogout}
+      />
+
+      <nav
+        aria-label="Additional Admin management"
+        className="border-t border-teal-700 bg-[#061c1a] p-3 text-white"
+      >
         <div className="mx-auto grid max-w-5xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <button
             type="button"
-            onClick={() => setView("GAMES")}
-            className="rounded-xl border border-teal-700 bg-[#083d37] p-4 text-left"
+            onClick={() =>
+              setView(
+                "NEW_ADMIN_ACCOUNTS",
+              )
+            }
+            className="rounded-xl border border-amber-300/40 bg-amber-400/10 p-4 text-left"
           >
-            <span className="block font-black text-amber-300">
-              🔑 GAME IDs &amp; LINKS
+            <span className="block font-black text-amber-200">
+              NEW ADMIN ACCOUNTS
             </span>
 
-            <span className="mt-1 block text-xs leading-5 text-cyan-100">
-              Controller IDs · Copy Links · PLAY / PAUSE ›
+            <span className="mt-1 block text-xs leading-5 text-slate-200">
+              History Admins · Aviator /
+              Roulette IDs · Create /
+              Block / Remove ›
             </span>
           </button>
 
           <button
             type="button"
             onClick={() =>
-              setView("PROMO_CODES")
+              setView("GAMES")
+            }
+            className="rounded-xl border border-teal-700 bg-[#083d37] p-4 text-left"
+          >
+            <span className="block font-black text-amber-300">
+              GAME LINKS &amp; CONTROLS
+            </span>
+
+            <span className="mt-1 block text-xs leading-5 text-cyan-100">
+              Copy Game Links ·
+              PLAY / PAUSE ›
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              setView(
+                "PROMO_CODES",
+              )
             }
             className="rounded-xl border border-violet-400/30 bg-violet-500/10 p-4 text-left"
           >
@@ -1532,14 +2034,17 @@ export default function AdminManagementShell({
             </span>
 
             <span className="mt-1 block text-xs leading-5 text-slate-300">
-              Assign / Update Customer Promo Codes ›
+              Assign / Update Customer
+              Promo Codes ›
             </span>
           </button>
 
           <button
             type="button"
             onClick={() =>
-              setView("PLAYING_HISTORY")
+              setView(
+                "PLAYING_HISTORY",
+              )
             }
             className="rounded-xl border border-cyan-400/40 bg-teal-700/30 p-4 text-left"
           >
@@ -1548,30 +2053,17 @@ export default function AdminManagementShell({
             </span>
 
             <span className="mt-1 block text-xs leading-5 text-slate-200">
-              8 Games + Sports · New Admin IDs · Settlement ›
+              8 Games + Sports ·
+              New Admin IDs · Settlement ›
             </span>
           </button>
 
           <button
             type="button"
             onClick={() =>
-              setView("NEW_ADMIN_ACCOUNTS")
-            }
-            className="rounded-xl border border-amber-300/40 bg-amber-400/10 p-4 text-left"
-          >
-            <span className="block font-black text-amber-200">
-              NEW ADMIN ACCOUNTS
-            </span>
-
-            <span className="mt-1 block text-xs text-slate-200">
-              Create IDs · Permissions · Reset Password ›
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              setView("SPORTS_SETTLEMENT")
+              setView(
+                "SPORTS_SETTLEMENT",
+              )
             }
             className="rounded-xl border border-[#08b7bc] bg-[#791b3e] p-4 text-left"
           >
@@ -1580,16 +2072,12 @@ export default function AdminManagementShell({
             </span>
 
             <span className="mt-1 block text-xs leading-5 text-white">
-              Customer bets · Pending / Settled · Admin WON / LOST ›
+              Customer bets · Pending /
+              Settled · Admin WON / LOST ›
             </span>
           </button>
         </div>
-      </div>
-
-      <AdminDashboard
-        admin={admin}
-        onLogout={onLogout}
-      />
+      </nav>
     </>
   );
 }
