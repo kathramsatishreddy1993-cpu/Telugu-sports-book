@@ -33,19 +33,15 @@ const GREEN_LABEL = {
   color: "#000000",
 };
 
-function gridLabelColor(index) {
-  const column = index % 4;
-
-  return column === 0 || column === 3
+const gridLabelColor = index =>
+  [0, 3].includes(index % 4)
     ? WINE_LABEL
     : GREEN_LABEL;
-}
 
-function sliderLabelColor(index) {
-  return index % 2 === 0
+const sliderLabelColor = index =>
+  index % 2 === 0
     ? WINE_LABEL
     : GREEN_LABEL;
-}
 
 const GAMES = [
   {
@@ -171,10 +167,7 @@ const favourites = [
 ];
 
 const providers = [
-  {
-    name: "MAC88",
-    image: "/games/mac88.png",
-  },
+  { name: "MAC88", image: "/games/mac88.png" },
   {
     name: "EZUGI",
     image: "/games/ezugi-provider.png",
@@ -219,6 +212,135 @@ const MENU_ITEMS = [
   ["My Promo Code", "promo"],
   ["Rule", "rules"],
 ];
+
+const PAGES = new Set([
+  "home",
+  "deposit",
+  "withdrawal",
+  "statement",
+  "history",
+  "unsettled",
+  "buttons",
+  "password",
+  "promo",
+  "rules",
+]);
+
+const TABS = [
+  "INPLAY",
+  "SPORTS",
+  "CASINO",
+  "SPORTS BOOK",
+  "PREDIX",
+  "OTHERS",
+];
+
+const FILTERS = [
+  "LIVE",
+  "VIRTUAL",
+  "PREMIUM",
+];
+
+function defaultNavigation() {
+  return {
+    page: "home",
+    selectedSport: "CRICKET",
+    selectedTab: "INPLAY",
+    matchFilter: "LIVE",
+    selectedMatch: null,
+  };
+}
+
+function navigationKey(user) {
+  const identity =
+    user?.id ??
+    user?.customerId ??
+    user?.customer_id ??
+    user?.loginId ??
+    user?.identifier;
+
+  return identity == null || identity === ""
+    ? ""
+    : `telugu_sports_dashboard_v1:${String(identity)}`;
+}
+
+function restoreNavigation(key) {
+  const initial = defaultNavigation();
+
+  if (!key) return initial;
+
+  try {
+    const saved = JSON.parse(
+      sessionStorage.getItem(key) || "null",
+    );
+
+    if (
+      !saved ||
+      saved.version !== 1 ||
+      !PAGES.has(saved.page)
+    ) {
+      return initial;
+    }
+
+    const match = saved.selectedMatch;
+
+    const matchId =
+      match?.eventId ?? match?.id;
+
+    const validMatch =
+      match &&
+      typeof match === "object" &&
+      !Array.isArray(match) &&
+      ["string", "number"].includes(
+        typeof matchId,
+      ) &&
+      String(matchId).length > 0;
+
+    return {
+      page: saved.page,
+
+      selectedSport: sports.some(
+        sport =>
+          sport.name === saved.selectedSport,
+      )
+        ? saved.selectedSport
+        : initial.selectedSport,
+
+      selectedTab:
+        TABS.includes(saved.selectedTab)
+          ? saved.selectedTab
+          : initial.selectedTab,
+
+      matchFilter:
+        FILTERS.includes(saved.matchFilter)
+          ? saved.matchFilter
+          : initial.matchFilter,
+
+      selectedMatch:
+        saved.page === "home" && validMatch
+          ? match
+          : null,
+    };
+  } catch {
+    return initial;
+  }
+}
+
+function saveNavigation(key, navigation) {
+  if (!key) return;
+
+  try {
+    sessionStorage.setItem(
+      key,
+      JSON.stringify({
+        version: 1,
+        ...navigation,
+      }),
+    );
+  } catch {
+    // Continue if browser storage is unavailable.
+  }
+}
 
 function BrandLogo({ className = "" }) {
   return (
@@ -399,7 +521,8 @@ function TopGamesSlider({ onGameClick }) {
       type: event.pointerType,
       x: event.clientX,
       y: event.clientY,
-      scrollLeft: event.currentTarget.scrollLeft,
+      scrollLeft:
+        event.currentTarget.scrollLeft,
       moved: false,
     };
   };
@@ -414,8 +537,11 @@ function TopGamesSlider({ onGameClick }) {
       return;
     }
 
-    const distanceX = event.clientX - gesture.x;
-    const distanceY = event.clientY - gesture.y;
+    const distanceX =
+      event.clientX - gesture.x;
+
+    const distanceY =
+      event.clientY - gesture.y;
 
     if (
       Math.abs(distanceX) > 8 ||
@@ -564,26 +690,31 @@ function TopGamesSlider({ onGameClick }) {
   );
 }
 
-export default function DemoDashboard({
+function DashboardContent({
   user,
   onLogout,
+  storageKey,
 }) {
-  const [page, setPage] = useState("home");
+  const [navigation, setNavigation] =
+    useState(() =>
+      restoreNavigation(storageKey),
+    );
 
-  const [selectedSport, setSelectedSport] =
-    useState("CRICKET");
+  const {
+    page,
+    selectedSport,
+    selectedTab,
+    matchFilter,
+    selectedMatch,
+  } = navigation;
 
-  const [selectedTab, setSelectedTab] =
-    useState("INPLAY");
+  const navigationRef = useRef(navigation);
+  const loggedOutRef = useRef(false);
 
-  const [matchFilter, setMatchFilter] =
-    useState("LIVE");
-
-  const [showCustomerMenu, setShowCustomerMenu] =
-    useState(false);
-
-  const [selectedMatch, setSelectedMatch] =
-    useState(null);
+  const [
+    showCustomerMenu,
+    setShowCustomerMenu,
+  ] = useState(false);
 
   const [demoBalance, setDemoBalance] =
     useState(0);
@@ -594,9 +725,64 @@ export default function DemoDashboard({
   const [notice, setNotice] = useState("");
 
   const customerId =
-    user?.id ||
-    user?.customerId ||
+    user?.id ??
+    user?.customerId ??
     user?.customer_id;
+
+  // Save immediately so pull-to-refresh restores
+  // the currently selected page or match.
+  const navigate = patch => {
+    const next = {
+      ...navigationRef.current,
+      ...patch,
+    };
+
+    navigationRef.current = next;
+
+    saveNavigation(storageKey, next);
+    setNavigation(next);
+  };
+
+  useEffect(() => {
+    const persist = () => {
+      if (!loggedOutRef.current) {
+        saveNavigation(
+          storageKey,
+          navigationRef.current,
+        );
+      }
+    };
+
+    const onVisibility = () => {
+      if (
+        document.visibilityState === "hidden"
+      ) {
+        persist();
+      }
+    };
+
+    window.addEventListener(
+      "pagehide",
+      persist,
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      onVisibility,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "pagehide",
+        persist,
+      );
+
+      document.removeEventListener(
+        "visibilitychange",
+        onVisibility,
+      );
+    };
+  }, [storageKey]);
 
   useEffect(() => {
     let active = true;
@@ -654,7 +840,9 @@ export default function DemoDashboard({
           active &&
           requestError.name !== "AbortError"
         ) {
-          setBalanceError(requestError.message);
+          setBalanceError(
+            requestError.message,
+          );
         }
       } finally {
         loading = false;
@@ -690,8 +878,11 @@ export default function DemoDashboard({
   }, [customerId, page, selectedMatch]);
 
   const goHome = () => {
-    setPage("home");
-    setSelectedMatch(null);
+    navigate({
+      page: "home",
+      selectedMatch: null,
+    });
+
     setShowCustomerMenu(false);
     setNotice("");
 
@@ -699,15 +890,58 @@ export default function DemoDashboard({
   };
 
   const openPage = nextPage => {
+    if (!PAGES.has(nextPage)) return;
+
+    navigate({
+      page: nextPage,
+      selectedMatch: null,
+    });
+
     setShowCustomerMenu(false);
-    setPage(nextPage);
     setNotice("");
 
     window.scrollTo(0, 0);
   };
 
+  const openMatch = match => {
+    navigate({
+      page: "home",
+      selectedMatch: match,
+    });
+
+    setShowCustomerMenu(false);
+    setNotice("");
+
+    window.scrollTo(0, 0);
+  };
+
+  const handleLogout = () => {
+    loggedOutRef.current = true;
+
+    try {
+      if (storageKey) {
+        sessionStorage.removeItem(storageKey);
+      }
+    } catch {
+      // Browser storage may be disabled.
+    }
+
+    navigationRef.current =
+      defaultNavigation();
+
+    setNavigation(navigationRef.current);
+    setShowCustomerMenu(false);
+
+    onLogout?.();
+  };
+
   const handleGameClick = game => {
     if (game.href) {
+      saveNavigation(
+        storageKey,
+        navigationRef.current,
+      );
+
       window.location.assign(game.href);
       return;
     }
@@ -777,7 +1011,7 @@ export default function DemoDashboard({
         user={user}
         onBack={goHome}
         onComplete={goHome}
-        onLogout={onLogout}
+        onLogout={handleLogout}
       />
     );
   }
@@ -805,10 +1039,7 @@ export default function DemoDashboard({
       <MatchDetailsPage
         match={selectedMatch}
         user={user}
-        onBack={() => {
-          setSelectedMatch(null);
-          window.scrollTo(0, 0);
-        }}
+        onBack={goHome}
       />
     );
   }
@@ -874,7 +1105,8 @@ export default function DemoDashboard({
           letter-spacing: 1px;
           line-height: 30px;
           color: #28e1e5;
-          text-shadow: 0 0 8px rgba(8,183,188,.55);
+          text-shadow:
+            0 0 8px rgba(8,183,188,.55);
         }
 
         @keyframes tsbNeonSlide {
@@ -1008,7 +1240,7 @@ export default function DemoDashboard({
 
                 <button
                   type="button"
-                  onClick={onLogout}
+                  onClick={handleLogout}
                   className="block w-full bg-red-50 px-4 py-3 text-left text-[11px] font-black text-red-700"
                 >
                   Logout
@@ -1034,9 +1266,7 @@ export default function DemoDashboard({
             className="rounded-2xl border border-[#08b7bc] bg-[#08b7bc] px-3 py-3 text-left shadow-[0_0_8px_rgba(8,183,188,.25)] active:scale-95"
           >
             <span className="flex items-center gap-2">
-              <span className="text-2xl">
-                💰
-              </span>
+              <span className="text-2xl">💰</span>
 
               <span className="relative">
                 <span
@@ -1066,13 +1296,13 @@ export default function DemoDashboard({
 
           <button
             type="button"
-            onClick={() => openPage("withdrawal")}
+            onClick={() =>
+              openPage("withdrawal")
+            }
             className="rounded-2xl border border-[#791b3e] bg-[#791b3e] px-3 py-3 text-left shadow-[0_0_8px_rgba(121,27,62,.25)] active:scale-95"
           >
             <span className="flex items-center gap-2">
-              <span className="text-2xl">
-                💵
-              </span>
+              <span className="text-2xl">💵</span>
 
               <span className="relative">
                 <span
@@ -1110,7 +1340,7 @@ export default function DemoDashboard({
                 className="tsb-neon-text"
               >
                 ✦ TELUGU SPORTS BOOK • PREMIUM
-                SPORTS & ENTERTAINMENT ✦
+                SPORTS &amp; ENTERTAINMENT ✦
               </span>
             ))}
           </div>
@@ -1129,18 +1359,15 @@ export default function DemoDashboard({
 
       <nav className="tsb-scrollbar overflow-x-auto border-b border-slate-200 bg-white">
         <div className="flex w-max min-w-full gap-2 px-3 py-2">
-          {[
-            "INPLAY",
-            "SPORTS",
-            "CASINO",
-            "SPORTS BOOK",
-            "PREDIX",
-            "OTHERS",
-          ].map(tab => (
+          {TABS.map(tab => (
             <button
               key={tab}
               type="button"
-              onClick={() => setSelectedTab(tab)}
+              onClick={() =>
+                navigate({
+                  selectedTab: tab,
+                })
+              }
               className={`shrink-0 rounded-lg border px-4 py-2 text-[9px] font-black text-white ${
                 selectedTab === tab
                   ? "border-[#a72a55] bg-[#a12450] shadow-[0_0_10px_rgba(161,36,80,.2)]"
@@ -1160,7 +1387,9 @@ export default function DemoDashboard({
               key={sport.name}
               type="button"
               onClick={() =>
-                setSelectedSport(sport.name)
+                navigate({
+                  selectedSport: sport.name,
+                })
               }
               className={`w-[90px] shrink-0 rounded-xl border bg-[#08b7bc] px-2 py-2 text-center text-black ${
                 selectedSport === sport.name
@@ -1190,24 +1419,24 @@ export default function DemoDashboard({
         </div>
 
         <div className="mt-3 flex gap-2">
-          {["LIVE", "VIRTUAL", "PREMIUM"].map(
-            filter => (
-              <button
-                key={filter}
-                type="button"
-                onClick={() =>
-                  setMatchFilter(filter)
-                }
-                className={`rounded-lg border px-4 py-2 text-[8px] font-black text-white ${
-                  matchFilter === filter
-                    ? "border-[#ac2854] bg-[#ac2854]"
-                    : "border-[#791b3e] bg-[#791b3e]"
-                }`}
-              >
-                {filter}
-              </button>
-            ),
-          )}
+          {FILTERS.map(filter => (
+            <button
+              key={filter}
+              type="button"
+              onClick={() =>
+                navigate({
+                  matchFilter: filter,
+                })
+              }
+              className={`rounded-lg border px-4 py-2 text-[8px] font-black text-white ${
+                matchFilter === filter
+                  ? "border-[#ac2854] bg-[#ac2854]"
+                  : "border-[#791b3e] bg-[#791b3e]"
+              }`}
+            >
+              {filter}
+            </button>
+          ))}
         </div>
       </section>
 
@@ -1221,17 +1450,13 @@ export default function DemoDashboard({
           {selectedSport === "CRICKET" &&
           matchFilter === "LIVE" ? (
             <CricketMatchList
-              onOpenMatch={match => {
-                setSelectedMatch(match);
-                window.scrollTo(0, 0);
-              }}
+              onOpenMatch={openMatch}
             />
           ) : (
             <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs leading-6 text-slate-600">
-              No{" "}
-              {matchFilter.toLowerCase()}{" "}
-              {selectedSport.toLowerCase()}{" "}
-              fixtures are available in this view.
+              No {matchFilter.toLowerCase()}{" "}
+              {selectedSport.toLowerCase()} fixtures
+              are available in this view.
             </p>
           )}
         </div>
@@ -1297,11 +1522,27 @@ export default function DemoDashboard({
         </p>
 
         <p className="mx-auto mt-3 max-w-xl text-[9px] leading-5 text-slate-500">
-          Demonstration and informational
-          purposes only. No real-money
-          transactions are processed.
+          Demonstration and informational purposes
+          only. No real-money transactions are
+          processed.
         </p>
       </footer>
     </div>
+  );
+}
+
+export default function DemoDashboard({
+  user,
+  onLogout,
+}) {
+  const storageKey = navigationKey(user);
+
+  return (
+    <DashboardContent
+      key={storageKey || "customer-without-id"}
+      storageKey={storageKey}
+      user={user}
+      onLogout={onLogout}
+    />
   );
 }
