@@ -1,28 +1,74 @@
-import React, {
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
-
+import React, { useEffect, useRef, useState } from 'react';
 import ExistingMatchDetailsPage from './MatchDetailsPage.previous.jsx';
+
+const TEAL = '#0BB1B8';
+const WINE = '#791A40';
+
+const quickStakes = [
+  100, 200, 500, 1000, 2000, 5000, 10000, 25000,
+];
 
 const format = value =>
   value == null ? '—' : String(value);
 
-function formatDate(value) {
-  if (!value) return 'Unavailable';
+const coins = value =>
+  Number.isFinite(Number(value))
+    ? Number(value).toLocaleString('en-IN', {
+        maximumFractionDigits: 2,
+      })
+    : '—';
 
-  const parsed = new Date(value);
+const same = (a, b) =>
+  a != null &&
+  b != null &&
+  String(a) === String(b);
 
-  if (!Number.isFinite(parsed.getTime())) {
-    return 'Unavailable';
+function dateParts(value) {
+  const date = value ? new Date(value) : null;
+
+  if (!date || !Number.isFinite(date.getTime())) {
+    return ['Date unavailable', ''];
   }
 
-  return (
-    parsed.toLocaleString('en-IN', {
+  return [
+    date.toLocaleDateString('en-GB', {
       timeZone: 'Asia/Kolkata',
-    }) + ' IST'
-  );
+    }),
+
+    date.toLocaleTimeString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+    }) + ' IST',
+  ];
+}
+
+// Reads the score supplied by the existing server feed.
+function scoreText(event) {
+  if (event.scoreAvailable === false) return '';
+
+  const value = event.score;
+
+  if (
+    typeof value === 'number' &&
+    Number.isFinite(value)
+  ) {
+    return String(value);
+  }
+
+  if (typeof value !== 'string') return '';
+
+  const text = value.trim();
+
+  if (
+    !text ||
+    /^(—|-|null|undefined|n\/?a|unknown|unavailable)$/i.test(text) ||
+    /unavailable|awaiting|not available/i.test(text)
+  ) {
+    return '';
+  }
+
+  return text;
 }
 
 function blockedStatus(value) {
@@ -34,16 +80,14 @@ function blockedStatus(value) {
     return 'BALL RUNNING';
   }
 
-  if (/SUSPEND/.test(status)) {
+  if (
+    /SUSPEND|INACTIVE|PAUSED|STOPPED/.test(status)
+  ) {
     return 'SUSPENDED';
   }
 
   if (/CLOSE|ENDED|FINISHED|SETTLED/.test(status)) {
     return 'CLOSED';
-  }
-
-  if (/INACTIVE|PAUSED|STOPPED/.test(status)) {
-    return 'SUSPENDED';
   }
 
   if (
@@ -108,127 +152,6 @@ function rememberPair(
   };
 }
 
-function Price({
-  value,
-  size,
-  side,
-  onPick,
-  disabled = true,
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onPick}
-      disabled={disabled}
-      className={`flex min-h-[62px] min-w-0 flex-col items-center justify-center rounded p-1 ${
-        side === 'BACK'
-          ? 'bg-sky-200'
-          : 'bg-pink-200'
-      }`}
-    >
-      <strong className="text-base">
-        {format(value)}
-      </strong>
-
-      <span className="mt-1 text-[10px] text-slate-600">
-        {size == null ? side : format(size)}
-      </span>
-    </button>
-  );
-}
-
-function PricePair({
-  row,
-  fresh,
-  enabled,
-  first = 'BACK',
-  wallet,
-  marketId,
-  selectionId,
-}) {
-  const label = !enabled
-    ? 'FEED PAUSED'
-    : !fresh
-      ? 'STALE DATA'
-      : row.blocked;
-
-  const values = row.values;
-
-  const choice = side =>
-    wallet?.quotes.find(
-      quote =>
-        quote.marketId === marketId &&
-        quote.selectionId === String(selectionId) &&
-        (
-          first === 'LAY'
-            ? quote.selection === (
-                side === 'LAY' ? 'NO' : 'YES'
-              )
-            : quote.type === side
-        ),
-    );
-
-  const ready = (quote, value, size) =>
-    !label &&
-    quote?.allowed &&
-    !wallet?.error &&
-    !wallet?.quoteError &&
-    !wallet?.busy &&
-    wallet?.balance != null &&
-    Date.now() - wallet.quoteAt < 15000 &&
-    Number(quote.rate) === Number(value) &&
-    (
-      first !== 'LAY' ||
-      Number(quote.sessionRate) === Number(size)
-    );
-
-  const a = choice(first);
-
-  const b = choice(
-    first === 'BACK' ? 'LAY' : 'BACK',
-  );
-
-  return (
-    <div
-      className="relative grid grid-cols-2 gap-1 overflow-hidden rounded"
-      aria-label={label || 'Provider prices'}
-    >
-      <Price
-        side={first}
-        value={values.a}
-        size={values.as}
-        disabled={!ready(a, values.a, values.as)}
-        onPick={() => wallet.pick(a)}
-      />
-
-      <Price
-        side={first === 'BACK' ? 'LAY' : 'BACK'}
-        value={values.b}
-        size={values.bs}
-        disabled={!ready(b, values.b, values.bs)}
-        onPick={() => wallet.pick(b)}
-      />
-
-      {label && (
-        <div
-          role="status"
-          className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 px-1 text-center"
-        >
-          <strong className="text-[11px] font-black text-red-300 sm:text-sm">
-            {label}
-          </strong>
-
-          {row.previous && (
-            <span className="mt-1 text-[8px] text-white">
-              LAST RECEIVED PRICES
-            </span>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 async function demoAPI(url, options = {}) {
   const response = await fetch(url, {
     ...options,
@@ -258,9 +181,7 @@ async function demoAPI(url, options = {}) {
 
   if (!response.ok) {
     throw Object.assign(
-      new Error(
-        data.error || 'Request failed.',
-      ),
+      new Error(data.error || 'Request failed.'),
       { status: response.status },
     );
   }
@@ -276,41 +197,49 @@ function useDemoWallet(matchId, user) {
       '',
   );
 
-  const context = `${customerId}:${matchId}`;
-  const contextRef = useRef(context);
-  contextRef.current = context;
+  const [state, setState] = useState({
+    balance: null,
+    bets: [],
+    quotes: [],
+    error: '',
+    quoteError: '',
+    quoteAt: 0,
+  });
 
-  const [balance, setBalance] = useState(null);
-  const [bets, setBets] = useState([]);
-  const [quotes, setQuotes] = useState([]);
-  const [error, setError] = useState('');
-  const [quoteError, setQuoteError] = useState('');
-  const [quoteAt, setQuoteAt] = useState(0);
   const [selected, setSelected] = useState(null);
   const [stake, setStake] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [showBets, setShowBets] = useState(false);
 
   const retry = useRef(null);
   const requestKey = useRef('');
   const busyRef = useRef(false);
-  const alive = useRef(false);
-  const refreshRef = useRef(null);
+  const generation = useRef(0);
   const revision = useRef(0);
+  const refreshRef = useRef(null);
 
   useEffect(() => {
+    const token = ++generation.current;
+
     let active = true;
     let loading = false;
 
-    alive.current = true;
-
-    setBalance(null);
-    setBets([]);
-    setQuotes([]);
-    setQuoteAt(0);
-    setSelected(null);
+    busyRef.current = false;
     retry.current = null;
+
+    setBusy(false);
+    setSelected(null);
+    setStake('');
+    setMessage('');
+
+    setState({
+      balance: null,
+      bets: [],
+      quotes: [],
+      error: '',
+      quoteError: '',
+      quoteAt: 0,
+    });
 
     const load = async () => {
       if (
@@ -325,49 +254,64 @@ function useDemoWallet(matchId, user) {
 
       const captured = revision.current;
 
-      const results = await Promise.allSettled([
-        demoAPI(
-          `/api/demo-bets?matchId=${encodeURIComponent(matchId)}`,
-        ),
+      const [wallet, market] =
+        await Promise.allSettled([
+          demoAPI(
+            `/api/demo-bets?matchId=${encodeURIComponent(matchId)}`,
+          ),
 
-        demoAPI(
-          `/api/demo-bets/markets?matchId=${encodeURIComponent(matchId)}`,
-        ),
-      ]);
+          demoAPI(
+            `/api/demo-bets/markets?matchId=${encodeURIComponent(matchId)}`,
+          ),
+        ]);
 
       if (
         active &&
+        generation.current === token &&
         !busyRef.current &&
         captured === revision.current
       ) {
-        const [wallet, market] = results;
-
-        if (
+        const walletOK =
           wallet.status === 'fulfilled' &&
-          String(wallet.value.customerId) === customerId
-        ) {
-          setBalance(Number(wallet.value.balance));
-          setBets(wallet.value.bets || []);
-          setError('');
-        } else {
-          setError(
-            wallet.status === 'rejected'
+          String(wallet.value.customerId) === customerId &&
+          wallet.value.balance != null &&
+          Number.isFinite(Number(wallet.value.balance));
+
+        setState(previous => ({
+          ...previous,
+
+          balance: walletOK
+            ? Number(wallet.value.balance)
+            : null,
+
+          bets: walletOK
+            ? Array.isArray(wallet.value.bets)
+              ? wallet.value.bets
+              : []
+            : [],
+
+          error: walletOK
+            ? ''
+            : wallet.status === 'rejected'
               ? wallet.reason.message
               : 'Please logout and login again.',
-          );
 
-          setBalance(null);
-        }
+          quotes:
+            market.status === 'fulfilled' &&
+            Array.isArray(market.value.quotes)
+              ? market.value.quotes
+              : [],
 
-        if (market.status === 'fulfilled') {
-          setQuotes(market.value.quotes || []);
-          setQuoteAt(Date.now());
-          setQuoteError('');
-        } else {
-          setQuotes([]);
-          setQuoteAt(0);
-          setQuoteError(market.reason.message);
-        }
+          quoteAt:
+            market.status === 'fulfilled'
+              ? Date.now()
+              : 0,
+
+          quoteError:
+            market.status === 'fulfilled'
+              ? ''
+              : market.reason.message,
+        }));
       }
 
       loading = false;
@@ -388,7 +332,7 @@ function useDemoWallet(matchId, user) {
 
     return () => {
       active = false;
-      alive.current = false;
+      generation.current += 1;
 
       clearInterval(timer);
 
@@ -414,10 +358,10 @@ function useDemoWallet(matchId, user) {
   const pick = quote => {
     if (
       busyRef.current ||
-      error ||
-      quoteError ||
+      state.error ||
+      state.quoteError ||
       !quote?.allowed ||
-      balance == null
+      state.balance == null
     ) {
       return;
     }
@@ -444,17 +388,9 @@ function useDemoWallet(matchId, user) {
   };
 
   const save = async canSubmit => {
-    if (
-      busyRef.current ||
-      !selected
-    ) {
-      return;
-    }
+    if (busyRef.current || !selected) return;
 
-    if (
-      !retry.current &&
-      !canSubmit
-    ) {
+    if (!retry.current && !canSubmit) {
       setMessage(
         'Market paused or price changed. Close and select the latest price.',
       );
@@ -479,6 +415,14 @@ function useDemoWallet(matchId, user) {
       return;
     }
 
+    if (
+      !retry.current &&
+      amount > state.balance
+    ) {
+      setMessage('Insufficient demo coins.');
+      return;
+    }
+
     const payload = retry.current || {
       requestKey: requestKey.current,
       matchId,
@@ -491,7 +435,7 @@ function useDemoWallet(matchId, user) {
       expectedPayoutRate: selected.payoutRate,
     };
 
-    const captured = context;
+    const token = generation.current;
 
     retry.current = payload;
     revision.current += 1;
@@ -509,18 +453,19 @@ function useDemoWallet(matchId, user) {
         },
       );
 
-      if (
-        alive.current &&
-        contextRef.current === captured
-      ) {
-        setBalance(Number(data.balance));
+      if (generation.current === token) {
+        setState(previous => ({
+          ...previous,
+          balance: Number(data.balance),
 
-        setBets(previous => [
-          data.bet,
-          ...previous.filter(
-            bet => bet.id !== data.bet.id,
-          ),
-        ]);
+          bets: [
+            data.bet,
+
+            ...previous.bets.filter(
+              bet => !same(bet.id, data.bet.id),
+            ),
+          ],
+        }));
 
         setSelected(null);
         retry.current = null;
@@ -529,10 +474,7 @@ function useDemoWallet(matchId, user) {
         notify();
       }
     } catch (failure) {
-      if (
-        alive.current &&
-        contextRef.current === captured
-      ) {
+      if (generation.current === token) {
         if (
           failure.status &&
           failure.status < 500
@@ -550,13 +492,10 @@ function useDemoWallet(matchId, user) {
         );
       }
     } finally {
-      busyRef.current = false;
-
-      if (
-        alive.current &&
-        contextRef.current === captured
-      ) {
+      if (generation.current === token) {
+        busyRef.current = false;
         setBusy(false);
+
         void refreshRef.current?.();
       }
     }
@@ -565,7 +504,7 @@ function useDemoWallet(matchId, user) {
   const simulate = async (betId, outcome) => {
     if (busyRef.current) return;
 
-    const captured = context;
+    const token = generation.current;
 
     revision.current += 1;
     busyRef.current = true;
@@ -582,19 +521,17 @@ function useDemoWallet(matchId, user) {
         },
       );
 
-      if (
-        alive.current &&
-        contextRef.current === captured
-      ) {
-        setBalance(Number(data.balance));
+      if (generation.current === token) {
+        setState(previous => ({
+          ...previous,
+          balance: Number(data.balance),
 
-        setBets(previous =>
-          previous.map(bet =>
-            bet.id === data.bet.id
+          bets: previous.bets.map(bet =>
+            same(bet.id, data.bet.id)
               ? data.bet
               : bet,
           ),
-        );
+        }));
 
         setMessage(
           'Demo result simulated. This is not an official match result.',
@@ -603,39 +540,26 @@ function useDemoWallet(matchId, user) {
         notify();
       }
     } catch (failure) {
-      if (
-        alive.current &&
-        contextRef.current === captured
-      ) {
+      if (generation.current === token) {
         setMessage(failure.message);
       }
     } finally {
-      busyRef.current = false;
-
-      if (
-        alive.current &&
-        contextRef.current === captured
-      ) {
+      if (generation.current === token) {
+        busyRef.current = false;
         setBusy(false);
+
         void refreshRef.current?.();
       }
     }
   };
 
   return {
-    balance,
-    bets,
-    quotes,
-    error,
-    quoteError,
-    quoteAt,
+    ...state,
     selected,
     stake,
     setStake,
     message,
     busy,
-    showBets,
-    setShowBets,
     pick,
     close,
     save,
@@ -644,22 +568,364 @@ function useDemoWallet(matchId, user) {
   };
 }
 
-function WalletPanel({
+function Price({
+  value,
+  size,
+  side,
+  onPick,
+  disabled,
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      disabled={disabled}
+      className="flex min-h-[64px] min-w-0 flex-col items-center justify-center p-1 text-white disabled:cursor-not-allowed"
+      style={{
+        background:
+          side === 'BACK' ? TEAL : WINE,
+      }}
+    >
+      <strong className="text-xl font-black tabular-nums">
+        {format(value)}
+      </strong>
+
+      <span className="mt-1 text-[9px]">
+        {size == null ? side : coins(size)}
+      </span>
+    </button>
+  );
+}
+
+function PricePair({
+  row,
+  fresh,
+  enabled,
+  first = 'BACK',
+  wallet,
+  marketId,
+  selectionId,
+}) {
+  const label = !enabled
+    ? 'FEED PAUSED'
+    : !fresh
+      ? 'STALE DATA'
+      : row.blocked;
+
+  const values = row.values || {};
+
+  const choice = side =>
+    wallet.quotes.find(
+      quote =>
+        same(quote.marketId, marketId) &&
+        same(quote.selectionId, selectionId) &&
+        (
+          first === 'LAY'
+            ? quote.selection === (
+                side === 'LAY' ? 'NO' : 'YES'
+              )
+            : quote.type === side
+        ),
+    );
+
+  const ready = (quote, value, size) =>
+    !label &&
+    quote?.allowed &&
+    !wallet.error &&
+    !wallet.quoteError &&
+    !wallet.busy &&
+    wallet.balance != null &&
+    Date.now() - wallet.quoteAt < 15000 &&
+    value != null &&
+    Number.isFinite(Number(value)) &&
+    Number(size) > 0 &&
+    Number(quote.rate) === Number(value) &&
+    (
+      first !== 'LAY' ||
+      Number(quote.sessionRate) === Number(size)
+    );
+
+  const other =
+    first === 'BACK' ? 'LAY' : 'BACK';
+
+  const a = choice(first);
+  const b = choice(other);
+
+  return (
+    <div
+      className="relative grid grid-cols-2 gap-px overflow-hidden"
+      aria-label={label || 'Provider prices'}
+    >
+      <Price
+        side={first}
+        value={values.a}
+        size={values.as}
+        disabled={!ready(a, values.a, values.as)}
+        onPick={() => wallet.pick(a)}
+      />
+
+      <Price
+        side={other}
+        value={values.b}
+        size={values.bs}
+        disabled={!ready(b, values.b, values.bs)}
+        onPick={() => wallet.pick(b)}
+      />
+
+      {label && (
+        <div
+          role="status"
+          className="absolute inset-0 flex flex-col items-center justify-center px-1 text-center text-white"
+          style={{
+            background: 'rgba(121,26,64,0.92)',
+          }}
+        >
+          <strong className="text-[10px] font-black">
+            {label}
+          </strong>
+
+          {row.previous && (
+            <span className="mt-1 text-[8px]">
+              LAST RECEIVED PRICES
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Only pending match-odds selections contribute here.
+// The existing API treats a LAY stake as held liability.
+function runnerExposure(bets, runners, runner) {
+  let stake = 0;
+  let profit = 0;
+  let count = 0;
+  let known = true;
+
+  for (const bet of bets) {
+    if (
+      bet.marketId !== 'match-odds' ||
+      String(bet.status).toUpperCase() !== 'MATCHED' ||
+      (
+        bet.result &&
+        String(bet.result).toUpperCase() !== 'PENDING'
+      )
+    ) {
+      continue;
+    }
+
+    const amount = Number(bet.stake);
+    const rate = Number(bet.rate);
+
+    if (
+      !Number.isFinite(amount) ||
+      amount <= 0 ||
+      !Number.isFinite(rate) ||
+      rate <= 1
+    ) {
+      continue;
+    }
+
+    const selection =
+      runners.find(item =>
+        same(item.selectionId, bet.selectionId),
+      ) ||
+      runners.find(
+        item =>
+          String(item.name).trim().toLowerCase() ===
+          String(bet.selection).trim().toLowerCase(),
+      );
+
+    if (!selection) {
+      known = false;
+      continue;
+    }
+
+    const isSelected = same(
+      selection.selectionId,
+      runner.selectionId,
+    );
+
+    const type = String(bet.type).toUpperCase();
+
+    if (!['BACK', 'LAY'].includes(type)) {
+      known = false;
+      continue;
+    }
+
+    const supplied = Number(bet.payoutRate);
+
+    const multiplier =
+      Number.isFinite(supplied) && supplied > 1
+        ? supplied
+        : type === 'BACK'
+          ? rate
+          : 1 + 1 / (rate - 1);
+
+    count += 1;
+
+    if (isSelected) {
+      stake += amount;
+    }
+
+    profit +=
+      type === 'BACK'
+        ? isSelected
+          ? amount * (multiplier - 1)
+          : -amount
+        : isSelected
+          ? -amount
+          : amount * (multiplier - 1);
+  }
+
+  return {
+    stake,
+    profit: Math.round(profit * 100) / 100,
+    count,
+    known,
+  };
+}
+
+function BetsView({ wallet }) {
+  return (
+    <section
+      className="m-3 overflow-hidden rounded-xl border bg-white"
+      style={{ borderColor: WINE }}
+    >
+      <h2
+        className="px-3 py-3 text-sm font-black text-white"
+        style={{ background: WINE }}
+      >
+        YOUR MATCHED BET
+      </h2>
+
+      <div className="grid grid-cols-[minmax(0,1fr)_60px_80px] gap-2 border-b p-3 text-xs font-black">
+        <span>Selection</span>
+
+        <span className="text-center">
+          Odds
+        </span>
+
+        <span className="text-right">
+          Stake / Risk
+        </span>
+      </div>
+
+      {!wallet.bets.length && (
+        <p className="p-5 text-center text-sm">
+          No demo selections for this match.
+        </p>
+      )}
+
+      {wallet.bets.map(bet => (
+        <article
+          key={bet.id}
+          className="border-b p-3 last:border-b-0"
+        >
+          <div className="grid grid-cols-[minmax(0,1fr)_60px_80px] items-start gap-2 text-xs">
+            <div className="min-w-0">
+              <strong className="break-words">
+                {bet.selection} · {bet.type}
+              </strong>
+
+              <p className="mt-1 text-[10px]">
+                {bet.market}
+              </p>
+            </div>
+
+            <strong className="text-center tabular-nums">
+              {format(bet.rate)}
+            </strong>
+
+            <strong className="text-right tabular-nums">
+              {coins(bet.stake)}
+
+              <span className="block text-[9px] font-normal">
+                Coins
+              </span>
+            </strong>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[10px]">
+            <span
+              className="rounded-full px-3 py-1 font-bold text-white"
+              style={{ background: WINE }}
+            >
+              {bet.status} · {bet.result || 'PENDING'}
+            </span>
+
+            <span>
+              Settled P/L: {coins(bet.profitLoss ?? 0)}
+            </span>
+          </div>
+
+          {bet.createdAt && (
+            <p className="mt-2 text-[9px]">
+              {dateParts(bet.createdAt).join(' · ')}
+            </p>
+          )}
+
+          {bet.status === 'MATCHED' && (
+            <details className="mt-3 text-[10px]">
+              <summary
+                className="cursor-pointer font-bold"
+                style={{ color: WINE }}
+              >
+                Demo simulation controls
+              </summary>
+
+              <p className="mt-2">
+                Manual demo result only; not an
+                official match result.
+              </p>
+
+              <div className="mt-2 flex gap-2">
+                {['WON', 'LOST'].map(outcome => (
+                  <button
+                    key={outcome}
+                    type="button"
+                    disabled={wallet.busy}
+                    onClick={() =>
+                      wallet.simulate(
+                        bet.id,
+                        outcome,
+                      )
+                    }
+                    className="rounded px-3 py-2 font-bold text-white disabled:opacity-50"
+                    style={{ background: WINE }}
+                  >
+                    SIMULATE {outcome}
+                  </button>
+                ))}
+              </div>
+            </details>
+          )}
+        </article>
+      ))}
+    </section>
+  );
+}
+
+function BetSlip({
   wallet,
   connected,
   clock,
 }) {
   const selected = wallet.selected;
 
-  const current =
-    selected &&
-    wallet.quotes.find(
-      quote =>
-        quote.marketId === selected.marketId &&
-        quote.selectionId === selected.selectionId &&
-        quote.selection === selected.selection &&
-        quote.type === selected.type,
-    );
+  if (!selected) return null;
+
+  const current = wallet.quotes.find(
+    quote =>
+      same(quote.marketId, selected.marketId) &&
+      same(
+        quote.selectionId,
+        selected.selectionId,
+      ) &&
+      quote.selection === selected.selection &&
+      quote.type === selected.type,
+  );
 
   const canSubmit = Boolean(
     connected &&
@@ -667,245 +933,173 @@ function WalletPanel({
       !wallet.quoteError &&
       clock - wallet.quoteAt < 15000 &&
       current?.allowed &&
-      current.rate === selected?.rate &&
-      current.payoutRate === selected?.payoutRate,
+      Number(current.rate) === Number(selected.rate) &&
+      Number(current.payoutRate) ===
+        Number(selected.payoutRate),
   );
 
   const held = Number(wallet.stake) || 0;
+  const payout = Number(selected.payoutRate);
 
   return (
-    <>
-      {(wallet.error || wallet.quoteError) && (
-        <p
-          role="alert"
-          className="bg-red-50 p-3 text-xs text-red-800"
-        >
-          {wallet.error || wallet.quoteError}
-        </p>
-      )}
-
-      <button
-        type="button"
-        onClick={() =>
-          wallet.setShowBets(!wallet.showBets)
+    <div
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60"
+      onKeyDown={event => {
+        if (event.key === 'Escape') {
+          wallet.close();
         }
-        className="w-full bg-[#9a5a00] p-3 text-xs font-black text-white"
+      }}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label="Demo bet slip"
+        className="max-h-[88vh] w-full max-w-xl overflow-y-auto rounded-t-2xl bg-white p-4"
       >
-        {wallet.showBets ? 'HIDE' : 'SHOW'} MY DEMO BETS
-        {' '}({wallet.bets.length})
-      </button>
-
-      {wallet.message && !selected && (
-        <p
-          role="status"
-          className="bg-teal-50 p-3 text-xs"
+        <div
+          className="flex items-center justify-between gap-2 font-black"
+          style={{ color: WINE }}
         >
-          {wallet.message}
-        </p>
-      )}
+          <strong>DEMO BET SLIP</strong>
 
-      {wallet.showBets && (
-        <section className="space-y-2 p-3">
-          {!wallet.bets.length && (
-            <p className="text-xs">
-              No demo selections saved for this match.
-            </p>
-          )}
-
-          {wallet.bets.map(bet => (
-            <article
-              key={bet.id}
-              className="rounded border bg-white p-3 text-xs"
-            >
-              <strong>
-                {bet.market} · {bet.selection} · {bet.type}
-              </strong>
-
-              <p className="mt-1">
-                Line / price: {bet.rate}
-                {' · '}
-                Risk held: {bet.stake} coins
-              </p>
-
-              <p className="mt-1">
-                {bet.status} · {bet.result}
-                {' · '}
-                P/L: {bet.profitLoss}
-              </p>
-
-              {bet.status === 'MATCHED' && (
-                <div className="mt-2 flex gap-2">
-                  {['WON', 'LOST'].map(outcome => (
-                    <button
-                      key={outcome}
-                      type="button"
-                      disabled={wallet.busy}
-                      onClick={() =>
-                        wallet.simulate(
-                          bet.id,
-                          outcome,
-                        )
-                      }
-                      className="rounded bg-slate-700 p-2 text-[10px] text-white disabled:opacity-50"
-                    >
-                      SIMULATE {outcome}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </article>
-          ))}
-        </section>
-      )}
-
-      {selected && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60">
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-label="Demo bet slip"
-            className="max-h-[88vh] w-full max-w-xl overflow-y-auto rounded-t-xl bg-white p-4 shadow-xl"
+          <button
+            type="button"
+            disabled={wallet.busy}
+            onClick={wallet.close}
           >
-            <div className="flex justify-between">
-              <strong>DEMO BET SLIP</strong>
+            ✕ CLOSE
+          </button>
+        </div>
 
-              <button
-                type="button"
-                disabled={wallet.busy}
-                onClick={wallet.close}
-              >
-                ✕ CLOSE
-              </button>
-            </div>
+        <p className="mt-3 text-sm font-bold">
+          {selected.market}
+          {' · '}
+          {selected.selection}
+          {' · '}
+          {selected.type}
+        </p>
 
-            <p className="mt-3 text-sm font-bold">
-              {selected.market}
-              {' · '}
-              {selected.selection}
-              {' · '}
-              {selected.type}
-            </p>
+        <p className="mt-2 text-xs">
+          Line / price: {selected.rate}
 
-            <p className="mt-2 text-xs">
-              Line / price: {selected.rate}
+          {selected.sessionRate != null
+            ? ` · Rate: ${selected.sessionRate}`
+            : ''}
+        </p>
 
-              {selected.sessionRate
-                ? ` · Rate: ${selected.sessionRate}`
-                : ''}
-            </p>
+        <p className="mt-2 text-xs">
+          Balance: {coins(wallet.balance)} Demo Coins
+        </p>
 
-            <p className="mt-2 text-xs">
-              Wallet:{' '}
-              {wallet.balance == null
-                ? 'Unavailable'
-                : wallet.balance.toLocaleString('en-IN')}
-              {' '}demo coins
-            </p>
+        <label
+          htmlFor="provider-demo-risk"
+          className="mt-4 block text-xs font-bold"
+        >
+          {selected.type === 'LAY' ||
+          selected.selection === 'NO'
+            ? 'Risk / liability held'
+            : 'Stake'}
 
-            <label
-              htmlFor="provider-demo-risk"
-              className="mt-4 block text-xs font-bold"
-            >
-              Risk / coins held
-              {' '}({selected.min}–{selected.max})
-            </label>
+          {' '}
+          ({selected.min}–{selected.max} Coins)
+        </label>
 
-            <input
-              id="provider-demo-risk"
-              inputMode="numeric"
-              value={wallet.stake}
-              disabled={
-                wallet.busy || wallet.retrying
-              }
-              onChange={event => {
-                if (
-                  /^\d*$/.test(event.target.value)
-                ) {
-                  wallet.setStake(
-                    event.target.value,
-                  );
-                }
-              }}
-              className="mt-2 w-full rounded border-2 p-3 text-lg font-bold"
-              placeholder="Enter demo coins"
-            />
+        <input
+          autoFocus
+          id="provider-demo-risk"
+          inputMode="numeric"
+          value={wallet.stake}
+          disabled={wallet.busy || wallet.retrying}
+          onChange={event => {
+            if (/^\d*$/.test(event.target.value)) {
+              wallet.setStake(event.target.value);
+            }
+          }}
+          className="mt-2 w-full rounded-lg border-2 p-3 text-lg font-bold"
+          style={{ borderColor: TEAL }}
+          placeholder="Enter demo coins"
+        />
 
-            <div className="mt-2 grid grid-cols-4 gap-2">
-              {[100, 500, 1000, 5000].map(amount => (
-                <button
-                  key={amount}
-                  type="button"
-                  disabled={
-                    wallet.busy || wallet.retrying
-                  }
-                  onClick={() =>
-                    wallet.setStake(
-                      String(held + amount),
-                    )
-                  }
-                  className="rounded bg-slate-100 p-2 text-xs"
-                >
-                  +{amount}
-                </button>
-              ))}
-            </div>
-
-            <p className="mt-3 text-xs">
-              If simulated WON: return{' '}
-              {Math.round(
-                held * selected.payoutRate,
-              )}
-              {' '}coins, including {held} held coins.
-            </p>
-
-            <p className="mt-1 text-xs">
-              If simulated LOST: lose the {held} held
-              coins. LAY / NO risk is liability.
-            </p>
-
-            {!canSubmit && (
-              <p className="mt-3 text-xs font-bold text-amber-800">
-                Market paused or price changed.
-                Choose the latest price.
-              </p>
-            )}
-
-            {wallet.message && (
-              <p
-                role="status"
-                className="mt-3 bg-teal-50 p-3 text-xs"
-              >
-                {wallet.message}
-              </p>
-            )}
-
+        <div className="mt-3 grid grid-cols-4 gap-2">
+          {quickStakes.map(amount => (
             <button
+              key={amount}
               type="button"
               disabled={
                 wallet.busy ||
-                (!canSubmit && !wallet.retrying)
+                wallet.retrying ||
+                amount < selected.min ||
+                amount > selected.max
               }
               onClick={() =>
-                wallet.save(canSubmit)
+                wallet.setStake(String(amount))
               }
-              className="mt-4 w-full rounded bg-[#063f39] p-3 font-bold text-white disabled:opacity-50"
+              className="rounded border py-2 text-xs font-bold disabled:opacity-30"
+              style={{
+                borderColor: TEAL,
+                color: WINE,
+              }}
             >
-              {wallet.busy
-                ? 'SAVING...'
-                : wallet.retrying
-                  ? 'RETRY SAME REQUEST'
-                  : 'SAVE DEMO SELECTION'}
+              {coins(amount)}
             </button>
-
-            <p className="mt-3 text-[10px] text-slate-600">
-              Virtual coins only. Results are manually
-              simulated; no official result settlement
-              or real-money payout.
-            </p>
-          </section>
+          ))}
         </div>
-      )}
-    </>
+
+        {Number.isFinite(payout) && (
+          <p className="mt-3 text-xs">
+            If simulated WON: {coins(held * payout)}
+            {' '}Coins returned, including{' '}
+            {coins(held)} held Coins.
+          </p>
+        )}
+
+        <p className="mt-2 text-xs">
+          If simulated LOST: lose {coins(held)} Coins.
+          LAY / NO stake represents liability.
+        </p>
+
+        {!canSubmit && (
+          <p
+            className="mt-3 text-xs font-bold"
+            style={{ color: WINE }}
+          >
+            Market paused or price changed. Close
+            and choose the latest price.
+          </p>
+        )}
+
+        {wallet.message && (
+          <p
+            role="status"
+            className="mt-3 rounded border p-3 text-xs"
+          >
+            {wallet.message}
+          </p>
+        )}
+
+        <button
+          type="button"
+          disabled={
+            wallet.busy ||
+            (!canSubmit && !wallet.retrying)
+          }
+          onClick={() => wallet.save(canSubmit)}
+          className="mt-4 w-full rounded-lg p-3 font-black text-white disabled:opacity-50"
+          style={{ background: WINE }}
+        >
+          {wallet.busy
+            ? 'SAVING...'
+            : wallet.retrying
+              ? 'RETRY SAME REQUEST'
+              : 'SAVE DEMO SELECTION'}
+        </button>
+
+        <p className="mt-3 text-[10px]">
+          Virtual coins only. Manual simulation;
+          no real-money payout.
+        </p>
+      </section>
+    </div>
   );
 }
 
@@ -920,20 +1114,22 @@ function ProviderMatch({
 
   const wallet = useDemoWallet(matchId, user);
 
+  const [tab, setTab] = useState('odds');
   const [event, setEvent] = useState(match);
-  const history = useRef(new Map());
-
   const [meta, setMeta] = useState(null);
   const [receivedAt, setReceivedAt] = useState(0);
   const [clock, setClock] = useState(Date.now());
   const [error, setError] = useState('');
   const [available, setAvailable] = useState(false);
 
+  const history = useRef(new Map());
+
   useEffect(() => {
     let active = true;
     let loading = false;
     let sequence = 0;
     let stream;
+
     let metaForSnapshot = {};
 
     const controller = new AbortController();
@@ -956,10 +1152,11 @@ function ProviderMatch({
           fresh &&
           Number.isFinite(age) &&
           age >= -1000 &&
-          age < Math.max(
-            Number(config.pollIntervalMs || 15000) * 3,
-            30000,
-          )
+          age <
+            Math.max(
+              Number(config.pollIntervalMs || 15000) * 3,
+              30000,
+            )
         );
       };
 
@@ -993,15 +1190,18 @@ function ProviderMatch({
 
                 display: pair(
                   `odds:${item.matchOdds.marketId}:${runner.selectionId}`,
+
                   {
                     a: runner.back?.[0]?.price,
                     as: runner.back?.[0]?.size,
                     b: runner.lay?.[0]?.price,
                     bs: runner.lay?.[0]?.size,
                   },
+
                   blockedStatus(
                     item.matchOdds.status,
                   ) || runner.status,
+
                   recent(item.marketUpdatedAt),
                 ),
               })),
@@ -1015,12 +1215,14 @@ function ProviderMatch({
 
           display: pair(
             `book:${row.marketId}:${row.selectionId}`,
+
             {
               a: row.back,
               as: row.backSize,
               b: row.lay,
               bs: row.laySize,
             },
+
             row.status,
             recent(item.fancyUpdatedAt),
           ),
@@ -1033,12 +1235,14 @@ function ProviderMatch({
 
           display: pair(
             `fancy:${row.id}`,
+
             {
               a: row.no,
               as: row.noRate,
               b: row.yes,
               bs: row.yesRate,
             },
+
             row.status,
             recent(item.fancyUpdatedAt),
             true,
@@ -1100,7 +1304,7 @@ function ProviderMatch({
 
         if (!response.ok) {
           throw new Error(
-            'Unable to read saved sports feed.',
+            'Unable to read sports feed.',
           );
         }
 
@@ -1117,7 +1321,7 @@ function ProviderMatch({
           failure.name !== 'AbortError'
         ) {
           setError(
-            'Connection unavailable. Showing the last received prices.',
+            'Connection unavailable. Waiting for an update.',
           );
 
           setReceivedAt(0);
@@ -1130,6 +1334,8 @@ function ProviderMatch({
     setEvent(match);
     setAvailable(false);
     setReceivedAt(0);
+    setMeta(null);
+    setError('');
 
     void load();
 
@@ -1142,7 +1348,7 @@ function ProviderMatch({
         try {
           apply(JSON.parse(message.data));
         } catch {
-          // Cached GET retries automatically.
+          // GET retries automatically.
         }
       };
 
@@ -1151,32 +1357,29 @@ function ProviderMatch({
       };
     }
 
-    const timer = setInterval(() => {
-      void load();
-    }, 5000);
+    const timer = setInterval(load, 5000);
 
-    const tick = setInterval(() => {
-      setClock(Date.now());
-    }, 1000);
+    const tick = setInterval(
+      () => setClock(Date.now()),
+      1000,
+    );
 
-    const focus = () => {
-      void load();
-    };
-
-    window.addEventListener('focus', focus);
+    window.addEventListener('focus', load);
 
     return () => {
       active = false;
+
       controller.abort();
 
       clearInterval(timer);
       clearInterval(tick);
+
       stream?.close();
 
-      window.removeEventListener('focus', focus);
+      window.removeEventListener('focus', load);
     };
 
-    // Server responses replace the selected event.
+    // The selected event is replaced by server snapshots.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchId]);
 
@@ -1191,6 +1394,7 @@ function ProviderMatch({
   );
 
   const odds = event.matchOdds;
+  const runners = odds?.runners || [];
 
   const limit = Math.max(
     Number(meta?.pollIntervalMs || 15000) * 3,
@@ -1200,15 +1404,15 @@ function ProviderMatch({
   const marketAge =
     clock - Date.parse(event.marketUpdatedAt || '');
 
+  const fancyAge =
+    clock - Date.parse(event.fancyUpdatedAt || '');
+
   const pricesFresh = Boolean(
     connected &&
       Number.isFinite(marketAge) &&
       marketAge >= -1000 &&
       marketAge < limit,
   );
-
-  const fancyAge =
-    clock - Date.parse(event.fancyUpdatedAt || '');
 
   const fancyFresh = Boolean(
     connected &&
@@ -1217,289 +1421,429 @@ function ProviderMatch({
       fancyAge < limit,
   );
 
-  const live = Boolean(
-    pricesFresh &&
-      event.status === 'LIVE' &&
-      odds?.inplay === true,
-  );
+  const [date, time] = dateParts(event.startTime);
+
+  const score = scoreText(event);
+
+  const marketStatus = !connected
+    ? 'PAUSED'
+    : !pricesFresh
+      ? 'WAITING'
+      : blockedStatus(odds?.status) ||
+        (odds ? 'OPEN' : 'UNAVAILABLE');
+
+  const warning =
+    error ||
+    (
+      meta?.enabled === false
+        ? 'Cricket updates paused.'
+        : !available
+          ? 'Waiting for this match feed.'
+          : !connected
+            ? 'Waiting for fresh data. Selections are paused.'
+            : ''
+    );
+
+  const columns =
+    'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)]';
 
   return (
-    <div className="min-h-screen bg-[#eeeeee] text-slate-900">
-      <header className="sticky top-0 z-40 flex items-center gap-3 bg-[#063f39] p-3 text-white shadow">
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded border border-teal-500 px-3 py-2 font-bold"
+    <div
+      className="min-h-screen bg-white text-slate-900"
+      style={{
+        fontFamily: 'Arial, sans-serif',
+      }}
+    >
+      <div className="sticky top-0 z-40">
+        <header
+          className="flex items-center gap-2 px-3 py-4 text-white"
+          style={{ background: TEAL }}
         >
-          ← Back
-        </button>
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Back to matches"
+            className="shrink-0 px-1 text-3xl"
+          >
+            ←
+          </button>
 
-        <div className="min-w-0 flex-1 text-center">
-          <p className="text-sm font-black text-amber-300">
+          <h1 className="min-w-0 flex-1 text-center text-xs font-black sm:text-lg">
             TELUGU SPORTS BOOK
-          </p>
+          </h1>
 
-          <p className="text-[10px]">
-            SPORTBEX · PROVIDER MARKETS
-          </p>
+          <div
+            className="shrink-0 rounded-lg px-2 py-2 text-center"
+            style={{ background: '#008D96' }}
+          >
+            <strong className="block text-xs tabular-nums sm:text-base">
+              {wallet.balance == null
+                ? '…'
+                : coins(wallet.balance)}
+              {' '}Coins
+            </strong>
+
+            <span className="block text-[9px] font-bold">
+              DEMO
+            </span>
+          </div>
+        </header>
+
+        <nav
+          aria-label="Match tabs"
+          className="grid grid-cols-2 text-white"
+          style={{ background: WINE }}
+        >
+          {[
+            ['odds', 'ODDS'],
+            [
+              'bets',
+              `MATCHED BET (${wallet.bets.length})`,
+            ],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              aria-current={
+                tab === id ? 'page' : undefined
+              }
+              onClick={() => setTab(id)}
+              className="relative px-2 py-4 text-xs font-black sm:text-sm"
+            >
+              {label}
+
+              {tab === id && (
+                <span className="absolute bottom-0 left-[12%] h-1 w-[76%] rounded-full bg-white" />
+              )}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      <section
+        className="flex items-center justify-between gap-3 px-3 py-3 text-white"
+        style={{ background: TEAL }}
+      >
+        <div className="min-w-0">
+          <h2 className="break-words text-sm font-black sm:text-lg">
+            {event.homeTeam} v {event.awayTeam}
+          </h2>
         </div>
 
-        <div className="shrink-0 text-right">
-          <strong className="block whitespace-nowrap text-sm tabular-nums text-amber-300">
-            {wallet.balance == null
-              ? '…'
-              : `₹${wallet.balance.toLocaleString('en-IN')}`}
-          </strong>
+        <div className="shrink-0 text-right text-[10px] font-bold sm:text-xs">
+          <p>{date}</p>
+          <p className="mt-1">{time}</p>
         </div>
-      </header>
+      </section>
 
-      <WalletPanel
+      {(wallet.error || wallet.quoteError) && (
+        <p
+          role="alert"
+          className="border-b p-3 text-xs font-bold"
+          style={{ color: WINE }}
+        >
+          {wallet.error || wallet.quoteError}
+        </p>
+      )}
+
+      {wallet.message && !wallet.selected && (
+        <p
+          role="status"
+          className="border-b p-3 text-xs"
+          style={{ color: WINE }}
+        >
+          {wallet.message}
+        </p>
+      )}
+
+      {tab === 'bets' ? (
+        <BetsView wallet={wallet} />
+      ) : (
+        <>
+          <section
+            className="m-3 rounded-xl border-2 p-3 text-center"
+            style={{ borderColor: TEAL }}
+          >
+            <h2
+              className="text-xs font-black"
+              style={{ color: TEAL }}
+            >
+              SCORE
+            </h2>
+
+            <p className="mt-2 whitespace-pre-line break-words text-base font-bold">
+              {score || 'Awaiting live score'}
+            </p>
+
+            {score && !connected && (
+              <p
+                className="mt-2 text-[10px]"
+                style={{ color: WINE }}
+              >
+                Last received score · waiting for update
+              </p>
+            )}
+          </section>
+
+          {warning && (
+            <p
+              role="status"
+              className="mx-3 mb-3 rounded-lg border px-3 py-2 text-[10px] font-bold"
+              style={{
+                color: WINE,
+                borderColor: WINE,
+              }}
+            >
+              {warning}
+            </p>
+          )}
+
+          <section
+            className="mx-3 overflow-hidden rounded-xl border"
+            style={{ borderColor: TEAL }}
+          >
+            <div
+              className="flex items-center justify-between gap-2 px-3 py-3 text-white"
+              style={{ background: TEAL }}
+            >
+              <h2 className="text-sm font-black">
+                MATCH ODDS
+              </h2>
+
+              <span
+                className="rounded-lg px-3 py-2 text-[10px] font-black"
+                style={{ background: WINE }}
+              >
+                {marketStatus}
+              </span>
+            </div>
+
+            <div
+              className={`${columns} border-b text-[10px] font-black`}
+            >
+              <span className="p-3">TEAM</span>
+
+              <div className="grid grid-cols-2 items-center text-center">
+                <span>BACK</span>
+                <span>LAY</span>
+              </div>
+            </div>
+
+            {runners.map(runner => {
+              const exposure = runnerExposure(
+                wallet.bets,
+                runners,
+                runner,
+              );
+
+              return (
+                <div
+                  key={runner.selectionId}
+                  className={`${columns} items-stretch border-b last:border-b-0`}
+                  style={{ borderColor: TEAL }}
+                >
+                  <div className="min-w-0 self-center p-3">
+                    <strong className="break-words text-xs sm:text-sm">
+                      {runner.name}
+                    </strong>
+
+                    {exposure.known &&
+                      exposure.count > 0 && (
+                        <p
+                          className="mt-1 text-sm font-black"
+                          style={{
+                            color:
+                              exposure.profit < 0
+                                ? WINE
+                                : '#00836B',
+                          }}
+                        >
+                          {exposure.profit >= 0 ? '+' : ''}
+                          {coins(exposure.profit)} Coins
+                        </p>
+                      )}
+
+                    {!exposure.known && (
+                      <p className="mt-1 text-[9px]">
+                        Outcome P/L unavailable
+                      </p>
+                    )}
+
+                    {exposure.stake > 0 && (
+                      <p className="mt-1 text-[9px]">
+                        Your stake / risk:{' '}
+                        {coins(exposure.stake)} Coins
+                      </p>
+                    )}
+                  </div>
+
+                  <PricePair
+                    row={
+                      runner.display || {
+                        values: {},
+                      }
+                    }
+                    fresh={pricesFresh}
+                    enabled={connected}
+                    wallet={wallet}
+                    marketId="match-odds"
+                    selectionId={runner.selectionId}
+                  />
+                </div>
+              );
+            })}
+
+            {!runners.length && (
+              <p className="p-4 text-xs">
+                Match odds unavailable.
+              </p>
+            )}
+
+            {runners.length > 0 && (
+              <p className="border-t px-3 py-2 text-[9px]">
+                Outcome P/L for pending match-odds
+                selections · before any commission.
+                Numbers below prices are provider size.
+              </p>
+            )}
+
+            {odds?.delayed === true && (
+              <p
+                className="px-3 pb-2 text-[9px]"
+                style={{ color: WINE }}
+              >
+                Provider indicates delayed prices.
+              </p>
+            )}
+          </section>
+
+          <section
+            className="mx-3 mt-3 overflow-hidden rounded-xl border"
+            style={{ borderColor: TEAL }}
+          >
+            <h2
+              className="px-3 py-3 text-sm font-black text-white"
+              style={{ background: TEAL }}
+            >
+              BOOKMAKER
+            </h2>
+
+            <p className="p-3 text-[9px]">
+              Provider rate format; not decimal
+              exchange odds.
+            </p>
+
+            <div
+              className={`${columns} border-y text-[10px] font-black`}
+            >
+              <span className="p-3">TEAM</span>
+
+              <div className="grid grid-cols-2 items-center text-center">
+                <span>BACK</span>
+                <span>LAY</span>
+              </div>
+            </div>
+
+            {(event.bookmaker || []).map(row => (
+              <div
+                key={`${row.marketId}:${row.selectionId}`}
+                className={`${columns} items-stretch border-b last:border-b-0`}
+              >
+                <div className="min-w-0 self-center p-3">
+                  <strong className="break-words text-xs">
+                    {row.name}
+                  </strong>
+                </div>
+
+                <PricePair
+                  row={
+                    row.display || {
+                      values: {},
+                    }
+                  }
+                  fresh={fancyFresh}
+                  enabled={connected}
+                  wallet={wallet}
+                  marketId={`bookmaker:${row.marketId}`}
+                  selectionId={row.selectionId}
+                />
+              </div>
+            ))}
+
+            {!event.bookmaker?.length && (
+              <p className="p-4 text-xs">
+                No bookmaker markets available.
+              </p>
+            )}
+          </section>
+
+          <section
+            className="mx-3 mt-3 overflow-hidden rounded-xl border"
+            style={{ borderColor: TEAL }}
+          >
+            <h2
+              className="px-3 py-3 text-sm font-black text-white"
+              style={{ background: TEAL }}
+            >
+              FANCY / SESSION
+            </h2>
+
+            <div
+              className={`${columns} border-b text-[10px] font-black`}
+            >
+              <span className="p-3">MARKET</span>
+
+              <div className="grid grid-cols-2 items-center text-center">
+                <span>NO · RATE</span>
+                <span>YES · RATE</span>
+              </div>
+            </div>
+
+            {(event.fancy || []).map(row => (
+              <div
+                key={row.id}
+                className={`${columns} items-stretch border-b last:border-b-0`}
+              >
+                <div className="min-w-0 self-center p-3">
+                  <strong className="break-words text-xs">
+                    {row.title}
+                  </strong>
+                </div>
+
+                <PricePair
+                  row={
+                    row.display || {
+                      values: {},
+                    }
+                  }
+                  fresh={fancyFresh}
+                  enabled={connected}
+                  first="LAY"
+                  wallet={wallet}
+                  marketId={`fancy:${row.id}`}
+                  selectionId={row.selectionId}
+                />
+              </div>
+            ))}
+
+            {!event.fancy?.length && (
+              <p className="p-4 text-xs">
+                No fancy / session markets available.
+              </p>
+            )}
+          </section>
+        </>
+      )}
+
+      <footer className="p-4 text-center text-[10px]">
+        Demo coins only
+      </footer>
+
+      <BetSlip
         wallet={wallet}
         connected={connected}
         clock={clock}
       />
-
-      <section className="bg-white p-4 shadow-sm">
-        <p
-          className={`text-[10px] font-black ${
-            live
-              ? 'text-red-600'
-              : 'text-teal-700'
-          }`}
-        >
-          {live
-            ? '● LIVE'
-            : !pricesFresh
-              ? 'SAVED DATA / WAITING FOR UPDATE'
-              : odds?.inplay === false
-                ? 'UPCOMING / NOT IN PLAY'
-                : 'MATCH STATUS UNAVAILABLE'}
-        </p>
-
-        <h1 className="mt-2 text-xl font-black">
-          {event.homeTeam} vs {event.awayTeam}
-        </h1>
-
-        <p className="mt-2 text-xs text-slate-600">
-          {event.league}
-          {' · '}
-          {formatDate(event.startTime)}
-        </p>
-
-        <p className="mt-2 text-[10px] text-slate-500">
-          Last market response:{' '}
-          {formatDate(event.marketUpdatedAt)}
-        </p>
-      </section>
-
-      {(!connected || error) && (
-        <p
-          role="status"
-          className="bg-amber-100 p-3 text-xs font-bold text-amber-900"
-        >
-          {error ||
-            (meta?.enabled === false
-              ? 'Cricket API OFF. Saved prices are shown.'
-              : !available
-                ? 'Waiting for this match in the saved feed.'
-                : 'Waiting for a fresh provider response.')}
-        </p>
-      )}
-
-      <section className="mt-2 bg-[#082f2c] p-4 text-white">
-        <p className="text-[10px] text-teal-200">
-          SCORE
-        </p>
-
-        <p className="mt-1 font-bold">
-          {event.scoreAvailable
-            ? event.score
-            : 'Live score unavailable for this event'}
-        </p>
-      </section>
-
-      <section className="mt-2 overflow-hidden bg-white">
-        <h2 className="bg-[#0b6259] px-3 py-2 text-sm font-black text-white">
-          MATCH ODDS · {odds?.status || 'UNAVAILABLE'}
-        </h2>
-
-        <p className="px-3 py-2 text-[10px] text-slate-600">
-          {pricesFresh
-            ? 'Latest saved provider response'
-            : 'Saved / unavailable prices'}
-
-          {odds?.delayed === true
-            ? ' · Provider delay flag: delayed or unknown'
-            : ''}
-        </p>
-
-        <div className="grid grid-cols-[minmax(0,1fr)_180px] gap-2 bg-slate-100 p-2 text-[10px] font-black">
-          <span>TEAM</span>
-
-          <div className="grid grid-cols-2 text-center">
-            <span>BACK · SIZE</span>
-            <span>LAY · SIZE</span>
-          </div>
-        </div>
-
-        {(odds?.runners || []).map(runner => (
-          <div
-            key={runner.selectionId}
-            className="grid grid-cols-[minmax(0,1fr)_180px] items-center gap-2 border-b p-2"
-          >
-            <div className="min-w-0">
-              <strong className="break-words text-xs">
-                {runner.name}
-              </strong>
-
-              <p className="mt-1 text-[9px]">
-                {runner.status}
-              </p>
-            </div>
-
-            <PricePair
-              row={
-                runner.display || {
-                  values: {},
-                }
-              }
-              fresh={pricesFresh}
-              enabled={connected}
-              wallet={wallet}
-              marketId="match-odds"
-              selectionId={runner.selectionId}
-            />
-          </div>
-        ))}
-
-        {!odds?.runners?.length && (
-          <p className="p-4 text-xs">
-            No Match Odds returned for this event.
-          </p>
-        )}
-      </section>
-
-      <section className="mt-2 bg-white">
-        <h2 className="bg-[#0b6259] px-3 py-2 text-sm font-black text-white">
-          BOOKMAKER
-        </h2>
-
-        <p className="p-3 text-[10px] text-slate-500">
-          Provider rate format · These values are
-          not decimal exchange odds.
-        </p>
-
-        <div className="grid grid-cols-[minmax(0,1fr)_156px] gap-2 bg-slate-100 p-2 text-[10px] font-black">
-          <span>TEAM</span>
-
-          <div className="grid grid-cols-2 text-center">
-            <span>BACK</span>
-            <span>LAY</span>
-          </div>
-        </div>
-
-        {(event.bookmaker || []).map(row => (
-          <div
-            key={`${row.marketId}:${row.selectionId}`}
-            className="grid grid-cols-[minmax(0,1fr)_156px] items-center gap-2 border-b p-2"
-          >
-            <div className="min-w-0">
-              <strong className="break-words text-xs">
-                {row.name}
-              </strong>
-
-              <p className="mt-1 text-[9px]">
-                {row.status}
-                {' · '}
-                {fancyFresh ? 'Updated' : 'Saved'}
-              </p>
-            </div>
-
-            <PricePair
-              row={
-                row.display || {
-                  values: {},
-                }
-              }
-              fresh={fancyFresh}
-              enabled={connected}
-              wallet={wallet}
-              marketId={`bookmaker:${row.marketId}`}
-              selectionId={row.selectionId}
-            />
-          </div>
-        ))}
-
-        {!event.bookmaker?.length && (
-          <p className="p-4 text-xs">
-            No bookmaker rows returned.
-          </p>
-        )}
-      </section>
-
-      <section className="mt-2 bg-white">
-        <h2 className="bg-[#0b6259] px-3 py-2 text-sm font-black text-white">
-          FANCY / SESSION
-        </h2>
-
-        <div className="grid grid-cols-[minmax(0,1fr)_156px] gap-2 bg-slate-100 p-2 text-[10px] font-black">
-          <span>MARKET</span>
-
-          <div className="grid grid-cols-2 text-center">
-            <span>NO · RATE</span>
-            <span>YES · RATE</span>
-          </div>
-        </div>
-
-        {(event.fancy || []).map(row => (
-          <div
-            key={row.id}
-            className="grid grid-cols-[minmax(0,1fr)_156px] items-center gap-2 border-b p-2"
-          >
-            <div className="min-w-0">
-              <strong className="break-words text-xs">
-                {row.title}
-              </strong>
-
-              <p className="mt-1 text-[9px] text-slate-600">
-                {row.status === 'UNKNOWN'
-                  ? 'Status not supplied'
-                  : row.status}
-                {' · '}
-                {fancyFresh ? 'Updated' : 'Saved'}
-              </p>
-            </div>
-
-            <PricePair
-              row={
-                row.display || {
-                  values: {},
-                }
-              }
-              fresh={fancyFresh}
-              enabled={connected}
-              first="LAY"
-              wallet={wallet}
-              marketId={`fancy:${row.id}`}
-              selectionId={row.selectionId}
-            />
-          </div>
-        ))}
-
-        {!event.fancy?.length && (
-          <p className="p-4 text-xs">
-            No fancy/session rows returned for this event.
-          </p>
-        )}
-      </section>
-
-      <button
-        type="button"
-        onClick={onBack}
-        className="m-3 w-[calc(100%-24px)] rounded bg-[#063f39] p-3 font-bold text-white"
-      >
-        ← BACK TO MATCHES
-      </button>
     </div>
   );
 }
