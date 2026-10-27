@@ -1,11 +1,17 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+
 import ExistingMatchDetailsPage from './MatchDetailsPage.previous.jsx';
 
 const TEAL = '#0BB1B8';
 const WINE = '#791A40';
 
 const quickStakes = [
-  100, 200, 500, 1000, 2000, 5000, 10000, 25000,
+  100, 200, 500, 1000,
+  2000, 5000, 10000, 25000,
 ];
 
 const format = value =>
@@ -26,7 +32,10 @@ const same = (a, b) =>
 function dateParts(value) {
   const date = value ? new Date(value) : null;
 
-  if (!date || !Number.isFinite(date.getTime())) {
+  if (
+    !date ||
+    !Number.isFinite(date.getTime())
+  ) {
     return ['Date unavailable', ''];
   }
 
@@ -43,9 +52,10 @@ function dateParts(value) {
   ];
 }
 
-// Reads the score supplied by the existing server feed.
 function scoreText(event) {
-  if (event.scoreAvailable === false) return '';
+  if (event.scoreAvailable === false) {
+    return '';
+  }
 
   const value = event.score;
 
@@ -86,12 +96,16 @@ function blockedStatus(value) {
     return 'SUSPENDED';
   }
 
-  if (/CLOSE|ENDED|FINISHED|SETTLED/.test(status)) {
+  if (
+    /CLOSE|ENDED|FINISHED|SETTLED/.test(status)
+  ) {
     return 'CLOSED';
   }
 
   if (
-    ['', 'UNKNOWN', 'OPEN', 'ACTIVE'].includes(status)
+    ['', 'UNKNOWN', 'OPEN', 'ACTIVE'].includes(
+      status,
+    )
   ) {
     return '';
   }
@@ -110,7 +124,9 @@ function rememberPair(
   const valid = (price, size) =>
     price != null &&
     Number.isFinite(Number(price)) &&
-    Number(price) >= (session ? 0 : 0.000001) &&
+    Number(price) >= (
+      session ? 0 : 0.000001
+    ) &&
     Number(size) > 0;
 
   const usable =
@@ -181,7 +197,9 @@ async function demoAPI(url, options = {}) {
 
   if (!response.ok) {
     throw Object.assign(
-      new Error(data.error || 'Request failed.'),
+      new Error(
+        data.error || 'Request failed.',
+      ),
       { status: response.status },
     );
   }
@@ -206,7 +224,9 @@ function useDemoWallet(matchId, user) {
     quoteAt: 0,
   });
 
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] =
+    useState(null);
+
   const [stake, setStake] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -273,9 +293,12 @@ function useDemoWallet(matchId, user) {
       ) {
         const walletOK =
           wallet.status === 'fulfilled' &&
-          String(wallet.value.customerId) === customerId &&
+          String(wallet.value.customerId) ===
+            customerId &&
           wallet.value.balance != null &&
-          Number.isFinite(Number(wallet.value.balance));
+          Number.isFinite(
+            Number(wallet.value.balance),
+          );
 
         setState(previous => ({
           ...previous,
@@ -388,9 +411,17 @@ function useDemoWallet(matchId, user) {
   };
 
   const save = async canSubmit => {
-    if (busyRef.current || !selected) return;
+    if (
+      busyRef.current ||
+      !selected
+    ) {
+      return;
+    }
 
-    if (!retry.current && !canSubmit) {
+    if (
+      !retry.current &&
+      !canSubmit
+    ) {
       setMessage(
         'Market paused or price changed. Close and select the latest price.',
       );
@@ -419,7 +450,10 @@ function useDemoWallet(matchId, user) {
       !retry.current &&
       amount > state.balance
     ) {
-      setMessage('Insufficient demo coins.');
+      setMessage(
+        'Insufficient demo coins.',
+      );
+
       return;
     }
 
@@ -462,14 +496,18 @@ function useDemoWallet(matchId, user) {
             data.bet,
 
             ...previous.bets.filter(
-              bet => !same(bet.id, data.bet.id),
+              bet =>
+                !same(bet.id, data.bet.id),
             ),
           ],
         }));
 
         setSelected(null);
         retry.current = null;
-        setMessage('Demo selection saved.');
+
+        setMessage(
+          'Demo selection saved.',
+        );
 
         notify();
       }
@@ -501,58 +539,6 @@ function useDemoWallet(matchId, user) {
     }
   };
 
-  const simulate = async (betId, outcome) => {
-    if (busyRef.current) return;
-
-    const token = generation.current;
-
-    revision.current += 1;
-    busyRef.current = true;
-
-    setBusy(true);
-    setMessage('');
-
-    try {
-      const data = await demoAPI(
-        `/api/demo-bets/${encodeURIComponent(betId)}/simulate-settlement`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ outcome }),
-        },
-      );
-
-      if (generation.current === token) {
-        setState(previous => ({
-          ...previous,
-          balance: Number(data.balance),
-
-          bets: previous.bets.map(bet =>
-            same(bet.id, data.bet.id)
-              ? data.bet
-              : bet,
-          ),
-        }));
-
-        setMessage(
-          'Demo result simulated. This is not an official match result.',
-        );
-
-        notify();
-      }
-    } catch (failure) {
-      if (generation.current === token) {
-        setMessage(failure.message);
-      }
-    } finally {
-      if (generation.current === token) {
-        busyRef.current = false;
-        setBusy(false);
-
-        void refreshRef.current?.();
-      }
-    }
-  };
-
   return {
     ...state,
     selected,
@@ -563,7 +549,6 @@ function useDemoWallet(matchId, user) {
     pick,
     close,
     save,
-    simulate,
     retrying: Boolean(retry.current),
   };
 }
@@ -618,7 +603,10 @@ function PricePair({
     wallet.quotes.find(
       quote =>
         same(quote.marketId, marketId) &&
-        same(quote.selectionId, selectionId) &&
+        same(
+          quote.selectionId,
+          selectionId,
+        ) &&
         (
           first === 'LAY'
             ? quote.selection === (
@@ -654,13 +642,17 @@ function PricePair({
   return (
     <div
       className="relative grid grid-cols-2 gap-px overflow-hidden"
-      aria-label={label || 'Provider prices'}
+      aria-label={
+        label || 'Provider prices'
+      }
     >
       <Price
         side={first}
         value={values.a}
         size={values.as}
-        disabled={!ready(a, values.a, values.as)}
+        disabled={
+          !ready(a, values.a, values.as)
+        }
         onPick={() => wallet.pick(a)}
       />
 
@@ -668,7 +660,9 @@ function PricePair({
         side={other}
         value={values.b}
         size={values.bs}
-        disabled={!ready(b, values.b, values.bs)}
+        disabled={
+          !ready(b, values.b, values.bs)
+        }
         onPick={() => wallet.pick(b)}
       />
 
@@ -677,7 +671,8 @@ function PricePair({
           role="status"
           className="absolute inset-0 flex flex-col items-center justify-center px-1 text-center text-white"
           style={{
-            background: 'rgba(121,26,64,0.92)',
+            background:
+              'rgba(121,26,64,0.92)',
           }}
         >
           <strong className="text-[10px] font-black">
@@ -695,9 +690,13 @@ function PricePair({
   );
 }
 
-// Only pending match-odds selections contribute here.
-// The existing API treats a LAY stake as held liability.
-function runnerExposure(bets, runners, runner) {
+// Pending match-odds exposure only.
+// In this API a LAY stake represents held liability.
+function runnerExposure(
+  bets,
+  runners,
+  runner,
+) {
   let stake = 0;
   let profit = 0;
   let count = 0;
@@ -706,10 +705,12 @@ function runnerExposure(bets, runners, runner) {
   for (const bet of bets) {
     if (
       bet.marketId !== 'match-odds' ||
-      String(bet.status).toUpperCase() !== 'MATCHED' ||
+      String(bet.status).toUpperCase() !==
+        'MATCHED' ||
       (
         bet.result &&
-        String(bet.result).toUpperCase() !== 'PENDING'
+        String(bet.result).toUpperCase() !==
+          'PENDING'
       )
     ) {
       continue;
@@ -729,12 +730,19 @@ function runnerExposure(bets, runners, runner) {
 
     const selection =
       runners.find(item =>
-        same(item.selectionId, bet.selectionId),
+        same(
+          item.selectionId,
+          bet.selectionId,
+        ),
       ) ||
       runners.find(
         item =>
-          String(item.name).trim().toLowerCase() ===
-          String(bet.selection).trim().toLowerCase(),
+          String(item.name)
+            .trim()
+            .toLowerCase() ===
+          String(bet.selection)
+            .trim()
+            .toLowerCase(),
       );
 
     if (!selection) {
@@ -747,17 +755,22 @@ function runnerExposure(bets, runners, runner) {
       runner.selectionId,
     );
 
-    const type = String(bet.type).toUpperCase();
+    const type =
+      String(bet.type).toUpperCase();
 
-    if (!['BACK', 'LAY'].includes(type)) {
+    if (
+      !['BACK', 'LAY'].includes(type)
+    ) {
       known = false;
       continue;
     }
 
-    const supplied = Number(bet.payoutRate);
+    const supplied =
+      Number(bet.payoutRate);
 
     const multiplier =
-      Number.isFinite(supplied) && supplied > 1
+      Number.isFinite(supplied) &&
+      supplied > 1
         ? supplied
         : type === 'BACK'
           ? rate
@@ -781,7 +794,8 @@ function runnerExposure(bets, runners, runner) {
 
   return {
     stake,
-    profit: Math.round(profit * 100) / 100,
+    profit:
+      Math.round(profit * 100) / 100,
     count,
     known,
   };
@@ -850,56 +864,27 @@ function BetsView({ wallet }) {
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[10px]">
             <span
               className="rounded-full px-3 py-1 font-bold text-white"
-              style={{ background: WINE }}
+              style={{
+                background: WINE,
+              }}
             >
-              {bet.status} · {bet.result || 'PENDING'}
+              {bet.status}
+              {' · '}
+              {bet.result || 'PENDING'}
             </span>
 
             <span>
-              Settled P/L: {coins(bet.profitLoss ?? 0)}
+              Settled P/L:{' '}
+              {coins(bet.profitLoss ?? 0)}
             </span>
           </div>
 
           {bet.createdAt && (
             <p className="mt-2 text-[9px]">
-              {dateParts(bet.createdAt).join(' · ')}
+              {dateParts(
+                bet.createdAt,
+              ).join(' · ')}
             </p>
-          )}
-
-          {bet.status === 'MATCHED' && (
-            <details className="mt-3 text-[10px]">
-              <summary
-                className="cursor-pointer font-bold"
-                style={{ color: WINE }}
-              >
-                Demo simulation controls
-              </summary>
-
-              <p className="mt-2">
-                Manual demo result only; not an
-                official match result.
-              </p>
-
-              <div className="mt-2 flex gap-2">
-                {['WON', 'LOST'].map(outcome => (
-                  <button
-                    key={outcome}
-                    type="button"
-                    disabled={wallet.busy}
-                    onClick={() =>
-                      wallet.simulate(
-                        bet.id,
-                        outcome,
-                      )
-                    }
-                    className="rounded px-3 py-2 font-bold text-white disabled:opacity-50"
-                    style={{ background: WINE }}
-                  >
-                    SIMULATE {outcome}
-                  </button>
-                ))}
-              </div>
-            </details>
           )}
         </article>
       ))}
@@ -918,12 +903,16 @@ function BetSlip({
 
   const current = wallet.quotes.find(
     quote =>
-      same(quote.marketId, selected.marketId) &&
+      same(
+        quote.marketId,
+        selected.marketId,
+      ) &&
       same(
         quote.selectionId,
         selected.selectionId,
       ) &&
-      quote.selection === selected.selection &&
+      quote.selection ===
+        selected.selection &&
       quote.type === selected.type,
   );
 
@@ -933,13 +922,17 @@ function BetSlip({
       !wallet.quoteError &&
       clock - wallet.quoteAt < 15000 &&
       current?.allowed &&
-      Number(current.rate) === Number(selected.rate) &&
+      Number(current.rate) ===
+        Number(selected.rate) &&
       Number(current.payoutRate) ===
         Number(selected.payoutRate),
   );
 
-  const held = Number(wallet.stake) || 0;
-  const payout = Number(selected.payoutRate);
+  const held =
+    Number(wallet.stake) || 0;
+
+  const payout =
+    Number(selected.payoutRate);
 
   return (
     <div
@@ -988,7 +981,8 @@ function BetSlip({
         </p>
 
         <p className="mt-2 text-xs">
-          Balance: {coins(wallet.balance)} Demo Coins
+          Balance:{' '}
+          {coins(wallet.balance)} Demo Coins
         </p>
 
         <label
@@ -1009,14 +1003,25 @@ function BetSlip({
           id="provider-demo-risk"
           inputMode="numeric"
           value={wallet.stake}
-          disabled={wallet.busy || wallet.retrying}
+          disabled={
+            wallet.busy ||
+            wallet.retrying
+          }
           onChange={event => {
-            if (/^\d*$/.test(event.target.value)) {
-              wallet.setStake(event.target.value);
+            if (
+              /^\d*$/.test(
+                event.target.value,
+              )
+            ) {
+              wallet.setStake(
+                event.target.value,
+              );
             }
           }}
           className="mt-2 w-full rounded-lg border-2 p-3 text-lg font-bold"
-          style={{ borderColor: TEAL }}
+          style={{
+            borderColor: TEAL,
+          }}
           placeholder="Enter demo coins"
         />
 
@@ -1032,7 +1037,9 @@ function BetSlip({
                 amount > selected.max
               }
               onClick={() =>
-                wallet.setStake(String(amount))
+                wallet.setStake(
+                  String(amount),
+                )
               }
               className="rounded border py-2 text-xs font-bold disabled:opacity-30"
               style={{
@@ -1047,14 +1054,14 @@ function BetSlip({
 
         {Number.isFinite(payout) && (
           <p className="mt-3 text-xs">
-            If simulated WON: {coins(held * payout)}
-            {' '}Coins returned, including{' '}
-            {coins(held)} held Coins.
+            Potential winning return:{' '}
+            {coins(held * payout)} Coins returned,
+            including {coins(held)} held Coins.
           </p>
         )}
 
         <p className="mt-2 text-xs">
-          If simulated LOST: lose {coins(held)} Coins.
+          Maximum loss: {coins(held)} Coins.
           LAY / NO stake represents liability.
         </p>
 
@@ -1063,8 +1070,8 @@ function BetSlip({
             className="mt-3 text-xs font-bold"
             style={{ color: WINE }}
           >
-            Market paused or price changed. Close
-            and choose the latest price.
+            Market paused or price changed.
+            Close and choose the latest price.
           </p>
         )}
 
@@ -1081,11 +1088,18 @@ function BetSlip({
           type="button"
           disabled={
             wallet.busy ||
-            (!canSubmit && !wallet.retrying)
+            (
+              !canSubmit &&
+              !wallet.retrying
+            )
           }
-          onClick={() => wallet.save(canSubmit)}
+          onClick={() =>
+            wallet.save(canSubmit)
+          }
           className="mt-4 w-full rounded-lg p-3 font-black text-white disabled:opacity-50"
-          style={{ background: WINE }}
+          style={{
+            background: WINE,
+          }}
         >
           {wallet.busy
             ? 'SAVING...'
@@ -1095,8 +1109,9 @@ function BetSlip({
         </button>
 
         <p className="mt-3 text-[10px]">
-          Virtual coins only. Manual simulation;
-          no real-money payout.
+          Virtual coins only. No real-money
+          payout. Results are managed by the
+          administrator.
         </p>
       </section>
     </div>
@@ -1112,15 +1127,23 @@ function ProviderMatch({
     match.eventId ?? match.id ?? '',
   );
 
-  const wallet = useDemoWallet(matchId, user);
+  const wallet =
+    useDemoWallet(matchId, user);
 
   const [tab, setTab] = useState('odds');
   const [event, setEvent] = useState(match);
   const [meta, setMeta] = useState(null);
-  const [receivedAt, setReceivedAt] = useState(0);
-  const [clock, setClock] = useState(Date.now());
+
+  const [receivedAt, setReceivedAt] =
+    useState(0);
+
+  const [clock, setClock] =
+    useState(Date.now());
+
   const [error, setError] = useState('');
-  const [available, setAvailable] = useState(false);
+
+  const [available, setAvailable] =
+    useState(false);
 
   const history = useRef(new Map());
 
@@ -1132,7 +1155,8 @@ function ProviderMatch({
 
     let metaForSnapshot = {};
 
-    const controller = new AbortController();
+    const controller =
+      new AbortController();
 
     history.current.clear();
 
@@ -1146,17 +1170,20 @@ function ProviderMatch({
 
       const recent = value => {
         const age =
-          Date.now() - Date.parse(value || '');
+          Date.now() -
+          Date.parse(value || '');
 
         return (
           fresh &&
           Number.isFinite(age) &&
           age >= -1000 &&
-          age <
-            Math.max(
-              Number(config.pollIntervalMs || 15000) * 3,
-              30000,
-            )
+          age < Math.max(
+            Number(
+              config.pollIntervalMs ||
+              15000,
+            ) * 3,
+            30000,
+          )
         );
       };
 
@@ -1192,17 +1219,26 @@ function ProviderMatch({
                   `odds:${item.matchOdds.marketId}:${runner.selectionId}`,
 
                   {
-                    a: runner.back?.[0]?.price,
-                    as: runner.back?.[0]?.size,
-                    b: runner.lay?.[0]?.price,
-                    bs: runner.lay?.[0]?.size,
+                    a:
+                      runner.back?.[0]?.price,
+
+                    as:
+                      runner.back?.[0]?.size,
+
+                    b:
+                      runner.lay?.[0]?.price,
+
+                    bs:
+                      runner.lay?.[0]?.size,
                   },
 
                   blockedStatus(
                     item.matchOdds.status,
                   ) || runner.status,
 
-                  recent(item.marketUpdatedAt),
+                  recent(
+                    item.marketUpdatedAt,
+                  ),
                 ),
               })),
             }
@@ -1224,7 +1260,10 @@ function ProviderMatch({
             },
 
             row.status,
-            recent(item.fancyUpdatedAt),
+
+            recent(
+              item.fancyUpdatedAt,
+            ),
           ),
         })),
 
@@ -1244,7 +1283,11 @@ function ProviderMatch({
             },
 
             row.status,
-            recent(item.fancyUpdatedAt),
+
+            recent(
+              item.fancyUpdatedAt,
+            ),
+
             true,
           ),
         })),
@@ -1254,11 +1297,12 @@ function ProviderMatch({
     const apply = body => {
       if (!active || !body) return;
 
-      const rows = Array.isArray(body.events)
-        ? body.events
-        : Array.isArray(body.data)
-          ? body.data
-          : null;
+      const rows =
+        Array.isArray(body.events)
+          ? body.events
+          : Array.isArray(body.data)
+            ? body.data
+            : null;
 
       if (!rows) return;
 
@@ -1266,7 +1310,9 @@ function ProviderMatch({
 
       const found = rows.find(
         row =>
-          String(row.eventId ?? row.id) === matchId,
+          String(
+            row.eventId ?? row.id,
+          ) === matchId,
       );
 
       setAvailable(Boolean(found));
@@ -1300,7 +1346,8 @@ function ProviderMatch({
           },
         );
 
-        const body = await response.json();
+        const body =
+          await response.json();
 
         if (!response.ok) {
           throw new Error(
@@ -1339,14 +1386,18 @@ function ProviderMatch({
 
     void load();
 
-    if (typeof EventSource !== 'undefined') {
+    if (
+      typeof EventSource !== 'undefined'
+    ) {
       stream = new EventSource(
         '/api/sports/stream',
       );
 
       stream.onmessage = message => {
         try {
-          apply(JSON.parse(message.data));
+          apply(
+            JSON.parse(message.data),
+          );
         } catch {
           // GET retries automatically.
         }
@@ -1357,14 +1408,18 @@ function ProviderMatch({
       };
     }
 
-    const timer = setInterval(load, 5000);
+    const timer =
+      setInterval(load, 5000);
 
     const tick = setInterval(
       () => setClock(Date.now()),
       1000,
     );
 
-    window.addEventListener('focus', load);
+    window.addEventListener(
+      'focus',
+      load,
+    );
 
     return () => {
       active = false;
@@ -1376,10 +1431,13 @@ function ProviderMatch({
 
       stream?.close();
 
-      window.removeEventListener('focus', load);
+      window.removeEventListener(
+        'focus',
+        load,
+      );
     };
 
-    // The selected event is replaced by server snapshots.
+    // Server snapshots replace the selected event.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchId]);
 
@@ -1397,15 +1455,23 @@ function ProviderMatch({
   const runners = odds?.runners || [];
 
   const limit = Math.max(
-    Number(meta?.pollIntervalMs || 15000) * 3,
+    Number(
+      meta?.pollIntervalMs || 15000,
+    ) * 3,
     30000,
   );
 
   const marketAge =
-    clock - Date.parse(event.marketUpdatedAt || '');
+    clock -
+    Date.parse(
+      event.marketUpdatedAt || '',
+    );
 
   const fancyAge =
-    clock - Date.parse(event.fancyUpdatedAt || '');
+    clock -
+    Date.parse(
+      event.fancyUpdatedAt || '',
+    );
 
   const pricesFresh = Boolean(
     connected &&
@@ -1421,7 +1487,8 @@ function ProviderMatch({
       fancyAge < limit,
   );
 
-  const [date, time] = dateParts(event.startTime);
+  const [date, time] =
+    dateParts(event.startTime);
 
   const score = scoreText(event);
 
@@ -1429,8 +1496,14 @@ function ProviderMatch({
     ? 'PAUSED'
     : !pricesFresh
       ? 'WAITING'
-      : blockedStatus(odds?.status) ||
-        (odds ? 'OPEN' : 'UNAVAILABLE');
+      : blockedStatus(
+          odds?.status,
+        ) ||
+        (
+          odds
+            ? 'OPEN'
+            : 'UNAVAILABLE'
+        );
 
   const warning =
     error ||
@@ -1457,7 +1530,9 @@ function ProviderMatch({
       <div className="sticky top-0 z-40">
         <header
           className="flex items-center gap-2 px-3 py-4 text-white"
-          style={{ background: TEAL }}
+          style={{
+            background: TEAL,
+          }}
         >
           <button
             type="button"
@@ -1474,28 +1549,28 @@ function ProviderMatch({
 
           <div
             className="shrink-0 rounded-lg px-2 py-2 text-center"
-            style={{ background: '#008D96' }}
+            style={{
+              background: '#008D96',
+            }}
           >
             <strong className="block text-xs tabular-nums sm:text-base">
               {wallet.balance == null
                 ? '…'
-                : coins(wallet.balance)}
-              {' '}Coins
+                : `₹${coins(wallet.balance)}`}
             </strong>
-
-            <span className="block text-[9px] font-bold">
-              DEMO
-            </span>
           </div>
         </header>
 
         <nav
           aria-label="Match tabs"
           className="grid grid-cols-2 text-white"
-          style={{ background: WINE }}
+          style={{
+            background: WINE,
+          }}
         >
           {[
             ['odds', 'ODDS'],
+
             [
               'bets',
               `MATCHED BET (${wallet.bets.length})`,
@@ -1505,9 +1580,13 @@ function ProviderMatch({
               key={id}
               type="button"
               aria-current={
-                tab === id ? 'page' : undefined
+                tab === id
+                  ? 'page'
+                  : undefined
               }
-              onClick={() => setTab(id)}
+              onClick={() =>
+                setTab(id)
+              }
               className="relative px-2 py-4 text-xs font-black sm:text-sm"
             >
               {label}
@@ -1522,7 +1601,9 @@ function ProviderMatch({
 
       <section
         className="flex items-center justify-between gap-3 px-3 py-3 text-white"
-        style={{ background: TEAL }}
+        style={{
+          background: TEAL,
+        }}
       >
         <div className="min-w-0">
           <h2 className="break-words text-sm font-black sm:text-lg">
@@ -1532,29 +1613,39 @@ function ProviderMatch({
 
         <div className="shrink-0 text-right text-[10px] font-bold sm:text-xs">
           <p>{date}</p>
-          <p className="mt-1">{time}</p>
+
+          <p className="mt-1">
+            {time}
+          </p>
         </div>
       </section>
 
-      {(wallet.error || wallet.quoteError) && (
+      {(wallet.error ||
+        wallet.quoteError) && (
         <p
           role="alert"
           className="border-b p-3 text-xs font-bold"
-          style={{ color: WINE }}
+          style={{
+            color: WINE,
+          }}
         >
-          {wallet.error || wallet.quoteError}
+          {wallet.error ||
+            wallet.quoteError}
         </p>
       )}
 
-      {wallet.message && !wallet.selected && (
-        <p
-          role="status"
-          className="border-b p-3 text-xs"
-          style={{ color: WINE }}
-        >
-          {wallet.message}
-        </p>
-      )}
+      {wallet.message &&
+        !wallet.selected && (
+          <p
+            role="status"
+            className="border-b p-3 text-xs"
+            style={{
+              color: WINE,
+            }}
+          >
+            {wallet.message}
+          </p>
+        )}
 
       {tab === 'bets' ? (
         <BetsView wallet={wallet} />
@@ -1562,25 +1653,33 @@ function ProviderMatch({
         <>
           <section
             className="m-3 rounded-xl border-2 p-3 text-center"
-            style={{ borderColor: TEAL }}
+            style={{
+              borderColor: TEAL,
+            }}
           >
             <h2
               className="text-xs font-black"
-              style={{ color: TEAL }}
+              style={{
+                color: TEAL,
+              }}
             >
               SCORE
             </h2>
 
             <p className="mt-2 whitespace-pre-line break-words text-base font-bold">
-              {score || 'Awaiting live score'}
+              {score ||
+                'Awaiting live score'}
             </p>
 
             {score && !connected && (
               <p
                 className="mt-2 text-[10px]"
-                style={{ color: WINE }}
+                style={{
+                  color: WINE,
+                }}
               >
-                Last received score · waiting for update
+                Last received score · waiting
+                for update
               </p>
             )}
           </section>
@@ -1600,11 +1699,15 @@ function ProviderMatch({
 
           <section
             className="mx-3 overflow-hidden rounded-xl border"
-            style={{ borderColor: TEAL }}
+            style={{
+              borderColor: TEAL,
+            }}
           >
             <div
               className="flex items-center justify-between gap-2 px-3 py-3 text-white"
-              style={{ background: TEAL }}
+              style={{
+                background: TEAL,
+              }}
             >
               <h2 className="text-sm font-black">
                 MATCH ODDS
@@ -1612,7 +1715,9 @@ function ProviderMatch({
 
               <span
                 className="rounded-lg px-3 py-2 text-[10px] font-black"
-                style={{ background: WINE }}
+                style={{
+                  background: WINE,
+                }}
               >
                 {marketStatus}
               </span>
@@ -1621,7 +1726,9 @@ function ProviderMatch({
             <div
               className={`${columns} border-b text-[10px] font-black`}
             >
-              <span className="p-3">TEAM</span>
+              <span className="p-3">
+                TEAM
+              </span>
 
               <div className="grid grid-cols-2 items-center text-center">
                 <span>BACK</span>
@@ -1630,17 +1737,22 @@ function ProviderMatch({
             </div>
 
             {runners.map(runner => {
-              const exposure = runnerExposure(
-                wallet.bets,
-                runners,
-                runner,
-              );
+              const exposure =
+                runnerExposure(
+                  wallet.bets,
+                  runners,
+                  runner,
+                );
 
               return (
                 <div
-                  key={runner.selectionId}
+                  key={
+                    runner.selectionId
+                  }
                   className={`${columns} items-stretch border-b last:border-b-0`}
-                  style={{ borderColor: TEAL }}
+                  style={{
+                    borderColor: TEAL,
+                  }}
                 >
                   <div className="min-w-0 self-center p-3">
                     <strong className="break-words text-xs sm:text-sm">
@@ -1658,8 +1770,13 @@ function ProviderMatch({
                                 : '#00836B',
                           }}
                         >
-                          {exposure.profit >= 0 ? '+' : ''}
-                          {coins(exposure.profit)} Coins
+                          {exposure.profit >= 0
+                            ? '+'
+                            : ''}
+
+                          {coins(
+                            exposure.profit,
+                          )} Coins
                         </p>
                       )}
 
@@ -1672,7 +1789,9 @@ function ProviderMatch({
                     {exposure.stake > 0 && (
                       <p className="mt-1 text-[9px]">
                         Your stake / risk:{' '}
-                        {coins(exposure.stake)} Coins
+                        {coins(
+                          exposure.stake,
+                        )} Coins
                       </p>
                     )}
                   </div>
@@ -1687,7 +1806,9 @@ function ProviderMatch({
                     enabled={connected}
                     wallet={wallet}
                     marketId="match-odds"
-                    selectionId={runner.selectionId}
+                    selectionId={
+                      runner.selectionId
+                    }
                   />
                 </div>
               );
@@ -1710,7 +1831,9 @@ function ProviderMatch({
             {odds?.delayed === true && (
               <p
                 className="px-3 pb-2 text-[9px]"
-                style={{ color: WINE }}
+                style={{
+                  color: WINE,
+                }}
               >
                 Provider indicates delayed prices.
               </p>
@@ -1719,11 +1842,15 @@ function ProviderMatch({
 
           <section
             className="mx-3 mt-3 overflow-hidden rounded-xl border"
-            style={{ borderColor: TEAL }}
+            style={{
+              borderColor: TEAL,
+            }}
           >
             <h2
               className="px-3 py-3 text-sm font-black text-white"
-              style={{ background: TEAL }}
+              style={{
+                background: TEAL,
+              }}
             >
               BOOKMAKER
             </h2>
@@ -1736,7 +1863,9 @@ function ProviderMatch({
             <div
               className={`${columns} border-y text-[10px] font-black`}
             >
-              <span className="p-3">TEAM</span>
+              <span className="p-3">
+                TEAM
+              </span>
 
               <div className="grid grid-cols-2 items-center text-center">
                 <span>BACK</span>
@@ -1746,7 +1875,9 @@ function ProviderMatch({
 
             {(event.bookmaker || []).map(row => (
               <div
-                key={`${row.marketId}:${row.selectionId}`}
+                key={
+                  `${row.marketId}:${row.selectionId}`
+                }
                 className={`${columns} items-stretch border-b last:border-b-0`}
               >
                 <div className="min-w-0 self-center p-3">
@@ -1764,8 +1895,12 @@ function ProviderMatch({
                   fresh={fancyFresh}
                   enabled={connected}
                   wallet={wallet}
-                  marketId={`bookmaker:${row.marketId}`}
-                  selectionId={row.selectionId}
+                  marketId={
+                    `bookmaker:${row.marketId}`
+                  }
+                  selectionId={
+                    row.selectionId
+                  }
                 />
               </div>
             ))}
@@ -1779,11 +1914,15 @@ function ProviderMatch({
 
           <section
             className="mx-3 mt-3 overflow-hidden rounded-xl border"
-            style={{ borderColor: TEAL }}
+            style={{
+              borderColor: TEAL,
+            }}
           >
             <h2
               className="px-3 py-3 text-sm font-black text-white"
-              style={{ background: TEAL }}
+              style={{
+                background: TEAL,
+              }}
             >
               FANCY / SESSION
             </h2>
@@ -1791,7 +1930,9 @@ function ProviderMatch({
             <div
               className={`${columns} border-b text-[10px] font-black`}
             >
-              <span className="p-3">MARKET</span>
+              <span className="p-3">
+                MARKET
+              </span>
 
               <div className="grid grid-cols-2 items-center text-center">
                 <span>NO · RATE</span>
@@ -1820,8 +1961,12 @@ function ProviderMatch({
                   enabled={connected}
                   first="LAY"
                   wallet={wallet}
-                  marketId={`fancy:${row.id}`}
-                  selectionId={row.selectionId}
+                  marketId={
+                    `fancy:${row.id}`
+                  }
+                  selectionId={
+                    row.selectionId
+                  }
                 />
               </div>
             ))}
@@ -1849,16 +1994,23 @@ function ProviderMatch({
 }
 
 export default function MatchDetailsPage(props) {
-  if (props.match?.provider === 'sportbex') {
+  if (
+    props.match?.provider === 'sportbex'
+  ) {
     return (
       <ProviderMatch
         key={String(
-          props.match.eventId ?? props.match.id,
+          props.match.eventId ??
+            props.match.id,
         )}
         {...props}
       />
     );
   }
 
-  return <ExistingMatchDetailsPage {...props} />;
+  return (
+    <ExistingMatchDetailsPage
+      {...props}
+    />
+  );
 }
