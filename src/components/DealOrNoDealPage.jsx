@@ -1398,4 +1398,130 @@ export default function DealOrNoDealPage({
             After a win, collect or select a
             case for the next level and confirm
             CONTINUE. Continuing does not
-            deduct another stake. A
+            deduct another stake. A losing case
+            ends your entry without a return.
+          </p>
+
+          <p className="mt-3">
+            Returns include the original stake
+            and are calculated from that
+            original stake. They are not added
+            together. For example, 100 coins
+            at Level 2 returns 200 coins.
+          </p>
+
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="text-amber-200">
+                <tr>
+                  <th className="p-2">
+                    Level
+                  </th>
+
+                  <th className="p-2">
+                    Winning cases
+                  </th>
+
+                  <th className="p-2">
+                    Total return
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {payoutLevels.map(
+                  ([
+                    number,
+                    winners,
+                    multiplier,
+                  ]) => (
+                    <tr
+                      key={number}
+                      className="border-t border-white/10"
+                    >
+                      <td className="p-2">
+                        {number}
+                      </td>
+
+                      <td className="p-2">
+                        {winners} of 9
+                      </td>
+
+                      <td className="p-2">
+                        {multiplier}×
+                      </td>
+                    </tr>
+                  ),
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="mt-4">
+            Banker offers appear after Levels
+            3 and 6. DEAL collects the offered
+            amount. NO DEAL leaves the offer;
+            you must still select a case and
+            confirm CONTINUE. Offers expire
+            when ten seconds remain in the
+            next betting window.
+          </p>
+
+          <p className="mt-3">
+            If you win and do not confirm a
+            next-level case before its betting
+            closes, the server automatically
+            collects your current return.
+          </p>
+
+          <p className="mt-3 font-bold text-amber-200">
+            800× is awarded only after winning
+            all nine levels. Waiting through
+            nine rounds does not guarantee
+            800×. A Level 9 win automatically
+            collects 800× the original stake.
+          </p>
+
+          <p className="mt-3">
+            Each level has{" "}
+            {bettingMs / 1000}{" "}
+            seconds for selection and{" "}
+            {revealMs / 1000}{" "}
+            seconds for the reveal.
+            Initial bets can be cancelled
+            before Level 1 betting closes.
+            A new session starts automatically
+            after the previous session
+            finishes.
+          </p>
+
+          <p className="mt-3 font-bold">
+            Demo coins only.
+          </p>
+        </details>
+
+        <SessionRecord
+          session={session}
+        />
+
+        {!!recentSessions.length && (
+          <details className="rounded-xl border border-white/10 p-4 text-xs text-slate-300">
+            <summary className="cursor-pointer font-black text-amber-200">
+              COMPLETED SESSION RECORDS
+            </summary>
+
+            <div className="mt-3 space-y-3">
+              {recentSessions.map(item => (
+                <SessionRecord
+                  key={item.id}
+                  session={item}
+                  label="COMPLETED SESSION"
+                />
+              ))}
+            </div>
+          </details>
+        )}
+      </div>
+    </main>
+  );
+}
