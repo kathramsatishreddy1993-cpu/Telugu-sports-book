@@ -10,23 +10,32 @@ const BASE = 'https://trial-api.sportbex.com/api';
 
 const list = value => {
   if (Array.isArray(value)) return value;
-  if (Array.isArray(value?.data)) return value.data;
+
+  if (Array.isArray(value?.data)) {
+    return value.data;
+  }
+
   throw new Error('Sportbex invalid list response');
 };
 
 const number = value => {
   if (value == null || value === '') return null;
+
   const result = Number(value);
+
   return Number.isFinite(result) ? result : null;
 };
 
 const positive = value => {
   const result = number(value);
+
   return result > 0 ? result : null;
 };
 
 const text = value =>
-  typeof value === 'string' ? value.slice(0, 200) : '';
+  typeof value === 'string'
+    ? value.slice(0, 200)
+    : '';
 
 const id = value =>
   /^\d+$/.test(String(value ?? ''))
@@ -36,49 +45,349 @@ const id = value =>
 const stamp = value =>
   value ? Date.parse(value) : NaN;
 
-const teamName = value =>
-  text(typeof value === 'object' ? value?.name : value);
+// Score parsing is separate from market parsing.
+// Unknown score formats must not attach an unrelated score.
+function scoreList(body) {
+  const queue = [body];
+  const seen = new Set();
+
+  for (
+    let index = 0;
+    index < queue.length && index < 40;
+    index += 1
+  ) {
+    const value = queue[index];
+
+    if (Array.isArray(value)) {
+      return value.filter(
+        row =>
+          row &&
+          typeof row === 'object' &&
+          !Array.isArray(row),
+      );
+    }
+
+    if (
+      !value ||
+      typeof value !== 'object' ||
+      seen.has(value)
+    ) {
+      continue;
+    }
+
+    seen.add(value);
+
+    for (const key of [
+      'data',
+      'response',
+      'items',
+      'matches',
+      'events',
+      'result',
+      'results',
+      'live',
+      'liveMatches',
+    ]) {
+      if (
+        value[key] &&
+        typeof value[key] === 'object'
+      ) {
+        queue.push(value[key]);
+      }
+    }
+  }
+
+  throw new Error(
+    'Sportbex unrecognized score list',
+  );
+}
+
+function nameOf(value) {
+  if (typeof value === 'string') {
+    return text(value).trim();
+  }
+
+  return text(
+    value?.name ||
+      value?.title ||
+      value?.teamName ||
+      value?.team_name,
+  ).trim();
+}
 
 const teamKey = value =>
-  value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  nameOf(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+
+const splitTeams = value =>
+  String(value || '').split(
+    /\s+v(?:s\.?)?\s+/i,
+  );
+
+function scoreTeams(row) {
+  const title = splitTeams(
+    row.name ||
+      row.title ||
+      row.matchName ||
+      row.match_name ||
+      row.event?.name,
+  );
+
+  return [
+    row.homeTeam ??
+      row.team1 ??
+      row.teama ??
+      row.home_team ??
+      row.home ??
+      row.teams?.[0] ??
+      title[0],
+
+    row.awayTeam ??
+      row.team2 ??
+      row.teamb ??
+      row.away_team ??
+      row.away ??
+      row.teams?.[1] ??
+      title[1],
+  ];
+}
+
+function scoreDate(value) {
+  if (value == null || value === '') {
+    return NaN;
+  }
+
+  if (
+    typeof value === 'number' ||
+    /^\d{10,13}$/.test(String(value))
+  ) {
+    const numeric = Number(value);
+
+    return Number.isFinite(numeric)
+      ? numeric * (numeric < 1e12 ? 1000 : 1)
+      : NaN;
+  }
+
+  return Date.parse(value);
+}
+
+function cleanScore(value) {
+  if (
+    typeof value !== 'string' &&
+    typeof value !== 'number'
+  ) {
+    return '';
+  }
+
+  const result = String(value).trim();
+
+  if (
+    !result ||
+    !/\d/.test(result) ||
+    /unavailable|awaiting|not available/i.test(result)
+  ) {
+    return '';
+  }
+
+  return result.slice(0, 400);
+}
+
+function teamScore(value) {
+  const direct = cleanScore(value);
+
+  if (direct) return direct;
+
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value)
+  ) {
+    return '';
+  }
+
+  for (const key of [
+    'scores_full',
+    'score_full',
+    'scores',
+    'score',
+    'score_str',
+    'scoreText',
+  ]) {
+    const result = cleanScore(value[key]);
+
+    if (result) return result;
+  }
+
+  const runs = number(value.runs);
+
+  if (runs == null || runs < 0) return '';
+
+  const wickets = number(value.wickets);
+  const overs = value.overs;
+
+  const validOvers =
+    overs != null &&
+    /^\d+(?:\.\d+)?$/.test(String(overs));
+
+  return (
+    `${runs}` +
+    (
+      wickets != null && wickets >= 0
+        ? `/${wickets}`
+        : ''
+    ) +
+    (
+      validOvers
+        ? ` (${overs} ov)`
+        : ''
+    )
+  );
+}
+
+function readScore(row) {
+  for (const key of [
+    'score',
+    'score_str',
+    'scoreString',
+    'scoreText',
+    'score_text',
+  ]) {
+    const direct = cleanScore(row[key]);
+
+    if (direct) return direct;
+  }
+
+  const teams = scoreTeams(row);
+
+  const home = teamScore(
+    row.homeScore ??
+      row.home_score ??
+      row.team1Score ??
+      row.teama_score ??
+      row.score?.home ??
+      row.score?.teama ??
+      (
+        typeof teams[0] === 'object'
+          ? teams[0]
+          : null
+      ),
+  );
+
+  const away = teamScore(
+    row.awayScore ??
+      row.away_score ??
+      row.team2Score ??
+      row.teamb_score ??
+      row.score?.away ??
+      row.score?.teamb ??
+      (
+        typeof teams[1] === 'object'
+          ? teams[1]
+          : null
+      ),
+  );
+
+  if (!home && !away) return '';
+
+  return [
+    home
+      ? `${nameOf(teams[0]) || 'Home'}: ${home}`
+      : '',
+
+    away
+      ? `${nameOf(teams[1]) || 'Away'}: ${away}`
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function sameProviderId(a, b) {
+  return (
+    String(a).replace(/^sportbex_/, '') ===
+    String(b).replace(/^sportbex_/, '')
+  );
+}
 
 function matchedScore(rows, event) {
-  const names = event.name
-    .split(/\s+v(?:s\.?)?\s+/i)
-    .map(teamKey);
+  const expected = splitTeams(event.name)
+    .map(teamKey)
+    .filter(Boolean)
+    .sort()
+    .join('|');
 
   const candidates = rows.filter(row => {
-    const a = teamName(
-      row.homeTeam ?? row.team1 ?? row.teama,
-    );
+    const teams = scoreTeams(row).map(teamKey);
 
-    const b = teamName(
-      row.awayTeam ?? row.team2 ?? row.teamb,
-    );
+    const hasTeams = teams.every(Boolean);
 
-    const date = stamp(
-      row.startTime ?? row.startDate ?? row.date_start,
-    );
+    const namesMatch =
+      hasTeams &&
+      teams.sort().join('|') === expected;
 
+    const providerId =
+      row.betfairEventId ??
+      row.betfair_event_id ??
+      row.providerEventId ??
+      row.eventId ??
+      row.event_id ??
+      row.event?.id;
+
+    if (
+      providerId != null &&
+      sameProviderId(providerId, event.eventId) &&
+      (!hasTeams || namesMatch)
+    ) {
+      return true;
+    }
+
+    if (!namesMatch) return false;
+
+    const value =
+      row.startTime ??
+      row.startDate ??
+      row.date_start ??
+      row.start_time ??
+      row.start_date ??
+      row.date_start_ist ??
+      row.openDate;
+
+    const date = scoreDate(value);
+
+    // Without a start time, require one unique exact team pair
+    // in the live-score response.
+    // Reject a supplied invalid or different start time.
     return (
-      a &&
-      b &&
-      Number.isFinite(date) &&
-      Math.abs(date - stamp(event.startTime)) < 900000 &&
-      [teamKey(a), teamKey(b)].sort().join('|') ===
-        [...names].sort().join('|')
+      value == null ||
+      value === '' ||
+      (
+        Number.isFinite(date) &&
+        Math.abs(date - stamp(event.startTime)) <
+          900000
+      )
     );
   });
 
-  if (candidates.length !== 1) return null;
+  if (candidates.length !== 1) {
+    return {
+      score: null,
 
-  const row = candidates[0];
-
-  if (typeof row.score === 'string' && row.score.trim()) {
-    return text(row.score);
+      status: candidates.length
+        ? 'AMBIGUOUS_SCORE_MATCH'
+        : 'NO_MATCHING_SCORE_ROW',
+    };
   }
 
-  return null;
+  const score = readScore(candidates[0]);
+
+  return {
+    score: score || null,
+
+    status: score
+      ? 'MATCHED'
+      : 'SCORE_FORMAT_UNRECOGNIZED',
+  };
 }
 
 function configurationNumber(
@@ -129,9 +438,15 @@ export class SportsService extends ExistingSportsService {
       12,
     );
 
-    this.discovery = { expires: 0, events: [] };
+    this.discovery = {
+      expires: 0,
+      events: [],
+    };
+
     this.catalog = new Map();
+
     this.scoreRetryAt = 0;
+    this.scoreLastStatus = 'UNAVAILABLE';
   }
 
   state(sport, row = this.rows.get(sport)) {
@@ -191,10 +506,14 @@ export class SportsService extends ExistingSportsService {
   }
 
   safeError(error) {
-    if (!this.sportbex) return super.safeError(error);
+    if (!this.sportbex) {
+      return super.safeError(error);
+    }
 
     if (
-      /^Sportbex HTTP \d{3}$/.test(error?.message || '')
+      /^Sportbex HTTP \d{3}$/.test(
+        error?.message || '',
+      )
     ) {
       return error.message;
     }
@@ -207,7 +526,9 @@ export class SportsService extends ExistingSportsService {
   eventState(event, state) {
     const result = super.eventState(event, state);
 
-    if (event.provider !== 'sportbex') return result;
+    if (event.provider !== 'sportbex') {
+      return result;
+    }
 
     const age =
       this.now() - stamp(event.marketUpdatedAt);
@@ -215,7 +536,10 @@ export class SportsService extends ExistingSportsService {
     const marketStale =
       !Number.isFinite(age) ||
       age < -1000 ||
-      age > Math.max(this.pollIntervalMs * 3, 30000);
+      age > Math.max(
+        this.pollIntervalMs * 3,
+        30000,
+      );
 
     const fancyAge =
       this.now() - stamp(event.fancyUpdatedAt);
@@ -230,7 +554,9 @@ export class SportsService extends ExistingSportsService {
 
     const allowedStatus = value =>
       ['', 'UNKNOWN', 'ACTIVE', 'OPEN'].includes(
-        String(value || '').trim().toUpperCase(),
+        String(value || '')
+          .trim()
+          .toUpperCase(),
       );
 
     const exchangeReady =
@@ -243,7 +569,11 @@ export class SportsService extends ExistingSportsService {
           [
             ...(runner.back || []),
             ...(runner.lay || []),
-          ].some(price => price.price > 1 && price.size > 0),
+          ].some(
+            price =>
+              price.price > 1 &&
+              price.size > 0,
+          ),
       );
 
     const bookmakerReady =
@@ -252,8 +582,14 @@ export class SportsService extends ExistingSportsService {
         row =>
           allowedStatus(row.status) &&
           (
-            (row.back > 0 && row.backSize > 0) ||
-            (row.lay > 0 && row.laySize > 0)
+            (
+              row.back > 0 &&
+              row.backSize > 0
+            ) ||
+            (
+              row.lay > 0 &&
+              row.laySize > 0
+            )
           ),
       );
 
@@ -287,6 +623,7 @@ export class SportsService extends ExistingSportsService {
 
     return {
       ...result,
+
       marketStale,
       bettingAllowed: Boolean(available),
       demoOnly: true,
@@ -318,7 +655,9 @@ export class SportsService extends ExistingSportsService {
       this.controllers.set('cricket', new Set());
     }
 
-    this.controllers.get('cricket').add(controller);
+    this.controllers
+      .get('cricket')
+      .add(controller);
 
     const timer = setTimeout(
       () => controller.abort(),
@@ -348,18 +687,24 @@ export class SportsService extends ExistingSportsService {
 
         const date = Date.parse(retry || '');
 
-        const delay = response.status === 429
-          ? Number.isFinite(seconds)
-            ? Math.max(15000, seconds * 1000)
-            : Number.isFinite(date)
-              ? Math.max(15000, date - this.now())
-              : 900000
-          : [401, 403].includes(response.status)
-            ? 900000
-            : 30000;
+        const delay =
+          response.status === 429
+            ? Number.isFinite(seconds)
+              ? Math.max(15000, seconds * 1000)
+              : Number.isFinite(date)
+                ? Math.max(
+                    15000,
+                    date - this.now(),
+                  )
+                : 900000
+            : [401, 403].includes(response.status)
+              ? 900000
+              : 30000;
 
         throw Object.assign(
-          new Error(`Sportbex HTTP ${response.status}`),
+          new Error(
+            `Sportbex HTTP ${response.status}`,
+          ),
           { delay },
         );
       }
@@ -372,7 +717,9 @@ export class SportsService extends ExistingSportsService {
         body?.success === false
       ) {
         throw Object.assign(
-          new Error('Sportbex rejected request'),
+          new Error(
+            'Sportbex rejected request',
+          ),
           { delay: 900000 },
         );
       }
@@ -380,12 +727,17 @@ export class SportsService extends ExistingSportsService {
       return body;
     } finally {
       clearTimeout(timer);
-      this.controllers.get('cricket').delete(controller);
+
+      this.controllers
+        .get('cricket')
+        ?.delete(controller);
     }
   }
 
   async discover(connection, generation) {
-    if (this.discovery.expires > this.now()) {
+    if (
+      this.discovery.expires > this.now()
+    ) {
       return this.discovery.events;
     }
 
@@ -399,8 +751,12 @@ export class SportsService extends ExistingSportsService {
 
     const found = new Map();
 
-    for (const item of competitions.slice(0, 30)) {
-      const competitionId = id(item.competition?.id);
+    for (
+      const item of competitions.slice(0, 30)
+    ) {
+      const competitionId = id(
+        item.competition?.id,
+      );
 
       if (!competitionId) continue;
 
@@ -414,12 +770,15 @@ export class SportsService extends ExistingSportsService {
 
       for (const row of rows) {
         const event = row?.event;
+
         const eventId = id(event?.id);
         const start = stamp(event?.openDate);
 
         if (
           !eventId ||
-          !/\s+v(?:s\.?)?\s+/i.test(event?.name || '') ||
+          !/\s+v(?:s\.?)?\s+/i.test(
+            event?.name || '',
+          ) ||
           !Number.isFinite(start)
         ) {
           continue;
@@ -435,19 +794,27 @@ export class SportsService extends ExistingSportsService {
         found.set(eventId, {
           eventId,
           name: text(event.name),
-          startTime: new Date(start).toISOString(),
+
+          startTime:
+            new Date(start).toISOString(),
+
           league:
-            text(item.competition?.name) || 'Cricket',
+            text(item.competition?.name) ||
+            'Cricket',
         });
       }
     }
 
     const events = [...found.values()].sort(
-      (a, b) => stamp(a.startTime) - stamp(b.startTime),
+      (a, b) =>
+        stamp(a.startTime) -
+        stamp(b.startTime),
     );
 
     this.discovery = {
-      expires: this.now() + this.scheduleIntervalMs,
+      expires:
+        this.now() + this.scheduleIntervalMs,
+
       events,
     };
 
@@ -459,7 +826,8 @@ export class SportsService extends ExistingSportsService {
     generation,
     eventId,
   ) {
-    const cached = this.catalog.get(eventId);
+    const cached =
+      this.catalog.get(eventId);
 
     if (cached?.expires > this.now()) {
       return cached.value;
@@ -473,15 +841,21 @@ export class SportsService extends ExistingSportsService {
       ),
     );
 
-    const value = markets.find(
-      market =>
-        String(market.event?.id) === eventId &&
-        /^match odds$/i.test(market.marketName || ''),
-    ) || null;
+    const value =
+      markets.find(
+        market =>
+          String(market.event?.id) === eventId &&
+          /^match odds$/i.test(
+            market.marketName || '',
+          ),
+      ) || null;
 
     this.catalog.set(eventId, {
       value,
-      expires: this.now() + (value ? 300000 : 60000),
+
+      expires:
+        this.now() +
+        (value ? 300000 : 60000),
     });
 
     return value;
@@ -508,21 +882,33 @@ export class SportsService extends ExistingSportsService {
     );
 
     let scoreRows = [];
-    let scoreStatus = 'UNAVAILABLE';
+
+    let scoreStatus =
+      this.scoreRetryAt > this.now()
+        ? this.scoreLastStatus
+        : 'UNAVAILABLE';
+
+    let scoreReceivedAt = null;
 
     if (this.now() >= this.scoreRetryAt) {
       try {
-        const body = await this.requestSportbex(
-          connection,
-          generation,
-          '/live-score/match/live',
-        );
+        const body =
+          await this.requestSportbex(
+            connection,
+            generation,
+            '/live-score/match/live',
+          );
 
-        scoreRows = list(body);
+        scoreRows = scoreList(body);
 
         scoreStatus = scoreRows.length
-          ? 'ROWS_RETURNED_MAPPING_REQUIRED'
+          ? 'ROWS_RETURNED'
           : 'NO_LIVE_ROWS_RETURNED';
+
+        scoreReceivedAt =
+          new Date(this.now()).toISOString();
+
+        this.scoreRetryAt = 0;
       } catch (failure) {
         if (
           failure.stopped ||
@@ -534,73 +920,134 @@ export class SportsService extends ExistingSportsService {
         }
 
         this.scoreRetryAt =
-          this.now() + (failure.delay || 60000);
+          this.now() +
+          (failure.delay || 60000);
 
-        scoreStatus = 'SCORE_ENDPOINT_UNAVAILABLE';
+        const code =
+          /^Sportbex HTTP (\d{3})$/.exec(
+            failure.message || '',
+          );
+
+        scoreStatus = code
+          ? `SCORE_HTTP_${code[1]}`
+          : failure.message ===
+              'Sportbex unrecognized score list'
+            ? 'SCORE_LIST_FORMAT_UNRECOGNIZED'
+            : 'SCORE_ENDPOINT_UNAVAILABLE';
       }
+
+      this.scoreLastStatus = scoreStatus;
     }
 
     const previous =
-      this.rows.get('cricket')?.live_events || [];
+      this.rows.get('cricket')
+        ?.live_events || [];
 
     const previousLive = new Set(
       previous
-        .filter(event => event.status === 'LIVE')
-        .map(event => String(event.providerEventId)),
+        .filter(
+          event => event.status === 'LIVE',
+        )
+        .map(
+          event =>
+            String(event.providerEventId),
+        ),
     );
 
     const ordered = [...events].sort(
       (a, b) =>
-        Number(previousLive.has(b.eventId)) -
-          Number(previousLive.has(a.eventId)) ||
-        stamp(a.startTime) - stamp(b.startTime),
+        Number(
+          previousLive.has(b.eventId),
+        ) -
+          Number(
+            previousLive.has(a.eventId),
+          ) ||
+        stamp(a.startTime) -
+          stamp(b.startTime),
     );
 
     const output = [];
 
     for (const event of ordered) {
-      if (output.length >= this.maxEvents) break;
+      if (
+        output.length >= this.maxEvents
+      ) {
+        break;
+      }
 
       const cachedMarket =
-        this.catalog.get(event.eventId)?.value;
+        this.catalog
+          .get(event.eventId)
+          ?.value;
 
-      if (cachedMarket?.closedUntil > this.now()) {
+      if (
+        cachedMarket?.closedUntil >
+        this.now()
+      ) {
         continue;
       }
 
-      const catalog = await this.marketCatalog(
-        connection,
-        generation,
-        event.eventId,
+      const catalog =
+        await this.marketCatalog(
+          connection,
+          generation,
+          event.eventId,
+        );
+
+      const names = splitTeams(event.name);
+
+      const mapped = matchedScore(
+        scoreRows,
+        event,
       );
 
-      const names = event.name.split(
-        /\s+v(?:s\.?)?\s+/i,
-      );
-
-      const score = matchedScore(scoreRows, event);
+      const score = mapped.score;
 
       const match = {
-        eventId: `sportbex_${event.eventId}`,
+        eventId:
+          `sportbex_${event.eventId}`,
+
         providerEventId: event.eventId,
         sport: 'cricket',
         provider: 'sportbex',
         source: 'REAL_API',
         league: event.league,
+
         homeTeam: names[0],
-        awayTeam: names.slice(1).join(' vs '),
+
+        awayTeam:
+          names.slice(1).join(' vs '),
+
         startTime: event.startTime,
         status: 'UPCOMING',
         live: false,
+
         score,
         scoreAvailable: Boolean(score),
-        scoreFeedStatus: scoreStatus,
-        odds: { home: null, away: null },
+
+        scoreFeedStatus:
+          scoreRows.length
+            ? mapped.status
+            : scoreStatus,
+
+        scoreUpdatedAt:
+          score
+            ? scoreReceivedAt
+            : null,
+
+        odds: {
+          home: null,
+          away: null,
+        },
+
         oddsAvailable: false,
         matchOdds: null,
         bookmaker: [],
         fancy: [],
-        lastUpdated: new Date(this.now()).toISOString(),
+
+        lastUpdated:
+          new Date(this.now()).toISOString(),
+
         marketUpdatedAt: null,
         fancyUpdatedAt: null,
 
@@ -611,13 +1058,16 @@ export class SportsService extends ExistingSportsService {
 
       if (
         catalog &&
-        /^\d+\.\d+$/.test(String(catalog.marketId))
+        /^\d+\.\d+$/.test(
+          String(catalog.marketId),
+        )
       ) {
-        const body = await this.requestSportbex(
-          connection,
-          generation,
-          `/betfair/market-odds/${event.eventId}/${encodeURIComponent(catalog.marketId)}`,
-        );
+        const body =
+          await this.requestSportbex(
+            connection,
+            generation,
+            `/betfair/market-odds/${event.eventId}/${encodeURIComponent(catalog.marketId)}`,
+          );
 
         const book = body?.data;
 
@@ -632,25 +1082,38 @@ export class SportsService extends ExistingSportsService {
           );
         }
 
-        match.live = book.inplay === true;
+        match.live =
+          book.inplay === true;
 
-        match.status = book.status === 'CLOSED'
-          ? 'ENDED'
-          : match.live
-            ? 'LIVE'
-            : 'UPCOMING';
+        match.status =
+          book.status === 'CLOSED'
+            ? 'ENDED'
+            : match.live
+              ? 'LIVE'
+              : 'UPCOMING';
 
-        match.providerStatus = text(book.status);
+        match.providerStatus =
+          text(book.status);
 
         match.marketUpdatedAt =
           new Date(this.now()).toISOString();
 
         match.matchOdds = {
-          marketId: String(book.marketId),
-          status: text(book.status) || 'UNKNOWN',
-          inplay: book.inplay === true,
-          delayed: book.isMarketDataDelayed !== false,
-          lastTradeAt: text(book.lastMatchTime),
+          marketId:
+            String(book.marketId),
+
+          status:
+            text(book.status) ||
+            'UNKNOWN',
+
+          inplay:
+            book.inplay === true,
+
+          delayed:
+            book.isMarketDataDelayed !== false,
+
+          lastTradeAt:
+            text(book.lastMatchTime),
 
           runners: book.runners
             .slice(0, 3)
@@ -664,11 +1127,18 @@ export class SportsService extends ExistingSportsService {
               );
 
               const prices = side =>
-                (Array.isArray(side) ? side : [])
+                (
+                  Array.isArray(side)
+                    ? side
+                    : []
+                )
                   .slice(0, 3)
                   .map(price => ({
-                    price: positive(price.price),
-                    size: number(price.size),
+                    price:
+                      positive(price.price),
+
+                    size:
+                      number(price.size),
                   }))
                   .filter(
                     price =>
@@ -677,14 +1147,16 @@ export class SportsService extends ExistingSportsService {
                   );
 
               return {
-                selectionId: String(runner.selectionId),
+                selectionId:
+                  String(runner.selectionId),
 
                 name:
                   text(metadata?.runnerName) ||
                   'Unnamed selection',
 
                 status:
-                  text(runner.status) || 'UNKNOWN',
+                  text(runner.status) ||
+                  'UNKNOWN',
 
                 back: prices(
                   runner.ex?.availableToBack,
@@ -722,11 +1194,12 @@ export class SportsService extends ExistingSportsService {
         continue;
       }
 
-      const fancy = await this.requestSportbex(
-        connection,
-        generation,
-        `/betfair/fancy-bookmaker-odds/${event.eventId}`,
-      );
+      const fancy =
+        await this.requestSportbex(
+          connection,
+          generation,
+          `/betfair/fancy-bookmaker-odds/${event.eventId}`,
+        );
 
       if (
         !Array.isArray(fancy?.bookmaker) ||
@@ -743,43 +1216,93 @@ export class SportsService extends ExistingSportsService {
       match.bookmaker = fancy.bookmaker
         .slice(0, 30)
         .map(row => ({
-          marketId: String(row.mid),
-          selectionId: String(row.sid),
-          name: text(row.nat),
-          title: text(row.mname),
-          status: text(row.s) || 'UNKNOWN',
-          back: positive(row.b1),
-          lay: positive(row.l1),
-          backSize: number(row.bs1),
-          laySize: number(row.ls1),
-          format: 'PROVIDER_BOOKMAKER',
+          marketId:
+            String(row.mid),
+
+          selectionId:
+            String(row.sid),
+
+          name:
+            text(row.nat),
+
+          title:
+            text(row.mname),
+
+          status:
+            text(row.s) || 'UNKNOWN',
+
+          back:
+            positive(row.b1),
+
+          lay:
+            positive(row.l1),
+
+          backSize:
+            number(row.bs1),
+
+          laySize:
+            number(row.ls1),
+
+          format:
+            'PROVIDER_BOOKMAKER',
         }));
 
       match.fancy = fancy.fancy
         .slice(0, 250)
         .map(row => ({
-          id: `${event.eventId}:${String(row.SelectionId)}:${String(row.gtype)}`,
-          selectionId: String(row.SelectionId),
-          title: text(row.RunnerName),
-          type: text(row.gtype),
-          status: text(row.GameStatus) || 'UNKNOWN',
-          no: number(row.LayPrice1),
-          yes: number(row.BackPrice1),
-          noRate: number(row.LaySize1),
-          yesRate: number(row.BackSize1),
-          min: number(row.min),
-          max: number(row.max),
+          id:
+            `${event.eventId}:${String(row.SelectionId)}:${String(row.gtype)}`,
+
+          selectionId:
+            String(row.SelectionId),
+
+          title:
+            text(row.RunnerName),
+
+          type:
+            text(row.gtype),
+
+          status:
+            text(row.GameStatus) ||
+            'UNKNOWN',
+
+          no:
+            number(row.LayPrice1),
+
+          yes:
+            number(row.BackPrice1),
+
+          noRate:
+            number(row.LaySize1),
+
+          yesRate:
+            number(row.BackSize1),
+
+          min:
+            number(row.min),
+
+          max:
+            number(row.max),
         }));
 
       output.push(match);
     }
 
+    const statuses = [
+      ...new Set(
+        output.map(
+          event => event.scoreFeedStatus,
+        ),
+      ),
+    ].join(',');
+
     console.log(
-      `[Sportbex] Shared cricket snapshot: ${output.length} matches; customer requests use saved cache.`,
+      `[Sportbex] Shared cricket snapshot: ${output.length} matches; scores ${output.filter(event => event.scoreAvailable).length}; score feed ${scoreStatus}; mapping ${statuses}.`,
     );
 
     return output;
   }
 }
 
-export const sportsService = new SportsService();
+export const sportsService =
+  new SportsService();
