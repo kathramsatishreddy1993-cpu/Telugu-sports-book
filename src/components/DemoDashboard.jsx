@@ -1,8 +1,4 @@
-import React, {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import DepositPage from "./DepositPage";
 import WithdrawalPage from "./WithdrawalPage";
@@ -20,8 +16,7 @@ import GameArtwork from "./GameArtwork";
 const LOGO =
   "/games/file_0000000092bc82118617f615539c5f17.png";
 
-const HEADER_BACKGROUND =
-  "/games/tsb-header-bg.jpg";
+const HEADER_BACKGROUND = "/games/tsb-header-bg.jpg";
 
 const WINE_LABEL = {
   backgroundColor: "#791b3e",
@@ -95,9 +90,9 @@ const GAMES = [
   {
     id: "twist-x",
     name: "TWIST X",
+    href: "/games/twist-x",
     image: "/games/twist-x.png",
     icon: "🌀",
-    pending: true,
   },
   {
     id: "lankesh",
@@ -115,20 +110,20 @@ const GAMES = [
   {
     id: "extra-sic-bo",
     name: "EXTRA SIC BO",
+    href: "/games/extra-sic-bo",
     icon: "🎲",
-    pending: true,
   },
   {
     id: "dream-wheel",
     name: "DREAM WHEEL",
+    href: "/games/dream-wheel",
     icon: "🎡",
-    pending: true,
   },
   {
     id: "chicken-road-cross",
     name: "CHICKEN ROAD CROSS",
+    href: "/games/chicken-road-cross",
     icon: "🐔",
-    pending: true,
   },
   {
     id: "mini-roulette",
@@ -223,7 +218,10 @@ const providers = [
     name: "SMARTSOFT",
     image: "/games/smartsoft.png",
   },
-  { name: "SPRIBE", image: "/games/spribe.png" },
+  {
+    name: "SPRIBE",
+    image: "/games/spribe.png",
+  },
   {
     name: "EVOLUTION",
     image: "/games/evolution.png",
@@ -236,7 +234,10 @@ const providers = [
     name: "TURBO GAMES",
     image: "/games/turbo-games.png",
   },
-  { name: "GAMZIX", image: "/games/gamzix.png" },
+  {
+    name: "GAMZIX",
+    image: "/games/gamzix.png",
+  },
   {
     name: "KING MIDAS",
     image: "/games/king-midas.png",
@@ -255,19 +256,28 @@ const MENU_ITEMS = [
 ];
 
 const PAGES = new Set([
-  "home", "deposit", "withdrawal",
-  "statement", "history", "unsettled",
-  "buttons", "password", "promo", "rules",
+  "home",
+  "deposit",
+  "withdrawal",
+  "statement",
+  "history",
+  "unsettled",
+  "buttons",
+  "password",
+  "promo",
+  "rules",
 ]);
 
 const TABS = [
-  "INPLAY", "SPORTS", "CASINO",
-  "SPORTS BOOK", "PREDIX", "OTHERS",
+  "INPLAY",
+  "SPORTS",
+  "CASINO",
+  "SPORTS BOOK",
+  "PREDIX",
+  "OTHERS",
 ];
 
-const FILTERS = [
-  "LIVE", "VIRTUAL", "PREMIUM",
-];
+const FILTERS = ["LIVE", "VIRTUAL", "PREMIUM"];
 
 function defaultNavigation() {
   return {
@@ -430,6 +440,7 @@ function GameSection({
       {title && (
         <div className="mb-3 flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-[#08b7bc] shadow-[0_0_10px_rgba(8,183,188,.3)]" />
+
           <h2 className="text-sm font-black uppercase tracking-wide text-slate-900">
             {title}
           </h2>
@@ -451,7 +462,7 @@ function GameSection({
             >
               <GameImage game={game} />
 
-              {(!game.href || game.pending) && (
+              {!game.href && (
                 <span className="absolute right-1 top-1 rounded bg-black/80 px-1 py-0.5 text-[6px] font-bold text-amber-200">
                   SOON
                 </span>
@@ -560,7 +571,9 @@ function TopGamesSlider({ onGameClick }) {
   const handlePointerMove = event => {
     const gesture = gestureRef.current;
 
-    if (!gesture || gesture.id !== event.pointerId) return;
+    if (!gesture || gesture.id !== event.pointerId) {
+      return;
+    }
 
     const distanceX = event.clientX - gesture.x;
     const distanceY = event.clientY - gesture.y;
@@ -596,7 +609,9 @@ function TopGamesSlider({ onGameClick }) {
   const finishGesture = event => {
     const gesture = gestureRef.current;
 
-    if (!gesture || gesture.id !== event.pointerId) return;
+    if (!gesture || gesture.id !== event.pointerId) {
+      return;
+    }
 
     if (gesture.moved) {
       suppressClickUntilRef.current =
@@ -687,12 +702,6 @@ function TopGamesSlider({ onGameClick }) {
             >
               <div className="pointer-events-none relative h-[54px] overflow-hidden rounded-lg border border-slate-200 bg-black">
                 <GameImage game={game} />
-
-                {game.pending && (
-                  <span className="absolute right-1 top-1 rounded bg-black/80 px-1 text-[6px] font-bold text-amber-200">
-                    SOON
-                  </span>
-                )}
               </div>
 
               <span
@@ -807,9 +816,7 @@ function DashboardContent({
 
       try {
         const response = await fetch(
-          `/api/customers/${encodeURIComponent(
-            customerId,
-          )}/demo-balance`,
+          `/api/customers/${encodeURIComponent(customerId)}/demo-balance`,
           {
             credentials: "same-origin",
             cache: "no-store",
@@ -914,7 +921,7 @@ function DashboardContent({
   };
 
   const handleGameClick = game => {
-    if (game.href && !game.pending) {
+    if (game.href) {
       saveNavigation(
         storageKey,
         navigationRef.current,
@@ -924,9 +931,7 @@ function DashboardContent({
       return;
     }
 
-    setNotice(
-      `${game.name} is not available yet.`,
-    );
+    setNotice(`${game.name} is not available yet.`);
   };
 
   if (page === "deposit") {
@@ -938,7 +943,9 @@ function DashboardContent({
   }
 
   if (page === "statement") {
-    return <AccountStatementPage user={user} onBack={goHome} />;
+    return (
+      <AccountStatementPage user={user} onBack={goHome} />
+    );
   }
 
   if (page === "history") {
@@ -946,11 +953,15 @@ function DashboardContent({
   }
 
   if (page === "unsettled") {
-    return <UnsettledBetPage user={user} onBack={goHome} />;
+    return (
+      <UnsettledBetPage user={user} onBack={goHome} />
+    );
   }
 
   if (page === "buttons") {
-    return <SetButtonValuesPage user={user} onBack={goHome} />;
+    return (
+      <SetButtonValuesPage user={user} onBack={goHome} />
+    );
   }
 
   if (page === "password") {
@@ -965,7 +976,9 @@ function DashboardContent({
   }
 
   if (page === "promo") {
-    return <MyPromoCodePage user={user} onBack={goHome} />;
+    return (
+      <MyPromoCodePage user={user} onBack={goHome} />
+    );
   }
 
   if (page === "rules") {
@@ -1043,8 +1056,7 @@ function DashboardContent({
           letter-spacing: 1px;
           line-height: 30px;
           color: #28e1e5;
-          text-shadow:
-            0 0 8px rgba(8,183,188,.55);
+          text-shadow: 0 0 8px rgba(8,183,188,.55);
         }
 
         @keyframes tsbNeonSlide {
@@ -1099,8 +1111,8 @@ function DashboardContent({
               <h1 className="text-base font-black tracking-wide sm:text-lg">
                 <span className="text-amber-400">
                   TELUGU
-                </span>
-                {" "}SPORTS
+                </span>{" "}
+                SPORTS
               </h1>
 
               <p className="mt-1 text-[9px] font-black tracking-[0.24em] text-cyan-400">
@@ -1128,8 +1140,8 @@ function DashboardContent({
               {user?.name ||
                 user?.loginId ||
                 user?.identifier ||
-                "User"}
-              {" "}▼
+                "User"}{" "}
+              ▼
             </button>
 
             {showCustomerMenu && (
@@ -1137,7 +1149,7 @@ function DashboardContent({
                 id="customer-menu"
                 className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-56 overflow-y-auto rounded-xl border border-slate-200 bg-white text-left shadow-2xl"
               >
-                {MENU_ITEMS.map(([menuLabel, target]) => (
+                {MENU_ITEMS.map(([label, target]) => (
                   <button
                     key={target}
                     type="button"
@@ -1152,7 +1164,7 @@ function DashboardContent({
                         : "text-slate-900"
                     }`}
                   >
-                    {menuLabel}
+                    {label}
                   </button>
                 ))}
 
@@ -1255,8 +1267,8 @@ function DashboardContent({
                 aria-hidden={index === 1}
                 className="tsb-neon-text"
               >
-                ✦ TELUGU SPORTS BOOK • PREMIUM
-                SPORTS &amp; ENTERTAINMENT ✦
+                ✦ TELUGU SPORTS BOOK • PREMIUM SPORTS &amp;
+                ENTERTAINMENT ✦
               </span>
             ))}
           </div>
@@ -1299,7 +1311,9 @@ function DashboardContent({
               key={sport.name}
               type="button"
               onClick={() =>
-                navigate({ selectedSport: sport.name })
+                navigate({
+                  selectedSport: sport.name,
+                })
               }
               className={`w-[90px] shrink-0 rounded-xl border bg-[#08b7bc] px-2 py-2 text-center text-black ${
                 selectedSport === sport.name
@@ -1322,6 +1336,7 @@ function DashboardContent({
       <section className="px-3 pb-2 pt-4">
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_12px_#ef4444]" />
+
           <h2 className="text-lg font-black text-slate-900">
             LIVE SPORTS
           </h2>
@@ -1333,7 +1348,9 @@ function DashboardContent({
               key={filter}
               type="button"
               onClick={() =>
-                navigate({ matchFilter: filter })
+                navigate({
+                  matchFilter: filter,
+                })
               }
               className={`rounded-lg border px-4 py-2 text-[8px] font-black text-white ${
                 matchFilter === filter
@@ -1356,7 +1373,9 @@ function DashboardContent({
         >
           {selectedSport === "CRICKET" &&
           matchFilter === "LIVE" ? (
-            <CricketMatchList onOpenMatch={openMatch} />
+            <CricketMatchList
+              onOpenMatch={openMatch}
+            />
           ) : (
             <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs leading-6 text-slate-600">
               No {matchFilter.toLowerCase()}{" "}
@@ -1419,9 +1438,8 @@ function DashboardContent({
         </p>
 
         <p className="mx-auto mt-3 max-w-xl text-[9px] leading-5 text-slate-500">
-          Demonstration and informational purposes
-          only. No real-money transactions are
-          processed.
+          Demonstration and informational purposes only.
+          No real-money transactions are processed.
         </p>
       </footer>
     </div>
