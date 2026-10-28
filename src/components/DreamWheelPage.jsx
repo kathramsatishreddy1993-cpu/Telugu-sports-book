@@ -1,6 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 
 const CHIPS = [10, 20, 50, 100, 500];
+const NUMBERS = ["1", "2", "5", "10", "20", "40"];
+const ALLOWED_SEGMENTS = new Set([
+  ...NUMBERS,
+  "2x",
+  "7x",
+]);
 
 const COINS = value =>
   Number(value || 0).toLocaleString("en-IN");
@@ -53,6 +59,7 @@ function Wheel({ segments, wheelRef, rotation }) {
           const middle =
             (start + width / 2) * Math.PI / 180;
 
+          // Keep labels inside the rim, below the pointer.
           const x = 200 + 150 * Math.cos(middle);
           const y = 200 + 150 * Math.sin(middle);
 
@@ -60,10 +67,7 @@ function Wheel({ segments, wheelRef, rotation }) {
             <g key={index}>
               <path
                 d={`M200,200 L${point(start)} A189,189 0 0 1 ${point(end)} Z`}
-                fill={
-                  COLORS[value] ||
-                  `hsl(${Number(value) * 47 % 360} 55% 42%)`
-                }
+                fill={COLORS[value]}
                 stroke="#102233"
                 strokeWidth="1"
               />
@@ -74,13 +78,7 @@ function Wheel({ segments, wheelRef, rotation }) {
                 fill="#fff"
                 textAnchor="middle"
                 dominantBaseline="central"
-                fontSize={
-                  segments.length > 60
-                    ? 8
-                    : value.length > 1
-                      ? 9
-                      : 12
-                }
+                fontSize={value.length > 1 ? 9 : 12}
                 fontWeight="900"
                 transform={`rotate(${
                   index * width + width / 2
@@ -679,7 +677,9 @@ function DreamGame({
     const started = Date.now();
 
     try {
-      const data = await api(`${base}/state`);
+      const data = await api(
+        `${base}/state`,
+      );
 
       if (
         !active.current ||
@@ -751,7 +751,9 @@ function DreamGame({
 
     api(`${base}/rules`)
       .then(data => {
-        if (!cancelled) setRules(data);
+        if (!cancelled) {
+          setRules(data);
+        }
       })
       .catch(err => {
         if (!cancelled) {
@@ -948,7 +950,6 @@ function DreamGame({
         return {
           ...current,
           balance: data.balance,
-
           bets:
             sameRound && !exists
               ? [...current.bets, data.bet]
@@ -1022,7 +1023,12 @@ function DreamGame({
     round?.revealedSpins?.length || 0;
 
   const roundId = round?.id;
-  const segments = rules?.segments || [];
+
+  const segments = (
+    rules?.segments || []
+  ).filter(value =>
+    ALLOWED_SEGMENTS.has(value),
+  );
 
   useEffect(() => {
     let frame;
@@ -1101,10 +1107,34 @@ function DreamGame({
 
     setLanded(false);
 
+    // Translate the server index to the displayed wheel.
+    const source = rules.segments;
+
+    const landedSegment = source
+      .slice(0, spin.segment + 1)
+      .filter(value =>
+        ALLOWED_SEGMENTS.has(value),
+      ).length - 1;
+
+    if (
+      !ALLOWED_SEGMENTS.has(spin.value) ||
+      segments[landedSegment] !==
+        spin.value
+    ) {
+      setShownSpin(spin);
+      setLanded(false);
+
+      setError(
+        "This round uses the earlier 1–40 setup. Finish it, then choose only 1, 2, 5, 10, 20 or 40 in the controller.",
+      );
+
+      return undefined;
+    }
+
     const desired =
       (
         360 -
-        (spin.segment + 0.5) *
+        (landedSegment + 0.5) *
           360 / segments.length
       ) % 360;
 
@@ -1266,9 +1296,7 @@ function DreamGame({
           win ? "dw-win" : ""
         }`}
         style={{
-          "--dw-color":
-            COLORS[area] ||
-            `hsl(${Number(area) * 47 % 360} 55% 48%)`,
+          "--dw-color": COLORS[area],
         }}
         disabled={locked}
         aria-label={`Bet on ${area}`}
@@ -1445,9 +1473,7 @@ function DreamGame({
                     })
                     .catch(err => {
                       if (active.current) {
-                        setError(
-                          err.message,
-                        );
+                        setError(err.message);
                       }
                     });
                 }
@@ -1565,9 +1591,7 @@ function DreamGame({
               className="dw-grid"
               aria-label="Betting areas"
             >
-              {(rules?.areas || []).map(
-                renderArea,
-              )}
+              {NUMBERS.map(renderArea)}
             </div>
 
             <section
@@ -1714,8 +1738,7 @@ function DreamGame({
                       Revealed plan:{" "}
                       {round.proof.plan
                         .map(
-                          step =>
-                            step.value,
+                          step => step.value,
                         )
                         .join(" → ")}
                     </p>
@@ -1780,27 +1803,34 @@ function DreamGame({
             </p>
 
             <p className="dw-hint">
-              The wheel includes every number
-              from 1 to 40, with repeated
-              labels and bonus sectors 2x and
-              7x. Number 1 appears most often,
-              followed by number 2. Bet on any
-              number from 1 to 40. The number
-              is profit odds. A winning bet
-              receives its stake back plus
-              profit; other areas return zero.
+              The wheel uses only numbers
+              1, 2, 5, 10, 20 and 40,
+              plus bonus sectors 2x and 7x.
+              Number 1 appears 23 times,
+              number 2 appears 15 times,
+              number 5 appears 7 times,
+              number 10 appears 4 times,
+              number 20 appears twice and
+              number 40 appears once.
             </p>
 
             <p className="dw-hint">
-              Betting lasts 30 seconds. Each
-              spin lasts 10 seconds. Bonus
-              2x/7x spins keep all existing
-              bets and multiply the next
-              winning profit. Bonuses stack.
-              No new bets are accepted during
-              spins. This demo permits at most
-              three bonus spins, followed by
-              a number.
+              Number labels are profit odds.
+              A winning bet receives its
+              original stake plus profit.
+              Other areas return zero.
+            </p>
+
+            <p className="dw-hint">
+              Betting lasts 30 seconds.
+              Each spin lasts 10 seconds.
+              Bonus 2x/7x spins keep all
+              existing bets and multiply the
+              next winning profit. Bonuses
+              stack. No new bets are accepted
+              during spins. This demo permits
+              at most three bonus spins,
+              followed by a number.
             </p>
 
             <p className="dw-hint">
@@ -1830,14 +1860,12 @@ function DreamGame({
               </thead>
 
               <tbody>
-                {(rules?.areas || []).map(
-                  value => (
-                    <tr key={value}>
-                      <td>{value}</td>
-                      <td>1:{value}</td>
-                    </tr>
-                  ),
-                )}
+                {NUMBERS.map(value => (
+                  <tr key={value}>
+                    <td>{value}</td>
+                    <td>1:{value}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </section>
