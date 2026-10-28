@@ -4,9 +4,10 @@ import React, {
   useState,
 } from "react";
 
-const NUMBERS = [
-  "1", "2", "5", "10", "20", "40",
-];
+const NUMBERS = Array.from(
+  { length: 40 },
+  (_, index) => String(index + 1),
+);
 
 const MAX_BONUSES = 3;
 
@@ -15,8 +16,7 @@ async function api(
   method = "GET",
   body,
 ) {
-  const controller =
-    new AbortController();
+  const controller = new AbortController();
 
   const timeout = setTimeout(
     () => controller.abort(),
@@ -24,38 +24,31 @@ async function api(
   );
 
   try {
-    const response = await fetch(
-      path,
-      {
-        method,
-        credentials: "same-origin",
-        cache: "no-store",
-        signal: controller.signal,
+    const response = await fetch(path, {
+      method,
+      credentials: "same-origin",
+      cache: "no-store",
+      signal: controller.signal,
 
-        headers:
-          body === undefined
-            ? {
-                Accept: "application/json",
-              }
-            : {
-                Accept: "application/json",
-                "Content-Type":
-                  "application/json",
-              },
+      headers:
+        body === undefined
+          ? {
+              Accept: "application/json",
+            }
+          : {
+              Accept: "application/json",
+              "Content-Type":
+                "application/json",
+            },
 
-        ...(
-          body === undefined
-            ? {}
-            : {
-                body:
-                  JSON.stringify(body),
-              }
-        ),
-      },
-    );
+      ...(body === undefined
+        ? {}
+        : {
+            body: JSON.stringify(body),
+          }),
+    });
 
-    const value =
-      await response.json();
+    const value = await response.json();
 
     if (
       !response.ok ||
@@ -63,12 +56,9 @@ async function api(
     ) {
       throw Object.assign(
         new Error(
-          value.error ||
-            "Request failed.",
+          value.error || "Request failed.",
         ),
-        {
-          status: response.status,
-        },
+        { status: response.status },
       );
     }
 
@@ -79,19 +69,14 @@ async function api(
 }
 
 function newKey() {
-  const bytes =
-    new Uint8Array(20);
+  const bytes = new Uint8Array(20);
 
-  window.crypto.getRandomValues(
-    bytes,
-  );
+  window.crypto.getRandomValues(bytes);
 
   return Array.from(
     bytes,
     value =>
-      value
-        .toString(16)
-        .padStart(2, "0"),
+      value.toString(16).padStart(2, "0"),
   ).join("");
 }
 
@@ -106,12 +91,12 @@ function readPending(id) {
       ) || "null",
     );
 
-    return value?.controllerId === id &&
+    return (
+      value?.controllerId === id &&
       typeof value.body?.requestKey ===
         "string" &&
-      Array.isArray(
-        value.body.outcomes,
-      )
+      Array.isArray(value.body.outcomes)
+    )
       ? value.body
       : null;
   } catch {
@@ -123,7 +108,6 @@ function savePending(id, body) {
   try {
     sessionStorage.setItem(
       storageKey(id),
-
       JSON.stringify({
         controllerId: id,
         body,
@@ -153,84 +137,51 @@ export default function DreamWheelControlPage({
   const [loginId, setLoginId] =
     useState("");
 
-  const [
-    loginPassword,
-    setLoginPassword,
-  ] = useState("");
+  const [loginPassword, setLoginPassword] =
+    useState("");
 
   const [
     currentPassword,
     setCurrentPassword,
   ] = useState("");
 
-  const [
-    newPassword,
-    setNewPassword,
-  ] = useState("");
+  const [newPassword, setNewPassword] =
+    useState("");
 
   const [
     confirmPassword,
     setConfirmPassword,
   ] = useState("");
 
-  const [
-    controllerId,
-    setControllerId,
-  ] = useState("");
-
-  const [state, setState] =
-    useState(null);
-
-  const [bonuses, setBonuses] =
-    useState([]);
-
-  const [winner, setWinner] =
-    useState("1");
-
-  const [pending, setPending] =
-    useState(null);
-
-  const [busy, setBusy] =
-    useState(false);
-
-  const [error, setError] =
+  const [controllerId, setControllerId] =
     useState("");
 
-  const [notice, setNotice] =
-    useState("");
+  const [state, setState] = useState(null);
+  const [bonuses, setBonuses] = useState([]);
+  const [winner, setWinner] = useState("1");
+  const [pending, setPending] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
-  const [now, setNow] =
-    useState(Date.now());
-
-  const [lastSync, setLastSync] =
-    useState(0);
+  const [now, setNow] = useState(Date.now());
+  const [lastSync, setLastSync] = useState(0);
 
   const alive = useRef(false);
   const working = useRef(false);
   const reading = useRef(false);
   const offset = useRef(0);
 
-  const controllerRef =
-    useRef("");
+  const controllerRef = useRef("");
+  const pendingRef = useRef(null);
+  const modeRef = useRef("checking");
+  const loadRef = useRef(null);
+  const revision = useRef(0);
 
-  const pendingRef =
-    useRef(null);
-
-  const modeRef =
-    useRef("checking");
-
-  const loadRef =
-    useRef(null);
-
-  const revision =
-    useRef(0);
-
-  const round =
-    state?.round;
+  const round = state?.round;
 
   const canPublish =
-    !round ||
-    round.phase === "FINISHED";
+    !round || round.phase === "FINISHED";
 
   const stale =
     !lastSync ||
@@ -242,26 +193,16 @@ export default function DreamWheelControlPage({
     !canPublish ||
     stale;
 
-  const plan = [
-    ...bonuses,
-    winner,
-  ];
+  const plan = [...bonuses, winner];
 
-  const bonusProduct =
-    bonuses.reduce(
-      (product, value) =>
-        product *
-        (
-          value === "2x"
-            ? 2
-            : 7
-        ),
-      1,
-    );
+  const bonusProduct = bonuses.reduce(
+    (product, value) =>
+      product * (value === "2x" ? 2 : 7),
+    1,
+  );
 
   const profitOdds =
-    Number(winner) *
-    bonusProduct;
+    Number(winner) * bonusProduct;
 
   const boundary =
     round?.phase === "WAITING"
@@ -272,19 +213,17 @@ export default function DreamWheelControlPage({
           ? round.spinEndsAt
           : round?.endsAt;
 
-  const seconds =
-    boundary
-      ? Math.max(
-          0,
-          Math.ceil(
-            (
-              new Date(
-                boundary,
-              ).getTime() - now
-            ) / 1000,
-          ),
-        )
-      : 0;
+  const seconds = boundary
+    ? Math.max(
+        0,
+        Math.ceil(
+          (
+            new Date(boundary).getTime() -
+            now
+          ) / 1000,
+        ),
+      )
+    : 0;
 
   const changeMode = value => {
     modeRef.current = value;
@@ -292,27 +231,18 @@ export default function DreamWheelControlPage({
   };
 
   const acceptController = id => {
-    if (
-      controllerRef.current !== id
-    ) {
+    if (controllerRef.current !== id) {
       controllerRef.current = id;
-
       setControllerId(id);
 
-      const recovered =
-        readPending(id);
+      const recovered = readPending(id);
 
-      pendingRef.current =
-        recovered;
-
+      pendingRef.current = recovered;
       setPending(recovered);
 
       if (recovered) {
         setBonuses(
-          recovered.outcomes.slice(
-            0,
-            -1,
-          ),
+          recovered.outcomes.slice(0, -1),
         );
 
         setWinner(
@@ -332,11 +262,8 @@ export default function DreamWheelControlPage({
 
     reading.current = true;
 
-    const version =
-      revision.current;
-
-    const started =
-      Date.now();
+    const version = revision.current;
+    const started = Date.now();
 
     try {
       const value = await api(
@@ -350,8 +277,7 @@ export default function DreamWheelControlPage({
         return;
       }
 
-      const finished =
-        Date.now();
+      const finished = Date.now();
 
       offset.current =
         new Date(
@@ -359,10 +285,7 @@ export default function DreamWheelControlPage({
         ).getTime() -
         (started + finished) / 2;
 
-      setNow(
-        finished + offset.current,
-      );
-
+      setNow(finished + offset.current);
       setLastSync(finished);
       setState(value);
 
@@ -384,11 +307,9 @@ export default function DreamWheelControlPage({
         err.status === 403
       ) {
         const wasChecking =
-          modeRef.current ===
-          "checking";
+          modeRef.current === "checking";
 
         changeMode("login");
-
         setState(null);
         setLastSync(0);
 
@@ -404,8 +325,7 @@ export default function DreamWheelControlPage({
         );
 
         if (
-          modeRef.current ===
-          "checking"
+          modeRef.current === "checking"
         ) {
           changeMode("login");
         }
@@ -422,35 +342,22 @@ export default function DreamWheelControlPage({
 
     void loadRef.current();
 
-    const poll = setInterval(
-      () => {
-        if (
-          modeRef.current ===
-          "ready"
-        ) {
-          void loadRef.current();
-        }
-      },
-      1000,
-    );
+    const poll = setInterval(() => {
+      if (modeRef.current === "ready") {
+        void loadRef.current();
+      }
+    }, 1000);
 
-    const clock = setInterval(
-      () => {
-        if (alive.current) {
-          setNow(
-            Date.now() +
-              offset.current,
-          );
-        }
-      },
-      250,
-    );
+    const clock = setInterval(() => {
+      if (alive.current) {
+        setNow(
+          Date.now() + offset.current,
+        );
+      }
+    }, 250);
 
     const focus = () => {
-      if (
-        modeRef.current ===
-        "ready"
-      ) {
+      if (modeRef.current === "ready") {
         void loadRef.current();
       }
     };
@@ -476,11 +383,7 @@ export default function DreamWheelControlPage({
   const login = async event => {
     event.preventDefault();
 
-    if (
-      working.current
-    ) {
-      return;
-    }
+    if (working.current) return;
 
     if (
       !loginId.trim() ||
@@ -516,8 +419,7 @@ export default function DreamWheelControlPage({
       setLoginPassword("");
 
       if (
-        value.game !==
-        "DREAM_WHEEL"
+        value.game !== "DREAM_WHEEL"
       ) {
         throw new Error(
           "This ID does not belong to Dream Wheel.",
@@ -528,13 +430,11 @@ export default function DreamWheelControlPage({
         value.controllerId,
       );
 
-      if (
+      changeMode(
         value.mustChangePassword
-      ) {
-        changeMode("password");
-      } else {
-        changeMode("ready");
-      }
+          ? "password"
+          : "ready",
+      );
     } catch (err) {
       if (alive.current) {
         setLoginPassword("");
@@ -547,8 +447,7 @@ export default function DreamWheelControlPage({
         setBusy(false);
 
         if (
-          modeRef.current ===
-          "ready"
+          modeRef.current === "ready"
         ) {
           void loadRef.current();
         }
@@ -556,117 +455,95 @@ export default function DreamWheelControlPage({
     }
   };
 
-  const changePassword =
-    async event => {
-      event.preventDefault();
+  const changePassword = async event => {
+    event.preventDefault();
+
+    if (working.current) return;
+
+    if (
+      !currentPassword ||
+      newPassword.length < 12 ||
+      new TextEncoder().encode(
+        newPassword,
+      ).length > 72 ||
+      newPassword !== confirmPassword ||
+      newPassword === currentPassword
+    ) {
+      setError(
+        "Use a different password of at least 12 characters, within 72 UTF-8 bytes, and matching confirmation.",
+      );
+
+      return;
+    }
+
+    working.current = true;
+    revision.current += 1;
+
+    setBusy(true);
+    setError("");
+
+    try {
+      const value = await api(
+        "/api/game-control/change-password",
+        "POST",
+        {
+          currentPassword,
+          newPassword,
+          confirmPassword,
+          game: "DREAM_WHEEL",
+        },
+      );
+
+      if (!alive.current) return;
 
       if (
-        working.current
+        value.game !== "DREAM_WHEEL"
       ) {
-        return;
+        throw new Error(
+          "Dream Wheel controller session required.",
+        );
       }
 
-      if (
-        !currentPassword ||
-        newPassword.length < 12 ||
-        new TextEncoder()
-          .encode(newPassword)
-          .length > 72 ||
-        newPassword !==
-          confirmPassword ||
-        newPassword ===
-          currentPassword
-      ) {
-        setError(
-          "Use a different password of at least 12 characters, within 72 UTF-8 bytes, and matching confirmation.",
-        );
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
 
-        return;
-      }
+      setNotice(
+        "Password changed. Controller ready.",
+      );
 
-      working.current = true;
-      revision.current += 1;
-
-      setBusy(true);
-      setError("");
-
-      try {
-        const value = await api(
-          "/api/game-control/change-password",
-          "POST",
-          {
-            currentPassword,
-            newPassword,
-            confirmPassword,
-            game: "DREAM_WHEEL",
-          },
-        );
-
-        if (
-          !alive.current
-        ) {
-          return;
-        }
-
-        if (
-          value.game !==
-          "DREAM_WHEEL"
-        ) {
-          throw new Error(
-            "Dream Wheel controller session required.",
-          );
-        }
-
+      changeMode("ready");
+    } catch (err) {
+      if (alive.current) {
         setCurrentPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
+        setError(err.message);
+      }
+    } finally {
+      working.current = false;
 
-        setNotice(
-          "Password changed. Controller ready.",
-        );
+      if (alive.current) {
+        setBusy(false);
 
-        changeMode("ready");
-      } catch (err) {
-        if (alive.current) {
-          setCurrentPassword("");
-          setError(err.message);
-        }
-      } finally {
-        working.current = false;
-
-        if (alive.current) {
-          setBusy(false);
-
-          if (
-            modeRef.current ===
-            "ready"
-          ) {
-            void loadRef.current();
-          }
+        if (
+          modeRef.current === "ready"
+        ) {
+          void loadRef.current();
         }
       }
-    };
+    }
+  };
 
   const publish = async event => {
     event?.preventDefault();
 
-    if (
-      working.current
-    ) {
-      return;
-    }
+    if (working.current) return;
 
-    const id =
-      controllerRef.current;
+    const id = controllerRef.current;
 
-    let body =
-      pendingRef.current;
+    let body = pendingRef.current;
 
     if (!body) {
-      if (
-        !canPublish ||
-        stale
-      ) {
+      if (!canPublish || stale) {
         setError(
           "Wait for the current round to finish and the controller state to refresh.",
         );
@@ -676,17 +553,14 @@ export default function DreamWheelControlPage({
 
       if (
         !NUMBERS.includes(winner) ||
-        bonuses.length >
-          MAX_BONUSES ||
+        bonuses.length > MAX_BONUSES ||
         bonuses.some(
           value =>
-            !["2x", "7x"].includes(
-              value,
-            ),
+            !["2x", "7x"].includes(value),
         )
       ) {
         setError(
-          "Choose a valid plan.",
+          "Choose a whole number from 1 to 40 and valid bonus spins.",
         );
 
         return;
@@ -694,9 +568,7 @@ export default function DreamWheelControlPage({
 
       try {
         body = {
-          requestKey:
-            newKey(),
-
+          requestKey: newKey(),
           outcomes: [
             ...bonuses,
             winner,
@@ -710,12 +582,7 @@ export default function DreamWheelControlPage({
         return;
       }
 
-      if (
-        !savePending(
-          id,
-          body,
-        )
-      ) {
+      if (!savePending(id, body)) {
         setError(
           "Enable browser session storage before publishing so interrupted plans can be recovered.",
         );
@@ -723,9 +590,7 @@ export default function DreamWheelControlPage({
         return;
       }
 
-      pendingRef.current =
-        body;
-
+      pendingRef.current = body;
       setPending(body);
     }
 
@@ -783,18 +648,13 @@ export default function DreamWheelControlPage({
 
       if (alive.current) {
         setBusy(false);
-
         void loadRef.current();
       }
     }
   };
 
   const logout = async () => {
-    if (
-      working.current
-    ) {
-      return;
-    }
+    if (working.current) return;
 
     working.current = true;
     revision.current += 1;
@@ -818,7 +678,6 @@ export default function DreamWheelControlPage({
         setState(null);
         setLastSync(0);
         setNotice("");
-
         setLoginPassword("");
         setCurrentPassword("");
         setNewPassword("");
@@ -846,12 +705,11 @@ export default function DreamWheelControlPage({
       <style>{`
         .dc-page {
           min-height: 100vh;
-          background:
-            radial-gradient(
-              ellipse at top,
-              #2c2944,
-              #0c1322 75%
-            );
+          background: radial-gradient(
+            ellipse at top,
+            #2c2944,
+            #0c1322 75%
+          );
           color: #f4f2e9;
           font-family: Arial, sans-serif;
           padding-bottom: 25px;
@@ -906,8 +764,7 @@ export default function DreamWheelControlPage({
         }
 
         .dc-card {
-          border:
-            1px solid #ffffff25;
+          border: 1px solid #ffffff25;
           border-radius: 14px;
           background: #ffffff06;
           padding: 18px;
@@ -938,16 +795,14 @@ export default function DreamWheelControlPage({
           width: 100%;
           background: #172536;
           color: #fff;
-          border:
-            1px solid #ffffff40;
+          border: 1px solid #ffffff40;
           border-radius: 8px;
           padding: 13px;
         }
 
         .dc-btn {
           padding: 10px 13px;
-          border:
-            1px solid #ffffff30;
+          border: 1px solid #ffffff30;
           border-radius: 8px;
           background: #ffffff10;
           color: inherit;
@@ -979,8 +834,7 @@ export default function DreamWheelControlPage({
         }
 
         .dc-alert {
-          border:
-            1px solid #d3ac64;
+          border: 1px solid #d3ac64;
           background: #4a331e;
           color: #ffe5ad;
           border-radius: 10px;
@@ -991,8 +845,7 @@ export default function DreamWheelControlPage({
         }
 
         .dc-notice {
-          border:
-            1px solid #5a9f92;
+          border: 1px solid #5a9f92;
           background: #15332f;
           color: #cbf4e6;
           border-radius: 10px;
@@ -1015,8 +868,7 @@ export default function DreamWheelControlPage({
 
         .dc-plan span {
           background: #594479;
-          border:
-            1px solid #b596d2;
+          border: 1px solid #b596d2;
           border-radius: 8px;
           padding: 10px 14px;
           font-weight: bold;
@@ -1044,8 +896,7 @@ export default function DreamWheelControlPage({
         .dc-countdown {
           width: 64px;
           height: 64px;
-          border:
-            3px solid #ddc17a;
+          border: 3px solid #ddc17a;
           border-radius: 50%;
           display: grid;
           place-items: center;
@@ -1056,8 +907,7 @@ export default function DreamWheelControlPage({
 
         .dc-bonus-row {
           display: grid;
-          grid-template-columns:
-            1fr auto;
+          grid-template-columns: 1fr auto;
           gap: 8px;
           align-items: center;
           margin-top: 10px;
@@ -1074,8 +924,7 @@ export default function DreamWheelControlPage({
           display: inline-block;
           background: #4b2c48;
           color: #f5d7ee;
-          border:
-            1px solid #91517b;
+          border: 1px solid #91517b;
           border-radius: 6px;
           padding: 5px 8px;
           font-size: 10px;
@@ -1083,12 +932,11 @@ export default function DreamWheelControlPage({
         }
 
         .dc-page :focus-visible {
-          outline:
-            3px solid #ffe3a0;
+          outline: 3px solid #ffe3a0;
           outline-offset: 3px;
         }
 
-        @media (max-width: 400px) {
+        @media(max-width: 400px) {
           .dc-wrap {
             padding: 10px;
           }
@@ -1109,10 +957,7 @@ export default function DreamWheelControlPage({
 
       <header className="dc-header">
         <div>
-          <h1>
-            DREAM WHEEL CONTROL
-          </h1>
-
+          <h1>DREAM WHEEL CONTROL</h1>
           <p>
             DEMO ROUND PLANNING ·
             CONTROLLER ACCOUNT
@@ -1127,9 +972,7 @@ export default function DreamWheelControlPage({
             type="button"
             className="dc-btn"
             disabled={busy}
-            onClick={() =>
-              void logout()
-            }
+            onClick={() => void logout()}
           >
             Logout
           </button>
@@ -1169,14 +1012,12 @@ export default function DreamWheelControlPage({
             className="dc-card dc-form"
             onSubmit={login}
           >
-            <h2>
-              Controller login
-            </h2>
+            <h2>Controller login</h2>
 
             <p className="dc-hint">
-              Use the separate Dream
-              Wheel controller ID created
-              by your main admin.
+              Use the separate Dream Wheel
+              controller ID created by your
+              main admin.
             </p>
 
             <label
@@ -1237,9 +1078,7 @@ export default function DreamWheelControlPage({
         {mode === "password" && (
           <form
             className="dc-card dc-form"
-            onSubmit={
-              changePassword
-            }
+            onSubmit={changePassword}
           >
             <h2>
               Change temporary password
@@ -1247,8 +1086,8 @@ export default function DreamWheelControlPage({
 
             <p className="dc-hint">
               Controller {controllerId}.
-              Set a different password
-              before opening game controls.
+              Set a different password before
+              opening game controls.
             </p>
 
             <label
@@ -1398,33 +1237,29 @@ export default function DreamWheelControlPage({
                   <div className="dc-plan">
                     {(
                       round.lockedPlan || []
-                    ).map(
-                      (step, index) => (
-                        <React.Fragment
-                          key={index}
-                        >
-                          {index > 0 && (
-                            <b
-                              aria-hidden="true"
-                            >
-                              →
-                            </b>
-                          )}
+                    ).map((step, index) => (
+                      <React.Fragment
+                        key={index}
+                      >
+                        {index > 0 && (
+                          <b aria-hidden="true">
+                            →
+                          </b>
+                        )}
 
-                          <span
-                            className={
-                              NUMBERS.includes(
-                                step.value,
-                              )
-                                ? "dc-number"
-                                : ""
-                            }
-                          >
-                            {step.value}
-                          </span>
-                        </React.Fragment>
-                      ),
-                    )}
+                        <span
+                          className={
+                            NUMBERS.includes(
+                              step.value,
+                            )
+                              ? "dc-number"
+                              : ""
+                          }
+                        >
+                          {step.value}
+                        </span>
+                      </React.Fragment>
+                    ))}
                   </div>
 
                   <p className="dc-hint">
@@ -1445,10 +1280,17 @@ export default function DreamWheelControlPage({
                     <p className="dc-hint">
                       Final number{" "}
                       {round.result.winner}
-                      {" "}· Bonus{" "}
-                      {round.result.bonusMultiplier}x
-                      {" "}· Profit odds{" "}
-                      1:{round.result.profitOdds}
+                      {" · Bonus "}
+                      {
+                        round.result
+                          .bonusMultiplier
+                      }
+                      x
+                      {" · Profit odds 1:"}
+                      {
+                        round.result
+                          .profitOdds
+                      }
                     </p>
                   )}
                 </>
@@ -1461,8 +1303,8 @@ export default function DreamWheelControlPage({
                 role="status"
               >
                 A plan publication needs
-                recovery. Retry sends the
-                same plan and request key.
+                recovery. Retry sends the same
+                plan and request key.
 
                 <button
                   type="button"
@@ -1481,15 +1323,13 @@ export default function DreamWheelControlPage({
               className="dc-card"
               onSubmit={publish}
             >
-              <h2>
-                Prepare next round
-              </h2>
+              <h2>Prepare next round</h2>
 
               <p className="dc-hint">
                 Choose zero to three bonus
                 spins, followed by one final
-                number. This is a
-                controller-planned demo;
+                number from 1 to 40. This is
+                a controller-planned demo;
                 outcomes are fixed before
                 betting opens.
               </p>
@@ -1522,6 +1362,31 @@ export default function DreamWheelControlPage({
                 ))}
               </select>
 
+              <label
+                className="dc-label"
+                htmlFor="dc-winner-type"
+              >
+                Or type a number from 1 to 40
+              </label>
+
+              <input
+                id="dc-winner-type"
+                className="dc-input"
+                type="number"
+                inputMode="numeric"
+                min="1"
+                max="40"
+                step="1"
+                value={winner}
+                disabled={formLocked}
+                onChange={event =>
+                  setWinner(
+                    event.target.value,
+                  )
+                }
+                required
+              />
+
               <h3
                 style={{
                   fontSize: 14,
@@ -1545,14 +1410,15 @@ export default function DreamWheelControlPage({
                       value={value}
                       disabled={formLocked}
                       onChange={event =>
-                        setBonuses(
-                          items =>
-                            items.map(
-                              (item, i) =>
-                                i === index
-                                  ? event.target.value
-                                  : item,
-                            ),
+                        setBonuses(items =>
+                          items.map(
+                            (item, i) =>
+                              i === index
+                                ? event
+                                    .target
+                                    .value
+                                : item,
+                          ),
                         )
                       }
                     >
@@ -1570,15 +1436,16 @@ export default function DreamWheelControlPage({
                       className="dc-btn"
                       disabled={formLocked}
                       aria-label={
-                        `Remove bonus spin ${index + 1}`
+                        `Remove bonus spin ${
+                          index + 1
+                        }`
                       }
                       onClick={() =>
-                        setBonuses(
-                          items =>
-                            items.filter(
-                              (_, i) =>
-                                i !== index,
-                            ),
+                        setBonuses(items =>
+                          items.filter(
+                            (_, i) =>
+                              i !== index,
+                          ),
                         )
                       }
                     >
@@ -1598,12 +1465,10 @@ export default function DreamWheelControlPage({
                       MAX_BONUSES
                   }
                   onClick={() =>
-                    setBonuses(
-                      items => [
-                        ...items,
-                        "2x",
-                      ],
-                    )
+                    setBonuses(items => [
+                      ...items,
+                      "2x",
+                    ])
                   }
                 >
                   Add bonus spin
@@ -1634,9 +1499,7 @@ export default function DreamWheelControlPage({
                       key={index}
                     >
                       {index > 0 && (
-                        <b
-                          aria-hidden="true"
-                        >
+                        <b aria-hidden="true">
                           →
                         </b>
                       )}
@@ -1649,7 +1512,7 @@ export default function DreamWheelControlPage({
                             : ""
                         }
                       >
-                        {value}
+                        {value || "—"}
                       </span>
                     </React.Fragment>
                   ),
@@ -1659,23 +1522,24 @@ export default function DreamWheelControlPage({
               <p className="dc-hint">
                 Accumulated bonus{" "}
                 {bonusProduct}x
-                {" "}· Winning profit odds{" "}
-                1:{profitOdds}. A 10-coin
-                winning bet would return{" "}
-                {10 * (1 + profitOdds)}
-                {" "}total coins.
+                {" · Winning profit odds 1:"}
+                {profitOdds}.
+                A 10-coin winning bet would
+                return{" "}
+                {10 * (1 + profitOdds)}{" "}
+                total coins.
               </p>
 
               <p className="dc-hint">
-                LOCK &amp; OPEN ROUND saves
-                the entire plan immediately.
+                LOCK & OPEN ROUND saves the
+                entire plan immediately.
                 It cannot be edited afterward.
                 Betting starts after a
                 5-second preparation countdown,
                 stays open for 30 seconds,
-                then each spin takes 10 seconds.
-                No new bets are accepted
-                during bonus spins.
+                then each spin takes
+                10 seconds. No new bets are
+                accepted during bonus spins.
               </p>
 
               <button
