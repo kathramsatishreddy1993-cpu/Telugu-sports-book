@@ -27,9 +27,7 @@ function JhandiBowl({ round, now }) {
     result && result.dice?.length !== 4;
 
   const revealedAt = new Date(
-    round?.revealsAt ||
-    round?.closesAt ||
-    0,
+    round?.revealsAt || round?.closesAt || 0,
   ).getTime();
 
   const age = result
@@ -72,9 +70,7 @@ function JhandiBowl({ round, now }) {
 
       <div
         className="jm-bowl"
-        style={{
-          "--pour-age": `${-initialAge}ms`,
-        }}
+        style={{ "--pour-age": `${-initialAge}ms` }}
         aria-hidden="true"
       >
         <svg viewBox="0 0 240 170">
@@ -93,52 +89,87 @@ function JhandiBowl({ round, now }) {
 
           <ellipse
             cx="120"
-            cy="145"
-            rx="111"
-            ry="17"
-            fill="#100d09"
+            cy="150"
+            rx="91"
+            ry="12"
+            fill="#090d16"
+            opacity=".6"
           />
 
           <path
-            d="M14 144 Q23 27 109 24 L131 24 Q216 27 226 144Z"
+            d="M14 56 Q22 143 103 150 L137 150 Q219 143 226 56 Z"
             fill="url(#jm-bowl-metal)"
             stroke="#f3dba5"
             strokeWidth="3"
           />
 
-          <ellipse
-            cx="120"
-            cy="145"
-            rx="108"
-            ry="11"
-            fill="#8d682e"
-            stroke="#f0d399"
-            strokeWidth="4"
-          />
-
           <path
-            d="M51 119 Q57 57 93 44"
+            d="M40 79 Q47 120 84 134"
             fill="none"
             stroke="#fff0bd"
-            strokeWidth="9"
+            strokeWidth="8"
             strokeLinecap="round"
             opacity=".35"
           />
 
-          <rect
-            x="99"
-            y="12"
-            width="42"
-            height="17"
-            rx="8"
-            fill="#c9a65e"
-            stroke="#f2d996"
-            strokeWidth="2"
+          <ellipse
+            cx="120"
+            cy="56"
+            rx="106"
+            ry="32"
+            fill="#9a7438"
+            stroke="#f4dba1"
+            strokeWidth="4"
+          />
+
+          <ellipse
+            cx="120"
+            cy="57"
+            rx="96"
+            ry="24"
+            fill="#382b1d"
+          />
+
+          <ellipse
+            cx="120"
+            cy="61"
+            rx="80"
+            ry="15"
+            fill="#171c1b"
+            opacity=".75"
+          />
+
+          {(!result || legacy) &&
+            [0, 1, 2, 3].map(index => (
+              <g key={index} aria-hidden="true">
+                <ellipse
+                  cx={76 + index * 29}
+                  cy={index % 2 ? 61 : 53}
+                  rx="12"
+                  ry="7"
+                  fill="#bd9b58"
+                  stroke="#efd79b"
+                  strokeWidth="2"
+                />
+
+                <path
+                  d={`M${71 + index * 29} ${index % 2 ? 61 : 53}h10`}
+                  stroke="#795c2f"
+                  strokeWidth="2"
+                />
+              </g>
+            ))}
+
+          <path
+            d="M14 56 Q120 111 226 56"
+            fill="none"
+            stroke="#f4dba1"
+            strokeWidth="5"
           />
 
           <text
             x="120"
-            y="103"
+            y="123"
             textAnchor="middle"
             fill="#4a3018"
             fontSize="16"
@@ -186,7 +217,7 @@ function JhandiBowl({ round, now }) {
               ? "Pouring four dice onto the tray…"
               : round?.phase === "SHAKING"
                 ? "Shaking four dice inside the bowl…"
-                : "Four dice are covered inside the bowl"}
+                : "Four dice inside the open bowl · symbols hidden"}
       </p>
     </div>
   );
@@ -768,18 +799,8 @@ function DiceGame({
       }`}
     >
       <style>{`
-        .dg-page {
-          min-height:100vh;
-          background:radial-gradient(ellipse at top,#243c65,#080f22 75%);
-          color:#f5f2e9;
-          font-family:Arial,sans-serif;
-          padding-bottom:24px;
-        }
-
-        .dg-lankesh {
-          background:radial-gradient(ellipse at top,#3c244b,#100f22 75%);
-        }
-
+        .dg-page{min-height:100vh;background:radial-gradient(ellipse at top,#243c65,#080f22 75%);color:#f5f2e9;font-family:Arial,sans-serif;padding-bottom:24px}
+        .dg-lankesh{background:radial-gradient(ellipse at top,#3c244b,#100f22 75%)}
         .dg-page *{box-sizing:border-box}
         .dg-page button{font:inherit;cursor:pointer}
         .dg-page button:disabled{opacity:.45;cursor:default}
@@ -794,56 +815,13 @@ function DiceGame({
         .dg-alert{background:#4a2c17;border:1px solid #dba951;color:#ffe4ab;padding:12px;border-radius:10px;font-size:13px;line-height:1.7;margin:12px 0}
         .dg-alert button{margin:6px}
         .dg-hint{color:#d0d8e8;font-size:12px;line-height:1.7}
-
-        .dg-stage {
-          position:relative;
-          padding:20px 12px;
-          background:#0004;
-          border:1px solid #ffffff25;
-          border-radius:16px;
-          text-align:center;
-          min-height:175px;
-        }
-
-        .dg-timer {
-          width:74px;
-          height:74px;
-          border-radius:50%;
-          border:4px solid #e4c779;
-          display:grid;
-          place-items:center;
-          margin:0 auto 10px;
-          font-size:28px;
-          font-weight:bold;
-        }
-
+        .dg-stage{position:relative;padding:20px 12px;background:#0004;border:1px solid #ffffff25;border-radius:16px;text-align:center;min-height:175px}
+        .dg-timer{width:74px;height:74px;border-radius:50%;border:4px solid #e4c779;display:grid;place-items:center;margin:0 auto 10px;font-size:28px;font-weight:bold}
         .dg-phase{color:#ffe392;font-weight:bold;font-size:14px}
         .dg-arrow{font-size:29px;margin-top:15px;color:#f6d570;animation:dgReveal .7s ease-out}
-
-        .dg-grid {
-          display:grid;
-          grid-template-columns:repeat(2,minmax(0,1fr));
-          gap:9px;
-          margin-top:14px;
-        }
-
+        .dg-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:14px}
         .dg-heads{grid-template-columns:repeat(5,minmax(0,1fr))}
-
-        .dg-area {
-          position:relative;
-          min-height:130px;
-          padding:12px 5px;
-          border:1px solid #4c90b2;
-          border-radius:13px;
-          background:linear-gradient(#174f68,#0c1729);
-          color:#fff;
-          display:flex;
-          flex-direction:column;
-          align-items:center;
-          justify-content:center;
-          gap:6px;
-        }
-
+        .dg-area{position:relative;min-height:130px;padding:12px 5px;border:1px solid #4c90b2;border-radius:13px;background:linear-gradient(#174f68,#0c1729);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
         .dg-heads .dg-area{min-height:105px}
         .dg-area.dg-win{border:2px solid #ffdf73;box-shadow:0 0 16px #edcb6550}
         .dg-icon{font-size:46px;line-height:1.1}
@@ -1071,9 +1049,7 @@ function DiceGame({
                 if (!rules) {
                   api(`${base}/rules`)
                     .then(data => {
-                      if (active.current) {
-                        setRules(data);
-                      }
+                      if (active.current) setRules(data);
                     })
                     .catch(err => {
                       if (active.current) {
