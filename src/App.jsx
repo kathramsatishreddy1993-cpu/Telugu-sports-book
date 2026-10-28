@@ -20,17 +20,105 @@ import AnimatedSuperOverPage from "./components/AnimatedSuperOverPage";
 import DealOrNoDealPage from "./components/DealOrNoDealPage";
 import DealOrNoDealControlPage from "./components/DealOrNoDealControlPage";
 
-import { ACTIVE_GAMES } from "./components/GameArtwork";
-
 const AUTH_KEY = "telugu_sports_auth_user";
 const ADMIN_AUTH_KEY = "telugu_sports_demo_admin";
 
-const CARD_GAME_IDS = new Set([
-  "super-over",
-  "dragon-tiger",
-  "andar-bahar",
-  "lucky-seven",
-]);
+const EXISTING_GAMES = {
+  "/games/tsb-flight": {
+    title: "AVIATOR",
+    Page: TSBFlightPage,
+  },
+
+  "/games/roulette": {
+    title: "ROULETTE",
+    Page: RoulettePage,
+  },
+
+  "/games/super-over": {
+    title: "SUPER OVER",
+    Page: CardGamesPage,
+    game: "super-over",
+  },
+
+  "/games/color-prediction": {
+    title: "COLOR PREDICTION",
+    Page: ColorPredictionPage,
+  },
+
+  "/games/dragon-tiger": {
+    title: "DRAGON TIGER",
+    Page: CardGamesPage,
+    game: "dragon-tiger",
+  },
+
+  "/games/andar-bahar": {
+    title: "ANDAR BAHAR",
+    Page: CardGamesPage,
+    game: "andar-bahar",
+  },
+
+  "/games/lucky-seven": {
+    title: "LUCKY SEVEN",
+    Page: CardGamesPage,
+    game: "lucky-seven",
+  },
+
+  "/games/deal-or-no-deal": {
+    title: "DEAL OR NO DEAL",
+    Page: DealOrNoDealPage,
+    description:
+      "Random demo results are locked before betting opens.",
+  },
+
+  "/games/animated-super-over": {
+    title: "ANIMATED SUPER OVER",
+    Page: AnimatedSuperOverPage,
+  },
+};
+
+// These routes remain pending until their game pages
+// and server endpoints are implemented.
+const NEW_GAMES = {
+  "/games/twist-x": {
+    title: "TWIST X",
+    game: "twist-x",
+  },
+
+  "/games/lankesh": {
+    title: "LANKESH",
+    game: "lankesh",
+  },
+
+  "/games/jhandi-munda": {
+    title: "JHANDI MUNDA",
+    game: "jhandi-munda",
+  },
+
+  "/games/extra-sic-bo": {
+    title: "EXTRA SIC BO",
+    game: "extra-sic-bo",
+  },
+
+  "/games/dream-wheel": {
+    title: "DREAM WHEEL",
+    game: "dream-wheel",
+  },
+
+  "/games/chicken-road-cross": {
+    title: "CHICKEN ROAD CROSS",
+    game: "chicken-road-cross",
+  },
+
+  "/games/mini-roulette": {
+    title: "MINI ROULETTE",
+    game: "mini-roulette",
+  },
+
+  "/games/keno-80": {
+    title: "KENO 80",
+    game: "keno-80",
+  },
+};
 
 function restoredSession(key) {
   try {
@@ -38,7 +126,9 @@ function restoredSession(key) {
       localStorage.getItem(key) || "null",
     );
 
-    return saved?.isAuthenticated ? saved : null;
+    return saved?.isAuthenticated
+      ? saved
+      : null;
   } catch (error) {
     console.error(
       "Unable to restore session:",
@@ -49,9 +139,55 @@ function restoredSession(key) {
   }
 }
 
+function NewGamePendingPage({
+  title,
+  onBack,
+  onLogout,
+}) {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center bg-[#080d16] p-6 text-center text-white">
+      <p className="text-xs font-bold tracking-widest text-amber-300">
+        TELUGU SPORTS BOOK · DEMO
+      </p>
+
+      <h1 className="mt-4 text-3xl font-black text-cyan-300">
+        {title}
+      </h1>
+
+      <p
+        role="status"
+        className="mt-5 max-w-md text-sm leading-7 text-slate-300"
+      >
+        ఈ గేమ్ సిద్ధమవుతోంది. గేమ్ పేజీ
+        అందుబాటులోకి వచ్చిన తర్వాత ఇక్కడ
+        ఆడవచ్చు.
+      </p>
+
+      <button
+        type="button"
+        onClick={onBack}
+        className="mt-7 rounded-xl bg-cyan-400 px-7 py-3 font-black text-black"
+      >
+        ← Customer home
+      </button>
+
+      <button
+        type="button"
+        onClick={onLogout}
+        className="mt-5 text-sm text-slate-400"
+      >
+        Logout
+      </button>
+    </main>
+  );
+}
+
 export default function App() {
-  const [view, setView] = useState("home");
-  const [authMode, setAuthMode] = useState(null);
+  const [view, setView] =
+    useState("home");
+
+  const [authMode, setAuthMode] =
+    useState(null);
 
   const [selectedBonus, setSelectedBonus] =
     useState(null);
@@ -69,9 +205,10 @@ export default function App() {
     restoredSession(ADMIN_AUTH_KEY),
   );
 
-  const cleanPath = window.location.pathname
-    .replace(/\/+$/, "")
-    .toLowerCase();
+  const cleanPath =
+    window.location.pathname
+      .replace(/\/+$/, "")
+      .toLowerCase() || "/";
 
   const isNewAdminMode =
     cleanPath === "/new-admin";
@@ -82,41 +219,32 @@ export default function App() {
   const isGameControl =
     cleanPath === "/game-control";
 
-  const isRoulette =
-    cleanPath === "/games/roulette";
-
   const isRouletteControl =
     cleanPath === "/game-control/roulette";
 
-  const isAnimatedSO =
-    cleanPath === "/games/animated-super-over";
-
-  const isFlight =
-    cleanPath === "/games/tsb-flight";
-
-  const isColorPrediction =
-    cleanPath === "/games/color-prediction";
-
-  const isDealOrNoDeal =
-    cleanPath === "/games/deal-or-no-deal";
-
   const isDealOrNoDealControl =
-    cleanPath === "/game-control/deal-or-no-deal";
+    cleanPath ===
+    "/game-control/deal-or-no-deal";
 
-  const cardGame = ACTIVE_GAMES.find(
-    game =>
-      CARD_GAME_IDS.has(game.id) &&
-      game.href === cleanPath,
-  );
+  const existingGame = Object.hasOwn(
+    EXISTING_GAMES,
+    cleanPath,
+  )
+    ? EXISTING_GAMES[cleanPath]
+    : null;
 
-  const isCustomerGame = Boolean(
-    isFlight ||
-      isRoulette ||
-      cardGame ||
-      isAnimatedSO ||
-      isColorPrediction ||
-      isDealOrNoDeal,
-  );
+  const newGame = Object.hasOwn(
+    NEW_GAMES,
+    cleanPath,
+  )
+    ? NEW_GAMES[cleanPath]
+    : null;
+
+  const selectedGame =
+    existingGame || newGame;
+
+  const isCustomerGame =
+    Boolean(selectedGame);
 
   const unknownGame =
     cleanPath.startsWith("/games/") &&
@@ -126,7 +254,7 @@ export default function App() {
     useState(isAdminMode);
 
   useEffect(() => {
-    if (!unknownGame) return;
+    if (!unknownGame) return undefined;
 
     const timer = setTimeout(
       () => window.location.replace("/"),
@@ -137,13 +265,17 @@ export default function App() {
   }, [unknownGame]);
 
   useEffect(() => {
-    if (!isAdminMode) return;
+    if (!isAdminMode) return undefined;
 
     let active = true;
+
+    const controller =
+      new AbortController();
 
     fetch("/api/auth/admin-session", {
       credentials: "same-origin",
       cache: "no-store",
+      signal: controller.signal,
     })
       .then(async response => {
         const data = await response.json();
@@ -170,6 +302,7 @@ export default function App() {
 
     return () => {
       active = false;
+      controller.abort();
     };
   }, [isAdminMode]);
 
@@ -213,62 +346,80 @@ export default function App() {
     setSelectedPublicItem(item);
 
     setAuthMode(
-      mode === "signup" ? "signup" : "login",
+      mode === "signup"
+        ? "signup"
+        : "login",
     );
   };
 
-  const handleLoginSuccess = loggedInUser => {
-    const normalizedUser = {
-      ...loggedInUser,
-      isAuthenticated: true,
-      loginId:
-        loggedInUser?.loginId ||
-        loggedInUser?.identifier ||
-        "",
-      identifier:
-        loggedInUser?.identifier ||
-        loggedInUser?.loginId ||
-        "",
-    };
+  const handleLoginSuccess =
+    loggedInUser => {
+      const normalizedUser = {
+        ...loggedInUser,
 
-    saveCustomerSession(normalizedUser);
-    setUser(normalizedUser);
-    setAuthMode(null);
-    setView("home");
-    setSelectedBonus(null);
+        isAuthenticated: true,
 
-    if (selectedPublicItem) {
-      try {
-        sessionStorage.setItem(
-          "telugu_sports_selected_demo_item",
-          JSON.stringify(selectedPublicItem),
-        );
-      } catch (error) {
-        console.error(
-          "Unable to save selected demo item:",
-          error,
-        );
+        loginId:
+          loggedInUser?.loginId ||
+          loggedInUser?.identifier ||
+          "",
+
+        identifier:
+          loggedInUser?.identifier ||
+          loggedInUser?.loginId ||
+          "",
+      };
+
+      saveCustomerSession(
+        normalizedUser,
+      );
+
+      setUser(normalizedUser);
+      setAuthMode(null);
+      setView("home");
+      setSelectedBonus(null);
+
+      if (selectedPublicItem) {
+        try {
+          sessionStorage.setItem(
+            "telugu_sports_selected_demo_item",
+            JSON.stringify(
+              selectedPublicItem,
+            ),
+          );
+        } catch (error) {
+          console.error(
+            "Unable to save selected demo item:",
+            error,
+          );
+        }
       }
-    }
 
-    setSelectedPublicItem(null);
-  };
-
-  const handleSecurityComplete = updatedUser => {
-    const completedUser = {
-      ...user,
-      ...updatedUser,
-      isAuthenticated: true,
-      mustChangePassword: false,
-      mustChangeWithdrawalPassword: false,
-      withdrawalPasswordConfigured: true,
+      setSelectedPublicItem(null);
     };
 
-    saveCustomerSession(completedUser);
-    setUser(completedUser);
-    setView("home");
-    setSelectedBonus(null);
-  };
+  const handleSecurityComplete =
+    updatedUser => {
+      const completedUser = {
+        ...user,
+        ...updatedUser,
+
+        isAuthenticated: true,
+
+        mustChangePassword: false,
+
+        mustChangeWithdrawalPassword:
+          false,
+
+        withdrawalPasswordConfigured:
+          true,
+      };
+
+      saveCustomerSession(completedUser);
+      setUser(completedUser);
+      setView("home");
+      setSelectedBonus(null);
+    };
 
   const handleLogout = () => {
     try {
@@ -293,10 +444,13 @@ export default function App() {
 
   const handleAdminLogout = async () => {
     try {
-      await fetch("/api/auth/admin-logout", {
-        method: "POST",
-        credentials: "same-origin",
-      });
+      await fetch(
+        "/api/auth/admin-logout",
+        {
+          method: "POST",
+          credentials: "same-origin",
+        },
+      );
     } catch (error) {
       console.error(
         "Server logout failed:",
@@ -351,9 +505,9 @@ export default function App() {
     ) : (
       <AdminLoginPage
         onLogin={setAdmin}
-        onBack={() => {
-          window.location.href = "/";
-        }}
+        onBack={() =>
+          window.location.assign("/")
+        }
       />
     );
   }
@@ -362,7 +516,8 @@ export default function App() {
     user?.isAuthenticated &&
       (
         user.mustChangePassword === true ||
-        user.mustChangeWithdrawalPassword === true
+        user.mustChangeWithdrawalPassword ===
+          true
       ),
   );
 
@@ -370,7 +525,9 @@ export default function App() {
     return (
       <ChangePasswordPage
         user={user}
-        onComplete={handleSecurityComplete}
+        onComplete={
+          handleSecurityComplete
+        }
         onLogout={handleLogout}
       />
     );
@@ -382,40 +539,29 @@ export default function App() {
     );
   }
 
-  const GamePage = isDealOrNoDeal
-    ? DealOrNoDealPage
-    : isColorPrediction
-      ? ColorPredictionPage
-      : isAnimatedSO
-        ? AnimatedSuperOverPage
-        : cardGame
-          ? CardGamesPage
-          : isRoulette
-            ? RoulettePage
-            : TSBFlightPage;
-
-  const gameTitle = isDealOrNoDeal
-    ? "DEAL OR NO DEAL"
-    : isColorPrediction
-      ? "COLOR PREDICTION"
-      : cardGame?.name ||
-        (
-          isAnimatedSO
-            ? "ANIMATED SUPER OVER"
-            : isRoulette
-              ? "TSB ROULETTE"
-              : "TSB FLIGHT"
-        );
-
   if (isCustomerGame) {
     if (user?.isAuthenticated) {
+      const onBack = () =>
+        window.location.assign("/");
+
+      if (newGame) {
+        return (
+          <NewGamePendingPage
+            title={newGame.title}
+            onBack={onBack}
+            onLogout={handleLogout}
+          />
+        );
+      }
+
+      const GamePage =
+        existingGame.Page;
+
       return (
         <GamePage
-          game={cardGame?.id}
+          game={existingGame.game}
           user={user}
-          onBack={() =>
-            window.location.assign("/")
-          }
+          onBack={onBack}
           onLogout={handleLogout}
         />
       );
@@ -424,21 +570,24 @@ export default function App() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#080d16] p-5 text-center text-white">
         <h1 className="text-3xl font-black text-cyan-300">
-          {gameTitle}
+          {selectedGame.title}
         </h1>
 
         <p className="mt-4 max-w-md text-sm leading-6 text-slate-300">
-          Multiplayer demo. Login with your
-          customer ID to use your demo coins.
+          Login with your customer ID to
+          access this demo game. Demo coins
+          only.
         </p>
 
-        {isDealOrNoDeal && (
+        {newGame ? (
           <p className="mt-3 max-w-md text-xs leading-5 text-amber-200">
-            Admin-selected demo. Results are
-            selected and locked before betting
-            opens.
+            ఈ గేమ్ ఇంకా సిద్ధమవుతోంది.
           </p>
-        )}
+        ) : selectedGame.description ? (
+          <p className="mt-3 max-w-md text-xs leading-5 text-amber-200">
+            {selectedGame.description}
+          </p>
+        ) : null}
 
         <button
           type="button"
@@ -459,11 +608,15 @@ export default function App() {
 
         <AuthModal
           isOpen={Boolean(authMode)}
-          initialMode={authMode || "login"}
+          initialMode={
+            authMode || "login"
+          }
           onClose={() =>
             setAuthMode(null)
           }
-          onLoginSuccess={handleLoginSuccess}
+          onLoginSuccess={
+            handleLoginSuccess
+          }
         />
       </div>
     );
@@ -490,12 +643,16 @@ export default function App() {
       {view === "home" ? (
         <main className="flex-1 pb-16">
           <HeroBanner
-            onRequireAuth={handlePublicItemClick}
+            onRequireAuth={
+              handlePublicItemClick
+            }
           />
 
           <div className="mx-auto my-4 max-w-xl px-4">
             <HeroBonusCard
-              onOpenBonus={handleOpenBonus}
+              onOpenBonus={
+                handleOpenBonus
+              }
             />
           </div>
 
@@ -510,12 +667,16 @@ export default function App() {
 
       <AuthModal
         isOpen={Boolean(authMode)}
-        initialMode={authMode || "login"}
+        initialMode={
+          authMode || "login"
+        }
         onClose={() => {
           setAuthMode(null);
           setSelectedPublicItem(null);
         }}
-        onLoginSuccess={handleLoginSuccess}
+        onLoginSuccess={
+          handleLoginSuccess
+        }
       />
     </div>
   );
