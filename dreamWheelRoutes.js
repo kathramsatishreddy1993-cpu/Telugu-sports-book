@@ -12,7 +12,17 @@ const RESULT_MS = 5000;
 const MAX_BONUS_SPINS = 3;
 const MAX_BALANCE = 2147483647;
 
-const NUMBERS = Array.from(
+const NUMBERS = [
+  "1",
+  "2",
+  "5",
+  "10",
+  "20",
+  "40",
+];
+
+// Used only to read and settle previously saved rounds.
+const HISTORICAL_NUMBERS = Array.from(
   { length: 40 },
   (_, index) => String(index + 1),
 );
@@ -46,13 +56,6 @@ const numbered = Object.entries(COUNTS)
 
 numbered.splice(8, 0, "2x");
 numbered.splice(36, 0, "7x");
-
-// Preserve existing locked segment indexes.
-for (const value of NUMBERS) {
-  if (!numbered.includes(value)) {
-    numbered.push(value);
-  }
-}
 
 export const DREAM_SEGMENTS =
   Object.freeze(numbered);
@@ -96,7 +99,7 @@ function keyFrom(body) {
   return key;
 }
 
-export function validateDreamPlan(value) {
+function validatePlan(value, allowed) {
   if (
     !Array.isArray(value) ||
     value.length < 1 ||
@@ -111,7 +114,7 @@ export function validateDreamPlan(value) {
   }
 
   if (
-    !NUMBERS.includes(
+    !allowed.includes(
       value[value.length - 1],
     ) ||
     value.slice(0, -1).some(
@@ -119,11 +122,15 @@ export function validateDreamPlan(value) {
     )
   ) {
     throw fail(
-      "Choose a final number from 1 to 40. Only 2x/7x bonuses may precede it.",
+      "Choose an allowed final number. Only 2x/7x bonuses may precede it.",
     );
   }
 
   return [...value];
+}
+
+export function validateDreamPlan(value) {
+  return validatePlan(value, NUMBERS);
 }
 
 export function dreamReturn(bets, plan) {
@@ -133,7 +140,10 @@ export function dreamReturn(bets, plan) {
       : step.value,
   );
 
-  validateDreamPlan(values);
+  validatePlan(
+    values,
+    HISTORICAL_NUMBERS,
+  );
 
   const winner =
     values[values.length - 1];
@@ -201,7 +211,7 @@ function normalizeBet(body) {
         bet.amount > 25000
       ) {
         throw fail(
-          "Choose distinct numbers from 1 to 40 with 10-25000 whole demo coins each.",
+          "Choose distinct numbers 1, 2, 5, 10, 20 or 40 with 10-25000 whole demo coins each.",
         );
       }
 
@@ -291,7 +301,8 @@ async function requireCustomer(client, req) {
   const result = await client.query(
     `SELECT c.id
      FROM demo_customer_sessions s
-     JOIN customers c ON c.id=s.customer_id
+     JOIN customers c
+       ON c.id=s.customer_id
      WHERE s.token_hash=$1
        AND s.expires_at>NOW()
        AND c.status='ACTIVE'
@@ -467,7 +478,9 @@ async function advanceRound(client) {
     round &&
     !round.settled &&
     now >=
-      new Date(round.reveals_at).getTime()
+      new Date(
+        round.reveals_at,
+      ).getTime()
   ) {
     const records = await client.query(
       `SELECT *
@@ -571,7 +584,9 @@ function publicRound(round, now) {
 
   const final =
     now >=
-      new Date(round.reveals_at).getTime() &&
+      new Date(
+        round.reveals_at,
+      ).getTime() &&
     round.settled;
 
   const revealed = final
@@ -593,7 +608,9 @@ function publicRound(round, now) {
         ? "BETTING"
         : final
           ? now <
-            new Date(round.ends_at).getTime()
+            new Date(
+              round.ends_at,
+            ).getTime()
             ? "RESULT"
             : "FINISHED"
           : "SPINNING";
@@ -688,7 +705,11 @@ export function registerDreamWheelRoutes(
     ).catch(next);
 
   const send = (res, value) => {
-    res.set("Cache-Control", "no-store");
+    res.set(
+      "Cache-Control",
+      "no-store",
+    );
+
     res.json(value);
   };
 
@@ -715,7 +736,7 @@ export function registerDreamWheelRoutes(
           "Number labels are profit odds. Winning total return = stake + stake × number × accumulated bonus multiplier. Other areas return zero.",
 
         rules:
-          "A controller locks the entire round plan before betting. Choose a final number from 1 to 40. Bonus 2x/7x spins stack and retain all bets without accepting new bets. At most three consecutive bonus spins may precede the final number. The robot host is animation, not live video. No round opens until a controller publishes a plan.",
+          "A controller locks the entire round plan before betting. Final numbers are 1, 2, 5, 10, 20 and 40. Bonus 2x/7x spins stack and retain all bets without accepting new bets. At most three bonus spins may precede the final number. The robot host is animation, not live video. No round opens until a controller publishes a plan.",
       });
     }),
   );
@@ -771,7 +792,11 @@ export function registerDreamWheelRoutes(
                 .demo_coin_balance,
             ),
 
-            round: publicRound(round, now),
+            round: publicRound(
+              round,
+              now,
+            ),
+
             bets: bets.rows.map(betJSON),
 
             recentResults: recent.rows.map(
@@ -828,7 +853,9 @@ export function registerDreamWheelRoutes(
     wrap(async (req, res) => {
       originCheck(req);
 
-      const input = normalizeBet(req.body);
+      const input = normalizeBet(
+        req.body,
+      );
 
       const value = await transaction(
         pool,
@@ -848,21 +875,29 @@ export function registerDreamWheelRoutes(
           );
 
           if (old.rows[0]) {
-            const previous = old.rows[0];
+            const previous =
+              old.rows[0];
 
-            const canonical = normalizeBet({
-              requestKey: input.key,
-              roundId: previous.round_id,
-              bets: json(previous.bets),
-            });
+            const canonical =
+              normalizeBet({
+                requestKey: input.key,
+                roundId:
+                  previous.round_id,
+                bets: json(
+                  previous.bets,
+                ),
+              });
 
             if (
-              String(previous.round_id) !==
-                input.roundId ||
+              String(
+                previous.round_id,
+              ) !== input.roundId ||
               JSON.stringify(
                 canonical.bets,
               ) !==
-                JSON.stringify(input.bets)
+                JSON.stringify(
+                  input.bets,
+                )
             ) {
               throw fail(
                 "Request key belongs to a different bet.",
@@ -894,19 +929,22 @@ export function registerDreamWheelRoutes(
           const { round } =
             await advanceRound(client);
 
-          const account = await client.query(
-            `SELECT *
-             FROM customers
-             WHERE id=$1
-             FOR UPDATE`,
-            [customerId],
-          );
+          const account =
+            await client.query(
+              `SELECT *
+               FROM customers
+               WHERE id=$1
+               FOR UPDATE`,
+              [customerId],
+            );
 
-          const customer = account.rows[0];
+          const customer =
+            account.rows[0];
 
           if (
             !customer ||
-            customer.status !== "ACTIVE" ||
+            customer.status !==
+              "ACTIVE" ||
             customer.must_change_password ||
             customer.must_change_withdrawal_password
           ) {
@@ -916,7 +954,8 @@ export function registerDreamWheelRoutes(
             );
           }
 
-          const now = await nowAt(client);
+          const now =
+            await nowAt(client);
 
           if (
             !round ||
@@ -938,18 +977,21 @@ export function registerDreamWheelRoutes(
             );
           }
 
-          const total = await client.query(
-            `SELECT
-               COALESCE(SUM(stake),0) AS stake
-             FROM tsb_dream_bets
-             WHERE customer_id=$1
-               AND round_id=$2`,
-            [customerId, round.id],
-          );
+          const total =
+            await client.query(
+              `SELECT
+                 COALESCE(SUM(stake),0)
+                   AS stake
+               FROM tsb_dream_bets
+               WHERE customer_id=$1
+                 AND round_id=$2`,
+              [customerId, round.id],
+            );
 
           if (
-            Number(total.rows[0].stake) +
-              input.stake >
+            Number(
+              total.rows[0].stake,
+            ) + input.stake >
             25000
           ) {
             throw fail(
@@ -966,24 +1008,29 @@ export function registerDreamWheelRoutes(
             throw fail("LOW BALANCE");
           }
 
-          const saved = await client.query(
-            `INSERT INTO tsb_dream_bets(
-               customer_id,
-               round_id,
-               request_key,
-               bets,
-               stake
-             )
-             VALUES($1,$2,$3,$4::JSONB,$5)
-             RETURNING *`,
-            [
-              customerId,
-              round.id,
-              input.key,
-              JSON.stringify(input.bets),
-              input.stake,
-            ],
-          );
+          const saved =
+            await client.query(
+              `INSERT INTO tsb_dream_bets(
+                 customer_id,
+                 round_id,
+                 request_key,
+                 bets,
+                 stake
+               )
+               VALUES(
+                 $1,$2,$3,$4::JSONB,$5
+               )
+               RETURNING *`,
+              [
+                customerId,
+                round.id,
+                input.key,
+                JSON.stringify(
+                  input.bets,
+                ),
+                input.stake,
+              ],
+            );
 
           await client.query(
             `UPDATE customers
@@ -1012,7 +1059,9 @@ export function registerDreamWheelRoutes(
             success: true,
             replayed: false,
             balance,
-            bet: betJSON(saved.rows[0]),
+            bet: betJSON(
+              saved.rows[0],
+            ),
           };
         },
       );
@@ -1069,9 +1118,10 @@ export function registerDreamWheelRoutes(
 
       const key = keyFrom(req.body);
 
-      const outcomes = validateDreamPlan(
-        req.body.outcomes,
-      );
+      const outcomes =
+        validateDreamPlan(
+          req.body.outcomes,
+        );
 
       const value = await transaction(
         pool,
@@ -1082,23 +1132,28 @@ export function registerDreamWheelRoutes(
               req,
             );
 
-          const old = await client.query(
-            `SELECT *
-             FROM tsb_dream_rounds
-             WHERE controller_id=$1
-               AND request_key=$2`,
-            [controller.id, key],
-          );
+          const old =
+            await client.query(
+              `SELECT *
+               FROM tsb_dream_rounds
+               WHERE controller_id=$1
+                 AND request_key=$2`,
+              [controller.id, key],
+            );
 
           if (old.rows[0]) {
-            const previousValues = json(
-              old.rows[0].plan,
-            ).map(step => step.value);
+            const previousValues =
+              json(
+                old.rows[0].plan,
+              ).map(
+                step => step.value,
+              );
 
             if (
               JSON.stringify(
                 previousValues,
-              ) !== JSON.stringify(outcomes)
+              ) !==
+              JSON.stringify(outcomes)
             ) {
               throw fail(
                 "Request key belongs to a different plan.",
@@ -1109,7 +1164,8 @@ export function registerDreamWheelRoutes(
             return {
               success: true,
               replayed: true,
-              roundId: old.rows[0].id,
+              roundId:
+                old.rows[0].id,
               commitment:
                 old.rows[0].commitment,
             };
@@ -1161,8 +1217,9 @@ export function registerDreamWheelRoutes(
             },
           );
 
-          const salt = randomBytes(32)
-            .toString("hex");
+          const salt =
+            randomBytes(32)
+              .toString("hex");
 
           const commitment = digest(
             JSON.stringify(plan) +
@@ -1180,42 +1237,44 @@ export function registerDreamWheelRoutes(
             closes +
             plan.length * SPIN_MS;
 
-          const saved = await client.query(
-            `INSERT INTO tsb_dream_rounds(
-               controller_id,
-               request_key,
-               plan,
-               salt,
-               commitment,
-               opens_at,
-               closes_at,
-               reveals_at,
-               ends_at
-             )
-             VALUES(
-               $1,$2,$3::JSONB,$4,$5,
-               $6,$7,$8,$9
-             )
-             RETURNING *`,
-            [
-              controller.id,
-              key,
-              JSON.stringify(plan),
-              salt,
-              commitment,
-              new Date(opens),
-              new Date(closes),
-              new Date(reveals),
-              new Date(
-                reveals + RESULT_MS,
-              ),
-            ],
-          );
+          const saved =
+            await client.query(
+              `INSERT INTO tsb_dream_rounds(
+                 controller_id,
+                 request_key,
+                 plan,
+                 salt,
+                 commitment,
+                 opens_at,
+                 closes_at,
+                 reveals_at,
+                 ends_at
+               )
+               VALUES(
+                 $1,$2,$3::JSONB,$4,$5,
+                 $6,$7,$8,$9
+               )
+               RETURNING *`,
+              [
+                controller.id,
+                key,
+                JSON.stringify(plan),
+                salt,
+                commitment,
+                new Date(opens),
+                new Date(closes),
+                new Date(reveals),
+                new Date(
+                  reveals + RESULT_MS,
+                ),
+              ],
+            );
 
           return {
             success: true,
             replayed: false,
-            roundId: saved.rows[0].id,
+            roundId:
+              saved.rows[0].id,
             commitment,
           };
         },
@@ -1236,7 +1295,8 @@ export function registerDreamWheelRoutes(
     try {
       await transaction(
         pool,
-        client => advanceRound(client),
+        client =>
+          advanceRound(client),
       );
     } catch (error) {
       console.error(
