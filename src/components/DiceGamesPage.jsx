@@ -10,12 +10,232 @@ const SYMBOLS = {
 };
 
 const CHIPS = [10, 20, 50, 100, 500];
+const LANKESH_SHOT_MS = 3000;
+const LANKESH_IMAGE = "/games/lankesh.jpg";
+
+const LANKESH_HEADS = [
+  [237, 300, 145],
+  [335, 300, 116],
+  [450, 300, 76],
+  [554, 300, 98],
+  [654, 295, 88],
+  [793, 320, 24],
+  [919, 300, 88],
+  [1037, 300, 76],
+  [1166, 300, 90],
+  [1289, 305, 128],
+];
 
 const number = value =>
   Number(value || 0).toLocaleString("en-IN");
 
 const areaName = area =>
   SYMBOLS[area]?.name || area;
+
+function LankeshScene({ round, now }) {
+  const [failed, setFailed] = useState(false);
+
+  const result =
+    round?.phase === "RESULT"
+      ? round.result
+      : null;
+
+  const winner = result
+    ? Number(String(result.head).replace(/^F/, ""))
+    : 0;
+
+  const target = LANKESH_HEADS[winner - 1];
+
+  const age = result
+    ? Math.max(
+        0,
+        now - new Date(round.closesAt).getTime(),
+      )
+    : 0;
+
+  const entrance = useRef({
+    key: null,
+    age: 0,
+  });
+
+  const animationKey =
+    `${round?.id}:${round?.phase}`;
+
+  if (entrance.current.key !== animationKey) {
+    entrance.current = {
+      key: animationKey,
+      age,
+    };
+  }
+
+  const initialAge = entrance.current.age;
+
+  const landed = Boolean(
+    target && age >= LANKESH_SHOT_MS,
+  );
+
+  const dx = target ? target[0] - 768 : 0;
+  const dy = target ? target[1] - 790 : -490;
+
+  const angle = target
+    ? Math.atan2(dx, -dy) * 180 / Math.PI
+    : 0;
+
+  const travel = Math.max(
+    0,
+    Math.hypot(dx, dy) - 240,
+  );
+
+  return (
+    <div className="lk-scene-wrap">
+      <div className="lk-scene">
+        <img
+          className="lk-photo"
+          src={LANKESH_IMAGE}
+          alt="Ten-headed Lankesh"
+          onError={() => setFailed(true)}
+          hidden={failed}
+        />
+
+        {failed && (
+          <div className="lk-missing">
+            Upload the supplied Lankesh photo as
+            public/games/lankesh.jpg
+          </div>
+        )}
+
+        <svg
+          className="lk-overlay"
+          viewBox="0 0 1536 864"
+          role="img"
+          aria-label={
+            landed
+              ? `Arrow hit head ${winner}`
+              : result
+                ? "Arrow flying to the winning head"
+                : "Ten numbered heads. Bow and arrow ready during betting."
+          }
+        >
+          {LANKESH_HEADS.map(
+            ([x, y, labelY], index) => (
+              <g key={index}>
+                {landed && winner === index + 1 && (
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r="68"
+                    fill="#ffde7422"
+                    stroke="#ffe89d"
+                    strokeWidth="9"
+                  />
+                )}
+
+                <circle
+                  cx={x}
+                  cy={labelY + 26}
+                  r="28"
+                  fill={
+                    landed && winner === index + 1
+                      ? "#ffe89d"
+                      : "#161128"
+                  }
+                  stroke="#e5c276"
+                  strokeWidth="4"
+                />
+
+                <text
+                  x={x}
+                  y={labelY + 38}
+                  textAnchor="middle"
+                  fontSize="35"
+                  fontWeight="bold"
+                  fill={
+                    landed && winner === index + 1
+                      ? "#251734"
+                      : "#ffe7a0"
+                  }
+                >
+                  {index + 1}
+                </text>
+              </g>
+            ),
+          )}
+
+          <g
+            transform={`translate(768 790) rotate(${angle})`}
+          >
+            <path
+              d="M-130 -150 Q0 -18 130 -150"
+              fill="none"
+              stroke="#ad792f"
+              strokeWidth="17"
+              strokeLinecap="round"
+            />
+
+            <path
+              d="M-130 -150 L0 23 L130 -150"
+              fill="none"
+              stroke="#fff2c4"
+              strokeWidth="4"
+            />
+
+            <rect
+              x="-15"
+              y="-20"
+              width="30"
+              height="41"
+              rx="9"
+              fill="#714228"
+              stroke="#e0b46b"
+              strokeWidth="4"
+            />
+
+            <g
+              key={animationKey}
+              className={
+                result && target
+                  ? landed
+                    ? "lk-arrow lk-landed"
+                    : "lk-arrow lk-flying"
+                  : "lk-arrow"
+              }
+              style={{
+                "--flight": `${-travel}px`,
+                "--shot-age": `${-initialAge}ms`,
+              }}
+            >
+              <path
+                d="M0 -224 L0 20"
+                stroke="#dfb45d"
+                strokeWidth="9"
+              />
+
+              <path
+                d="M0 -240 L-20 -204 L0 -213 L20 -204Z"
+                fill="#f8f4da"
+                stroke="#423e42"
+                strokeWidth="2"
+              />
+
+              <path
+                d="M0 -8 L-20 19 L0 11 L20 19Z"
+                fill="#c63935"
+              />
+            </g>
+          </g>
+        </svg>
+      </div>
+
+      <p className="dg-hint" role="status">
+        {landed
+          ? `Arrow hit head ${winner} · F${winner} wins`
+          : result
+            ? "Arrow released · betting closed"
+            : "Bow and arrow ready · place your bets on heads 1–10"}
+      </p>
+    </div>
+  );
+}
 
 function JhandiBowl({ round, now }) {
   const result =
@@ -70,7 +290,9 @@ function JhandiBowl({ round, now }) {
 
       <div
         className="jm-bowl"
-        style={{ "--pour-age": `${-initialAge}ms` }}
+        style={{
+          "--pour-age": `${-initialAge}ms`,
+        }}
         aria-hidden="true"
       >
         <svg viewBox="0 0 240 170">
@@ -405,7 +627,15 @@ function DiceGame({
         round.revealsAt || round.closesAt,
       ).getTime() + 1400;
 
-  const result = pouring ? null : rawResult;
+  const shooting =
+    lankesh &&
+    Boolean(rawResult) &&
+    now <
+      new Date(round.closesAt).getTime() +
+        LANKESH_SHOT_MS;
+
+  const result =
+    pouring || shooting ? null : rawResult;
 
   const endTime = round
     ? new Date(
@@ -629,9 +859,7 @@ function DiceGame({
         setHistory(data.bets || []);
       }
     } catch (err) {
-      if (active.current) {
-        setError(err.message);
-      }
+      if (active.current) setError(err.message);
     }
   };
 
@@ -683,10 +911,7 @@ function DiceGame({
           requestKey: uniqueKey(),
           roundId: String(round.id),
           bets: Object.entries(draft).map(
-            ([area, amount]) => ({
-              area,
-              amount,
-            }),
+            ([area, amount]) => ({ area, amount }),
           ),
         };
       } catch {
@@ -747,7 +972,6 @@ function DiceGame({
         return {
           ...current,
           balance: data.balance,
-
           bets:
             sameRound && !exists
               ? [...current.bets, data.bet]
@@ -793,11 +1017,7 @@ function DiceGame({
   };
 
   return (
-    <div
-      className={`dg-page ${
-        lankesh ? "dg-lankesh" : ""
-      }`}
-    >
+    <div className={`dg-page ${lankesh ? "dg-lankesh" : ""}`}>
       <style>{`
         .dg-page{min-height:100vh;background:radial-gradient(ellipse at top,#243c65,#080f22 75%);color:#f5f2e9;font-family:Arial,sans-serif;padding-bottom:24px}
         .dg-lankesh{background:radial-gradient(ellipse at top,#3c244b,#100f22 75%)}
@@ -818,7 +1038,6 @@ function DiceGame({
         .dg-stage{position:relative;padding:20px 12px;background:#0004;border:1px solid #ffffff25;border-radius:16px;text-align:center;min-height:175px}
         .dg-timer{width:74px;height:74px;border-radius:50%;border:4px solid #e4c779;display:grid;place-items:center;margin:0 auto 10px;font-size:28px;font-weight:bold}
         .dg-phase{color:#ffe392;font-weight:bold;font-size:14px}
-        .dg-arrow{font-size:29px;margin-top:15px;color:#f6d570;animation:dgReveal .7s ease-out}
         .dg-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:14px}
         .dg-heads{grid-template-columns:repeat(5,minmax(0,1fr))}
         .dg-area{position:relative;min-height:130px;padding:12px 5px;border:1px solid #4c90b2;border-radius:13px;background:linear-gradient(#174f68,#0c1729);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
@@ -844,101 +1063,31 @@ function DiceGame({
         .dg-overflow{overflow:auto}
         .dg-page :focus-visible{outline:3px solid #ffe09a;outline-offset:3px}
 
-        .jm-machine {
-          position:relative;
-          width:100%;
-          max-width:420px;
-          height:245px;
-          margin:0 auto;
-          overflow:hidden;
-          isolation:isolate;
-        }
+        .lk-scene-wrap{margin-top:14px}
+        .lk-scene{position:relative;aspect-ratio:16/9;width:100%;overflow:hidden;border-radius:12px;background:#111b21;border:1px solid #d4b37255}
+        .lk-photo{display:block;width:100%;height:100%;object-fit:contain}
+        .lk-photo[hidden]{display:none}
+        .lk-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+        .lk-missing{position:absolute;inset:0;display:grid;place-items:center;padding:25% 12px 5%;font-size:12px;color:#f2d68a}
+        .lk-flying{animation:lkShoot 3s cubic-bezier(.35,0,.8,.75) both;animation-delay:var(--shot-age)}
+        .lk-landed{transform:translateY(var(--flight))}
 
-        .jm-tray {
-          position:absolute;
-          left:3%;
-          bottom:42px;
-          width:94%;
-          height:103px;
-          border-radius:50%;
-          background:radial-gradient(ellipse,#266452 0%,#17483d 56%,#af8d4b 58%,#e6c57a 63%,#604821 69%,#0c1720 72%);
-          box-shadow:0 9px 0 #0a111c,0 17px 18px #0007;
-        }
-
-        .jm-bowl {
-          position:absolute;
-          z-index:4;
-          left:50%;
-          bottom:64px;
-          width:210px;
-          transform:translateX(-50%);
-          transform-origin:14% 83%;
-          filter:drop-shadow(0 9px 5px #0008);
-        }
-
+        .jm-machine{position:relative;width:100%;max-width:420px;height:245px;margin:0 auto;overflow:hidden;isolation:isolate}
+        .jm-tray{position:absolute;left:3%;bottom:42px;width:94%;height:103px;border-radius:50%;background:radial-gradient(ellipse,#266452 0%,#17483d 56%,#af8d4b 58%,#e6c57a 63%,#604821 69%,#0c1720 72%);box-shadow:0 9px 0 #0a111c,0 17px 18px #0007}
+        .jm-bowl{position:absolute;z-index:4;left:50%;bottom:64px;width:210px;transform:translateX(-50%);transform-origin:14% 83%;filter:drop-shadow(0 9px 5px #0008)}
         .jm-bowl svg{display:block;width:100%;height:auto}
         .jm-shaking .jm-bowl{animation:jmShake .3s ease-in-out infinite}
+        .jm-pouring .jm-bowl{animation:jmPour 1.4s ease-in-out both;animation-delay:var(--pour-age)}
+        .jm-settled .jm-bowl{transform:translate(-15%,-52px) rotate(-108deg);opacity:.48}
+        .jm-coins{position:absolute;inset:0;z-index:3;perspective:650px}
+        .jm-coin{position:absolute;left:calc(50% - 98px + var(--slot) * 50px);bottom:70px;width:46px;height:46px;transform:rotate(calc(-12deg + var(--slot) * 8deg));filter:drop-shadow(2px 6px 3px #0008)}
+        .jm-coin-face{display:grid;place-items:center;width:100%;height:100%;border-radius:11px;background:linear-gradient(135deg,#fffbe9,#e8dab1);color:#22595a;border:2px solid #c8b77f;box-shadow:3px 4px 0 #8d815d;font-size:32px;line-height:1}
+        .jm-pouring .jm-coin{animation:jmDrop 1.4s ease-out both;animation-delay:var(--pour-age)}
+        .jm-caption{position:absolute;left:0;right:0;bottom:0;margin:0;font-size:11px;line-height:1.6;color:#e6d7ae}
 
-        .jm-pouring .jm-bowl {
-          animation:jmPour 1.4s ease-in-out both;
-          animation-delay:var(--pour-age);
-        }
-
-        .jm-settled .jm-bowl {
-          transform:translate(-15%,-52px) rotate(-108deg);
-          opacity:.48;
-        }
-
-        .jm-coins {
-          position:absolute;
-          inset:0;
-          z-index:3;
-          perspective:650px;
-        }
-
-        .jm-coin {
-          position:absolute;
-          left:calc(50% - 98px + var(--slot) * 50px);
-          bottom:70px;
-          width:46px;
-          height:46px;
-          transform:rotate(calc(-12deg + var(--slot) * 8deg));
-          filter:drop-shadow(2px 6px 3px #0008);
-        }
-
-        .jm-coin-face {
-          display:grid;
-          place-items:center;
-          width:100%;
-          height:100%;
-          border-radius:11px;
-          background:linear-gradient(135deg,#fffbe9,#e8dab1);
-          color:#22595a;
-          border:2px solid #c8b77f;
-          box-shadow:3px 4px 0 #8d815d;
-          font-size:32px;
-          line-height:1;
-        }
-
-        .jm-pouring .jm-coin {
-          animation:jmDrop 1.4s ease-out both;
-          animation-delay:var(--pour-age);
-        }
-
-        .jm-caption {
-          position:absolute;
-          left:0;
-          right:0;
-          bottom:0;
-          margin:0;
-          font-size:11px;
-          line-height:1.6;
-          color:#e6d7ae;
-        }
-
-        @keyframes dgReveal {
-          from{opacity:0;transform:translateX(-20px)}
-          to{opacity:1;transform:translateX(0)}
+        @keyframes lkShoot {
+          from{transform:translateY(0)}
+          to{transform:translateY(var(--flight))}
         }
 
         @keyframes jmShake {
@@ -976,7 +1125,7 @@ function DiceGame({
         }
 
         @media(prefers-reduced-motion:reduce) {
-          .dg-arrow{animation:none}
+          .lk-flying{animation:none;transform:translateY(var(--flight))}
           .jm-shaking .jm-bowl,.jm-pouring .jm-bowl,.jm-pouring .jm-coin{animation:none}
           .jm-pouring .jm-bowl{transform:translate(-15%,-52px) rotate(-108deg);opacity:.48}
         }
@@ -1103,13 +1252,15 @@ function DiceGame({
                     ? "RECONNECTING…"
                     : pouring
                       ? "POURING FOUR DICE"
-                      : result
-                        ? "ROUND RESULT"
-                        : round.phase === "SHAKING"
-                          ? "SHAKING · BETTING CLOSED"
-                          : seconds > 0
-                            ? "BETTING OPEN"
-                            : "BETTING CLOSED"}
+                      : shooting
+                        ? "ARROW RELEASED"
+                        : result
+                          ? "ROUND RESULT"
+                          : round.phase === "SHAKING"
+                            ? "SHAKING · BETTING CLOSED"
+                            : seconds > 0
+                              ? "BETTING OPEN"
+                              : "BETTING CLOSED"}
               </div>
 
               <p className="dg-hint">
@@ -1119,23 +1270,14 @@ function DiceGame({
               </p>
 
               {lankesh ? (
-                <div
-                  className="dg-arrow"
-                  key={result?.head || "waiting"}
-                >
-                  {result
-                    ? `🏹 ➶ ${result.head}`
-                    : "🏹 Choose a head below"}
-                </div>
+                <LankeshScene round={round} now={now} />
               ) : (
                 <JhandiBowl round={round} now={now} />
               )}
             </section>
 
             <section
-              className={`dg-grid ${
-                lankesh ? "dg-heads" : ""
-              }`}
+              className={`dg-grid ${lankesh ? "dg-heads" : ""}`}
               aria-label="Betting areas"
             >
               {(rules?.areas || []).map(area => {
@@ -1172,20 +1314,13 @@ function DiceGame({
                   <button
                     key={area}
                     type="button"
-                    className={`dg-area ${
-                      multiplier > 0 ? "dg-win" : ""
-                    }`}
+                    className={`dg-area ${multiplier > 0 ? "dg-win" : ""}`}
                     disabled={locked}
                     onClick={() => add(area)}
                     aria-label={`Bet on ${areaName(area)}`}
                   >
-                    <span
-                      className="dg-icon"
-                      aria-hidden="true"
-                    >
-                      {lankesh
-                        ? "🧔"
-                        : SYMBOLS[area]?.icon}
+                    <span className="dg-icon" aria-hidden="true">
+                      {lankesh ? "🧔" : SYMBOLS[area]?.icon}
                     </span>
 
                     <strong>{areaName(area)}</strong>
@@ -1197,9 +1332,7 @@ function DiceGame({
                     )}
 
                     {accepted > 0 && (
-                      <small>
-                        Placed {number(accepted)}
-                      </small>
+                      <small>Placed {number(accepted)}</small>
                     )}
 
                     {result && (
@@ -1253,10 +1386,7 @@ function DiceGame({
               <button
                 type="button"
                 className="dg-submit"
-                disabled={
-                  busy ||
-                  (!pending && (!open || !total))
-                }
+                disabled={busy || (!pending && (!open || !total))}
                 onClick={submit}
               >
                 {busy
@@ -1268,10 +1398,7 @@ function DiceGame({
             </section>
 
             {result && (
-              <section
-                className="dg-summary"
-                role="status"
-              >
+              <section className="dg-summary" role="status">
                 <strong>
                   {lankesh
                     ? `Winning head: ${result.head}`
@@ -1298,7 +1425,7 @@ function DiceGame({
               {(state?.recentResults || [])
                 .filter(
                   item =>
-                    !pouring ||
+                    (!pouring && !shooting) ||
                     String(item.id) !== String(round?.id),
                 )
                 .map(item => (
@@ -1325,9 +1452,10 @@ function DiceGame({
               betting opens. Jhandi Munda then has 5 seconds
               of bowl shaking with betting closed, followed
               by a 5-second result phase including the pour
-              animation. Lankesh shows its result for 5 seconds
-              after betting closes. Bets are accepted only by
-              the server while betting is open.
+              animation. Lankesh has a 5-second result phase:
+              a 3-second arrow flight followed by the winning
+              head highlight. Bets are accepted only by the
+              server while betting is open.
             </p>
 
             <p className="dg-hint">
@@ -1338,9 +1466,7 @@ function DiceGame({
             </p>
 
             {!rules ? (
-              <p className="dg-hint">
-                Waiting for server rules…
-              </p>
+              <p className="dg-hint">Waiting for server rules…</p>
             ) : lankesh ? (
               <>
                 <p className="dg-hint">
@@ -1358,12 +1484,11 @@ function DiceGame({
             ) : (
               <>
                 <p className="dg-hint">
-                  Four independent dice are rolled from
-                  the bowl onto the tray. Each die has six
-                  equally likely symbols. The same symbol
-                  may appear on one, two, three or all four
-                  dice. Two or more matches are needed for
-                  a return.
+                  Four independent dice are rolled from the
+                  bowl onto the tray. Each die has six equally
+                  likely symbols. The same symbol may appear
+                  on one, two, three or all four dice. Two or
+                  more matches are needed for a return.
                 </p>
 
                 <table className="dg-table">
@@ -1385,8 +1510,8 @@ function DiceGame({
                 </table>
 
                 <p className="dg-hint">
-                  Turn Sound on to hear the synthesized
-                  temple bell when results appear.
+                  Turn Sound on to hear the synthesized temple
+                  bell when results appear.
                 </p>
               </>
             )}
@@ -1453,9 +1578,7 @@ function DiceGame({
                 </table>
               </div>
             ) : (
-              <p className="dg-hint">
-                No settled bets available.
-              </p>
+              <p className="dg-hint">No settled bets available.</p>
             )}
           </section>
         )}
