@@ -3,7 +3,12 @@ import { createHash, randomInt } from "node:crypto";
 const BET_MS = 30000;
 const REVEAL_MS = 5000;
 const SHAKE_MS = 5000;
+
 const JHANDI_DICE_COUNT = 4;
+
+// New Lankesh rounds: 10 demo coins return 50 total.
+const LANKESH_RETURN = 5;
+
 const LOCK_ID = 824061;
 const MAX_BALANCE = 2147483647;
 
@@ -16,7 +21,7 @@ const SYMBOLS = [
   "heart",
 ];
 
-// Keep the last two entries for historical six-dice rounds.
+// Last two entries preserve historical six-dice rounds.
 const MULTIPLIERS = [0, 0, 3, 5, 10, 20, 100];
 
 const CONFIG = {
@@ -59,6 +64,7 @@ export function createDiceResult(
   if (game === "lankesh") {
     return {
       head: `F${rng(1, 11)}`,
+      payoutMultiplier: LANKESH_RETURN,
     };
   }
 
@@ -87,10 +93,12 @@ export function dicePayout(game, bets, result) {
         ? result.counts[bet.area]
         : null;
 
+    // Older locked rounds do not have payoutMultiplier.
+    // Preserve their original rate until they finish.
     const multiplier =
       game === "lankesh"
         ? bet.area === result.head
-          ? 9.5
+          ? (result.payoutMultiplier ?? 9.5)
           : 0
         : MULTIPLIERS[count];
 
@@ -555,7 +563,7 @@ export function registerDiceGameRoutes(app, pool) {
 
         payouts:
           req.params.game === "lankesh"
-            ? { winningHead: 9.5 }
+            ? { winningHead: LANKESH_RETURN }
             : MULTIPLIERS.slice(
                 0,
                 JHANDI_DICE_COUNT + 1,
