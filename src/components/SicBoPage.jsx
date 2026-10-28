@@ -1,12 +1,6 @@
-import React, {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useEffect, useRef, useState } from "react";
 
-const CHIPS = [
-  10, 20, 50, 100, 500,
-];
+const CHIPS = [10, 20, 50, 100, 500];
 
 const number = value =>
   Number(value || 0).toLocaleString("en-IN");
@@ -35,15 +29,8 @@ function DiceFace({ value }) {
     2: [[25, 25], [75, 75]],
     3: [[25, 25], [50, 50], [75, 75]],
     4: [[25, 25], [75, 25], [25, 75], [75, 75]],
-    5: [
-      [25, 25], [75, 25], [50, 50],
-      [25, 75], [75, 75],
-    ],
-    6: [
-      [25, 22], [75, 22],
-      [25, 50], [75, 50],
-      [25, 78], [75, 78],
-    ],
+    5: [[25, 25], [75, 25], [50, 50], [25, 75], [75, 75]],
+    6: [[25, 22], [75, 22], [25, 50], [75, 50], [25, 78], [75, 78]],
   };
 
   return (
@@ -92,14 +79,77 @@ function DiceFace({ value }) {
   );
 }
 
+function MixerDice({ shaking, values }) {
+  return (
+    <div className={`sb-machine ${shaking ? "sb-shaking" : ""}`}>
+      <div className="sb-platform" />
+
+      {shaking ? (
+        <>
+          <div className="sb-rotor" aria-hidden="true">
+            <div className="sb-rotor-disc" />
+          </div>
+
+          <div
+            className="sb-mixer"
+            role="img"
+            aria-label="Three dice rolling in circles on the glass bowl floor. Result hidden."
+          >
+            {[0, 1, 2].map(index => (
+              <div
+                key={index}
+                className="sb-orbit"
+                style={{
+                  "--orbit-delay": `${-index * 0.44}s`,
+                  "--roll-delay": `${-index * 0.21}s`,
+                }}
+              >
+                <div className="sb-cube">
+                  {[1, 2, 3, 4, 5, 6].map(face => (
+                    <div
+                      key={face}
+                      className={`sb-cube-face sb-face-${face}`}
+                      aria-hidden="true"
+                    >
+                      <DiceFace value={face} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="sb-dice">
+          {values.map((value, index) => (
+            <div className="sb-die" key={index}>
+              <DiceFace value={value} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="sb-dome" />
+
+      <div className="sb-machine-label">
+        {shaking
+          ? "ROTATING DICE MIXER"
+          : "AUTOMATIC DICE SHAKER"}
+      </div>
+    </div>
+  );
+}
+
 function readPending(key, game) {
   try {
     const value = JSON.parse(
       sessionStorage.getItem(key) || "null",
     );
 
-    return value?.game === game &&
+    return (
+      value?.game === game &&
       typeof value.body?.requestKey === "string"
+    )
       ? value.body
       : null;
   } catch {
@@ -128,7 +178,6 @@ function clearPending(key) {
 
 function uniqueKey() {
   const bytes = new Uint8Array(20);
-
   window.crypto.getRandomValues(bytes);
 
   return Array.from(
@@ -270,13 +319,15 @@ function SicBoGame({
 
   const open = Boolean(
     rules &&
-      round?.phase === "BETTING" &&
-      seconds > 0 &&
-      !stale,
+    round?.phase === "BETTING" &&
+    seconds > 0 &&
+    !stale,
   );
 
   const locked =
-    !open || busy || Boolean(pending);
+    !open ||
+    busy ||
+    Boolean(pending);
 
   const total = Object.values(draft).reduce(
     (sum, value) => sum + value,
@@ -385,9 +436,7 @@ function SicBoGame({
           String(data.round.id)
       ) {
         setDraft({});
-        setNotice(
-          "New round. Choose your bets again.",
-        );
+        setNotice("New round. Choose your bets again.");
       }
 
       roundRef.current = data.round.id;
@@ -398,7 +447,6 @@ function SicBoGame({
         sounded.current !== String(data.round.id)
       ) {
         sounded.current = String(data.round.id);
-
         bell();
 
         window.dispatchEvent(
@@ -424,7 +472,6 @@ function SicBoGame({
 
   useEffect(() => {
     active.current = true;
-
     let cancelled = false;
 
     api(`${base}/rules`)
@@ -461,7 +508,6 @@ function SicBoGame({
       clearInterval(clockTimer);
 
       window.removeEventListener("focus", focused);
-
       audio.current?.close()?.catch(() => {});
     };
   }, []);
@@ -474,7 +520,9 @@ function SicBoGame({
         setHistory(data.bets || []);
       }
     } catch (err) {
-      if (active.current) setError(err.message);
+      if (active.current) {
+        setError(err.message);
+      }
     }
   };
 
@@ -525,7 +573,6 @@ function SicBoGame({
         body = {
           requestKey: uniqueKey(),
           roundId: String(round.id),
-
           bets: Object.entries(draft).map(
             ([area, amount]) => ({
               area,
@@ -540,13 +587,7 @@ function SicBoGame({
         return;
       }
 
-      if (
-        !savePending(
-          storageKey,
-          gameId,
-          body,
-        )
-      ) {
+      if (!savePending(storageKey, gameId, body)) {
         setError(
           "Enable browser session storage to recover interrupted bets.",
         );
@@ -565,18 +606,13 @@ function SicBoGame({
     setNotice("");
 
     try {
-      const data = await api(
-        `${base}/bets`,
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify(body),
+      const data = await api(`${base}/bets`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify(body),
+      });
 
       clearPending(storageKey);
       pendingRef.current = null;
@@ -602,7 +638,6 @@ function SicBoGame({
         return {
           ...current,
           balance: data.balance,
-
           bets:
             sameRound && !exists
               ? [...current.bets, data.bet]
@@ -647,8 +682,7 @@ function SicBoGame({
     }
   };
 
-  const shaking =
-    round?.phase === "SHAKING";
+  const shaking = round?.phase === "SHAKING";
 
   const previousDice =
     state?.recentResults?.[0]?.result?.dice;
@@ -657,9 +691,6 @@ function SicBoGame({
     result?.dice ||
     previousDice ||
     [null, null, null];
-
-  const animationTick =
-    Math.floor(now / 250);
 
   const profitOdds = area => {
     if (!rules) return "…";
@@ -678,11 +709,10 @@ function SicBoGame({
   };
 
   const winningAreas = new Set(
-    (state?.bets || []).flatMap(
-      bet =>
-        (bet.settlement?.areas || [])
-          .filter(item => item.win)
-          .map(item => item.area),
+    (state?.bets || []).flatMap(bet =>
+      (bet.settlement?.areas || [])
+        .filter(item => item.win)
+        .map(item => item.area),
     ),
   );
 
@@ -692,25 +722,18 @@ function SicBoGame({
         sum +
         bet.bets
           .filter(item => item.area === area)
-          .reduce(
-            (subtotal, item) =>
-              subtotal + item.amount,
-            0,
-          ),
+          .reduce((n, item) => n + item.amount, 0),
       0,
     );
 
-    const extra =
-      round?.extraPay?.[area];
+    const extra = round?.extraPay?.[area];
 
     return (
       <button
         key={area}
         type="button"
         className={`sb-area ${
-          winningAreas.has(area)
-            ? "sb-win"
-            : ""
+          winningAreas.has(area) ? "sb-win" : ""
         }`}
         disabled={locked}
         aria-label={`Bet on ${areaName(area)}`}
@@ -722,13 +745,8 @@ function SicBoGame({
           </span>
         )}
 
-        <strong>
-          {areaName(area)}
-        </strong>
-
-        <small>
-          {profitOdds(area)}
-        </small>
+        <strong>{areaName(area)}</strong>
+        <small>{profitOdds(area)}</small>
 
         {draft[area] > 0 && (
           <span className="sb-tag">
@@ -753,51 +771,41 @@ function SicBoGame({
     },
     {
       title: "SUM OF POINTS",
-
       areas: Array.from(
         { length: 14 },
-        (_, index) => `sum:${index + 4}`,
+        (_, i) => `sum:${i + 4}`,
       ),
-
       columns: "sb-seven",
     },
     {
       title: "SINGLE DICE",
-
       areas: Array.from(
         { length: 6 },
-        (_, index) => `single:${index + 1}`,
+        (_, i) => `single:${i + 1}`,
       ),
-
       columns: "sb-six",
     },
     {
       title: "SPECIFIC DOUBLE",
-
       areas: Array.from(
         { length: 6 },
-        (_, index) => `double:${index + 1}`,
+        (_, i) => `double:${i + 1}`,
       ),
-
       columns: "sb-six",
     },
     {
       title: "SPECIFIC TRIPLE",
-
       areas: Array.from(
         { length: 6 },
-        (_, index) => `triple:${index + 1}`,
+        (_, i) => `triple:${i + 1}`,
       ),
-
       columns: "sb-six",
     },
     {
       title: "TWO-NUMBER COMBINATIONS",
-
       areas: (rules?.areas || []).filter(
         area => area.startsWith("pair:"),
       ),
-
       columns: "sb-five",
     },
   ];
@@ -806,508 +814,281 @@ function SicBoGame({
     <div className="sb-page">
       <style>{`
         .sb-page {
-          min-height: 100vh;
-          background:
-            radial-gradient(
-              ellipse at top,
-              #146d51,
-              #05291f 70%
-            );
-          color: #f5f2e9;
-          font-family: Arial, sans-serif;
-          padding-bottom: 25px;
+          min-height:100vh;
+          background:radial-gradient(ellipse at top,#146d51,#05291f 70%);
+          color:#f5f2e9;
+          font-family:Arial,sans-serif;
+          padding-bottom:25px;
         }
 
-        .sb-page * {
-          box-sizing: border-box;
-        }
-
-        .sb-page button {
-          font: inherit;
-          cursor: pointer;
-        }
-
-        .sb-page button:disabled {
-          opacity: .48;
-          cursor: default;
-        }
+        .sb-page *{box-sizing:border-box}
+        .sb-page button{font:inherit;cursor:pointer}
+        .sb-page button:disabled{opacity:.48;cursor:default}
 
         .sb-header {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 15px;
-          background: #0005;
-          border-bottom: 1px solid #ffffff20;
+          display:flex;
+          align-items:center;
+          gap:12px;
+          padding:15px;
+          background:#0005;
+          border-bottom:1px solid #ffffff20;
         }
 
-        .sb-header h1 {
-          font-size: 18px;
-          margin: 0;
+        .sb-header h1{font-size:18px;margin:0}
+        .sb-header small{display:block;margin-top:5px;font-size:10px;color:#ead69b}
+        .sb-wallet{margin-left:auto;text-align:right;font-weight:bold}
+        .sb-wrap{max-width:900px;margin:auto;padding:12px}
+
+        .sb-tabs,.sb-row {
+          display:flex;
+          gap:8px;
+          flex-wrap:wrap;
+          align-items:center;
+          margin-bottom:12px;
         }
 
-        .sb-header small {
-          display: block;
-          margin-top: 5px;
-          font-size: 10px;
-          color: #ead69b;
-        }
-
-        .sb-wallet {
-          margin-left: auto;
-          text-align: right;
-          font-weight: bold;
-        }
-
-        .sb-wrap {
-          max-width: 900px;
-          margin: auto;
-          padding: 12px;
-        }
-
-        .sb-tabs,
-        .sb-row {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-          align-items: center;
-          margin-bottom: 12px;
-        }
-
-        .sb-row {
-          margin-top: 12px;
-        }
-
-        .sb-btn {
-          border: 1px solid #ffffff30;
-          background: #ffffff10;
-          color: inherit;
-          border-radius: 8px;
-          padding: 10px 12px;
-        }
-
-        .sb-tabs [aria-pressed=true] {
-          background: #ecd083;
-          color: #18382c;
-        }
-
-        .sb-alert {
-          background: #50301a;
-          border: 1px solid #d6ac57;
-          color: #ffe2ac;
-          border-radius: 10px;
-          padding: 12px;
-          font-size: 13px;
-          line-height: 1.7;
-          margin: 12px 0;
-        }
-
-        .sb-alert button {
-          margin: 6px;
-        }
-
-        .sb-hint {
-          font-size: 12px;
-          color: #d2e5de;
-          line-height: 1.7;
-        }
+        .sb-row{margin-top:12px}
+        .sb-btn{border:1px solid #ffffff30;background:#ffffff10;color:inherit;border-radius:8px;padding:10px 12px}
+        .sb-tabs [aria-pressed=true]{background:#ecd083;color:#18382c}
+        .sb-alert{background:#50301a;border:1px solid #d6ac57;color:#ffe2ac;border-radius:10px;padding:12px;font-size:13px;line-height:1.7;margin:12px 0}
+        .sb-alert button{margin:6px}
+        .sb-hint{font-size:12px;color:#d2e5de;line-height:1.7}
 
         .sb-stage {
-          border: 1px solid #ffffff25;
-          background:
-            linear-gradient(
-              #184f43,
-              #0c3129
-            );
-          border-radius: 16px;
-          padding: 14px;
-          text-align: center;
-          overflow: hidden;
+          border:1px solid #ffffff25;
+          background:linear-gradient(#184f43,#0c3129);
+          border-radius:16px;
+          padding:14px;
+          text-align:center;
+          overflow:hidden;
         }
 
-        .sb-round-top {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          font-size: 12px;
-          color: #f4df9f;
-        }
-
-        .sb-timer {
-          border: 3px solid #d6bc74;
-          border-radius: 50%;
-          width: 62px;
-          height: 62px;
-          display: grid;
-          place-items: center;
-          font-size: 24px;
-          font-weight: bold;
-        }
+        .sb-round-top{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:#f4df9f}
+        .sb-timer{border:3px solid #d6bc74;border-radius:50%;width:62px;height:62px;display:grid;place-items:center;font-size:24px;font-weight:bold}
 
         .sb-machine {
-          position: relative;
-          height: 225px;
-          max-width: 420px;
-          margin: 8px auto 0;
-          isolation: isolate;
+          --cube-size:44px;
+          --orbit-radius:clamp(54px,21vw,96px);
+          position:relative;
+          height:225px;
+          max-width:420px;
+          margin:8px auto 0;
+          isolation:isolate;
         }
 
         .sb-platform {
-          position: absolute;
-          bottom: 15px;
-          left: 5%;
-          width: 90%;
-          height: 88px;
-          background:
-            radial-gradient(
-              ellipse,
-              #7caa9e 0%,
-              #3d8174 48%,
-              #162f2b 50%,
-              #0a1716 70%
-            );
-          border-radius: 50%;
-          box-shadow:
-            0 12px 0 #081c18,
-            0 18px 20px #0008;
+          position:absolute;
+          bottom:15px;
+          left:5%;
+          width:90%;
+          height:88px;
+          background:radial-gradient(ellipse,#7caa9e 0%,#3d8174 48%,#162f2b 50%,#0a1716 70%);
+          border-radius:50%;
+          box-shadow:0 12px 0 #081c18,0 18px 20px #0008;
         }
 
         .sb-dice {
-          position: absolute;
-          z-index: 2;
-          left: 19%;
-          right: 19%;
-          bottom: 65px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 15px;
-          perspective: 500px;
+          position:absolute;
+          z-index:2;
+          left:19%;
+          right:19%;
+          bottom:60px;
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:15px;
+          perspective:500px;
         }
 
         .sb-die {
-          width: 65px;
-          max-width: 30%;
-          filter:
-            drop-shadow(
-              5px 8px 3px #0005
-            );
-          transform: rotate(-8deg);
+          width:60px;
+          max-width:30%;
+          filter:drop-shadow(5px 8px 3px #0005);
+          transform:rotate(-8deg);
         }
 
-        .sb-die:nth-child(2) {
-          transform:
-            translateY(-15px)
-            rotate(9deg);
-        }
-
-        .sb-die svg {
-          display: block;
-          width: 100%;
-        }
+        .sb-die:nth-child(2){transform:rotate(9deg)}
+        .sb-die svg{display:block;width:100%}
 
         .sb-dome {
-          position: absolute;
-          z-index: 3;
-          pointer-events: none;
-          left: 10%;
-          bottom: 40px;
-          width: 80%;
-          height: 170px;
-          border-radius:
-            49% 49% 25% 25%;
-          border:
-            2px solid #ccfff063;
-          background:
-            linear-gradient(
-              110deg,
-              #ffffff22 0%,
-              transparent 25%,
-              #ffffff08 60%,
-              #ffffff28 85%,
-              transparent
-            );
-          box-shadow:
-            inset 7px 2px 15px #ffffff12,
-            inset -5px 0 8px #dbfff012;
+          position:absolute;
+          z-index:3;
+          pointer-events:none;
+          left:10%;
+          bottom:40px;
+          width:80%;
+          height:170px;
+          border-radius:49% 49% 25% 25%;
+          border:2px solid #ccfff063;
+          background:linear-gradient(110deg,#ffffff22 0%,transparent 25%,#ffffff08 60%,#ffffff28 85%,transparent);
+          box-shadow:inset 7px 2px 15px #ffffff12,inset -5px 0 8px #dbfff012;
         }
 
         .sb-dome::after {
-          content: '';
-          position: absolute;
-          left: 8%;
-          top: 18%;
-          width: 13%;
-          height: 45%;
-          border-radius: 50%;
-          background:
-            linear-gradient(
-              #ffffff45,
-              #ffffff08
-            );
-          transform: rotate(20deg);
+          content:'';
+          position:absolute;
+          left:8%;
+          top:18%;
+          width:13%;
+          height:45%;
+          border-radius:50%;
+          background:linear-gradient(#ffffff45,#ffffff08);
+          transform:rotate(20deg);
         }
 
-        .sb-shaking .sb-die {
-          animation:
-            sbShake .28s ease-in-out
-            infinite alternate;
+        .sb-rotor {
+          position:absolute;
+          z-index:1;
+          left:17%;
+          bottom:20px;
+          width:66%;
+          height:78px;
+          border-radius:50%;
+          overflow:hidden;
+          background:radial-gradient(ellipse,#478f7d,#183b32);
+          box-shadow:inset 0 0 15px #071d17;
         }
 
-        .sb-shaking .sb-die:nth-child(2) {
-          animation-delay: -.13s;
+        .sb-rotor-disc {
+          position:absolute;
+          left:0;
+          top:-85%;
+          width:100%;
+          height:270%;
+          border-radius:50%;
+          border:3px dashed #c6dac466;
+          background:repeating-conic-gradient(#cde2c533 0deg 16deg,transparent 16deg 60deg);
+          animation:sbRotor .62s linear infinite;
         }
 
-        .sb-shaking .sb-die:nth-child(3) {
-          animation-delay: -.08s;
+        .sb-mixer {
+          position:absolute;
+          inset:0;
+          z-index:2;
+          perspective:650px;
+          pointer-events:none;
         }
 
-        .sb-machine-label {
-          position: absolute;
-          bottom: -7px;
-          width: 100%;
-          font-size: 9px;
-          letter-spacing: 2px;
-          color: #a6c8bc;
+        .sb-orbit {
+          position:absolute;
+          left:50%;
+          bottom:59px;
+          width:var(--cube-size);
+          height:var(--cube-size);
+          animation:sbOrbit 1.32s linear infinite;
+          animation-delay:var(--orbit-delay);
+          filter:drop-shadow(0 8px 3px #0006);
         }
 
-        .sb-section {
-          margin-top: 16px;
+        .sb-cube {
+          position:relative;
+          width:100%;
+          height:100%;
+          transform-style:preserve-3d;
+          animation:sbTumble .84s linear infinite;
+          animation-delay:var(--roll-delay);
         }
 
-        .sb-section h2 {
-          font-size: 11px;
-          letter-spacing: 1px;
-          color: #ebd490;
-          margin: 0 0 8px;
+        .sb-cube-face {
+          position:absolute;
+          inset:0;
+          backface-visibility:hidden;
+          border-radius:8px;
+          background:#f9f5e5;
         }
 
-        .sb-grid {
-          display: grid;
-          gap: 5px;
+        .sb-cube-face svg{display:block;width:100%;height:100%}
+
+        .sb-face-1{transform:translateZ(calc(var(--cube-size) / 2))}
+        .sb-face-2{transform:rotateY(90deg) translateZ(calc(var(--cube-size) / 2))}
+        .sb-face-3{transform:rotateX(90deg) translateZ(calc(var(--cube-size) / 2))}
+        .sb-face-4{transform:rotateX(-90deg) translateZ(calc(var(--cube-size) / 2))}
+        .sb-face-5{transform:rotateY(-90deg) translateZ(calc(var(--cube-size) / 2))}
+        .sb-face-6{transform:rotateY(180deg) translateZ(calc(var(--cube-size) / 2))}
+
+        @keyframes sbRotor {
+          to{transform:rotate(360deg)}
         }
 
-        .sb-three {
-          grid-template-columns:
-            repeat(3, minmax(0, 1fr));
+        @keyframes sbOrbit {
+          0%{transform:translate(calc(-50% + var(--orbit-radius)),0) scale(.94);z-index:2}
+          12.5%{transform:translate(calc(-50% + var(--orbit-radius) * .707),10px) scale(1.02);z-index:4}
+          25%{transform:translate(-50%,14px) scale(1.08);z-index:5}
+          37.5%{transform:translate(calc(-50% - var(--orbit-radius) * .707),10px) scale(1.02);z-index:4}
+          50%{transform:translate(calc(-50% - var(--orbit-radius)),0) scale(.94);z-index:2}
+          62.5%{transform:translate(calc(-50% - var(--orbit-radius) * .707),-10px) scale(.86);z-index:1}
+          75%{transform:translate(-50%,-14px) scale(.82);z-index:1}
+          87.5%{transform:translate(calc(-50% + var(--orbit-radius) * .707),-10px) scale(.86);z-index:1}
+          100%{transform:translate(calc(-50% + var(--orbit-radius)),0) scale(.94);z-index:2}
         }
 
-        .sb-seven {
-          grid-template-columns:
-            repeat(7, minmax(0, 1fr));
+        @keyframes sbTumble {
+          from{transform:rotateX(-18deg) rotateY(0deg) rotateZ(0deg)}
+          to{transform:rotateX(342deg) rotateY(360deg) rotateZ(360deg)}
         }
 
-        .sb-six {
-          grid-template-columns:
-            repeat(6, minmax(0, 1fr));
-        }
-
-        .sb-five {
-          grid-template-columns:
-            repeat(5, minmax(0, 1fr));
-        }
+        .sb-machine-label{position:absolute;bottom:-7px;width:100%;font-size:9px;letter-spacing:2px;color:#a6c8bc}
+        .sb-section{margin-top:16px}
+        .sb-section h2{font-size:11px;letter-spacing:1px;color:#ebd490;margin:0 0 8px}
+        .sb-grid{display:grid;gap:5px}
+        .sb-three{grid-template-columns:repeat(3,minmax(0,1fr))}
+        .sb-seven{grid-template-columns:repeat(7,minmax(0,1fr))}
+        .sb-six{grid-template-columns:repeat(6,minmax(0,1fr))}
+        .sb-five{grid-template-columns:repeat(5,minmax(0,1fr))}
 
         .sb-area {
-          position: relative;
-          min-height: 82px;
-          padding: 9px 3px;
-          border: 1px solid #72ad8e;
-          border-radius: 8px;
-          background: #083e2d;
-          color: #f5f2e9;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          gap: 6px;
+          position:relative;
+          min-height:82px;
+          padding:9px 3px;
+          border:1px solid #72ad8e;
+          border-radius:8px;
+          background:#083e2d;
+          color:#f5f2e9;
+          display:flex;
+          flex-direction:column;
+          justify-content:center;
+          align-items:center;
+          gap:6px;
         }
 
-        .sb-area strong {
-          font-size: 11px;
-          overflow-wrap: anywhere;
+        .sb-area strong{font-size:11px;overflow-wrap:anywhere}
+        .sb-area small{font-size:10px;color:#c9dcbd}
+        .sb-area.sb-win{border:2px solid #f3d57b;background:#4b592c}
+        .sb-tag{background:#e8ce7f;color:#1c3026;padding:3px 5px;border-radius:20px;font-size:9px;font-weight:bold}
+        .sb-placed{color:#f5d78c;font-size:9px}
+        .sb-extra{font-size:8px;line-height:1.5;background:#9c2740;color:#fff;padding:3px;border-radius:5px}
+        .sb-controls,.sb-card{padding:14px;border:1px solid #ffffff25;border-radius:13px;background:#0003;margin-top:14px}
+        .sb-chip{width:46px;height:46px;border:3px dashed #ffffffaa;background:#225e76;color:#fff;border-radius:50%;font-weight:bold}
+        .sb-chip[aria-pressed=true]{outline:3px solid #efd58b;outline-offset:2px}
+        .sb-submit{width:100%;padding:15px;background:#ebd07f;border:0;color:#1b3b2e;border-radius:9px;font-weight:900}
+        .sb-summary{margin-top:14px;border:1px solid #dfc579;border-radius:12px;padding:14px;text-align:center;line-height:1.8;background:#0003}
+        .sb-summary strong{color:#ffdf93;font-size:20px}
+        .sb-recent{display:flex;gap:7px;overflow:auto;padding:8px 0}
+        .sb-recent span{flex-shrink:0;background:#ffffff10;border-radius:8px;padding:8px;font-size:12px}
+        .sb-table{width:100%;font-size:12px;border-collapse:collapse}
+        .sb-table td,.sb-table th{text-align:left;padding:10px 6px;border-bottom:1px solid #ffffff20}
+        .sb-table th{color:#ecd58d}
+        .sb-overflow{overflow:auto}
+        .sb-page :focus-visible{outline:3px solid #ffe3a0;outline-offset:3px}
+
+        @media(max-width:400px) {
+          .sb-wrap{padding:8px}
+          .sb-seven{grid-template-columns:repeat(4,minmax(0,1fr))}
+          .sb-six{grid-template-columns:repeat(3,minmax(0,1fr))}
+          .sb-five{grid-template-columns:repeat(3,minmax(0,1fr))}
+          .sb-header h1{font-size:16px}
+          .sb-machine{height:200px;--cube-size:38px;--orbit-radius:clamp(45px,20vw,76px)}
+          .sb-dome{height:150px}
+          .sb-area strong{font-size:10px}
+          .sb-rotor{height:66px;bottom:24px}
         }
 
-        .sb-area small {
-          font-size: 10px;
-          color: #c9dcbd;
-        }
-
-        .sb-area.sb-win {
-          border: 2px solid #f3d57b;
-          background: #4b592c;
-        }
-
-        .sb-tag {
-          background: #e8ce7f;
-          color: #1c3026;
-          padding: 3px 5px;
-          border-radius: 20px;
-          font-size: 9px;
-          font-weight: bold;
-        }
-
-        .sb-placed {
-          color: #f5d78c;
-          font-size: 9px;
-        }
-
-        .sb-extra {
-          font-size: 8px;
-          line-height: 1.5;
-          background: #9c2740;
-          color: #fff;
-          padding: 3px;
-          border-radius: 5px;
-        }
-
-        .sb-controls,
-        .sb-card {
-          padding: 14px;
-          border: 1px solid #ffffff25;
-          border-radius: 13px;
-          background: #0003;
-          margin-top: 14px;
-        }
-
-        .sb-chip {
-          width: 46px;
-          height: 46px;
-          border:
-            3px dashed #ffffffaa;
-          background: #225e76;
-          color: #fff;
-          border-radius: 50%;
-          font-weight: bold;
-        }
-
-        .sb-chip[aria-pressed=true] {
-          outline: 3px solid #efd58b;
-          outline-offset: 2px;
-        }
-
-        .sb-submit {
-          width: 100%;
-          padding: 15px;
-          background: #ebd07f;
-          border: 0;
-          color: #1b3b2e;
-          border-radius: 9px;
-          font-weight: 900;
-        }
-
-        .sb-summary {
-          margin-top: 14px;
-          border: 1px solid #dfc579;
-          border-radius: 12px;
-          padding: 14px;
-          text-align: center;
-          line-height: 1.8;
-          background: #0003;
-        }
-
-        .sb-summary strong {
-          color: #ffdf93;
-          font-size: 20px;
-        }
-
-        .sb-recent {
-          display: flex;
-          gap: 7px;
-          overflow: auto;
-          padding: 8px 0;
-        }
-
-        .sb-recent span {
-          flex-shrink: 0;
-          background: #ffffff10;
-          border-radius: 8px;
-          padding: 8px;
-          font-size: 12px;
-        }
-
-        .sb-table {
-          width: 100%;
-          font-size: 12px;
-          border-collapse: collapse;
-        }
-
-        .sb-table td,
-        .sb-table th {
-          text-align: left;
-          padding: 10px 6px;
-          border-bottom:
-            1px solid #ffffff20;
-        }
-
-        .sb-table th {
-          color: #ecd58d;
-        }
-
-        .sb-overflow {
-          overflow: auto;
-        }
-
-        .sb-page :focus-visible {
-          outline: 3px solid #ffe3a0;
-          outline-offset: 3px;
-        }
-
-        @keyframes sbShake {
-          from {
-            transform:
-              translate(-7px, -5px)
-              rotate(-18deg);
-          }
-
-          to {
-            transform:
-              translate(7px, -29px)
-              rotate(23deg);
-          }
-        }
-
-        @media (max-width: 400px) {
-          .sb-wrap {
-            padding: 8px;
-          }
-
-          .sb-seven {
-            grid-template-columns:
-              repeat(4, minmax(0, 1fr));
-          }
-
-          .sb-six {
-            grid-template-columns:
-              repeat(3, minmax(0, 1fr));
-          }
-
-          .sb-five {
-            grid-template-columns:
-              repeat(3, minmax(0, 1fr));
-          }
-
-          .sb-header h1 {
-            font-size: 16px;
-          }
-
-          .sb-machine {
-            height: 200px;
-          }
-
-          .sb-dome {
-            height: 150px;
-          }
-
-          .sb-area strong {
-            font-size: 10px;
-          }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .sb-shaking .sb-die {
-            animation: none;
-          }
+        @media(prefers-reduced-motion:reduce) {
+          .sb-orbit,.sb-cube,.sb-rotor-disc{animation:none}
+          .sb-orbit:nth-child(1){transform:translate(calc(-50% - var(--orbit-radius)),0)}
+          .sb-orbit:nth-child(2){transform:translate(-50%,-8px)}
+          .sb-orbit:nth-child(3){transform:translate(calc(-50% + var(--orbit-radius)),0)}
+          .sb-cube{transform:rotateX(-18deg) rotateY(22deg)}
         }
       `}</style>
 
@@ -1323,21 +1104,13 @@ function SicBoGame({
 
         <div>
           <h1>EXTRA SIC BO</h1>
-
-          <small>
-            ANIMATED DEMO · DEMO COINS ONLY
-          </small>
+          <small>ANIMATED DEMO · DEMO COINS ONLY</small>
         </div>
 
         <div className="sb-wallet">
-          {state
-            ? number(state.balance)
-            : "…"}
-
+          {state ? number(state.balance) : "…"}
           <small>
-            {user?.name ||
-              user?.loginId ||
-              "Customer"}
+            {user?.name || user?.loginId || "Customer"}
           </small>
         </div>
       </header>
@@ -1371,17 +1144,12 @@ function SicBoGame({
             aria-pressed={sound}
             onClick={toggleSound}
           >
-            {sound
-              ? "SOUND ON"
-              : "SOUND OFF"}
+            {sound ? "SOUND ON" : "SOUND OFF"}
           </button>
         </nav>
 
         {error && (
-          <div
-            className="sb-alert"
-            role="alert"
-          >
+          <div className="sb-alert" role="alert">
             {error}
 
             <button
@@ -1389,15 +1157,12 @@ function SicBoGame({
               className="sb-btn"
               onClick={() => {
                 setError("");
-
                 void refreshRef.current();
 
                 if (!rules) {
                   api(`${base}/rules`)
                     .then(data => {
-                      if (active.current) {
-                        setRules(data);
-                      }
+                      if (active.current) setRules(data);
                     })
                     .catch(err => {
                       if (active.current) {
@@ -1413,21 +1178,15 @@ function SicBoGame({
         )}
 
         {notice && (
-          <p
-            role="status"
-            className="sb-hint"
-          >
+          <p role="status" className="sb-hint">
             {notice}
           </p>
         )}
 
         {pending && (
-          <div
-            className="sb-alert"
-            role="status"
-          >
-            An interrupted bet needs recovery.
-            Retry uses the original round and request.
+          <div className="sb-alert" role="status">
+            An interrupted bet needs recovery. Retry uses
+            the original round and request.
 
             <button
               type="button"
@@ -1435,9 +1194,7 @@ function SicBoGame({
               disabled={busy}
               onClick={submit}
             >
-              {busy
-                ? "CHECKING…"
-                : "RETRY SAME BET"}
+              {busy ? "CHECKING…" : "RETRY SAME BET"}
             </button>
           </div>
         )}
@@ -1451,7 +1208,6 @@ function SicBoGame({
               <div className="sb-round-top">
                 <span>
                   Round #{round?.id || "—"}
-
                   <br />
 
                   {!round
@@ -1472,53 +1228,16 @@ function SicBoGame({
                 </span>
               </div>
 
-              <div
-                className={`sb-machine ${
-                  shaking ? "sb-shaking" : ""
-                }`}
-              >
-                <div className="sb-platform" />
-
-                <div className="sb-dice">
-                  {visibleDice.map((value, index) => (
-                    <div
-                      className="sb-die"
-                      key={index}
-                    >
-                      <DiceFace
-                        value={
-                          shaking
-                            ? (
-                                animationTick +
-                                index * 2
-                              ) % 6 + 1
-                            : value
-                        }
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                <div className="sb-dome" />
-
-                <div className="sb-machine-label">
-                  AUTOMATIC DICE SHAKER
-                </div>
-              </div>
+              <MixerDice
+                shaking={shaking}
+                values={visibleDice}
+              />
 
               <p className="sb-hint">
                 {result
-                  ? (
-                      `Dice ${
-                        result.dice.join(" + ")
-                      } = ${result.sum}${
-                        result.triple
-                          ? " · TRIPLE"
-                          : ""
-                      }`
-                    )
+                  ? `Dice ${result.dice.join(" + ")} = ${result.sum}${result.triple ? " · TRIPLE" : ""}`
                   : shaking
-                    ? "Animation in progress. The result will appear when shaking ends."
+                    ? "Dice are mixing around the bowl floor. The result appears after mixing stops."
                     : previousDice
                       ? "Previous round dice shown. New result is hidden until reveal."
                       : "Waiting for the first result. New dice remain hidden until reveal."}
@@ -1532,9 +1251,7 @@ function SicBoGame({
               >
                 <h2>{group.title}</h2>
 
-                <div
-                  className={`sb-grid ${group.columns}`}
-                >
+                <div className={`sb-grid ${group.columns}`}>
                   {group.areas
                     .filter(area =>
                       rules.areas.includes(area),
@@ -1549,8 +1266,7 @@ function SicBoGame({
               aria-label="Bet controls"
             >
               <p className="sb-hint">
-                Choose a chip, tap betting
-                areas, then confirm.
+                Choose a chip, tap betting areas, then confirm.
               </p>
 
               <div className="sb-row">
@@ -1578,10 +1294,8 @@ function SicBoGame({
               </div>
 
               <p className="sb-hint">
-                Draft {number(total)}
-                {" "}· Placed this round{" "}
-                {number(committed)}
-                {" "}· Maximum round stake 25,000
+                Draft {number(total)} · Placed this round{" "}
+                {number(committed)} · Maximum round stake 25,000
               </p>
 
               <button
@@ -1589,10 +1303,7 @@ function SicBoGame({
                 className="sb-submit"
                 disabled={
                   busy ||
-                  (
-                    !pending &&
-                    (!open || !total)
-                  )
+                  (!pending && (!open || !total))
                 }
                 onClick={submit}
               >
@@ -1611,7 +1322,6 @@ function SicBoGame({
               >
                 <strong>
                   Total {result.sum}
-
                   {result.triple
                     ? " · TRIPLE"
                     : result.sum <= 10
@@ -1620,18 +1330,13 @@ function SicBoGame({
                 </strong>
 
                 <div>
-                  Your stake {number(committed)}
-                  {" "}· Total return{" "}
+                  Your stake {number(committed)} · Total return{" "}
                   {number(credited)}
                 </div>
 
                 <div>
-                  Net{" "}
-                  {credited - committed >= 0
-                    ? "+"
-                    : ""}
-                  {number(credited - committed)}
-                  {" "}demo coins
+                  Net {credited - committed >= 0 ? "+" : ""}
+                  {number(credited - committed)} demo coins
                 </div>
               </section>
             )}
@@ -1643,12 +1348,9 @@ function SicBoGame({
             <div className="sb-recent">
               {(state?.recentResults || []).map(item => (
                 <span key={item.id}>
-                  #{item.id} ·{" "}
-                  {item.result.dice.join(" / ")}
-                  {" "}={item.result.sum}
-                  {item.result.triple
-                    ? " TRIPLE"
-                    : ""}
+                  #{item.id} · {item.result.dice.join(" / ")}
+                  {" = "}{item.result.sum}
+                  {item.result.triple ? " TRIPLE" : ""}
                 </span>
               ))}
             </div>
@@ -1660,32 +1362,26 @@ function SicBoGame({
             <h2>Rules &amp; paytable</h2>
 
             <p className="sb-hint">
-              All players share one round.
-              Betting lasts 30 seconds,
-              followed by 10 seconds of shaking
-              and 5 seconds of results. Bets
-              are locked during shaking. The
-              display is an animation; outcomes
-              are generated and settled by
-              the server.
+              All players share one round. Betting lasts
+              30 seconds, followed by 10 seconds of shaking
+              and 5 seconds of results. Bets are locked
+              during shaking. The display is an animation;
+              outcomes are generated and settled by the server.
             </p>
 
             <p className="sb-hint">
-              Profit odds are shown as 1:X.
-              A winning bet returns its stake
-              plus profit. Losing areas return
-              zero. Minimum 10 whole demo coins
-              per selected area; maximum total
-              25,000 per customer per round.
+              Profit odds are shown as 1:X. A winning bet
+              returns its stake plus profit. Losing areas
+              return zero. Minimum 10 whole demo coins per
+              selected area; maximum total 25,000 per customer
+              per round.
             </p>
 
             <p className="sb-hint">
-              Small is 4–10; Big is 11–17.
-              All triples lose on Small, Big
-              and Sum bets. A specific double
-              also wins when all three dice
-              show that face. A two-number
-              pair wins when both distinct
+              Small is 4–10; Big is 11–17. All triples lose
+              on Small, Big and Sum bets. A specific double
+              also wins when all three dice show that face.
+              A two-number pair wins when both distinct
               numbers appear.
             </p>
 
@@ -1704,68 +1400,47 @@ function SicBoGame({
                       <td>Small / Big</td>
                       <td>1:1</td>
                     </tr>
-
                     <tr>
                       <td>Any triple</td>
-                      <td>
-                        1:{rules.profitOdds["any-triple"]}
-                      </td>
+                      <td>1:{rules.profitOdds["any-triple"]}</td>
                     </tr>
-
                     <tr>
                       <td>Specific triple</td>
-                      <td>
-                        1:{rules.profitOdds.triple}
-                      </td>
+                      <td>1:{rules.profitOdds.triple}</td>
                     </tr>
-
                     <tr>
                       <td>Specific double</td>
-                      <td>
-                        1:{rules.profitOdds.double}
-                      </td>
+                      <td>1:{rules.profitOdds.double}</td>
                     </tr>
-
                     <tr>
                       <td>Two-number pair</td>
-                      <td>
-                        1:{rules.profitOdds.pair}
-                      </td>
+                      <td>1:{rules.profitOdds.pair}</td>
                     </tr>
-
                     <tr>
-                      <td>
-                        Single face on 1 / 2 / 3 dice
-                      </td>
-                      <td>
-                        1:1 / 1:2 / 1:3
-                      </td>
+                      <td>Single face on 1 / 2 / 3 dice</td>
+                      <td>1:1 / 1:2 / 1:3</td>
                     </tr>
 
-                    {Object.entries(
-                      rules.profitOdds.sum,
-                    ).map(([sum, odds]) => (
-                      <tr key={sum}>
-                        <td>Total {sum}</td>
-                        <td>1:{odds}</td>
-                      </tr>
-                    ))}
+                    {Object.entries(rules.profitOdds.sum).map(
+                      ([sum, odds]) => (
+                        <tr key={sum}>
+                          <td>Total {sum}</td>
+                          <td>1:{odds}</td>
+                        </tr>
+                      ),
+                    )}
                   </tbody>
                 </table>
 
                 <h3>Demo Extra Pay</h3>
 
                 <p className="sb-hint">
-                  Two eligible areas receive
-                  2x or 3x profit odds. These
-                  signs appear only after
-                  betting closes. Extra Pay
-                  multiplies the profit,
-                  while the stake is returned
-                  once. Example: 10 coins at
-                  profit odds 1:5 with Extra
-                  Pay 2x returns 10 + (10 × 5 × 2)
-                  = 110 total coins.
+                  Two eligible areas receive 2x or 3x profit
+                  odds. These signs appear only after betting
+                  closes. Extra Pay multiplies the profit,
+                  while the stake is returned once. Example:
+                  10 coins at profit odds 1:5 with Extra Pay
+                  2x returns 10 + (10 × 5 × 2) = 110 total coins.
                 </p>
               </>
             )}
@@ -1802,15 +1477,9 @@ function SicBoGame({
                         <td>
                           #{bet.roundId}
                           <br />
-
-                          {new Date(
-                            bet.createdAt,
-                          ).toLocaleString(
+                          {new Date(bet.createdAt).toLocaleString(
                             "en-IN",
-                            {
-                              timeZone:
-                                "Asia/Kolkata",
-                            },
+                            { timeZone: "Asia/Kolkata" },
                           )}
                         </td>
 
@@ -1818,27 +1487,16 @@ function SicBoGame({
                           {bet.bets
                             .map(
                               item =>
-                                `${
-                                  areaName(item.area)
-                                }: ${
-                                  number(item.amount)
-                                }`,
+                                `${areaName(item.area)}: ${number(item.amount)}`,
                             )
                             .join(", ")}
-
                           <br />
-
                           {bet.result.dice.join(" + ")}
-                          {" "}={bet.result.sum}
+                          {" = "}{bet.result.sum}
                         </td>
 
-                        <td>
-                          {number(bet.stake)}
-                        </td>
-
-                        <td>
-                          {number(bet.payout)}
-                        </td>
+                        <td>{number(bet.stake)}</td>
+                        <td>{number(bet.payout)}</td>
                       </tr>
                     ))}
                   </tbody>
