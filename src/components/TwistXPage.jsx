@@ -41,10 +41,12 @@ function readPending(key) {
       sessionStorage.getItem(key) || "null",
     );
 
-    return ["spin", "partial", "cashout"].includes(
-      saved?.action,
-    ) &&
+    return (
+      ["spin", "partial", "cashout"].includes(
+        saved?.action,
+      ) &&
       typeof saved.body?.requestKey === "string"
+    )
       ? saved
       : null;
   } catch {
@@ -78,7 +80,8 @@ function uniqueKey() {
 
   return Array.from(
     bytes,
-    value => value.toString(16).padStart(2, "0"),
+    value =>
+      value.toString(16).padStart(2, "0"),
   ).join("");
 }
 
@@ -117,143 +120,281 @@ async function api(path, options = {}) {
 }
 
 function ElementWheel({
-  sectors,
   rotation,
+  rings,
+  banks,
+  result,
+  busy,
+  bonuses,
 }) {
-  let angle = -90;
+  const arc = (radius, start, end) => {
+    const point = angle => [
+      180 +
+        radius *
+          Math.cos(angle * Math.PI / 180),
+      180 +
+        radius *
+          Math.sin(angle * Math.PI / 180),
+    ];
 
-  const total = sectors.reduce(
-    (sum, item) => sum + item.weight,
-    0,
-  );
+    const from = point(start);
+    const to = point(end);
+
+    return (
+      `M${from[0]},${from[1]} ` +
+      `A${radius},${radius} 0 0 1 ` +
+      `${to[0]},${to[1]}`
+    );
+  };
+
+  const names = ["fire", "earth", "water"];
+  const selected = ELEMENTS[result?.sector];
 
   return (
     <div className="tx-wheel-box">
-      <span
-        className="tx-pointer"
-        aria-hidden="true"
-      >
-        ▼
-      </span>
-
       <svg
-        viewBox="0 0 300 300"
+        viewBox="0 0 360 360"
         className="tx-wheel"
-        style={{
-          transform: `rotate(${rotation}deg)`,
-        }}
         role="img"
         aria-label="Element wheel"
       >
+        <defs>
+          <radialGradient id="tx-silver">
+            <stop stopColor="#fff" />
+            <stop
+              offset=".55"
+              stopColor="#e8ecef"
+            />
+            <stop
+              offset=".8"
+              stopColor="#b9c1c8"
+            />
+            <stop
+              offset="1"
+              stopColor="#f8fafc"
+            />
+          </radialGradient>
+
+          <linearGradient id="tx-metal">
+            <stop stopColor="#b4bec7" />
+            <stop
+              offset=".45"
+              stopColor="#fff"
+            />
+            <stop
+              offset="1"
+              stopColor="#c0c8d0"
+            />
+          </linearGradient>
+        </defs>
+
         <circle
-          cx="150"
-          cy="150"
-          r="147"
-          fill="#081a24"
-          stroke="#e6c886"
-          strokeWidth="4"
+          cx="180"
+          cy="180"
+          r="167"
+          fill="url(#tx-silver)"
+          stroke="#aeb8c1"
+          strokeWidth="2"
         />
 
-        {sectors.map(item => {
-          const start = angle;
-          const width = item.weight / total * 360;
+        <g
+          className="tx-discs"
+          style={{
+            transform: `rotate(${rotation}deg)`,
+            transformOrigin: "180px 180px",
+          }}
+        >
+          {names.map((name, ring) => {
+            const radius = 146 - ring * 31;
 
-          angle += width;
-
-          const point = degrees =>
-            `${
-              150 +
-              139 * Math.cos(degrees * Math.PI / 180)
-            },${
-              150 +
-              139 * Math.sin(degrees * Math.PI / 180)
-            }`;
-
-          const middle =
-            (start + width / 2) * Math.PI / 180;
-
-          const x =
-            150 + 111 * Math.cos(middle);
-
-          const y =
-            150 + 111 * Math.sin(middle);
-
-          return (
-            <g key={item.id}>
-              <path
-                d={
-                  `M150,150 L${point(start)} ` +
-                  `A139,139 0 ${width > 180 ? 1 : 0} ` +
-                  `1 ${point(angle)} Z`
-                }
-                fill={
-                  ELEMENTS[item.id]?.color ||
-                  "#aaa"
-                }
-                stroke="#112a32"
-                strokeWidth="2"
-              />
-
-              <text
-                x={x}
-                y={y}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={width < 20 ? 9 : 12}
-                fontWeight="900"
-                fill="#10222c"
-                transform={
-                  `rotate(${
-                    start + width / 2 + 90
-                  },${x},${y})`
+            return (
+              <g
+                key={name}
+                aria-label={
+                  `${ELEMENTS[name].name} circle, ` +
+                  `${rings[name]} filled sections`
                 }
               >
-                {ELEMENTS[item.id]?.name || item.id}
-              </text>
-            </g>
-          );
-        })}
+                <circle
+                  cx="180"
+                  cy="180"
+                  r={radius}
+                  fill="none"
+                  stroke="url(#tx-metal)"
+                  strokeWidth="27"
+                />
+
+                {Array.from(
+                  { length: 7 },
+                  (_, index) => {
+                    const start =
+                      -90 + index * 360 / 7 + 2;
+
+                    const end =
+                      -90 +
+                      (index + 1) * 360 / 7 -
+                      2;
+
+                    const angle =
+                      (start + end) /
+                      2 *
+                      Math.PI /
+                      180;
+
+                    const x =
+                      180 +
+                      radius * Math.cos(angle);
+
+                    const y =
+                      180 +
+                      radius * Math.sin(angle);
+
+                    const label =
+                      name === "fire" &&
+                      index === 6
+                        ? "BONUS"
+                        : `${
+                            banks?.[name]?.[
+                              index + 1
+                            ] ?? "—"
+                          }x`;
+
+                    const filled =
+                      index < rings[name];
+
+                    return (
+                      <g key={index}>
+                        <path
+                          d={arc(
+                            radius,
+                            start,
+                            end,
+                          )}
+                          fill="none"
+                          stroke={
+                            filled
+                              ? ELEMENTS[name].color
+                              : "#ffffff66"
+                          }
+                          strokeWidth="23"
+                        />
+
+                        <text
+                          x={x}
+                          y={y}
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill={
+                            filled
+                              ? "#183240"
+                              : "#65727e"
+                          }
+                          fontSize={
+                            label === "BONUS"
+                              ? 8
+                              : 11
+                          }
+                          fontWeight="800"
+                          transform={
+                            `rotate(${
+                              (start + end) /
+                                2 +
+                              90
+                            },${x},${y})`
+                          }
+                        >
+                          {label}
+                        </text>
+                      </g>
+                    );
+                  },
+                )}
+              </g>
+            );
+          })}
+        </g>
 
         <circle
-          cx="150"
-          cy="150"
+          cx="180"
+          cy="180"
           r="63"
-          fill="#102532"
-          stroke="#edcd87"
+          fill="url(#tx-silver)"
+          stroke="#fff"
           strokeWidth="4"
         />
 
+        <circle
+          cx="180"
+          cy="180"
+          r="52"
+          fill="#f7f9fb"
+          stroke="#c3cbd2"
+          strokeWidth="2"
+        />
+
         <text
-          x="150"
-          y="144"
+          x="180"
+          y="187"
           textAnchor="middle"
-          fill="#ffe5a0"
-          fontSize="24"
-          fontWeight="900"
+          dominantBaseline="central"
+          fontSize="43"
         >
-          TWIST
+          {busy
+            ? "🌀"
+            : selected?.icon || "🔥"}
         </text>
 
         <text
-          x="150"
-          y="175"
+          x="180"
+          y="218"
           textAnchor="middle"
-          fill="#edbc67"
-          fontSize="30"
-          fontWeight="900"
+          fill="#5a6673"
+          fontSize="9"
+          fontWeight="800"
         >
-          X
+          {busy
+            ? "SPINNING"
+            : selected?.name || "TWIST X"}
         </text>
       </svg>
+
+      <div className="tx-wheel-badges">
+        {["water", "earth", "fire"].map(
+          name => (
+            <span
+              key={name}
+              style={{
+                "--tx-color":
+                  ELEMENTS[name].color,
+              }}
+            >
+              {ELEMENTS[name].icon}{" "}
+              {name === "fire"
+                ? `BONUS ${
+                    Math.max(
+                      ...(bonuses || [0]),
+                    )
+                  }x`
+                : `${
+                    banks?.[name]?.[7] ??
+                    "—"
+                  }x`}
+            </span>
+          ),
+        )}
+      </div>
+
+      <div className="tx-neutral">
+        〰 WIND · keeps progress
+        <span>
+          ☠ SKULL · one step back
+        </span>
+      </div>
     </div>
   );
 }
 
-function BankRing({
-  name,
-  step,
-  values,
-}) {
+function BankRing({ name, step, values }) {
   const element = ELEMENTS[name];
 
   return (
@@ -263,52 +404,34 @@ function BankRing({
         "--tx-color": element.color,
       }}
       aria-label={
-        `${element.name} circle, ${step} filled sections`
+        `${element.name} circle, ` +
+        `${step} filled sections`
       }
     >
-      <div className="tx-ring">
-        <div className="tx-ring-center">
-          <span>{element.icon}</span>
-          <strong>{step}/7</strong>
-        </div>
+      <strong>
+        {element.icon} {element.name}
+      </strong>
 
+      <div className="tx-progress-dots">
         {Array.from(
           { length: 7 },
           (_, index) => (
-            <span
+            <i
               key={index}
               className={
-                `tx-section ${
-                  index < step ? "filled" : ""
-                }`
+                index < step ? "filled" : ""
               }
-              style={{
-                transform:
-                  `translate(-50%,-50%) ` +
-                  `rotate(${index * 360 / 7}deg) ` +
-                  `translateY(var(--tx-ring-offset)) ` +
-                  `rotate(${-index * 360 / 7}deg)`,
-              }}
-            >
-              {index + 1}
-            </span>
+            />
           ),
         )}
       </div>
 
-      <h2>{element.name}</h2>
-
-      <p>
-        {values?.[step]?.toFixed(2) || "0.00"}x bank
-      </p>
-
-      <small>
-        {name === "fire"
-          ? "Full circle → bonus"
-          : name === "water"
-            ? "Full circle → 7x"
-            : "Full circle → 20.5x"}
-      </small>
+      <span>
+        {step}/7 ·{" "}
+        {values?.[step]?.toFixed(2) ||
+          "0.00"}
+        x
+      </span>
     </section>
   );
 }
@@ -329,16 +452,19 @@ export default function TwistXPage({
   return customerId ? (
     <TwistGame
       key={storageKey}
-      user={user}
-      onBack={onBack}
-      onLogout={onLogout}
-      storageKey={storageKey}
+      {...{
+        user,
+        onBack,
+        onLogout,
+        storageKey,
+      }}
     />
   ) : (
     <main className="min-h-screen bg-slate-950 p-6 text-white">
       Customer login required.
 
       <button
+        type="button"
         onClick={onBack}
         className="ml-4 underline"
       >
@@ -356,12 +482,13 @@ function TwistGame({
 }) {
   const [rules, setRules] = useState(null);
   const [data, setData] = useState(null);
+
   const [amount, setAmount] = useState("10");
   const [tab, setTab] = useState("game");
   const [history, setHistory] = useState([]);
 
-  const [pending, setPending] = useState(() =>
-    readPending(storageKey),
+  const [pending, setPending] = useState(
+    () => readPending(storageKey),
   );
 
   const [busy, setBusy] = useState(false);
@@ -382,22 +509,16 @@ function TwistGame({
   const loadRef = useRef(null);
 
   const session = data?.session;
-
   const activeGame =
     session?.status === "ACTIVE";
 
   const rings = activeGame
     ? session.rings
-    : {
-        water: 0,
-        earth: 0,
-        fire: 0,
-      };
+    : { water: 0, earth: 0, fire: 0 };
 
-  const filled =
-    Object.values(rings).some(
-      value => value > 0,
-    );
+  const filled = Object.values(rings).some(
+    value => value > 0,
+  );
 
   const locked =
     busy || Boolean(pending) || loading;
@@ -416,7 +537,9 @@ function TwistGame({
         audio.current = new AudioContext();
       }
 
-      audio.current?.resume()?.catch(() => {});
+      audio.current
+        ?.resume()
+        ?.catch(() => {});
     } catch {}
   };
 
@@ -425,7 +548,9 @@ function TwistGame({
 
     try {
       const ctx = audio.current;
-      const oscillator = ctx.createOscillator();
+      const oscillator =
+        ctx.createOscillator();
+
       const gain = ctx.createGain();
 
       oscillator.type = "sine";
@@ -435,26 +560,30 @@ function TwistGame({
         ctx.currentTime,
       );
 
-      oscillator.frequency.exponentialRampToValueAtTime(
-        skull ? 80 : 990,
-        ctx.currentTime + 0.2,
-      );
+      oscillator.frequency
+        .exponentialRampToValueAtTime(
+          skull ? 80 : 990,
+          ctx.currentTime + 0.2,
+        );
 
       gain.gain.setValueAtTime(
         0.05,
         ctx.currentTime,
       );
 
-      gain.gain.exponentialRampToValueAtTime(
-        0.0001,
-        ctx.currentTime + 0.25,
-      );
+      gain.gain
+        .exponentialRampToValueAtTime(
+          0.0001,
+          ctx.currentTime + 0.25,
+        );
 
       oscillator.connect(gain);
       gain.connect(ctx.destination);
 
       oscillator.start();
-      oscillator.stop(ctx.currentTime + 0.25);
+      oscillator.stop(
+        ctx.currentTime + 0.25,
+      );
     } catch {}
   };
 
@@ -474,8 +603,12 @@ function TwistGame({
 
       setData(value);
 
-      if (value.session?.status === "ACTIVE") {
-        setAmount(String(value.session.amount));
+      if (
+        value.session?.status === "ACTIVE"
+      ) {
+        setAmount(
+          String(value.session.amount),
+        );
       }
     } catch (err) {
       if (
@@ -498,9 +631,13 @@ function TwistGame({
     try {
       const value = await api("rules");
 
-      if (alive.current) setRules(value);
+      if (alive.current) {
+        setRules(value);
+      }
     } catch (err) {
-      if (alive.current) setError(err.message);
+      if (alive.current) {
+        setError(err.message);
+      }
     }
   };
 
@@ -512,7 +649,9 @@ function TwistGame({
         setHistory(value.actions || []);
       }
     } catch (err) {
-      if (alive.current) setError(err.message);
+      if (alive.current) {
+        setError(err.message);
+      }
     }
   };
 
@@ -530,17 +669,33 @@ function TwistGame({
       }
     };
 
-    window.addEventListener("focus", focus);
+    window.addEventListener(
+      "focus",
+      focus,
+    );
+
+    const poll = setInterval(
+      focus,
+      5000,
+    );
 
     return () => {
       alive.current = false;
+
+      clearInterval(poll);
 
       if (timer.current !== null) {
         clearTimeout(timer.current);
       }
 
-      window.removeEventListener("focus", focus);
-      audio.current?.close()?.catch(() => {});
+      window.removeEventListener(
+        "focus",
+        focus,
+      );
+
+      audio.current
+        ?.close()
+        ?.catch(() => {});
     };
   }, []);
 
@@ -589,6 +744,7 @@ function TwistGame({
         setError(
           "Wait for rules and balance to load.",
         );
+
         return;
       }
 
@@ -603,6 +759,7 @@ function TwistGame({
           setError(
             "Stake must be 10–25,000 whole demo coins.",
           );
+
           return;
         }
 
@@ -618,6 +775,7 @@ function TwistGame({
           setError(
             "Cash out before changing the stake.",
           );
+
           return;
         }
 
@@ -663,6 +821,7 @@ function TwistGame({
         setError(
           "A secure HTTPS browser connection is required.",
         );
+
         return;
       }
 
@@ -670,6 +829,7 @@ function TwistGame({
         setError(
           "Enable browser session storage to recover interrupted actions.",
         );
+
         return;
       }
 
@@ -688,18 +848,13 @@ function TwistGame({
     prepareAudio();
 
     try {
-      const value = await api(
-        job.action,
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify(job.body),
+      const value = await api(job.action, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify(job.body),
+      });
 
       removePending(storageKey);
       recovery.current = null;
@@ -719,7 +874,8 @@ function TwistGame({
         sectors.length
       ) {
         const total = sectors.reduce(
-          (sum, item) => sum + item.weight,
+          (sum, item) =>
+            sum + item.weight,
           0,
         );
 
@@ -745,9 +901,8 @@ function TwistGame({
 
         const current =
           (
-            (
-              rotationRef.current % 360
-            ) + 360
+            (rotationRef.current % 360) +
+            360
           ) % 360;
 
         const next =
@@ -769,9 +924,14 @@ function TwistGame({
       if (!alive.current) return;
 
       if (
-        [400, 401, 403, 404, 409, 422].includes(
-          err.status,
-        )
+        [
+          400,
+          401,
+          403,
+          404,
+          409,
+          422,
+        ].includes(err.status)
       ) {
         removePending(storageKey);
         recovery.current = null;
@@ -798,13 +958,14 @@ function TwistGame({
       <style>{`
         .tx-page {
           min-height: 100vh;
-          background:
-            radial-gradient(
-              ellipse at top,
-              #254555,
-              #081620 75%
-            );
-          color: #f4f2e7;
+          background: radial-gradient(
+            ellipse at 30% 15%,
+            #fff 0%,
+            #f1f3f5 35%,
+            #dfe4e9 72%,
+            #fafbfc 100%
+          );
+          color: #344452;
           font-family: Arial, sans-serif;
           padding-bottom: 25px;
         }
@@ -832,20 +993,20 @@ function TwistGame({
           gap: 12px;
           align-items: center;
           padding: 15px;
-          background: #0005;
-          border-bottom: 1px solid #ffffff20;
+          background: #ffffffb8;
+          border-bottom: 1px solid #ccd4dc;
         }
 
         .tx-header h1 {
           font-size: 23px;
-          color: #f3d384;
+          color: #3c5365;
           margin: 0;
         }
 
         .tx-header small {
           display: block;
           font-size: 10px;
-          color: #cbdfe8;
+          color: #647787;
           margin-top: 5px;
         }
 
@@ -856,7 +1017,7 @@ function TwistGame({
         }
 
         .tx-wrap {
-          max-width: 850px;
+          max-width: 650px;
           margin: auto;
           padding: 12px;
         }
@@ -875,16 +1036,20 @@ function TwistGame({
         }
 
         .tx-btn {
-          border: 1px solid #ffffff30;
-          background: #ffffff10;
-          color: inherit;
+          border: 1px solid #c0cad3;
+          background: linear-gradient(
+            #fff,
+            #e3e8ed
+          );
+          color: #435563;
           border-radius: 8px;
           padding: 10px 12px;
+          box-shadow: 0 2px 4px #7d8a9720;
         }
 
         .tx-tabs [aria-pressed=true] {
-          background: #ecd38b;
-          color: #173342;
+          background: #536c80;
+          color: #fff;
         }
 
         .tx-alert {
@@ -904,33 +1069,56 @@ function TwistGame({
 
         .tx-hint {
           font-size: 12px;
-          color: #cbdde6;
+          color: #63717e;
           line-height: 1.7;
         }
 
         .tx-wheel-box {
           position: relative;
-          max-width: 330px;
-          margin: 14px auto 20px;
-        }
-
-        .tx-pointer {
-          position: absolute;
-          z-index: 2;
-          top: -8px;
-          left: 50%;
-          transform: translateX(-50%);
-          color: #ffdf8c;
-          font-size: 32px;
-          text-shadow: 0 3px 3px #000;
+          max-width: 440px;
+          margin: 4px auto 16px;
         }
 
         .tx-wheel {
           display: block;
           width: 100%;
+          filter: drop-shadow(
+            0 14px 12px #65758755
+          );
+        }
+
+        .tx-discs {
           transition:
             transform 2.6s
             cubic-bezier(.12,.65,.1,1);
+        }
+
+        .tx-wheel-badges {
+          display: flex;
+          justify-content: center;
+          gap: 7px;
+          flex-wrap: wrap;
+          margin-top: 8px;
+        }
+
+        .tx-wheel-badges span {
+          border:
+            1px solid var(--tx-color);
+          border-radius: 20px;
+          padding: 5px 9px;
+          font-size: 11px;
+          font-weight: 800;
+          background: #ffffffbb;
+          color: #394e5e;
+        }
+
+        .tx-neutral {
+          font-size: 10px;
+          display: flex;
+          justify-content: center;
+          gap: 18px;
+          color: #6e7d8a;
+          margin: 11px 0;
         }
 
         .tx-rings {
@@ -942,139 +1130,200 @@ function TwistGame({
 
         .tx-ring-card {
           text-align: center;
-          border:
-            1px solid var(--tx-color);
-          border-radius: 14px;
-          padding: 12px 3px;
-          background: #0003;
-        }
-
-        .tx-ring {
-          --tx-ring-offset: -47px;
-          position: relative;
-          width: 120px;
-          height: 120px;
-          max-width: 100%;
-          margin: auto;
-        }
-
-        .tx-ring-center {
-          position: absolute;
-          inset: 29px;
-          border:
-            2px solid var(--tx-color);
-          border-radius: 50%;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          gap: 4px;
-          background: #0c202c;
-        }
-
-        .tx-ring-center span {
-          font-size: 21px;
-        }
-
-        .tx-ring-center strong {
-          font-size: 12px;
-        }
-
-        .tx-section {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          width: 24px;
-          height: 24px;
-          display: grid;
-          place-items: center;
-          background: #203c4a;
-          border:
-            1px solid var(--tx-color);
-          border-radius: 50%;
-          font-size: 11px;
-          color: #d8e1e3;
-        }
-
-        .tx-section.filled {
-          background: var(--tx-color);
-          color: #102936;
-          font-weight: bold;
+          border: 1px solid #d0d8df;
+          background: #ffffffa8;
+          padding: 10px 5px;
+          border-radius: 12px;
+          overflow: hidden;
           box-shadow:
-            0 0 8px var(--tx-color);
+            0 3px 8px #87929d15;
         }
 
-        .tx-ring-card h2 {
+        .tx-ring-card > strong {
+          font-size: 10px;
+          color: #4b6172;
+        }
+
+        .tx-ring-card > span {
           font-size: 11px;
-          color: var(--tx-color);
-          margin: 10px 0 5px;
+          color: #61717f;
         }
 
-        .tx-ring-card p {
-          font-size: 12px;
-          font-weight: bold;
-          margin: 6px 0;
+        .tx-progress-dots {
+          display: flex;
+          justify-content: center;
+          gap: 3px;
+          margin: 8px 0;
         }
 
-        .tx-ring-card small {
-          font-size: 9px;
-          color: #d7dfdf;
+        .tx-progress-dots i {
+          width: 9px;
+          height: 9px;
+          flex-shrink: 0;
+          border-radius: 50%;
+          background: #e1e6eb;
+          border: 1px solid #c1cbd4;
+        }
+
+        .tx-progress-dots i.filled {
+          background: var(--tx-color);
+          border-color: var(--tx-color);
         }
 
         .tx-card {
-          border: 1px solid #ffffff25;
+          border: 1px solid #c8d1da;
           border-radius: 14px;
-          background: #0003;
+          background: #ffffffa6;
           padding: 14px;
           margin-top: 14px;
+          box-shadow:
+            0 8px 22px #68788718;
+        }
+
+        .tx-operating-panel {
+          text-align: center;
+          border-radius: 24px;
+          margin-top: 16px;
+          padding: 18px 12px;
+          position: relative;
+        }
+
+        .tx-bet-label {
+          display: block;
+          font-size: 10px;
+          font-weight: 800;
+          color: #667481;
+          letter-spacing: 1px;
+        }
+
+        .tx-stake-row {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          margin: 9px 0 12px;
         }
 
         .tx-input {
-          width: 130px;
-          padding: 12px;
-          background: #0b2230;
-          color: #fff;
-          border: 1px solid #ffffff40;
+          width: 116px;
+          background: #ffffffb0;
+          color: #304859;
+          border: 1px solid #c6d0da;
+          text-align: center;
+          padding: 10px;
+          font-weight: bold;
           border-radius: 8px;
         }
 
-        .tx-spin {
-          width: 100%;
-          padding: 16px;
-          border: 0;
-          border-radius: 11px;
-          background: #e8ca79;
-          color: #19333e;
-          font-weight: 900;
-          margin-top: 12px;
+        .tx-adjust {
+          border: 1px solid #bcc8d1;
+          border-radius: 50%;
+          width: 36px;
+          height: 36px;
+          background: linear-gradient(
+            #fff,
+            #dce3e9
+          );
+          color: #516677;
+          font-size: 24px !important;
+          box-shadow:
+            0 3px 5px #8795a136;
         }
 
-        .tx-actions {
+        .tx-console {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns:
+            1fr 105px 1fr;
+          align-items: center;
           gap: 10px;
-          margin-top: 12px;
+          max-width: 410px;
+          margin: auto;
+        }
+
+        .tx-spin {
+          width: 105px;
+          height: 105px;
+          border: 5px solid #fff;
+          border-radius: 50%;
+          margin: 0;
+          background: radial-gradient(
+            circle at 35% 25%,
+            #ff9297,
+            #f3344c 45%,
+            #ce1436
+          );
+          color: white;
+          box-shadow:
+            0 0 0 2px #f15b70,
+            0 7px 15px #a6485b40;
+          padding: 8px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          font-weight: 900;
+        }
+
+        .tx-spin span {
+          font-size: 39px;
+          line-height: 1;
+        }
+
+        .tx-spin b {
+          font-size: 12px;
+          margin-top: 3px;
         }
 
         .tx-cashout,
         .tx-partial {
-          border: 0;
-          border-radius: 10px;
-          padding: 14px;
+          background: linear-gradient(
+            #fff,
+            #dce3e9
+          );
+          border: 1px solid #c3ced8;
+          color: #526575;
+          padding: 12px 5px;
+          min-height: 68px;
+          border-radius: 35px;
+          font-size: 10px !important;
           font-weight: bold;
-          background: #55bd99;
-          color: #102a29;
-          min-height: 60px;
+          box-shadow:
+            0 3px 6px #7c8d9e25;
         }
 
-        .tx-partial {
-          background: #70b6d1;
+        .tx-cashout strong,
+        .tx-partial strong {
+          display: block;
+          margin-top: 5px;
+          font-size: 15px;
+        }
+
+        .tx-console-values {
+          display: flex;
+          justify-content: space-around;
+          margin: 17px auto 12px;
+          max-width: 350px;
+          font-size: 11px;
+          color: #7a8792;
+        }
+
+        .tx-console-values b {
+          display: block;
+          font-size: 16px;
+          color: #435b6c;
+          margin-top: 4px;
+        }
+
+        .tx-chip-row {
+          justify-content: center;
+          gap: 6px;
         }
 
         .tx-result {
           text-align: center;
-          border: 1px solid #e5c980;
+          border: 1px solid #b9c8d4;
           border-radius: 12px;
+          background: #fff9;
           padding: 14px;
           margin-top: 14px;
           line-height: 1.8;
@@ -1082,7 +1331,7 @@ function TwistGame({
 
         .tx-result strong {
           font-size: 24px;
-          color: #f9df94;
+          color: #435c70;
         }
 
         .tx-table {
@@ -1096,11 +1345,11 @@ function TwistGame({
           text-align: left;
           padding: 10px 5px;
           border-bottom:
-            1px solid #ffffff20;
+            1px solid #cad4dd;
         }
 
         .tx-table th {
-          color: #e9d397;
+          color: #415c72;
         }
 
         .tx-overflow {
@@ -1108,11 +1357,11 @@ function TwistGame({
         }
 
         .tx-page :focus-visible {
-          outline: 3px solid #ffe3a0;
+          outline: 3px solid #3b94dd;
           outline-offset: 3px;
         }
 
-        @media (max-width: 400px) {
+        @media(max-width: 400px) {
           .tx-wrap {
             padding: 8px;
           }
@@ -1120,39 +1369,32 @@ function TwistGame({
           .tx-rings {
             gap: 5px;
           }
+        }
 
-          .tx-ring {
-            --tx-ring-offset: -37px;
-            width: 98px;
-            height: 98px;
+        @media(max-width: 360px) {
+          .tx-console {
+            grid-template-columns:
+              1fr 92px 1fr;
+            gap: 7px;
           }
 
-          .tx-section {
-            width: 21px;
-            height: 21px;
-            font-size: 10px;
+          .tx-spin {
+            width: 92px;
+            height: 92px;
           }
 
-          .tx-ring-center {
-            inset: 25px;
+          .tx-neutral {
+            gap: 9px;
+            font-size: 9px;
           }
 
-          .tx-ring-center span {
-            font-size: 17px;
-          }
-
-          .tx-ring-card {
-            overflow: hidden;
-            padding: 9px 2px;
-          }
-
-          .tx-ring-card h2 {
-            font-size: 10px;
+          .tx-header h1 {
+            font-size: 19px;
           }
         }
 
-        @media (prefers-reduced-motion: reduce) {
-          .tx-wheel {
+        @media(prefers-reduced-motion: reduce) {
+          .tx-discs {
             transition: none;
           }
         }
@@ -1170,14 +1412,15 @@ function TwistGame({
 
         <div>
           <h1>TWIST X</h1>
-
           <small>
             ORIGINAL DEMO · DEMO COINS ONLY
           </small>
         </div>
 
         <div className="tx-wallet">
-          {data ? COINS(data.balance) : "…"}
+          {data
+            ? COINS(data.balance)
+            : "…"}
 
           <small>
             {user?.name ||
@@ -1192,24 +1435,26 @@ function TwistGame({
           className="tx-tabs"
           aria-label="Game sections"
         >
-          {["game", "rules", "history"].map(value => (
-            <button
-              key={value}
-              type="button"
-              className="tx-btn"
-              aria-pressed={tab === value}
-              disabled={busy}
-              onClick={() => {
-                setTab(value);
+          {["game", "rules", "history"].map(
+            value => (
+              <button
+                key={value}
+                type="button"
+                className="tx-btn"
+                aria-pressed={tab === value}
+                disabled={busy}
+                onClick={() => {
+                  setTab(value);
 
-                if (value === "history") {
-                  void loadHistory();
-                }
-              }}
-            >
-              {value.toUpperCase()}
-            </button>
-          ))}
+                  if (value === "history") {
+                    void loadHistory();
+                  }
+                }}
+              >
+                {value.toUpperCase()}
+              </button>
+            ),
+          )}
 
           <button
             type="button"
@@ -1225,7 +1470,9 @@ function TwistGame({
               setSound(value => !value);
             }}
           >
-            {sound ? "SOUND ON" : "SOUND OFF"}
+            {sound
+              ? "SOUND ON"
+              : "SOUND OFF"}
           </button>
         </nav>
 
@@ -1242,7 +1489,6 @@ function TwistGame({
               disabled={busy}
               onClick={() => {
                 setError("");
-
                 void loadRules();
                 void loadRef.current();
               }}
@@ -1266,9 +1512,8 @@ function TwistGame({
             className="tx-alert"
             role="status"
           >
-            An interrupted {pending.action}
-            {" "}needs recovery. Retry uses
-            the same request.
+            An interrupted {pending.action} needs
+            recovery. Retry uses the same request.
 
             <button
               type="button"
@@ -1289,8 +1534,14 @@ function TwistGame({
           <>
             {sectors.length > 0 ? (
               <ElementWheel
-                sectors={sectors}
                 rotation={rotation}
+                rings={rings}
+                banks={rules?.bankMultipliers}
+                result={result}
+                busy={busy}
+                bonuses={
+                  rules?.fireBonusMultipliers
+                }
               />
             ) : (
               <p className="tx-hint">
@@ -1299,44 +1550,54 @@ function TwistGame({
             )}
 
             <div className="tx-rings">
-              {["water", "earth", "fire"].map(name => (
+              {[
+                "water",
+                "earth",
+                "fire",
+              ].map(name => (
                 <BankRing
                   key={name}
                   name={name}
                   step={rings[name]}
                   values={
-                    rules?.bankMultipliers?.[name]
+                    rules?.bankMultipliers?.[
+                      name
+                    ]
                   }
                 />
               ))}
             </div>
 
             <section
-              className="tx-card"
+              className="tx-card tx-operating-panel"
               aria-label="Game controls"
             >
-              <p className="tx-hint">
-                Every SPIN costs the selected
-                stake. Circle banks remain until
-                you collect them or a Skull
-                reduces them.
-              </p>
-
               <label
                 htmlFor="tx-stake"
-                className="tx-hint"
+                className="tx-bet-label"
               >
-                Demo stake per spin
+                BET AMOUNT · DEMO COINS
               </label>
 
-              <div className="tx-row">
+              <div className="tx-stake-row">
                 <button
                   type="button"
-                  className="tx-btn"
+                  className="tx-adjust"
+                  aria-label="Decrease stake"
                   disabled={locked || filled}
-                  onClick={() => setAmount("10")}
+                  onClick={() =>
+                    setAmount(
+                      String(
+                        Math.max(
+                          rules?.minStake || 10,
+                          (Number(amount) || 10) -
+                            10,
+                        ),
+                      ),
+                    )
+                  }
                 >
-                  MIN
+                  −
                 </button>
 
                 <input
@@ -1350,52 +1611,35 @@ function TwistGame({
                   value={amount}
                   disabled={locked || filled}
                   onChange={event =>
-                    setAmount(event.target.value)
+                    setAmount(
+                      event.target.value,
+                    )
                   }
                 />
 
                 <button
                   type="button"
-                  className="tx-btn"
+                  className="tx-adjust"
+                  aria-label="Increase stake"
                   disabled={locked || filled}
                   onClick={() =>
-                    setAmount("25000")
+                    setAmount(
+                      String(
+                        Math.min(
+                          rules?.maxStake ||
+                            25000,
+                          (Number(amount) || 0) +
+                            10,
+                        ),
+                      ),
+                    )
                   }
                 >
-                  MAX
+                  +
                 </button>
               </div>
 
-              <div className="tx-row">
-                {[10, 20, 50, 100, 500].map(value => (
-                  <button
-                    key={value}
-                    type="button"
-                    className="tx-btn"
-                    disabled={locked || filled}
-                    onClick={() =>
-                      setAmount(String(value))
-                    }
-                  >
-                    {COINS(value)}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                className="tx-spin"
-                disabled={
-                  locked || !rules || !data
-                }
-                onClick={() =>
-                  void perform("spin")
-                }
-              >
-                {busy ? "PROCESSING…" : "SPIN"}
-              </button>
-
-              <div className="tx-actions">
+              <div className="tx-console">
                 <button
                   type="button"
                   className="tx-cashout"
@@ -1410,12 +1654,45 @@ function TwistGame({
                 >
                   CASH OUT
                   <br />
+                  <strong>
+                    {COINS(
+                      activeGame
+                        ? session.cashoutValue
+                        : 0,
+                    )}
+                  </strong>
+                </button>
 
-                  {COINS(
-                    activeGame
-                      ? session.cashoutValue
-                      : 0,
-                  )}
+                <button
+                  type="button"
+                  className="tx-spin"
+                  disabled={
+                    locked || !rules || !data
+                  }
+                  onClick={() =>
+                    void perform("spin")
+                  }
+                  aria-label="SPIN"
+                >
+                  <span aria-hidden="true">
+                    <svg
+                      viewBox="0 0 100 100"
+                      width="44"
+                      height="44"
+                    >
+                      <path
+                        d="M49 49 C58 39 68 48 64 60 C59 77 31 76 24 56 C14 28 49 10 72 25 C99 44 84 87 52 89 C16 92 -2 58 8 31"
+                        fill="none"
+                        stroke="white"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </span>
+
+                  <b>
+                    {busy ? "WAIT…" : "SPIN"}
+                  </b>
                 </button>
 
                 <button
@@ -1432,30 +1709,78 @@ function TwistGame({
                 >
                   PART PAYOUT
                   <br />
-
-                  {COINS(
-                    activeGame
-                      ? session.partialValue
-                      : 0,
-                  )}
+                  <strong>
+                    {COINS(
+                      activeGame
+                        ? session.partialValue
+                        : 0,
+                    )}
+                  </strong>
                 </button>
               </div>
 
+              <div className="tx-console-values">
+                <span>
+                  Payout
+                  <b>
+                    {COINS(
+                      result?.payout || 0,
+                    )}
+                  </b>
+                </span>
+
+                <span>
+                  Current bank
+                  <b>
+                    {COINS(
+                      activeGame
+                        ? session.cashoutValue
+                        : 0,
+                    )}
+                  </b>
+                </span>
+              </div>
+
+              <div className="tx-row tx-chip-row">
+                {[
+                  10,
+                  20,
+                  50,
+                  100,
+                  500,
+                ].map(value => (
+                  <button
+                    key={value}
+                    type="button"
+                    className="tx-btn"
+                    disabled={locked || filled}
+                    onClick={() =>
+                      setAmount(String(value))
+                    }
+                  >
+                    {COINS(value)}
+                  </button>
+                ))}
+              </div>
+
               <p className="tx-hint">
-                Cash Out and Part Payout do
-                not charge another spin stake.
-                Stake changes are allowed only
-                when all circles are empty or
-                after Cash Out.
+                Each SPIN costs the selected
+                stake. Cash Out and Part Payout
+                do not charge another stake.
+                Change your stake only when all
+                circles are empty or after
+                Cash Out.
               </p>
 
               {session && (
                 <p className="tx-hint">
                   Session #{session.id}
-                  {" "}· Total spent{" "}
+                  {" · Total spent "}
                   {COINS(session.totalStaked)}
-                  {" "}· Total credited{" "}
-                  {COINS(session.totalReturned)}
+                  {" · Total credited "}
+                  {COINS(
+                    session.totalReturned,
+                  )}
                 </p>
               )}
             </section>
@@ -1469,19 +1794,18 @@ function TwistGame({
                   {result.bonusMultiplier
                     ? `FIRE BONUS ${result.bonusMultiplier}x`
                     : result.sector
-                      ? (
-                          `${
-                            ELEMENTS[
-                              result.sector
-                            ]?.icon || ""
-                          } ${
-                            ELEMENTS[
-                              result.sector
-                            ]?.name ||
+                      ? `${
+                          ELEMENTS[
                             result.sector
-                          }`
-                        )
-                      : result.action === "partial"
+                          ]?.icon || ""
+                        } ${
+                          ELEMENTS[
+                            result.sector
+                          ]?.name ||
+                          result.sector
+                        }`
+                      : result.action ===
+                          "partial"
                         ? "PART PAYOUT"
                         : "CASH OUT"}
                 </strong>
@@ -1489,9 +1813,9 @@ function TwistGame({
                 <div>
                   Action stake{" "}
                   {COINS(result.stake)}
-                  {" "}· Credited{" "}
-                  {COINS(result.payout)}
-                  {" "}demo coins
+                  {" · Credited "}
+                  {COINS(result.payout)} demo
+                  coins
                 </div>
 
                 <div>
@@ -1512,47 +1836,48 @@ function TwistGame({
             <p className="tx-hint">
               This uses an original demo
               paytable and random sector
-              weights. Each spin deducts
-              the chosen stake. Water, Earth
-              and Fire add one section to
-              their circle. Wind spends the
-              spin stake without changing
-              sections. Skull removes one
-              section from every nonempty
-              circle.
+              weights. Each spin deducts the
+              chosen stake. Water, Earth and
+              Fire add one section to their
+              circle. Wind spends the spin
+              stake without changing sections.
+              Skull removes one section from
+              every nonempty circle.
             </p>
 
             <p className="tx-hint">
-              Full Water automatically
-              credits 7x and goes back to
-              section 6. Full Earth credits
-              20.5x and goes back to section
-              6. Full Fire awards a random
-              bonus from the list below and
-              resets only Fire to zero.
+              Full Water automatically credits
+              7x and goes back to section 6.
+              Full Earth credits 20.5x and goes
+              back to section 6. Full Fire
+              awards a random bonus from the
+              list below and resets only Fire
+              to zero.
             </p>
 
             <p className="tx-hint">
               Cash Out credits all current
-              circle banks and clears the
-              game. Part Payout moves every
-              circle with at least two
-              sections back one section,
-              paying the bank difference.
-              Neither collection action
-              charges another stake.
-              Payouts round down to whole
-              demo coins. There is no time
-              limit or automatic spinning.
+              circle banks and clears the game.
+              Part Payout moves every circle
+              with at least two sections back
+              one section, paying the bank
+              difference. Neither collection
+              action charges another stake.
+              Payouts round down to whole demo
+              coins. Spinning is manual.
+              After 40 minutes without a spin
+              or collection action, the server
+              automatically credits the current
+              bank and clears the game.
             </p>
 
             <p className="tx-hint">
-              Minimum 10 · Maximum 25,000
-              per spin. The stake stays
-              fixed while any circle is
-              filled. Bank and bonus amounts
-              are credited amounts; the spin
-              stake is not refunded separately.
+              Minimum 10 · Maximum 25,000 per
+              spin. The stake stays fixed while
+              any circle is filled. Bank and
+              bonus amounts are credited
+              amounts; the spin stake is not
+              refunded separately.
             </p>
 
             {rules && (
@@ -1577,24 +1902,31 @@ function TwistGame({
 
                             <td>
                               {
-                                rules.bankMultipliers
+                                rules
+                                  .bankMultipliers
                                   .water[step]
-                              }x
+                              }
+                              x
                             </td>
 
                             <td>
                               {
-                                rules.bankMultipliers
+                                rules
+                                  .bankMultipliers
                                   .earth[step]
-                              }x
+                              }
+                              x
                             </td>
 
                             <td>
                               {step === 7
                                 ? "BONUS"
                                 : `${
-                                    rules.bankMultipliers
-                                      .fire[step]
+                                    rules
+                                      .bankMultipliers
+                                      .fire[
+                                      step
+                                    ]
                                   }x`}
                             </td>
                           </tr>
@@ -1610,8 +1942,9 @@ function TwistGame({
                   {rules.fireBonusMultipliers
                     .map(value => `${value}x`)
                     .join(" · ")}
-                  {" "}· Each bonus has
-                  equal probability.
+                  {" · "}
+                  Each bonus has equal
+                  probability.
                 </p>
 
                 <h3>Sector probabilities</h3>
@@ -1628,7 +1961,11 @@ function TwistGame({
                     {rules.sectors.map(item => (
                       <tr key={item.id}>
                         <td>
-                          {ELEMENTS[item.id]?.name}
+                          {
+                            ELEMENTS[
+                              item.id
+                            ]?.name
+                          }
                         </td>
 
                         <td>
@@ -1674,7 +2011,6 @@ function TwistGame({
                       <tr key={item.id}>
                         <td>
                           {item.action.toUpperCase()}
-
                           <br />
 
                           {new Date(
@@ -1689,17 +2025,11 @@ function TwistGame({
                         </td>
 
                         <td>
-                          {item.result.bonusMultiplier
-                            ? (
-                                `FIRE ${
-                                  item.result
-                                    .bonusMultiplier
-                                }x`
-                              )
-                            : item.result.sector
-                                ?.toUpperCase() ||
-                              item.action
-                                .toUpperCase()}
+                          {item.result
+                            .bonusMultiplier
+                            ? `FIRE ${item.result.bonusMultiplier}x`
+                            : item.result.sector?.toUpperCase() ||
+                              item.action.toUpperCase()}
                         </td>
 
                         <td>
