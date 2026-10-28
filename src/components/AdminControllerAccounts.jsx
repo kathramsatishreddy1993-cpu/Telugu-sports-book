@@ -10,9 +10,15 @@ const GAME_CONFIG = {
     name: "AVIATOR",
     path: "/game-control",
   },
+
   ROULETTE: {
     name: "ROULETTE",
     path: "/game-control/roulette",
+  },
+
+  DREAM_WHEEL: {
+    name: "DREAM WHEEL",
+    path: "/game-control/dream-wheel",
   },
 };
 
@@ -21,32 +27,41 @@ async function api(
   method = "GET",
   body,
 ) {
-  const response = await fetch(path, {
-    method,
-    credentials: "same-origin",
-    cache: "no-store",
-    headers: {
-      Accept: "application/json",
-      ...(body !== undefined
-        ? {
-            "Content-Type":
-              "application/json",
-          }
-        : {}),
+  const response = await fetch(
+    path,
+    {
+      method,
+      credentials: "same-origin",
+      cache: "no-store",
+
+      headers: {
+        Accept: "application/json",
+
+        ...(
+          body !== undefined
+            ? {
+                "Content-Type":
+                  "application/json",
+              }
+            : {}
+        ),
+      },
+
+      ...(
+        body !== undefined
+          ? {
+              body:
+                JSON.stringify(body),
+            }
+          : {}
+      ),
     },
-    ...(body !== undefined
-      ? {
-          body:
-            JSON.stringify(body),
-        }
-      : {}),
-  });
+  );
 
   let data;
 
   try {
-    data =
-      await response.json();
+    data = await response.json();
   } catch {
     throw new Error(
       "Server response was not JSON. Check deployment.",
@@ -60,8 +75,7 @@ async function api(
           "Unable to complete request.",
       ),
       {
-        status:
-          response.status,
+        status: response.status,
       },
     );
   }
@@ -105,8 +119,10 @@ export default function AdminControllerAccounts({
     setRemoveAccount,
   ] = useState(null);
 
-  const [removeId, setRemoveId] =
-    useState("");
+  const [
+    removeId,
+    setRemoveId,
+  ] = useState("");
 
   const [error, setError] =
     useState("");
@@ -130,21 +146,31 @@ export default function AdminControllerAccounts({
     setCopyMessage,
   ] = useState("");
 
-  const alive = useRef(false);
-  const pending = useRef(false);
-  const loadVersion = useRef(0);
-  const linkRef = useRef(null);
+  const alive =
+    useRef(false);
 
-  const loginUrl = config
-    ? new URL(
-        config.path,
-        window.location.origin,
-      ).href
-    : "";
+  const pending =
+    useRef(false);
 
-  const load =
-    useCallback(async () => {
-      if (!GAME_CONFIG[game]) {
+  const loadVersion =
+    useRef(0);
+
+  const linkRef =
+    useRef(null);
+
+  const loginUrl =
+    config
+      ? new URL(
+          config.path,
+          window.location.origin,
+        ).href
+      : "";
+
+  const load = useCallback(
+    async () => {
+      if (
+        !GAME_CONFIG[game]
+      ) {
         return;
       }
 
@@ -157,7 +183,9 @@ export default function AdminControllerAccounts({
 
       try {
         const data = await api(
-          `/api/admin/game-controllers?game=${encodeURIComponent(game)}`,
+          `/api/admin/game-controllers?game=${
+            encodeURIComponent(game)
+          }`,
         );
 
         if (
@@ -178,8 +206,7 @@ export default function AdminControllerAccounts({
           setAccounts(
             data.accounts.filter(
               account =>
-                account.game ===
-                game,
+                account.game === game,
             ),
           );
 
@@ -197,8 +224,7 @@ export default function AdminControllerAccounts({
           );
 
           setLoginRequired(
-            failure.status ===
-              401,
+            failure.status === 401,
           );
         }
       } finally {
@@ -210,7 +236,9 @@ export default function AdminControllerAccounts({
           setLoading(false);
         }
       }
-    }, [game]);
+    },
+    [game],
+  );
 
   useEffect(() => {
     alive.current = true;
@@ -289,8 +317,7 @@ export default function AdminControllerAccounts({
       kind === "create" &&
       (
         !name.trim() ||
-        name.trim().length >
-          100 ||
+        name.trim().length > 100 ||
         !/^[a-z0-9._-]{4,30}$/.test(
           loginId
             .trim()
@@ -358,6 +385,7 @@ export default function AdminControllerAccounts({
 
     pending.current = true;
 
+    // Ignore older refresh responses.
     loadVersion.current++;
 
     setBusy(true);
@@ -373,12 +401,15 @@ export default function AdminControllerAccounts({
           "POST",
           {
             game,
+
             name:
               name.trim(),
+
             loginId:
               loginId
                 .trim()
                 .toLowerCase(),
+
             temporaryPassword:
               password,
           },
@@ -450,8 +481,7 @@ export default function AdminControllerAccounts({
           `${account.loginId} removed. Login and sessions are disabled. Previous history is retained. This Login ID cannot be reused.`;
       } else {
         const status =
-          account.status ===
-          "ACTIVE"
+          account.status === "ACTIVE"
             ? "BLOCKED"
             : "ACTIVE";
 
@@ -510,8 +540,9 @@ export default function AdminControllerAccounts({
         </button>
 
         <p className="mt-5 text-red-200">
-          Controller ID management is available
-          for Aviator and Roulette only.
+          Controller ID management is
+          available for Aviator,
+          Roulette and Dream Wheel only.
         </p>
       </main>
     );
@@ -782,17 +813,16 @@ export default function AdminControllerAccounts({
             </h2>
 
             <p className="text-xs leading-6">
-              This ID will be removed from the
-              list. Login and all sessions will
-              stop. Previous history will
-              remain. A removed Login ID
-              cannot be reused.
+              This ID will be removed from
+              the list. Login and all sessions
+              will stop. Previous history will
+              remain. A removed Login ID cannot
+              be reused.
             </p>
 
             <label className="block text-xs">
-              Type{" "}
-              {removeAccount.loginId}{" "}
-              to confirm
+              Type {removeAccount.loginId}
+              {" "}to confirm
 
               <input
                 required
@@ -861,7 +891,8 @@ export default function AdminControllerAccounts({
           !accounts.length &&
           !error && (
             <p className="text-xs text-slate-400">
-              No Controller accounts created yet.
+              No Controller accounts
+              created yet.
             </p>
           )}
 
@@ -882,11 +913,13 @@ export default function AdminControllerAccounts({
               </div>
 
               <span
-                className={`rounded px-2 py-1 text-[10px] font-black ${
-                  account.status === "ACTIVE"
-                    ? "bg-green-500/10 text-green-300"
-                    : "bg-red-500/10 text-red-300"
-                }`}
+                className={
+                  `rounded px-2 py-1 text-[10px] font-black ${
+                    account.status === "ACTIVE"
+                      ? "bg-green-500/10 text-green-300"
+                      : "bg-red-500/10 text-red-300"
+                  }`
+                }
               >
                 {account.status}
               </span>
