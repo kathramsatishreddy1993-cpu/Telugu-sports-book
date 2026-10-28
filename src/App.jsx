@@ -23,6 +23,7 @@ import AnimatedSuperOverPage from "./components/AnimatedSuperOverPage";
 import DealOrNoDealPage from "./components/DealOrNoDealPage";
 import DealOrNoDealControlPage from "./components/DealOrNoDealControlPage";
 import InstantGamesPage from "./components/InstantGamesPage";
+import DiceGamesPage from "./components/DiceGamesPage";
 
 const AUTH_KEY =
   "telugu_sports_auth_user";
@@ -96,6 +97,24 @@ const EXISTING_GAMES = {
       "Pick up to 10 numbers. Twenty numbers are drawn randomly. Demo coins only.",
   },
 
+  "/games/lankesh": {
+    title: "LANKESH",
+    Page: DiceGamesPage,
+    game: "lankesh",
+
+    description:
+      "Shared random demo rounds. Choose F1-F10. Demo coins only.",
+  },
+
+  "/games/jhandi-munda": {
+    title: "JHANDI MUNDA",
+    Page: DiceGamesPage,
+    game: "jhandi-munda",
+
+    description:
+      "Six dice, six symbols and shared random demo rounds. Demo coins only.",
+  },
+
   "/games/animated-super-over": {
     title: "ANIMATED SUPER OVER",
     Page: AnimatedSuperOverPage,
@@ -106,16 +125,6 @@ const NEW_GAMES = {
   "/games/twist-x": {
     title: "TWIST X",
     game: "twist-x",
-  },
-
-  "/games/lankesh": {
-    title: "LANKESH",
-    game: "lankesh",
-  },
-
-  "/games/jhandi-munda": {
-    title: "JHANDI MUNDA",
-    game: "jhandi-munda",
   },
 
   "/games/extra-sic-bo": {
@@ -216,9 +225,7 @@ export default function App() {
 
   const [user, setUser] =
     useState(() =>
-      restoredSession(
-        AUTH_KEY,
-      ),
+      restoredSession(AUTH_KEY),
     );
 
   const [admin, setAdmin] =
@@ -361,6 +368,7 @@ export default function App() {
       try {
         localStorage.setItem(
           AUTH_KEY,
+
           JSON.stringify(
             customer,
           ),
@@ -377,8 +385,7 @@ export default function App() {
     bonusType = null,
   ) => {
     setSelectedBonus(
-      typeof bonusType ===
-        "string"
+      typeof bonusType === "string"
         ? bonusType
         : null,
     );
@@ -400,9 +407,7 @@ export default function App() {
     mode = "login",
     item = null,
   ) => {
-    setSelectedPublicItem(
-      item,
-    );
+    setSelectedPublicItem(item);
 
     setAuthMode(
       mode === "signup"
@@ -416,8 +421,7 @@ export default function App() {
       const normalizedUser = {
         ...loggedInUser,
 
-        isAuthenticated:
-          true,
+        isAuthenticated: true,
 
         loginId:
           loggedInUser?.loginId ||
@@ -472,11 +476,9 @@ export default function App() {
         ...user,
         ...updatedUser,
 
-        isAuthenticated:
-          true,
+        isAuthenticated: true,
 
-        mustChangePassword:
-          false,
+        mustChangePassword: false,
 
         mustChangeWithdrawalPassword:
           false,
@@ -554,10 +556,10 @@ export default function App() {
       setAdmin(null);
     };
 
-  if (isNewAdminMode) {
-    return (
-      <NewAdminPortal />
-    );
+  if (
+    isNewAdminMode
+  ) {
+    return <NewAdminPortal />;
   }
 
   if (
@@ -572,19 +574,19 @@ export default function App() {
     isRouletteControl
   ) {
     return (
-      <RoulettePage
-        controller
-      />
+      <RoulettePage controller />
     );
   }
 
-  if (isGameControl) {
-    return (
-      <GameControlPage />
-    );
+  if (
+    isGameControl
+  ) {
+    return <GameControlPage />;
   }
 
-  if (isAdminMode) {
+  if (
+    isAdminMode
+  ) {
     if (
       adminChecking
     ) {
@@ -604,9 +606,7 @@ export default function App() {
       />
     ) : (
       <AdminLoginPage
-        onLogin={
-          setAdmin
-        }
+        onLogin={setAdmin}
         onBack={() =>
           window.location.assign(
             "/",
@@ -704,9 +704,7 @@ export default function App() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#080d16] p-5 text-center text-white">
         <h1 className="text-3xl font-black text-cyan-300">
-          {
-            selectedGame.title
-          }
+          {selectedGame.title}
         </h1>
 
         <p className="mt-4 max-w-md text-sm leading-6 text-slate-300">
@@ -748,17 +746,13 @@ export default function App() {
 
         <AuthModal
           isOpen={
-            Boolean(
-              authMode,
-            )
+            Boolean(authMode)
           }
           initialMode={
             authMode || "login"
           }
           onClose={() =>
-            setAuthMode(
-              null,
-            )
+            setAuthMode(null)
           }
           onLoginSuccess={
             handleLoginSuccess
@@ -827,9 +821,7 @@ export default function App() {
 
       <AuthModal
         isOpen={
-          Boolean(
-            authMode,
-          )
+          Boolean(authMode)
         }
         initialMode={
           authMode || "login"
