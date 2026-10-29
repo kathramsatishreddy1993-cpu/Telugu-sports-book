@@ -1,211 +1,119 @@
-import React, {
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 const AUTH_KEY = 'telugu_sports_auth_user';
-
 const MIN_WITHDRAWAL = 100;
 const HISTORY_LIMIT = 20;
 
-export default function WithdrawalPage({
-  user,
-  onBack,
-}) {
-  /* =====================================================
-     CURRENT CUSTOMER
-  ===================================================== */
+const EMPTY_FORM = {
+  holderName: '',
+  bankName: '',
+  accountNumber: '',
+  confirmAccountNumber: '',
+  ifsc: '',
+  password: '',
+};
 
+function formatAmount(value) {
+  const number = Number(value);
+
+  return `₹${(Number.isFinite(number) ? number : 0).toLocaleString(
+    'en-IN',
+    { maximumFractionDigits: 2 }
+  )}`;
+}
+
+function maskAccount(value) {
+  return value ? `XXXX XXXX ${String(value).slice(-4)}` : '—';
+}
+
+function formatDate(value) {
+  if (!value) return '—';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+
+  return `${date.toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  })} IST`;
+}
+
+export default function WithdrawalPage({ user, onBack }) {
   const customer = useMemo(() => {
     let source = user;
 
     if (!source) {
       try {
         const saved = localStorage.getItem(AUTH_KEY);
-
-        if (saved) {
-          source = JSON.parse(saved);
-        }
+        if (saved) source = JSON.parse(saved);
       } catch (error) {
-        console.error(
-          'Unable to read customer:',
-          error
-        );
+        console.error('Unable to read customer:', error);
       }
     }
 
     return {
-      customerId: Number(
-        source?.id ||
-          source?.customerId ||
-          0
-      ),
-
+      customerId: Number(source?.id || source?.customerId || 0),
       customerName:
         source?.name ||
         source?.username ||
         source?.loginId ||
         source?.identifier ||
         'Customer',
-
-      loginId:
-        source?.loginId ||
-        source?.identifier ||
-        '',
     };
   }, [user]);
 
-  /* =====================================================
-     CUSTOMER-SPECIFIC BANK STORAGE
-  ===================================================== */
-
-  const storageCustomerId = useMemo(() => {
-    if (!customer.customerId) {
-      return '';
-    }
-
-    return String(customer.customerId)
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9_-]/g, '_');
-  }, [customer.customerId]);
-
-  const accountKey = storageCustomerId
-    ? `tsb_withdrawal_account_${storageCustomerId}`
+  const accountKey = customer.customerId
+    ? `tsb_withdrawal_account_${String(customer.customerId)
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, '_')}`
     : '';
 
-  /* =====================================================
-     STATE
-  ===================================================== */
-
-  const [
-    showAddAccount,
-    setShowAddAccount,
-  ] = useState(false);
-
-  const [
-    account,
-    setAccount,
-  ] = useState(null);
-
-  const [
-    transactions,
-    setTransactions,
-  ] = useState([]);
-
-  const [
-    historyLoading,
-    setHistoryLoading,
-  ] = useState(false);
-
-  const [
-    historyError,
-    setHistoryError,
-  ] = useState('');
-
-  const [
-    submitting,
-    setSubmitting,
-  ] = useState(false);
-
-  /* =====================================================
-     AVAILABLE BALANCE
-  ===================================================== */
-
-  const [
-    balance,
-    setBalance,
-  ] = useState(0);
-
-  const [
-    balanceLoading,
-    setBalanceLoading,
-  ] = useState(true);
-
-  const [
-    balanceError,
-    setBalanceError,
-  ] = useState('');
-
-  /* =====================================================
-     FORM
-  ===================================================== */
-
-  const [
-    form,
-    setForm,
-  ] = useState({
-    holderName: '',
-    bankName: '',
-    accountNumber: '',
-    confirmAccountNumber: '',
-    ifsc: '',
-    password: '',
-  });
-
-  const [
-    amount,
-    setAmount,
-  ] = useState('');
-
-  /* =====================================================
-     LOAD CUSTOMER BANK ACCOUNT
-  ===================================================== */
+  const [showAddAccount, setShowAddAccount] = useState(false);
+  const [account, setAccount] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [balance, setBalance] = useState(0);
+  const [balanceLoading, setBalanceLoading] = useState(true);
+  const [balanceError, setBalanceError] = useState('');
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [amount, setAmount] = useState('');
 
   useEffect(() => {
     setAccount(null);
     setShowAddAccount(false);
     setAmount('');
+    setForm({ ...EMPTY_FORM });
 
-    if (!accountKey) {
-      return;
-    }
+    if (!accountKey) return;
 
     try {
-      const savedAccount =
-        localStorage.getItem(accountKey);
+      const saved = localStorage.getItem(accountKey);
+      if (!saved) return;
 
-      if (!savedAccount) {
-        return;
-      }
-
-      const parsedAccount =
-        JSON.parse(savedAccount);
-
-      if (
-        parsedAccount &&
-        typeof parsedAccount === 'object'
-      ) {
-        setAccount(parsedAccount);
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') {
+        setAccount(parsed);
       }
     } catch (error) {
-      console.error(
-        'Unable to load customer bank account:',
-        error
-      );
-
-      setAccount(null);
+      console.error('Unable to load bank account:', error);
     }
   }, [accountKey]);
 
-  /* =====================================================
-     LOAD AVAILABLE BALANCE
-  ===================================================== */
-
   const loadBalance = async () => {
-    const customerId =
-      customer.customerId;
+    const customerId = customer.customerId;
 
     if (!customerId) {
       setBalance(0);
-
-      setBalanceError(
-        'Customer ID not available.'
-      );
-
+      setBalanceError('Customer ID not available.');
       setBalanceLoading(false);
-
       return;
     }
 
@@ -214,14 +122,10 @@ export default function WithdrawalPage({
 
     try {
       const response = await fetch(
-        `/api/customers/${encodeURIComponent(
-          customerId
-        )}/demo-balance`,
+        `/api/customers/${encodeURIComponent(customerId)}/demo-balance`,
         {
           method: 'GET',
-          headers: {
-            Accept: 'application/json',
-          },
+          headers: { Accept: 'application/json' },
           cache: 'no-store',
         }
       );
@@ -230,8 +134,7 @@ export default function WithdrawalPage({
 
       if (!response.ok) {
         throw new Error(
-          data?.error ||
-            'Unable to load available balance.'
+          data?.error || 'Unable to load available balance.'
         );
       }
 
@@ -242,229 +145,136 @@ export default function WithdrawalPage({
           0
       );
 
-      setBalance(
-        Number.isFinite(nextBalance)
-          ? nextBalance
-          : 0
-      );
+      setBalance(Number.isFinite(nextBalance) ? nextBalance : 0);
     } catch (error) {
-      console.error(
-        'Available Balance Load Error:',
-        error
-      );
-
+      console.error('Balance Load Error:', error);
       setBalance(0);
-
       setBalanceError(
-        error?.message ||
-          'Unable to load available balance.'
+        error?.message || 'Unable to load available balance.'
       );
     } finally {
       setBalanceLoading(false);
     }
   };
 
-  /* =====================================================
-     LOAD WITHDRAWAL HISTORY FROM SERVER
-  ===================================================== */
+  const loadWithdrawalHistory = async () => {
+    const customerId = customer.customerId;
 
-  const loadWithdrawalHistory =
-    async () => {
-      const customerId =
-        customer.customerId;
-
-      if (!customerId) {
-        setTransactions([]);
-
-        setHistoryError(
-          'Customer ID not available.'
-        );
-
-        return;
-      }
-
-      setHistoryLoading(true);
-      setHistoryError('');
-
-      try {
-        const response = await fetch(
-          `/api/customers/${encodeURIComponent(
-            customerId
-          )}/demo-withdrawals`,
-          {
-            method: 'GET',
-            headers: {
-              Accept: 'application/json',
-            },
-            cache: 'no-store',
-          }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            data?.error ||
-              'Unable to load withdrawal history.'
-          );
-        }
-
-        const requests = Array.isArray(
-          data?.requests
-        )
-          ? data.requests
-          : [];
-
-        setTransactions(requests);
-      } catch (error) {
-        console.error(
-          'Withdrawal History Load Error:',
-          error
-        );
-
-        setTransactions([]);
-
-        setHistoryError(
-          error?.message ||
-            'Unable to load withdrawal history.'
-        );
-      } finally {
-        setHistoryLoading(false);
-      }
-    };
-
-  /* =====================================================
-     INITIAL SERVER LOAD
-  ===================================================== */
-
-  useEffect(() => {
-    if (!customer.customerId) {
+    if (!customerId) {
+      setTransactions([]);
+      setHistoryError('Customer ID not available.');
+      setHistoryLoading(false);
       return;
     }
 
+    setHistoryLoading(true);
+    setHistoryError('');
+
+    try {
+      const response = await fetch(
+        `/api/customers/${encodeURIComponent(customerId)}/demo-withdrawals`,
+        {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error || 'Unable to load withdrawal history.'
+        );
+      }
+
+      setTransactions(
+        Array.isArray(data?.requests) ? data.requests : []
+      );
+    } catch (error) {
+      console.error('Withdrawal History Load Error:', error);
+      setTransactions([]);
+      setHistoryError(
+        error?.message || 'Unable to load withdrawal history.'
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadBalance();
     loadWithdrawalHistory();
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer.customerId]);
 
-  /* =====================================================
-     FORM UPDATE
-  ===================================================== */
-
-  const updateForm = (
-    field,
-    value
-  ) => {
-    setForm((previous) => ({
-      ...previous,
-      [field]: value,
-    }));
+  const updateForm = (field, value) => {
+    setForm((previous) => ({ ...previous, [field]: value }));
   };
 
-  /* =====================================================
-     SAVE / CHANGE BANK ACCOUNT
-  ===================================================== */
+  const toggleAccountForm = () => {
+    if (showAddAccount) {
+      setShowAddAccount(false);
+      setForm({ ...EMPTY_FORM });
+      return;
+    }
+
+    setForm({
+      ...EMPTY_FORM,
+      holderName: account?.holderName || '',
+      bankName: account?.bankName || '',
+      accountNumber: account?.accountNumber || '',
+      confirmAccountNumber: account?.accountNumber || '',
+      ifsc: account?.ifsc || '',
+    });
+
+    setShowAddAccount(true);
+  };
 
   const saveAccount = (event) => {
     event.preventDefault();
 
     if (!accountKey) {
-      alert(
-        'Customer ID not available'
-      );
-
+      alert('Customer ID not available');
       return;
     }
 
-    const holderName =
-      form.holderName.trim();
-
-    const bankName =
-      form.bankName.trim();
-
-    const accountNumber =
-      form.accountNumber.trim();
-
-    const confirmAccountNumber =
-      form.confirmAccountNumber.trim();
-
-    const ifsc =
-      form.ifsc
-        .trim()
-        .toUpperCase();
-
-    const password =
-      form.password;
+    const holderName = form.holderName.trim();
+    const bankName = form.bankName.trim();
+    const accountNumber = form.accountNumber.trim();
+    const confirmAccountNumber = form.confirmAccountNumber.trim();
+    const ifsc = form.ifsc.trim().toUpperCase();
 
     if (!holderName) {
-      alert(
-        'Enter account holder name'
-      );
-
+      alert('Enter account holder name');
       return;
     }
 
     if (!bankName) {
-      alert(
-        'Enter bank name'
-      );
-
+      alert('Enter bank name');
       return;
     }
 
-    if (
-      !/^[0-9]{9,18}$/.test(
-        accountNumber
-      )
-    ) {
-      alert(
-        'Enter a valid account number'
-      );
-
+    if (!/^[0-9]{9,18}$/.test(accountNumber)) {
+      alert('Enter a valid account number');
       return;
     }
 
-    if (
-      accountNumber !==
-      confirmAccountNumber
-    ) {
-      alert(
-        'Account numbers do not match'
-      );
-
+    if (accountNumber !== confirmAccountNumber) {
+      alert('Account numbers do not match');
       return;
     }
 
-    if (
-      !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(
-        ifsc
-      )
-    ) {
-      alert(
-        'Enter a valid IFSC code'
-      );
-
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
+      alert('Enter a valid IFSC code');
       return;
     }
 
-    /*
-      Withdrawal password remains required here.
-
-      Important:
-      It is NOT stored in localStorage.
-      Server-side verification can be connected
-      separately.
-    */
-
-    if (
-      !password ||
-      password.length < 6
-    ) {
-      alert(
-        'Enter your Withdrawal Password'
-      );
-
+    // Existing local validation only; this does not verify the
+    // withdrawal password against the server.
+    // The password is never saved to localStorage.
+    if (!form.password || form.password.length < 6) {
+      alert('Enter your Withdrawal Password');
       return;
     }
 
@@ -476,786 +286,800 @@ export default function WithdrawalPage({
     };
 
     try {
-      localStorage.setItem(
-        accountKey,
-        JSON.stringify(newAccount)
-      );
+      localStorage.setItem(accountKey, JSON.stringify(newAccount));
     } catch (error) {
-      console.error(
-        'Unable to save withdrawal account:',
-        error
-      );
-
-      alert(
-        'Unable to save account'
-      );
-
+      console.error('Unable to save account:', error);
+      alert('Unable to save account');
       return;
     }
 
     setAccount(newAccount);
-
     setShowAddAccount(false);
-
-    setForm({
-      holderName: '',
-      bankName: '',
-      accountNumber: '',
-      confirmAccountNumber: '',
-      ifsc: '',
-      password: '',
-    });
+    setForm({ ...EMPTY_FORM });
   };
 
-  /* =====================================================
-     SUBMIT WITHDRAWAL TO SERVER
-  ===================================================== */
+  const handleWithdraw = async (event) => {
+    event.preventDefault();
 
-  const handleWithdraw =
-    async (event) => {
-      event.preventDefault();
+    if (submitting) return;
 
-      if (submitting) {
-        return;
-      }
-
-      if (!account) {
-        alert(
-          'Please add a bank account first'
-        );
-
-        return;
-      }
-
-      const customerId =
-        customer.customerId;
-
-      if (
-        !Number.isInteger(
-          customerId
-        ) ||
-        customerId <= 0
-      ) {
-        alert(
-          'Customer ID not available'
-        );
-
-        return;
-      }
-
-      const value =
-        Number(amount);
-
-      if (
-        !Number.isInteger(value) ||
-        value < MIN_WITHDRAWAL
-      ) {
-        alert(
-          `Minimum withdrawal is ${MIN_WITHDRAWAL}`
-        );
-
-        return;
-      }
-
-      if (balanceLoading) {
-        alert(
-          'Please wait. Available balance is loading.'
-        );
-
-        return;
-      }
-
-      if (balanceError) {
-        alert(
-          'Available balance could not be verified.'
-        );
-
-        return;
-      }
-
-      if (value > balance) {
-        alert('LOW BALANCE');
-
-        return;
-      }
-
-      setSubmitting(true);
-
-      try {
-        /*
-          STEP 2A SERVER ROUTE
-
-          POST /api/demo-withdrawals
-        */
-
-        const response = await fetch(
-          '/api/demo-withdrawals',
-          {
-            method: 'POST',
-
-            headers: {
-              'Content-Type':
-                'application/json',
-
-              Accept:
-                'application/json',
-            },
-
-            body: JSON.stringify({
-              customerId,
-              amount: value,
-
-              accountHolderName:
-                account.holderName,
-
-              bankName:
-                account.bankName,
-
-              accountNumber:
-                account.accountNumber,
-
-              ifscCode:
-                account.ifsc,
-            }),
-          }
-        );
-
-        const data =
-          await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            data?.error ||
-              'Unable to submit withdrawal request.'
-          );
-        }
-
-        setAmount('');
-
-        /*
-          Reload directly from PostgreSQL.
-
-          This prevents another customer's
-          history from appearing here.
-        */
-
-        await loadWithdrawalHistory();
-
-        /*
-          Current balance is loaded again
-          from the server.
-
-          We do not create a fake
-          localStorage balance here.
-        */
-
-        await loadBalance();
-
-        alert(
-          'Withdrawal request submitted.'
-        );
-      } catch (error) {
-        console.error(
-          'Withdrawal Submit Error:',
-          error
-        );
-
-        alert(
-          error?.message ||
-            'Unable to submit withdrawal request.'
-        );
-      } finally {
-        setSubmitting(false);
-      }
-    };
-
-  /* =====================================================
-     DELETE SAVED BANK ACCOUNT
-  ===================================================== */
-
-  const deleteAccount = () => {
-    const confirmed =
-      window.confirm(
-        'Remove saved bank account?'
-      );
-
-    if (!confirmed) {
+    if (!account) {
+      alert('Please add a bank account first');
       return;
     }
 
+    const customerId = customer.customerId;
+
+    if (!Number.isInteger(customerId) || customerId <= 0) {
+      alert('Customer ID not available');
+      return;
+    }
+
+    const value = Number(amount);
+
+    if (!Number.isInteger(value) || value < MIN_WITHDRAWAL) {
+      alert(`Minimum withdrawal is ${formatAmount(MIN_WITHDRAWAL)}`);
+      return;
+    }
+
+    if (balanceLoading) {
+      alert('Please wait. Available balance is loading.');
+      return;
+    }
+
+    if (balanceError) {
+      alert('Available balance could not be verified.');
+      return;
+    }
+
+    if (value > balance) {
+      alert('LOW BALANCE');
+      return;
+    }
+
+    setSubmitting(true);
+
     try {
-      if (accountKey) {
-        localStorage.removeItem(
-          accountKey
+      const response = await fetch('/api/demo-withdrawals', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          customerId,
+          amount: value,
+          accountHolderName: account.holderName,
+          bankName: account.bankName,
+          accountNumber: account.accountNumber,
+          ifscCode: account.ifsc,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error || 'Unable to submit withdrawal request.'
         );
       }
+
+      setAmount('');
+      await loadWithdrawalHistory();
+      await loadBalance();
+
+      alert('Withdrawal request submitted.');
     } catch (error) {
-      console.error(
-        'Unable to remove account:',
-        error
+      console.error('Withdrawal Submit Error:', error);
+      alert(
+        error?.message || 'Unable to submit withdrawal request.'
       );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const deleteAccount = () => {
+    if (!window.confirm('Remove saved bank account?')) return;
+
+    try {
+      if (accountKey) localStorage.removeItem(accountKey);
+    } catch (error) {
+      console.error('Unable to remove account:', error);
+      alert('Unable to remove saved bank account.');
+      return;
     }
 
     setAccount(null);
-
     setShowAddAccount(false);
-
-    setForm({
-      holderName: '',
-      bankName: '',
-      accountNumber: '',
-      confirmAccountNumber: '',
-      ifsc: '',
-      password: '',
-    });
+    setForm({ ...EMPTY_FORM });
   };
 
-  /* =====================================================
-     HELPERS
-  ===================================================== */
-
-  const maskAccount = (
-    number
-  ) => {
-    if (!number) {
-      return '';
-    }
-
-    return `XXXX XXXX ${String(
-      number
-    ).slice(-4)}`;
-  };
-
-  const statusClass = (
-    status
-  ) => {
-    const normalized =
-      String(
-        status || ''
-      ).toUpperCase();
-
-    if (
-      normalized === 'APPROVED' ||
-      normalized === 'SUCCESS'
-    ) {
-      return 'border border-green-500 bg-green-50 text-green-700';
-    }
-
-    if (
-      normalized === 'REJECTED' ||
-      normalized === 'REJECT'
-    ) {
-      return 'border border-red-500 bg-red-50 text-red-700';
-    }
-
-    return 'border border-amber-500 bg-amber-50 text-amber-700';
-  };
-
-  const formatDate = (
-    value
-  ) => {
-    if (!value) {
-      return '—';
-    }
-
-    const date =
-      new Date(value);
-
-    if (
-      Number.isNaN(
-        date.getTime()
-      )
-    ) {
-      return '—';
-    }
-
-    return date.toLocaleString(
-      'en-IN'
-    );
-  };
-
-  /*
-    Server already filters using customer_id.
-
-    This additional frontend filter
-    is only an extra isolation check.
-  */
-
-  const history =
-    transactions
-      .filter(
-        (transaction) =>
-          Number(
-            transaction?.customerId
-          ) ===
-          Number(
-            customer.customerId
-          )
-      )
-      .slice(
-        0,
-        HISTORY_LIMIT
-      );
-
-  /* =====================================================
-     UI
-  ===================================================== */
+  const history = transactions
+    .filter(
+      (transaction) =>
+        Number(
+          transaction?.customerId ?? transaction?.customer_id
+        ) === customer.customerId
+    )
+    .slice(0, HISTORY_LIMIT);
 
   return (
-    <div className="min-h-screen bg-[#f3f2f7] text-gray-900">
+    <div className="tsb-withdrawal">
+      <style>{`
+        .tsb-withdrawal {
+          --green: #166534;
+          --wine: #722f37;
+          --white: #ffffff;
+          min-height: 100vh;
+          background: var(--white);
+          color: var(--green);
+          font-family: inherit;
+          padding-bottom: 30px;
+        }
 
-      {/* HEADER */}
+        .tsb-withdrawal,
+        .tsb-withdrawal * {
+          box-sizing: border-box;
+        }
 
-      <header className="bg-teal-800 px-4 py-4 text-white">
+        .tsb-withdrawal button,
+        .tsb-withdrawal input {
+          font: inherit;
+        }
 
-        <div className="mx-auto flex max-w-3xl items-center justify-between">
+        .tsb-withdrawal button {
+          cursor: pointer;
+          transition: opacity .15s ease;
+        }
 
-          <div>
+        .tsb-withdrawal button:hover {
+          opacity: .9;
+        }
 
-            <p className="text-[10px] font-bold tracking-wider text-teal-100">
-              TELUGU SPORTS BOOK
-            </p>
+        .tsb-withdrawal button:disabled {
+          cursor: not-allowed;
+          opacity: .5;
+        }
 
-            <h1 className="text-lg font-black">
-              WITHDRAWAL
-            </h1>
+        .tsb-withdrawal button:focus-visible,
+        .tsb-withdrawal input:focus-visible {
+          outline: 3px solid var(--wine);
+          outline-offset: 3px;
+        }
 
-          </div>
+        .tsb-withdrawal .wd-header {
+          background: var(--green);
+          color: var(--white);
+          border-bottom: 4px solid var(--wine);
+          padding: 18px 16px;
+        }
 
+        .tsb-withdrawal .wd-header-inner,
+        .tsb-withdrawal .wd-main {
+          width: 100%;
+          max-width: 768px;
+          margin: 0 auto;
+        }
+
+        .tsb-withdrawal .wd-brand {
+          margin: 0 0 5px;
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 1.5px;
+        }
+
+        .tsb-withdrawal h1 {
+          margin: 0;
+          font-size: 22px;
+          font-weight: 900;
+        }
+
+        .tsb-withdrawal .wd-main {
+          padding: 20px 16px;
+        }
+
+        .tsb-withdrawal .wd-button {
+          border: 1px solid var(--green);
+          border-radius: 10px;
+          background: var(--green);
+          color: var(--white);
+          padding: 12px 18px;
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        .tsb-withdrawal .wd-wine {
+          background: var(--wine);
+          border-color: var(--wine);
+        }
+
+        .tsb-withdrawal .wd-back {
+          margin-bottom: 18px;
+        }
+
+        .tsb-withdrawal .wd-card {
+          background: var(--white);
+          border: 1px solid var(--green);
+          border-radius: 16px;
+          padding: 20px;
+          margin-bottom: 20px;
+        }
+
+        .tsb-withdrawal .wd-wallet {
+          text-align: center;
+          border: 2px solid var(--green);
+        }
+
+        .tsb-withdrawal .wd-caption {
+          margin: 0;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: .5px;
+        }
+
+        .tsb-withdrawal .wd-balance-box {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          max-width: 100%;
+          margin-top: 14px;
+          border: 2px solid var(--green);
+          border-radius: 14px;
+          padding: 14px 20px;
+          background: var(--white);
+        }
+
+        .tsb-withdrawal .wd-rupee {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          width: 42px;
+          height: 42px;
+          border-radius: 10px;
+          background: var(--green);
+          color: var(--white);
+          font-size: 28px;
+          font-weight: 900;
+        }
+
+        .tsb-withdrawal .wd-balance {
+          min-width: 0;
+          overflow-wrap: anywhere;
+          font-size: clamp(24px, 7vw, 36px);
+          font-weight: 900;
+          line-height: 1.2;
+        }
+
+        .tsb-withdrawal .wd-note {
+          margin: 10px 0 0;
+          font-size: 11px;
+          line-height: 1.6;
+          color: var(--wine);
+        }
+
+        .tsb-withdrawal .wd-error {
+          margin: 12px 0;
+          color: var(--wine);
+          font-size: 12px;
+          font-weight: 800;
+          overflow-wrap: anywhere;
+        }
+
+        .tsb-withdrawal .wd-center {
+          text-align: center;
+          margin-bottom: 20px;
+        }
+
+        .tsb-withdrawal .wd-title {
+          margin: 0 0 12px;
+          font-size: 18px;
+          font-weight: 900;
+        }
+
+        .tsb-withdrawal .wd-form {
+          display: grid;
+          gap: 16px;
+        }
+
+        .tsb-withdrawal .wd-label {
+          display: block;
+          margin-bottom: 7px;
+          font-size: 11px;
+          font-weight: 900;
+        }
+
+        .tsb-withdrawal .wd-input {
+          width: 100%;
+          min-width: 0;
+          border: 1px solid var(--green);
+          border-radius: 10px;
+          padding: 14px;
+          background: var(--white);
+          color: var(--green);
+          font-size: 16px;
+        }
+
+        .tsb-withdrawal .wd-input::placeholder {
+          color: var(--green);
+          opacity: .7;
+        }
+
+        .tsb-withdrawal .wd-full {
+          width: 100%;
+          padding: 16px;
+          font-size: 15px;
+        }
+
+        .tsb-withdrawal .wd-information {
+          margin: 0;
+          padding-left: 18px;
+          color: var(--wine);
+          font-size: 12px;
+          line-height: 1.8;
+        }
+
+        .tsb-withdrawal .wd-information li + li {
+          margin-top: 6px;
+        }
+
+        .tsb-withdrawal .wd-account-heading,
+        .tsb-withdrawal .wd-history-heading {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 16px;
+        }
+
+        .tsb-withdrawal .wd-holder {
+          margin: 5px 0 0;
+          font-size: 18px;
+          font-weight: 900;
+          overflow-wrap: anywhere;
+        }
+
+        .tsb-withdrawal .wd-account-details {
+          border: 1px solid var(--green);
+          border-radius: 12px;
+          overflow: hidden;
+        }
+
+        .tsb-withdrawal .wd-account-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          padding: 13px;
+          border-bottom: 1px solid var(--green);
+          font-size: 12px;
+        }
+
+        .tsb-withdrawal .wd-account-row:last-child {
+          border-bottom: 0;
+        }
+
+        .tsb-withdrawal .wd-account-value {
+          font-weight: 800;
+          text-align: right;
+          overflow-wrap: anywhere;
+          min-width: 0;
+        }
+
+        .tsb-withdrawal .wd-withdraw-form {
+          margin-top: 20px;
+        }
+
+        .tsb-withdrawal .wd-amount-wrap {
+          display: flex;
+          align-items: center;
+          border: 1px solid var(--green);
+          border-radius: 10px;
+          overflow: hidden;
+        }
+
+        .tsb-withdrawal .wd-amount-prefix {
+          align-self: stretch;
+          display: flex;
+          align-items: center;
+          padding: 0 16px;
+          background: var(--green);
+          color: var(--white);
+          font-size: 23px;
+          font-weight: 900;
+        }
+
+        .tsb-withdrawal .wd-amount-wrap input {
+          border: 0;
+          border-radius: 0;
+        }
+
+        .tsb-withdrawal .wd-quick {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .tsb-withdrawal .wd-quick button {
+          border: 1px solid var(--green);
+          border-radius: 8px;
+          padding: 12px 3px;
+          background: var(--white);
+          color: var(--green);
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        .tsb-withdrawal .wd-quick button[aria-pressed="true"] {
+          background: var(--green);
+          color: var(--white);
+        }
+
+        .tsb-withdrawal .wd-empty {
+          text-align: center;
+          font-size: 13px;
+          line-height: 1.8;
+        }
+
+        .tsb-withdrawal .wd-history {
+          padding: 0;
+          overflow: hidden;
+        }
+
+        .tsb-withdrawal .wd-history-heading {
+          padding: 18px 16px 0;
+        }
+
+        .tsb-withdrawal .wd-history-heading .wd-title {
+          font-size: 16px;
+          margin-bottom: 5px;
+        }
+
+        .tsb-withdrawal .wd-history-caption {
+          margin: 0;
+          font-size: 10px;
+        }
+
+        .tsb-withdrawal .wd-history-error {
+          margin: 0 16px 16px;
+          padding: 12px;
+          border: 1px solid var(--wine);
+          border-radius: 8px;
+        }
+
+        .tsb-withdrawal .wd-table-scroll {
+          overflow-x: auto;
+        }
+
+        .tsb-withdrawal table {
+          border-collapse: collapse;
+          width: 100%;
+          min-width: 560px;
+          font-size: 12px;
+        }
+
+        .tsb-withdrawal thead {
+          background: var(--green);
+          color: var(--white);
+        }
+
+        .tsb-withdrawal th,
+        .tsb-withdrawal td {
+          padding: 13px;
+          text-align: left;
+        }
+
+        .tsb-withdrawal tbody tr + tr {
+          border-top: 1px solid var(--green);
+        }
+
+        .tsb-withdrawal .wd-status {
+          display: inline-block;
+          border: 1px solid var(--wine);
+          border-radius: 6px;
+          padding: 6px 9px;
+          color: var(--wine);
+          background: var(--white);
+          font-size: 10px;
+          font-weight: 900;
+        }
+
+        .tsb-withdrawal .wd-status-success {
+          border-color: var(--green);
+          background: var(--green);
+          color: var(--white);
+        }
+
+        .tsb-withdrawal .wd-status-rejected {
+          background: var(--wine);
+          color: var(--white);
+        }
+
+        .tsb-withdrawal .wd-table-empty {
+          text-align: center;
+          padding: 30px 16px;
+        }
+
+        @media (max-width: 380px) {
+          .tsb-withdrawal .wd-card {
+            padding: 16px;
+          }
+
+          .tsb-withdrawal .wd-history {
+            padding: 0;
+          }
+
+          .tsb-withdrawal .wd-quick {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+      `}</style>
+
+      <header className="wd-header">
+        <div className="wd-header-inner">
+          <p className="wd-brand">TELUGU SPORTS BOOK</p>
+          <h1>WITHDRAWAL</h1>
         </div>
-
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-5">
-
-        {/* BACK */}
-
+      <main className="wd-main">
         <button
           type="button"
           onClick={onBack}
-          className="mb-5 rounded-lg bg-amber-700 px-6 py-3 font-bold text-white"
+          className="wd-button wd-wine wd-back"
         >
           ← BACK
         </button>
 
-        {/* AVAILABLE BALANCE */}
+        <section className="wd-card wd-wallet">
+          <p className="wd-caption">AVAILABLE WALLET BALANCE</p>
 
-        <section className="mb-5 rounded-xl bg-white p-5 text-center shadow-sm">
+          <div
+            className="wd-balance-box"
+            aria-live="polite"
+            aria-label={
+              balanceLoading
+                ? 'Balance loading'
+                : balanceError
+                  ? 'Balance unavailable'
+                  : `Available demo balance ${formatAmount(balance)}`
+            }
+          >
+            <span className="wd-rupee" aria-hidden="true">₹</span>
 
-          <p className="text-xs font-bold text-gray-500">
-            AVAILABLE BALANCE
-          </p>
+            <span className="wd-balance">
+              {balanceLoading
+                ? 'Loading...'
+                : balanceError
+                  ? '—'
+                  : Number(balance).toLocaleString('en-IN', {
+                      maximumFractionDigits: 2,
+                    })}
+            </span>
+          </div>
 
-          <h2 className="mt-2 text-3xl font-black text-teal-800">
-
-            {balanceLoading
-              ? 'Loading...'
-              : `🪙 ${Number(
-                  balance
-                ).toLocaleString(
-                  'en-IN'
-                )}`}
-
-          </h2>
+          <p className="wd-note">DEMO BALANCE · VIRTUAL COINS ONLY</p>
 
           {balanceError && (
-
-            <div className="mt-3">
-
-              <p className="text-xs font-bold text-red-600">
-                {balanceError}
-              </p>
-
+            <div>
+              <p className="wd-error" role="alert">{balanceError}</p>
               <button
                 type="button"
-                onClick={
-                  loadBalance
-                }
-                className="mt-2 rounded-lg bg-teal-800 px-4 py-2 text-xs font-black text-white"
+                onClick={loadBalance}
+                className="wd-button"
               >
                 RETRY
               </button>
-
             </div>
-
           )}
-
         </section>
 
-        {/* ACCOUNT BUTTON */}
-
-        <div className="mb-6 text-center">
-
+        <div className="wd-center">
           <button
             type="button"
-            onClick={() =>
-              setShowAddAccount(
-                (previous) =>
-                  !previous
-              )
-            }
-            className="rounded-full bg-green-600 px-8 py-4 text-lg font-black text-white"
+            onClick={toggleAccountForm}
+            className="wd-button"
+            aria-expanded={showAddAccount}
+            aria-controls="wd-bank-form"
           >
-            {account
-              ? '✎ CHANGE ACCOUNT'
-              : '+ ADD ACCOUNT'}
+            {showAddAccount
+              ? 'CANCEL'
+              : account
+                ? '✎ CHANGE ACCOUNT'
+                : '+ ADD ACCOUNT'}
           </button>
-
         </div>
 
-        {/* ACCOUNT FORM */}
-
         {showAddAccount && (
-
           <form
-            onSubmit={
-              saveAccount
-            }
-            className="mb-6 space-y-4 rounded-xl bg-white p-5 shadow-sm"
+            id="wd-bank-form"
+            onSubmit={saveAccount}
+            className="wd-card wd-form"
           >
-
-            <h2 className="text-center text-xl font-black">
-              {account
-                ? 'CHANGE BANK ACCOUNT'
-                : 'ADD BANK ACCOUNT'}
-            </h2>
-
-            <p className="text-center text-[11px] text-gray-500">
-              Withdrawal Password is required when adding or changing a bank account.
-            </p>
-
             <div>
+              <h2 className="wd-title">
+                {account ? 'CHANGE BANK ACCOUNT' : 'ADD BANK ACCOUNT'}
+              </h2>
+              <p className="wd-note">
+                Enter your bank details and withdrawal password.
+              </p>
+            </div>
 
-              <label className="mb-1 block text-xs font-bold text-gray-600">
-                ACCOUNT HOLDER NAME
-              </label>
-
+            <Field label="ACCOUNT HOLDER NAME" id="wd-holder">
               <input
+                id="wd-holder"
                 type="text"
                 placeholder="Enter account holder name"
-                value={
-                  form.holderName
+                value={form.holderName}
+                onChange={(event) =>
+                  updateForm('holderName', event.target.value)
                 }
-                onChange={(
-                  event
-                ) =>
-                  updateForm(
-                    'holderName',
-                    event.target.value
-                  )
-                }
-                className="w-full rounded-lg border p-4"
+                className="wd-input"
                 required
               />
+            </Field>
 
-            </div>
-
-            <div>
-
-              <label className="mb-1 block text-xs font-bold text-gray-600">
-                BANK NAME
-              </label>
-
+            <Field label="BANK NAME" id="wd-bank">
               <input
+                id="wd-bank"
                 type="text"
                 placeholder="Enter bank name"
-                value={
-                  form.bankName
+                value={form.bankName}
+                onChange={(event) =>
+                  updateForm('bankName', event.target.value)
                 }
-                onChange={(
-                  event
-                ) =>
-                  updateForm(
-                    'bankName',
-                    event.target.value
-                  )
-                }
-                className="w-full rounded-lg border p-4"
+                className="wd-input"
                 required
               />
+            </Field>
 
-            </div>
-
-            <div>
-
-              <label className="mb-1 block text-xs font-bold text-gray-600">
-                ACCOUNT NUMBER
-              </label>
-
+            <Field label="ACCOUNT NUMBER" id="wd-account">
               <input
+                id="wd-account"
                 type="text"
                 inputMode="numeric"
+                maxLength={18}
                 placeholder="Enter bank account number"
-                value={
-                  form.accountNumber
-                }
-                onChange={(
-                  event
-                ) =>
+                value={form.accountNumber}
+                onChange={(event) =>
                   updateForm(
                     'accountNumber',
-                    event.target.value.replace(
-                      /\D/g,
-                      ''
-                    )
+                    event.target.value.replace(/\D/g, '')
                   )
                 }
-                className="w-full rounded-lg border p-4"
+                className="wd-input"
                 required
               />
+            </Field>
 
-            </div>
-
-            <div>
-
-              <label className="mb-1 block text-xs font-bold text-gray-600">
-                CONFIRM ACCOUNT NUMBER
-              </label>
-
+            <Field label="CONFIRM ACCOUNT NUMBER" id="wd-confirm-account">
               <input
+                id="wd-confirm-account"
                 type="text"
                 inputMode="numeric"
+                maxLength={18}
                 placeholder="Confirm bank account number"
-                value={
-                  form.confirmAccountNumber
-                }
-                onChange={(
-                  event
-                ) =>
+                value={form.confirmAccountNumber}
+                onChange={(event) =>
                   updateForm(
                     'confirmAccountNumber',
-                    event.target.value.replace(
-                      /\D/g,
-                      ''
-                    )
+                    event.target.value.replace(/\D/g, '')
                   )
                 }
-                className="w-full rounded-lg border p-4"
+                className="wd-input"
                 required
               />
+            </Field>
 
-            </div>
-
-            <div>
-
-              <label className="mb-1 block text-xs font-bold text-gray-600">
-                IFSC CODE
-              </label>
-
+            <Field label="IFSC CODE" id="wd-ifsc">
               <input
+                id="wd-ifsc"
                 type="text"
+                maxLength={11}
                 placeholder="Enter IFSC code"
-                value={
-                  form.ifsc
+                value={form.ifsc}
+                onChange={(event) =>
+                  updateForm('ifsc', event.target.value.toUpperCase())
                 }
-                onChange={(
-                  event
-                ) =>
-                  updateForm(
-                    'ifsc',
-                    event.target.value.toUpperCase()
-                  )
-                }
-                className="w-full rounded-lg border p-4 uppercase"
+                className="wd-input"
                 required
               />
+            </Field>
 
-            </div>
-
-            <div>
-
-              <label className="mb-1 block text-xs font-bold text-gray-600">
-                WITHDRAWAL PASSWORD
-              </label>
-
+            <Field label="WITHDRAWAL PASSWORD" id="wd-password">
               <input
+                id="wd-password"
                 type="password"
+                autoComplete="off"
+                minLength={6}
                 placeholder="Enter withdrawal password"
-                value={
-                  form.password
+                value={form.password}
+                onChange={(event) =>
+                  updateForm('password', event.target.value)
                 }
-                onChange={(
-                  event
-                ) =>
-                  updateForm(
-                    'password',
-                    event.target.value
-                  )
-                }
-                className="w-full rounded-lg border p-4"
+                className="wd-input"
                 required
               />
+            </Field>
 
-              <p className="mt-2 text-[10px] text-gray-500">
-                Password is required only for adding or changing the bank account.
-              </p>
-
-            </div>
-
-            <button
-              type="submit"
-              className="w-full rounded-lg bg-teal-800 py-4 font-black text-white"
-            >
+            <button type="submit" className="wd-button wd-full">
               SAVE ACCOUNT
             </button>
-
           </form>
-
         )}
 
-        {/* INFORMATION */}
-
-        <section className="mb-5 rounded-xl bg-white p-5 shadow-sm">
-
-          <div className="space-y-3 text-xs leading-5 text-red-600">
-
-            <p>
-              1. Withdrawal requests use the available balance only.
-            </p>
-
-            <p>
-              2. Requests are recorded separately for each customer.
-            </p>
-
-            <p>
-              3. Insufficient balance will show LOW BALANCE.
-            </p>
-
-            <p>
-              4. Pending requests can be reviewed by the Admin.
-            </p>
-
-          </div>
-
+        <section className="wd-card">
+          <ol className="wd-information">
+            <li>Demo withdrawal requests use available virtual balance only.</li>
+            <li>Requests are recorded separately for each customer.</li>
+            <li>Minimum request amount: {formatAmount(MIN_WITHDRAWAL)}.</li>
+            <li>Pending requests can be reviewed by the Admin.</li>
+          </ol>
         </section>
 
-        {/* SAVED ACCOUNT */}
-
         {account ? (
-
-          <section className="mb-6 rounded-xl bg-white p-5 shadow-sm">
-
-            <div className="mb-5 flex items-start justify-between gap-3">
-
+          <section className="wd-card">
+            <div className="wd-account-heading">
               <div>
-
-                <p className="text-[10px] font-bold text-gray-500">
-                  SAVED BANK ACCOUNT
-                </p>
-
-                <h2 className="mt-1 text-lg font-black">
-                  {String(
-                    account.holderName ||
-                      ''
-                  ).toUpperCase()}
+                <p className="wd-caption">SAVED BANK ACCOUNT</p>
+                <h2 className="wd-holder">
+                  {String(account.holderName || '').toUpperCase()}
                 </h2>
-
               </div>
 
               <button
                 type="button"
-                onClick={
-                  deleteAccount
-                }
-                className="rounded-lg bg-red-600 px-3 py-2 text-xs font-black text-white"
+                onClick={deleteAccount}
+                className="wd-button wd-wine"
               >
                 DELETE
               </button>
-
             </div>
 
-            <div className="overflow-hidden rounded-xl bg-gray-100">
-
-              <AccountRow
-                label="Bank"
-                value={
-                  account.bankName
-                }
-              />
-
+            <div className="wd-account-details">
+              <AccountRow label="Bank" value={account.bankName} />
               <AccountRow
                 label="Account No"
-                value={
-                  maskAccount(
-                    account.accountNumber
-                  )
-                }
+                value={maskAccount(account.accountNumber)}
               />
-
-              <AccountRow
-                label="IFSC Code"
-                value={
-                  account.ifsc
-                }
-                last
-              />
-
+              <AccountRow label="IFSC Code" value={account.ifsc} />
             </div>
 
             <form
-              onSubmit={
-                handleWithdraw
-              }
-              className="mt-5 space-y-4"
+              onSubmit={handleWithdraw}
+              className="wd-form wd-withdraw-form"
             >
+              <Field label="ENTER AMOUNT" id="wd-amount">
+                <div className="wd-amount-wrap">
+                  <span className="wd-amount-prefix" aria-hidden="true">₹</span>
+                  <input
+                    id="wd-amount"
+                    type="number"
+                    inputMode="numeric"
+                    min={MIN_WITHDRAWAL}
+                    step="1"
+                    placeholder="Enter amount"
+                    value={amount}
+                    onChange={(event) => setAmount(event.target.value)}
+                    className="wd-input"
+                    required
+                  />
+                </div>
+              </Field>
 
-              <div>
-
-                <label className="mb-2 block text-xs font-black text-gray-600">
-                  ENTER AMOUNT
-                </label>
-
-                <input
-                  type="number"
-                  min={
-                    MIN_WITHDRAWAL
-                  }
-                  step="1"
-                  placeholder="Enter amount"
-                  value={
-                    amount
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setAmount(
-                      event.target.value
-                    )
-                  }
-                  className="w-full rounded-lg border p-4 text-lg font-bold"
-                  required
-                />
-
-              </div>
-
-              <div className="grid grid-cols-4 gap-2">
-
-                {[
-                  500,
-                  1000,
-                  2000,
-                  5000,
-                ].map(
-                  (value) => (
-
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() =>
-                        setAmount(
-                          String(value)
-                        )
-                      }
-                      className="rounded-lg border border-teal-700 py-3 text-xs font-black text-teal-800"
-                    >
-                      {value.toLocaleString(
-                        'en-IN'
-                      )}
-                    </button>
-
-                  )
-                )}
-
+              <div className="wd-quick">
+                {[500, 1000, 2000, 5000].map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setAmount(String(value))}
+                    aria-pressed={Number(amount) === value}
+                  >
+                    {formatAmount(value)}
+                  </button>
+                ))}
               </div>
 
               <button
@@ -1265,238 +1089,135 @@ export default function WithdrawalPage({
                   balanceLoading ||
                   Boolean(balanceError)
                 }
-                className="w-full rounded-md bg-red-700 py-4 text-lg font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+                className="wd-button wd-wine wd-full"
               >
-                {submitting
-                  ? 'SUBMITTING...'
-                  : 'WITHDRAW'}
+                {submitting ? 'SUBMITTING...' : 'WITHDRAW'}
               </button>
-
             </form>
-
           </section>
-
         ) : (
-
-          <div className="mb-6 rounded-xl bg-white p-6 text-center text-sm text-gray-500 shadow-sm">
-
+          <div className="wd-card wd-empty">
             No bank account added yet.
-
             <br />
-
             Click ADD ACCOUNT to continue.
-
           </div>
-
         )}
 
-        {/* WITHDRAWAL HISTORY */}
-
-        <section className="overflow-hidden rounded-xl bg-white shadow-sm">
-
-          <div className="flex items-center justify-between gap-3 px-4 py-4">
-
+        <section className="wd-card wd-history">
+          <div className="wd-history-heading">
             <div>
-
-              <h2 className="text-lg font-black">
-                WITHDRAWAL HISTORY
-              </h2>
-
-              <p className="mt-1 text-[10px] text-gray-500">
-                Latest{' '}
-                {HISTORY_LIMIT}{' '}
-                withdrawal requests
+              <h2 className="wd-title">WITHDRAWAL HISTORY</h2>
+              <p className="wd-history-caption">
+                Latest {HISTORY_LIMIT} requests · Times in IST
               </p>
-
             </div>
 
             <button
               type="button"
-              onClick={
-                loadWithdrawalHistory
-              }
-              disabled={
-                historyLoading
-              }
-              className="rounded-lg bg-teal-800 px-3 py-2 text-[10px] font-black text-white disabled:opacity-50"
+              onClick={loadWithdrawalHistory}
+              disabled={historyLoading}
+              className="wd-button"
             >
-              {historyLoading
-                ? 'LOADING...'
-                : 'REFRESH'}
+              {historyLoading ? 'LOADING...' : 'REFRESH'}
             </button>
-
           </div>
 
           {historyError && (
-
-            <div className="mx-4 mb-4 rounded-lg border border-red-300 bg-red-50 p-3">
-
-              <p className="text-xs font-bold text-red-700">
-                {historyError}
-              </p>
-
-            </div>
-
+            <p className="wd-error wd-history-error" role="alert">
+              {historyError}
+            </p>
           )}
 
-          <div className="overflow-x-auto">
-
-            <table className="w-full min-w-[560px] text-xs">
-
-              <thead className="bg-teal-800 text-white">
-
+          <div className="wd-table-scroll">
+            <table>
+              <thead>
                 <tr>
-
-                  <th className="p-3 text-left">
-                    AMOUNT
-                  </th>
-
-                  <th className="p-3 text-left">
-                    STATUS
-                  </th>
-
-                  <th className="p-3 text-left">
-                    ACCOUNT
-                  </th>
-
-                  <th className="p-3 text-left">
-                    DATE
-                  </th>
-
+                  <th scope="col">AMOUNT</th>
+                  <th scope="col">STATUS</th>
+                  <th scope="col">ACCOUNT</th>
+                  <th scope="col">DATE</th>
                 </tr>
-
               </thead>
 
               <tbody>
-
-                {historyLoading &&
-                history.length === 0 ? (
-
+                {history.length === 0 ? (
                   <tr>
-
-                    <td
-                      colSpan={4}
-                      className="p-8 text-center font-bold text-gray-500"
-                    >
-                      Loading withdrawal history...
+                    <td colSpan={4} className="wd-table-empty">
+                      {historyLoading
+                        ? 'Loading withdrawal history...'
+                        : historyError
+                          ? 'Withdrawal history unavailable'
+                          : 'No withdrawal requests yet'}
                     </td>
-
                   </tr>
-
-                ) : history.length ===
-                  0 ? (
-
-                  <tr>
-
-                    <td
-                      colSpan={4}
-                      className="p-8 text-center text-gray-500"
-                    >
-                      No withdrawal requests yet
-                    </td>
-
-                  </tr>
-
                 ) : (
+                  history.map((transaction) => {
+                    const status = String(
+                      transaction.status || 'PENDING'
+                    ).toUpperCase();
 
-                  history.map(
-                    (transaction) => {
+                    const success = ['APPROVED', 'SUCCESS'].includes(status);
+                    const rejected = ['REJECTED', 'REJECT'].includes(status);
 
-                      const last4 =
-                        String(
-                          transaction
-                            ?.accountNumber ||
-                            ''
-                        ).slice(-4);
+                    const last4 = String(
+                      transaction.accountNumber ??
+                        transaction.account_number ??
+                        ''
+                    ).slice(-4);
 
-                      return (
-                        <tr
-                          key={
-                            transaction.id
-                          }
-                          className="border-b"
-                        >
-
-                          <td className="p-3 font-bold">
-                            {Number(
-                              transaction.amount
-                            ).toLocaleString(
-                              'en-IN'
-                            )}
-                          </td>
-
-                          <td className="p-3">
-
-                            <span
-                              className={`inline-block rounded-md px-3 py-1 text-[10px] font-black ${statusClass(
-                                transaction.status
-                              )}`}
-                            >
-                              {String(
-                                transaction.status ||
-                                  'PENDING'
-                              ).toUpperCase()}
-                            </span>
-
-                          </td>
-
-                          <td className="p-3">
-                            {last4
-                              ? `XXXX-${last4}`
-                              : '—'}
-                          </td>
-
-                          <td className="whitespace-nowrap p-3">
-                            {formatDate(
-                              transaction.createdAt
-                            )}
-                          </td>
-
-                        </tr>
-                      );
-                    }
-                  )
-
+                    return (
+                      <tr key={transaction.id}>
+                        <td>
+                          <strong>{formatAmount(transaction.amount)}</strong>
+                        </td>
+                        <td>
+                          <span
+                            className={`wd-status${
+                              success
+                                ? ' wd-status-success'
+                                : rejected
+                                  ? ' wd-status-rejected'
+                                  : ''
+                            }`}
+                          >
+                            {status}
+                          </span>
+                        </td>
+                        <td>{last4 ? `XXXX-${last4}` : '—'}</td>
+                        <td>
+                          {formatDate(
+                            transaction.createdAt ?? transaction.created_at
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
-
               </tbody>
-
             </table>
-
           </div>
-
         </section>
-
       </main>
-
     </div>
   );
 }
 
-/* =========================================================
-   ACCOUNT ROW
-========================================================= */
-
-function AccountRow({
-  label,
-  value,
-  last = false,
-}) {
+function Field({ label, id, children }) {
   return (
-    <div
-      className={`flex items-center justify-between gap-4 px-4 py-3 ${
-        last
-          ? ''
-          : 'border-b'
-      }`}
-    >
-      <span className="text-xs text-gray-500">
+    <div>
+      <label htmlFor={id} className="wd-label">
         {label}
-      </span>
+      </label>
+      {children}
+    </div>
+  );
+}
 
-      <span className="text-right text-sm font-bold">
-        {value || '—'}
-      </span>
+function AccountRow({ label, value }) {
+  return (
+    <div className="wd-account-row">
+      <span>{label}</span>
+      <span className="wd-account-value">{value || '—'}</span>
     </div>
   );
 }
