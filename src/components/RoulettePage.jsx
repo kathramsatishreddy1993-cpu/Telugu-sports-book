@@ -12,9 +12,7 @@ import {
   notifyFlightWallet,
 } from "./flightClient";
 
-import {
-  ControllerPasswordChange,
-} from "./GameControlPage";
+import { ControllerPasswordChange } from "./GameControlPage";
 
 import {
   SoundControls,
@@ -34,7 +32,7 @@ const wheel = [
   9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
 ];
 
-const color = number =>
+const color = (number) =>
   number === 0
     ? "#169c53"
     : red.has(number)
@@ -43,6 +41,28 @@ const color = number =>
 
 const field =
   "w-full rounded-lg border border-white/20 bg-black/30 p-3 text-white";
+
+const money = (value) => {
+  if (
+    value === null ||
+    value === undefined ||
+    !Number.isFinite(Number(value))
+  ) {
+    return "—";
+  }
+
+  return `₹${Number(value).toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+  })}`;
+};
+
+function AmountBox({ value }) {
+  return (
+    <span className="inline-flex max-w-full items-center justify-center rounded-lg border border-[#166534] bg-white px-3 py-2 text-sm font-black tabular-nums text-[#166534]">
+      {money(value)}
+    </span>
+  );
+}
 
 export default function RoulettePage({
   controller = false,
@@ -57,7 +77,7 @@ export default function RoulettePage({
   } = useFlightState(
     controller
       ? "/api/game-control/roulette/state"
-      : "/api/roulette/state",
+      : "/api/roulette/state"
   );
 
   const [clock, setClock] = useState(Date.now());
@@ -68,10 +88,7 @@ export default function RoulettePage({
   const [chip, setChip] = useState(50);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-
-  const [pendingPayload, setPendingPayload] =
-    useState(null);
-
+  const [pendingPayload, setPendingPayload] = useState(null);
   const [advanced, setAdvanced] = useState(false);
   const [type, setType] = useState("S");
   const [first, setFirst] = useState("1");
@@ -81,28 +98,37 @@ export default function RoulettePage({
   const previous = useRef({});
   const pending = useRef(false);
   const lastRound = useRef(null);
+  const lastBalance = useRef(null);
 
   const sound = useGameSound();
 
   useEffect(() => {
-    const timer = setInterval(
-      () => setClock(Date.now()),
-      100,
-    );
-
+    const timer = setInterval(() => setClock(Date.now()), 100);
     return () => clearInterval(timer);
   }, []);
 
   const round = data?.round;
-  const elapsed = Math.max(0, clock - receivedAt);
+
+  const elapsed = Number.isFinite(receivedAt)
+    ? Math.max(0, clock - receivedAt)
+    : Infinity;
+
+  const serverTime = data?.serverTime
+    ? new Date(data.serverTime).getTime()
+    : NaN;
 
   const fresh = Boolean(
-    data && !error && elapsed < 3500,
+    data &&
+      !error &&
+      !unauthorized &&
+      Number.isFinite(serverTime) &&
+      elapsed < 3500
   );
 
-  const now = data
-    ? new Date(data.serverTime).getTime() + elapsed
-    : clock;
+  const now =
+    Number.isFinite(serverTime) && Number.isFinite(elapsed)
+      ? serverTime + elapsed
+      : clock;
 
   const close = round
     ? new Date(round.closesAt).getTime()
@@ -116,10 +142,7 @@ export default function RoulettePage({
         ? "BETTING"
         : "SPINNING";
 
-  const spinElapsed = Math.max(
-    0,
-    (now - close) / 1000,
-  );
+  const spinElapsed = Math.max(0, (now - close) / 1000);
 
   useRouletteSound(sound, {
     roundId: round?.id,
@@ -132,12 +155,16 @@ export default function RoulettePage({
   const open = fresh && phase === "BETTING";
 
   const entry = data?.entries?.find(
-    item =>
-      String(item.round_id) === String(round?.id),
+    (item) => String(item.round_id) === String(round?.id)
   );
 
   const bets = entry?.bets || {};
-  const total = entry?.total || 0;
+  const total = Number(entry?.total || 0);
+
+  const balanceAvailable =
+    data?.balance !== null &&
+    data?.balance !== undefined &&
+    Number.isFinite(Number(data.balance));
 
   const current = useRef({});
 
@@ -151,9 +178,7 @@ export default function RoulettePage({
   useEffect(() => {
     if (lastRound.current !== round?.id) {
       if (Object.keys(current.current.bets).length) {
-        previous.current = {
-          ...current.current.bets,
-        };
+        previous.current = { ...current.current.bets };
       }
 
       undo.current = [];
@@ -163,9 +188,27 @@ export default function RoulettePage({
     }
   }, [round?.id]);
 
+  useEffect(() => {
+    if (
+      controller ||
+      data?.balance === null ||
+      data?.balance === undefined ||
+      !Number.isFinite(Number(data.balance))
+    ) {
+      return;
+    }
+
+    const balance = Number(data.balance);
+    const oldBalance = lastBalance.current;
+    lastBalance.current = balance;
+
+    if (oldBalance !== null && oldBalance !== balance) {
+      notifyFlightWallet();
+    }
+  }, [controller, data?.balance]);
+
   const action = async (kind, event) => {
     event?.preventDefault();
-
     if (pending.current) return;
 
     pending.current = true;
@@ -184,30 +227,23 @@ export default function RoulettePage({
       }
 
       if (kind === "logout") {
-        await flightApi(
-          "/api/game-control/logout",
-          {},
-        );
-
+        await flightApi("/api/game-control/logout", {});
         window.location.reload();
         return;
       }
 
       if (kind === "lock") {
-        await flightApi(
-          "/api/game-control/roulette/rounds",
-          {
-            number: Number(number),
-            confirmed,
-          },
-        );
+        await flightApi("/api/game-control/roulette/rounds", {
+          number: Number(number),
+          confirmed,
+        });
 
         setConfirmed(false);
       }
 
       await refresh();
     } catch (requestError) {
-      setMessage(requestError.message);
+      setMessage(requestError.message || "Request failed.");
     } finally {
       pending.current = false;
       setBusy(false);
@@ -217,7 +253,7 @@ export default function RoulettePage({
   const update = async (
     next,
     isUndo = false,
-    retry = false,
+    retry = false
   ) => {
     if (pending.current) return;
 
@@ -240,6 +276,8 @@ export default function RoulettePage({
           requestKey: flightRequestKey(),
         };
 
+    if (!payload) return;
+
     pending.current = true;
     setBusy(true);
     setMessage("");
@@ -249,10 +287,7 @@ export default function RoulettePage({
     try {
       setPendingPayload(payload);
 
-      await flightApi(
-        "/api/roulette/bets",
-        payload,
-      );
+      await flightApi("/api/roulette/bets", payload);
 
       if (!isUndo) {
         undo.current.push(snapshot);
@@ -266,14 +301,20 @@ export default function RoulettePage({
 
       setPendingPayload(null);
       notifyFlightWallet();
-
       await refresh();
     } catch (requestError) {
-      setMessage(requestError.message);
+      setMessage(requestError.message || "Unable to update bets.");
 
       if (requestError.status) {
         setPendingPayload(null);
-        await refresh();
+
+        try {
+          await refresh();
+        } catch {
+          setMessage(
+            "Unable to refresh game state. Please wait for the server connection."
+          );
+        }
       }
     } finally {
       pending.current = false;
@@ -281,33 +322,26 @@ export default function RoulettePage({
     }
   };
 
-  const add = key =>
+  const add = (key) =>
     update({
       ...bets,
-      [key]: (bets[key] || 0) + chip,
+      [key]: Number(bets[key] || 0) + chip,
     });
 
   const cell = (
     key,
     label,
     background = "#fff1a8",
-    extra = {},
+    extra = {}
   ) => (
     <button
       key={key}
       type="button"
-      disabled={
-        busy ||
-        !open ||
-        Boolean(pendingPayload)
-      }
+      disabled={busy || !open || Boolean(pendingPayload)}
       onClick={() => add(key)}
       style={{
         background,
-        color:
-          background === "#fff1a8"
-            ? "#b5262c"
-            : "white",
+        color: background === "#fff1a8" ? "#b5262c" : "white",
         ...extra,
       }}
       className="relative min-w-0 border border-black/80 p-1 text-center font-black disabled:opacity-70"
@@ -315,8 +349,8 @@ export default function RoulettePage({
       <span>{label}</span>
 
       {bets[key] > 0 && (
-        <span className="absolute bottom-0 right-0 rounded-full border border-amber-100 bg-amber-400 px-1 text-[9px] text-black">
-          {bets[key]}
+        <span className="absolute bottom-0 right-0 rounded-full border border-[#166534] bg-white px-1 text-[9px] text-[#166534]">
+          {money(bets[key])}
         </span>
       )}
     </button>
@@ -334,45 +368,80 @@ export default function RoulettePage({
             ‹ HOME
           </button>
 
-          <h1 className="font-black text-amber-200">
+          <h1 className="min-w-0 flex-1 text-center font-black text-amber-200">
             TSB ROULETTE {controller ? "CONTROL" : ""}
           </h1>
 
           {controller ? (
-            <span className="text-xs">
-              {data?.controllerId}
-            </span>
+            <span className="text-xs">{data?.controllerId}</span>
           ) : (
-            <div className="shrink-0 rounded-xl border border-amber-400/30 bg-[#03121d]/90 px-3 py-2 text-right">
-              <p className="whitespace-nowrap text-sm font-black tabular-nums text-amber-300">
-                {data
-                  ? `₹${Number(
-                      data.balance || 0,
-                    ).toLocaleString("en-IN")}`
-                  : "Loading..."}
+            <div
+              aria-live="polite"
+              aria-label="Demo wallet balance"
+              className="max-w-full rounded-xl border-2 border-[#166534] bg-white px-3 py-2"
+            >
+              <p className="text-center text-[9px] font-black tracking-wide text-[#166534]">
+                WALLET BALANCE
               </p>
+
+              <div className="mt-1 flex items-center justify-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#166534] text-xl font-black text-white"
+                >
+                  ₹
+                </span>
+
+                <strong className="break-all text-lg font-black tabular-nums text-[#166534]">
+                  {unauthorized
+                    ? "—"
+                    : balanceAvailable
+                      ? Number(data.balance).toLocaleString("en-IN", {
+                          maximumFractionDigits: 2,
+                        })
+                      : data || error
+                        ? "—"
+                        : "Loading…"}
+                </strong>
+              </div>
+
+              <p className="mt-1 text-center text-[9px] font-bold text-[#722f37]">
+                DEMO COINS
+              </p>
+
+              {balanceAvailable && !fresh && (
+                <p className="mt-1 text-center text-[9px] font-bold text-[#722f37]">
+                  LAST RECEIVED BALANCE
+                </p>
+              )}
             </div>
           )}
         </header>
 
-        {!controller && (
-          <SoundControls sound={sound} />
-        )}
+        {!controller && <SoundControls sound={sound} />}
 
         {(error || message) && (
           <p
             role="status"
             className="rounded-lg bg-amber-300/10 p-3 text-xs text-amber-100"
           >
-            {message || error}
+            {message || String(error?.message || error)}
           </p>
+        )}
+
+        {!controller && unauthorized && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-full rounded-xl bg-[#722f37] p-3 font-black text-white"
+          >
+            RETURN HOME TO LOGIN
+          </button>
         )}
 
         {controller && (!data || unauthorized) ? (
           <form
-            onSubmit={event =>
-              action("login", event)
-            }
+            onSubmit={(event) => action("login", event)}
             className="space-y-3 rounded-xl bg-[#142c31] p-4"
           >
             <h2 className="font-black">
@@ -381,42 +450,39 @@ export default function RoulettePage({
 
             <label className="block text-sm">
               Login ID
-
               <input
                 required
+                autoComplete="username"
                 className={field}
                 value={login}
-                onChange={event =>
-                  setLogin(event.target.value)
-                }
+                onChange={(event) => setLogin(event.target.value)}
               />
             </label>
 
             <label className="block text-sm">
               Password
-
               <input
                 required
                 type="password"
+                autoComplete="current-password"
                 className={field}
                 value={password}
-                onChange={event =>
+                onChange={(event) =>
                   setPassword(event.target.value)
                 }
               />
             </label>
 
             <button
+              type="submit"
               disabled={busy}
-              className="rounded-lg bg-amber-300 px-5 py-3 font-black text-black"
+              className="rounded-lg bg-amber-300 px-5 py-3 font-black text-black disabled:opacity-40"
             >
               LOGIN
             </button>
           </form>
         ) : controller && data?.mustChangePassword ? (
-          <ControllerPasswordChange
-            onComplete={refresh}
-          />
+          <ControllerPasswordChange onComplete={refresh} />
         ) : (
           <>
             {controller && (
@@ -431,9 +497,7 @@ export default function RoulettePage({
                 </button>
 
                 <form
-                  onSubmit={event =>
-                    action("lock", event)
-                  }
+                  onSubmit={(event) => action("lock", event)}
                   className="space-y-3 rounded-xl bg-[#142c31] p-4"
                 >
                   <h2 className="font-black">
@@ -442,7 +506,6 @@ export default function RoulettePage({
 
                   <label className="block text-sm">
                     Winning number (0–36)
-
                     <input
                       type="number"
                       min="0"
@@ -455,7 +518,7 @@ export default function RoulettePage({
                       }
                       className={field}
                       value={number}
-                      onChange={event =>
+                      onChange={(event) =>
                         setNumber(event.target.value)
                       }
                     />
@@ -465,17 +528,13 @@ export default function RoulettePage({
                     {Number(number) === 0
                       ? "GREEN · ZERO"
                       : `${
-                          red.has(Number(number))
-                            ? "RED"
-                            : "BLACK"
+                          red.has(Number(number)) ? "RED" : "BLACK"
                         } · ${
-                          Number(number) % 2
-                            ? "ODD"
-                            : "EVEN"
+                          Number(number) % 2 ? "ODD" : "EVEN"
                         } · Dozen ${Math.ceil(
-                          Number(number) / 12,
+                          Number(number) / 12
                         )} · Column ${
-                          (Number(number) - 1) % 3 + 1
+                          ((Number(number) - 1) % 3) + 1
                         }`}
                   </p>
 
@@ -483,19 +542,16 @@ export default function RoulettePage({
                     <input
                       type="checkbox"
                       checked={confirmed}
-                      onChange={event =>
-                        setConfirmed(
-                          event.target.checked,
-                        )
+                      onChange={(event) =>
+                        setConfirmed(event.target.checked)
                       }
                     />
-
-                    I confirm this result is fixed
-                    before bets open and cannot be
-                    changed after locking.
+                    I confirm this result is fixed before bets
+                    open and cannot be changed after locking.
                   </label>
 
                   <button
+                    type="submit"
                     disabled={
                       !confirmed ||
                       busy ||
@@ -505,14 +561,12 @@ export default function RoulettePage({
                     }
                     className="rounded-lg bg-amber-300 p-3 font-black text-black disabled:opacity-40"
                   >
-                    CONFIRM & LOCK · OPEN 30 SECONDS
+                    CONFIRM &amp; LOCK · OPEN 30 SECONDS
                   </button>
 
                   {round && (
                     <p className="text-xs text-cyan-200">
-                      Round #{round.id}
-                      {" · "}Locked number{" "}
-                      {round.number}
+                      Round #{round.id} · Locked number {round.number}
                     </p>
                   )}
                 </form>
@@ -523,7 +577,7 @@ export default function RoulettePage({
               {phase === "BETTING"
                 ? `Bets closing ${Math.max(
                     0,
-                    Math.ceil((close - now) / 1000),
+                    Math.ceil((close - now) / 1000)
                   )}`
                 : phase === "SPINNING"
                   ? "WAIT FOR NEXT GAME · SPINNING"
@@ -539,7 +593,7 @@ export default function RoulettePage({
             </div>
 
             <div className="flex gap-2 overflow-x-auto">
-              {data?.history?.map(item => (
+              {data?.history?.map((item) => (
                 <span
                   key={item.id}
                   style={{
@@ -557,8 +611,7 @@ export default function RoulettePage({
               ))}
             </div>
 
-            {(phase === "SPINNING" ||
-              phase === "RESULT") && (
+            {(phase === "SPINNING" || phase === "RESULT") && (
               <Wheel
                 key={round?.id}
                 phase={phase}
@@ -571,51 +624,50 @@ export default function RoulettePage({
             {!controller && (
               <>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs">
-                    Chip
-                  </span>
+                  <span className="text-xs font-bold">Chip</span>
 
-                  {[10, 50, 100, 500, 1000, 5000].map(
-                    value => (
-                      <button
-                        key={value}
-                        onClick={() => setChip(value)}
-                        className={`rounded-full border px-3 py-2 text-xs ${
-                          chip === value
-                            ? "border-amber-200 bg-amber-300 text-black"
-                            : "border-white/20"
-                        }`}
-                      >
-                        {value}
-                      </button>
-                    ),
-                  )}
+                  {[10, 50, 100, 500, 1000, 5000].map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setChip(value)}
+                      aria-pressed={chip === value}
+                      className={`rounded-lg border px-3 py-2 text-xs font-black ${
+                        chip === value
+                          ? "border-[#166534] bg-[#166534] text-white"
+                          : "border-[#166534] bg-white text-[#166534]"
+                      }`}
+                    >
+                      {money(value)}
+                    </button>
+                  ))}
                 </div>
 
-                <p className="text-xs">
-                  Bet: {total.toLocaleString("en-IN")}
-                  {" · "}Chips reserve demo coins
-                  immediately; clear or undo before
-                  betting closes to release them.
-                </p>
+                <section className="rounded-xl border border-[#166534] bg-white p-3 text-[#166534]">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs font-black">
+                      TOTAL BET
+                    </p>
+                    <AmountBox value={total} />
+                  </div>
+
+                  <p className="mt-2 text-[11px] leading-5 text-[#722f37]">
+                    Chips reserve demo balance immediately.
+                    Clear or undo before betting closes to release it.
+                  </p>
+                </section>
 
                 <div className="flex gap-2">
                   <div
                     className="grid min-w-0 flex-1 grid-cols-[.8fr_.8fr_1fr_1fr_1fr]"
                     style={{
-                      gridTemplateRows:
-                        "48px repeat(12,44px) 44px",
+                      gridTemplateRows: "48px repeat(12,44px) 44px",
                     }}
                   >
-                    {cell(
-                      "N:0",
-                      "0",
-                      "#169c53",
-                      {
-                        gridColumn: "3 / 6",
-                        gridRow: "1",
-                      },
-                    )}
+                    {cell("N:0", "0", "#169c53", {
+                      gridColumn: "3 / 6",
+                      gridRow: "1",
+                    })}
 
                     {[
                       "LOW",
@@ -627,14 +679,9 @@ export default function RoulettePage({
                     ].map((key, index) =>
                       cell(
                         key,
-                        [
-                          "1–18",
-                          "EVEN",
-                          "RED",
-                          "BLACK",
-                          "ODD",
-                          "19–36",
-                        ][index],
+                        ["1–18", "EVEN", "RED", "BLACK", "ODD", "19–36"][
+                          index
+                        ],
                         key === "RED"
                           ? "#d52e36"
                           : key === "BLACK"
@@ -642,153 +689,100 @@ export default function RoulettePage({
                             : "#fff1a8",
                         {
                           gridColumn: "1",
-                          gridRow: `${
-                            2 + index * 2
-                          } / span 2`,
+                          gridRow: `${2 + index * 2} / span 2`,
                           writingMode: "vertical-rl",
-                        },
-                      ),
+                        }
+                      )
                     )}
 
-                    {[1, 2, 3].map(
-                      (value, index) =>
-                        cell(
-                          `D:${value}`,
-                          `${
-                            value === 1
-                              ? "1st"
-                              : value === 2
-                                ? "2nd"
-                                : "3rd"
-                          } 12`,
-                          "#fff1a8",
-                          {
-                            gridColumn: "2",
-                            gridRow: `${
-                              2 + index * 4
-                            } / span 4`,
-                            writingMode: "vertical-rl",
-                          },
-                        ),
+                    {[1, 2, 3].map((value, index) =>
+                      cell(
+                        `D:${value}`,
+                        `${value === 1 ? "1st" : value === 2 ? "2nd" : "3rd"} 12`,
+                        "#fff1a8",
+                        {
+                          gridColumn: "2",
+                          gridRow: `${2 + index * 4} / span 4`,
+                          writingMode: "vertical-rl",
+                        }
+                      )
                     )}
 
                     {Array.from(
                       { length: 36 },
-                      (_, index) => index + 1,
-                    ).map(value =>
-                      cell(
-                        `N:${value}`,
-                        value,
-                        color(value),
-                        {
-                          gridColumn: String(
-                            3 + (value - 1) % 3,
-                          ),
-                          gridRow: String(
-                            2 +
-                              Math.floor(
-                                (value - 1) / 3,
-                              ),
-                          ),
-                          fontSize: "22px",
-                        },
-                      ),
+                      (_, index) => index + 1
+                    ).map((value) =>
+                      cell(`N:${value}`, value, color(value), {
+                        gridColumn: String(3 + ((value - 1) % 3)),
+                        gridRow: String(
+                          2 + Math.floor((value - 1) / 3)
+                        ),
+                        fontSize: "22px",
+                      })
                     )}
 
-                    {[1, 2, 3].map(value =>
-                      cell(
-                        `C:${value}`,
-                        "2 to 1",
-                        "#fff1a8",
-                        {
-                          gridColumn: String(value + 2),
-                          gridRow: "14",
-                          fontSize: "12px",
-                        },
-                      ),
+                    {[1, 2, 3].map((value) =>
+                      cell(`C:${value}`, "2 to 1", "#fff1a8", {
+                        gridColumn: String(value + 2),
+                        gridRow: "14",
+                        fontSize: "12px",
+                      })
                     )}
                   </div>
 
                   <div className="flex w-16 flex-col gap-3 text-[10px]">
                     <button
-                      disabled={
-                        busy ||
-                        !open ||
-                        Boolean(pendingPayload)
-                      }
+                      type="button"
+                      disabled={busy || !open || Boolean(pendingPayload)}
                       onClick={() => update({})}
                     >
-                      ✕
-                      <br />
-                      CLEAR
+                      ✕<br />CLEAR
                     </button>
 
                     <button
+                      type="button"
                       disabled={
                         busy ||
                         !open ||
                         Boolean(pendingPayload) ||
                         !undo.current.length
                       }
-                      onClick={() =>
-                        update(
-                          undo.current.at(-1),
-                          true,
-                        )
-                      }
+                      onClick={() => update(undo.current.at(-1), true)}
                     >
-                      ↶
-                      <br />
-                      UNDO
+                      ↶<br />UNDO
                     </button>
 
                     <button
-                      disabled={
-                        busy ||
-                        !open ||
-                        Boolean(pendingPayload)
-                      }
+                      type="button"
+                      disabled={busy || !open || Boolean(pendingPayload)}
                       onClick={() =>
                         update(
                           Object.fromEntries(
-                            Object.entries(bets).map(
-                              ([key, value]) => [
-                                key,
-                                value * 2,
-                              ],
-                            ),
-                          ),
+                            Object.entries(bets).map(([key, value]) => [
+                              key,
+                              value * 2,
+                            ])
+                          )
                         )
                       }
                     >
-                      2×
-                      <br />
-                      DOUBLE
+                      2×<br />DOUBLE
                     </button>
 
                     <button
-                      disabled={
-                        busy ||
-                        !open ||
-                        Boolean(pendingPayload)
-                      }
-                      onClick={() =>
-                        update(previous.current)
-                      }
+                      type="button"
+                      disabled={busy || !open || Boolean(pendingPayload)}
+                      onClick={() => update(previous.current)}
                     >
-                      ↻
-                      <br />
-                      REBET
+                      ↻<br />REBET
                     </button>
 
                     <button
-                      onClick={() =>
-                        setAdvanced(value => !value)
-                      }
+                      type="button"
+                      aria-expanded={advanced}
+                      onClick={() => setAdvanced((value) => !value)}
                     >
-                      ▦
-                      <br />
-                      INSIDE BETS
+                      ▦<br />INSIDE BETS
                     </button>
                   </div>
                 </div>
@@ -797,30 +791,19 @@ export default function RoulettePage({
                   <section className="space-y-2 rounded-lg bg-white/5 p-3">
                     <p className="text-xs">
                       Split: two adjacent numbers.
-                      Street/Corner/Line: enter the
-                      first number.
+                      Street/Corner/Line: enter the first number.
                     </p>
 
                     <select
                       aria-label="Inside bet type"
                       value={type}
-                      onChange={event =>
-                        setType(event.target.value)
-                      }
+                      onChange={(event) => setType(event.target.value)}
                       className={field}
                     >
-                      <option value="S">
-                        Split (17:1)
-                      </option>
-                      <option value="T">
-                        Street (11:1)
-                      </option>
-                      <option value="K">
-                        Corner (8:1)
-                      </option>
-                      <option value="L">
-                        Six Line (5:1)
-                      </option>
+                      <option value="S">Split (17:1)</option>
+                      <option value="T">Street (11:1)</option>
+                      <option value="K">Corner (8:1)</option>
+                      <option value="L">Six Line (5:1)</option>
                     </select>
 
                     <input
@@ -829,9 +812,7 @@ export default function RoulettePage({
                       min="0"
                       max="36"
                       value={first}
-                      onChange={event =>
-                        setFirst(event.target.value)
-                      }
+                      onChange={(event) => setFirst(event.target.value)}
                       className={field}
                     />
 
@@ -842,7 +823,7 @@ export default function RoulettePage({
                         min="0"
                         max="36"
                         value={second}
-                        onChange={event =>
+                        onChange={(event) =>
                           setSecond(event.target.value)
                         }
                         className={field}
@@ -850,61 +831,88 @@ export default function RoulettePage({
                     )}
 
                     <button
-                      disabled={
-                        !open ||
-                        busy ||
-                        Boolean(pendingPayload)
-                      }
+                      type="button"
+                      disabled={!open || busy || Boolean(pendingPayload)}
                       onClick={() =>
                         add(
                           type === "S"
                             ? `S:${Math.min(
                                 Number(first),
-                                Number(second),
+                                Number(second)
                               )}:${Math.max(
                                 Number(first),
-                                Number(second),
+                                Number(second)
                               )}`
-                            : `${type}:${Number(first)}`,
+                            : `${type}:${Number(first)}`
                         )
                       }
-                      className="rounded-lg bg-amber-300 p-3 text-black"
+                      className="rounded-lg bg-[#166534] p-3 font-black text-white disabled:opacity-40"
                     >
-                      ADD CHIP {chip}
+                      ADD CHIP {money(chip)}
                     </button>
                   </section>
                 )}
 
                 {pendingPayload && (
                   <button
+                    type="button"
                     disabled={!open || busy}
-                    onClick={() =>
-                      update(null, false, true)
-                    }
-                    className="rounded-lg bg-amber-300 p-3 text-black"
+                    onClick={() => update(null, false, true)}
+                    className="rounded-lg bg-[#722f37] p-3 font-black text-white disabled:opacity-40"
                   >
                     RETRY SAME ACTION
                   </button>
                 )}
 
-                <section className="rounded-xl bg-white/5 p-3">
-                  <h2 className="font-black">
-                    Your roulette history
-                  </h2>
+                <section className="rounded-xl border border-[#166534] bg-white p-3 text-[#166534]">
+                  <h2 className="font-black">Your roulette history</h2>
 
-                  {data?.entries?.map(item => (
-                    <p
+                  {!data?.entries?.length && (
+                    <p className="mt-3 text-xs">No entries yet.</p>
+                  )}
+
+                  {data?.entries?.map((item) => (
+                    <div
                       key={item.round_id}
-                      className="mt-2 text-xs"
+                      className="mt-3 rounded-lg border border-[#166534] p-3"
                     >
-                      #{item.round_id}
-                      {" · "}Bet {item.total}
-                      {" · "}
-                      {item.status === "SETTLED"
-                        ? `Result ${item.number} · Returned ${item.payout}`
-                        : "PLACED"}
-                    </p>
+                      <div className="flex flex-wrap justify-between gap-2 text-xs font-black">
+                        <span>Round #{item.round_id}</span>
+                        <span className="text-[#722f37]">
+                          {item.status === "SETTLED"
+                            ? `RESULT ${item.number}`
+                            : "PLACED"}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="mb-1 text-[10px] font-bold">
+                            BET
+                          </p>
+                          <AmountBox value={item.total} />
+                        </div>
+
+                        <div>
+                          <p className="mb-1 text-[10px] font-bold">
+                            RETURNED
+                          </p>
+
+                          {item.status === "SETTLED" ? (
+                            <AmountBox value={item.payout} />
+                          ) : (
+                            <span className="inline-block rounded-lg border border-[#722f37] px-3 py-2 text-xs font-bold text-[#722f37]">
+                              PENDING
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   ))}
+
+                  <p className="mt-3 text-[10px] text-[#722f37]">
+                    Virtual demo balance only.
+                  </p>
                 </section>
               </>
             )}
@@ -915,21 +923,26 @@ export default function RoulettePage({
               </summary>
 
               <p className="my-2">
-                Straight 35:1 · Split 17:1 · Street
-                11:1 · Corner 8:1 · Line 5:1 ·
-                Dozen/Column 2:1 · Outside bets 1:1.
-                Winning returns include original
+                Straight 35:1 · Split 17:1 · Street 11:1 ·
+                Corner 8:1 · Line 5:1 · Dozen/Column 2:1 ·
+                Outside bets 1:1. Winning returns include original
                 stake. Zero loses all outside bets.
               </p>
 
-              <p>
-                Commitment SHA-256(number:seed):{" "}
-                {round?.commitment}
+              <p className="break-all">
+                Commitment SHA-256(number:seed): {round?.commitment}
               </p>
 
               {round?.seed && (
                 <p className="break-all">
                   Revealed seed: {round.seed}
+                </p>
+              )}
+
+              {!controller && (
+                <p className="mt-3">
+                  Demo coins only. ₹ is the display symbol for
+                  virtual demo balance.
                 </p>
               )}
             </details>
@@ -941,27 +954,13 @@ export default function RoulettePage({
 }
 
 function spinPose(seconds, target) {
-  const progress = Math.min(
-    1,
-    Math.max(0, seconds / 15),
-  );
-
-  const ease =
-    1 - Math.pow(1 - progress, 3);
-
+  const progress = Math.min(1, Math.max(0, seconds / 15));
+  const ease = 1 - Math.pow(1 - progress, 3);
   const step = 360 / 37;
   const index = wheel.indexOf(target);
-
-  const endBall =
-    -3960 + (index < 0 ? 0 : index * step);
-
-  const drop = Math.min(
-    1,
-    Math.max(0, (progress - 0.65) / 0.35),
-  );
-
-  const smoothDrop =
-    drop * drop * (3 - 2 * drop);
+  const endBall = -3960 + (index < 0 ? 0 : index * step);
+  const drop = Math.min(1, Math.max(0, (progress - 0.65) / 0.35));
+  const smoothDrop = drop * drop * (3 - 2 * drop);
 
   return {
     wheel: 2160 * ease,
@@ -970,12 +969,7 @@ function spinPose(seconds, target) {
   };
 }
 
-function Wheel({
-  phase,
-  number,
-  landingNumber,
-  elapsed,
-}) {
+function Wheel({ phase, number, landingNumber, elapsed }) {
   const uid = useId().replace(/:/g, "");
   const spinning = phase === "SPINNING";
 
@@ -984,8 +978,7 @@ function Wheel({
     at: performance.now(),
   });
 
-  const [seconds, setSeconds] =
-    useState(elapsed);
+  const [seconds, setSeconds] = useState(elapsed);
 
   useEffect(() => {
     anchor.current = {
@@ -1002,42 +995,28 @@ function Wheel({
     const tick = () => {
       const next =
         anchor.current.elapsed +
-        (
-          performance.now() -
-          anchor.current.at
-        ) / 1000;
+        (performance.now() - anchor.current.at) / 1000;
 
       setSeconds(Math.min(15, next));
-
       frame = requestAnimationFrame(tick);
     };
 
     frame = requestAnimationFrame(tick);
-
     return () => cancelAnimationFrame(frame);
   }, [spinning]);
 
-  const target = spinning
-    ? landingNumber
-    : number;
+  const target = spinning ? landingNumber : number;
 
   const ready =
-    Number.isInteger(target) &&
-    target >= 0 &&
-    target <= 36;
+    Number.isInteger(target) && target >= 0 && target <= 36;
 
-  const pose = spinPose(
-    spinning ? seconds : 15,
-    target,
-  );
-
+  const pose = spinPose(spinning ? seconds : 15, target);
   const wheelAngle = pose.wheel;
   const ballAngle = pose.ball;
   const step = 360 / 37;
 
   const point = (radius, degrees) => {
-    const radians =
-      degrees * Math.PI / 180;
+    const radians = (degrees * Math.PI) / 180;
 
     return [
       300 + radius * Math.sin(radians),
@@ -1045,45 +1024,31 @@ function Wheel({
     ];
   };
 
-  const sector = (
-    inner,
-    outer,
-    start,
-    end,
-  ) => {
+  const sector = (inner, outer, start, end) => {
     const a = point(outer, start);
     const b = point(outer, end);
     const c = point(inner, end);
     const d = point(inner, start);
 
     return (
-      `M ${a} ` +
-      `A ${outer} ${outer} 0 0 1 ${b} ` +
-      `L ${c} ` +
-      `A ${inner} ${inner} 0 0 0 ${d} Z`
+      `M ${a} A ${outer} ${outer} 0 0 1 ${b} ` +
+      `L ${c} A ${inner} ${inner} 0 0 0 ${d} Z`
     );
   };
 
-  const id = name => `${uid}-${name}`;
-
-  const paint = name =>
-    `url(#${id(name)})`;
+  const id = (name) => `${uid}-${name}`;
+  const paint = (name) => `url(#${id(name)})`;
 
   return (
     <section
       className="overflow-hidden rounded-2xl border border-amber-200/20 bg-[#080d11] p-2 shadow-2xl"
       aria-label={
-        spinning
-          ? "Roulette wheel spinning"
-          : `Roulette result ${number}`
+        spinning ? "Roulette wheel spinning" : `Roulette result ${number}`
       }
     >
       <div className="flex justify-between px-3 pt-2 text-[9px] font-bold tracking-widest text-amber-200/70">
         <span>TSB · EUROPEAN ROULETTE</span>
-
-        <span>
-          {spinning ? "SPINNING" : "RESULT"}
-        </span>
+        <span>{spinning ? "SPINNING" : "RESULT"}</span>
       </div>
 
       <svg
@@ -1097,13 +1062,7 @@ function Wheel({
         }
       >
         <defs>
-          <linearGradient
-            id={id("gold")}
-            x1="0"
-            y1="0"
-            x2="1"
-            y2="1"
-          >
+          <linearGradient id={id("gold")} x1="0" y1="0" x2="1" y2="1">
             <stop stopColor="#44230c" />
             <stop offset=".18" stopColor="#d69c37" />
             <stop offset=".34" stopColor="#fff1b8" />
@@ -1113,80 +1072,46 @@ function Wheel({
             <stop offset="1" stopColor="#39200b" />
           </linearGradient>
 
-          <radialGradient
-            id={id("wood")}
-            cx="35%"
-            cy="25%"
-          >
+          <radialGradient id={id("wood")} cx="35%" cy="25%">
             <stop stopColor="#82411e" />
             <stop offset=".35" stopColor="#431b0d" />
             <stop offset=".7" stopColor="#602811" />
             <stop offset="1" stopColor="#170b08" />
           </radialGradient>
 
-          <radialGradient
-            id={id("bowl")}
-            cx="35%"
-            cy="20%"
-          >
+          <radialGradient id={id("bowl")} cx="35%" cy="20%">
             <stop stopColor="#b17b44" />
             <stop offset=".25" stopColor="#4b2515" />
             <stop offset=".65" stopColor="#24130f" />
             <stop offset="1" stopColor="#080707" />
           </radialGradient>
 
-          <linearGradient
-            id={id("red")}
-            x1="0"
-            y1="0"
-            x2="0"
-            y2="1"
-          >
+          <linearGradient id={id("red")} x1="0" y1="0" x2="0" y2="1">
             <stop stopColor="#ff3e45" />
             <stop offset=".5" stopColor="#b60e21" />
             <stop offset="1" stopColor="#4b050c" />
           </linearGradient>
 
-          <linearGradient
-            id={id("black")}
-            x1="0"
-            y1="0"
-            x2="0"
-            y2="1"
-          >
+          <linearGradient id={id("black")} x1="0" y1="0" x2="0" y2="1">
             <stop stopColor="#50565d" />
             <stop offset=".5" stopColor="#15191e" />
             <stop offset="1" stopColor="#030405" />
           </linearGradient>
 
-          <linearGradient
-            id={id("green")}
-            x1="0"
-            y1="0"
-            x2="0"
-            y2="1"
-          >
+          <linearGradient id={id("green")} x1="0" y1="0" x2="0" y2="1">
             <stop stopColor="#32df8a" />
             <stop offset=".5" stopColor="#078748" />
             <stop offset="1" stopColor="#023d20" />
           </linearGradient>
 
-          <radialGradient
-            id={id("ball")}
-            cx="30%"
-            cy="25%"
-          >
+          <radialGradient id={id("ball")} cx="30%" cy="25%">
             <stop stopColor="#ffffff" />
             <stop offset=".45" stopColor="#fff8df" />
             <stop offset=".8" stopColor="#d4c8a9" />
             <stop offset="1" stopColor="#938365" />
           </radialGradient>
 
-          <radialGradient
-            id={id("hub")}
-            cx="30%"
-            cy="20%"
-          >
+          <radialGradient id={id("hub")} cx="30%" cy="20%">
             <stop stopColor="#fff8ce" />
             <stop offset=".3" stopColor="#e4bd58" />
             <stop offset=".6" stopColor="#7e4814" />
@@ -1239,40 +1164,27 @@ function Wheel({
             strokeWidth="5"
           />
 
-          {[278, 273, 266].map(radius => (
+          {[278, 273, 266].map((radius) => (
             <circle
               key={radius}
               cx="300"
               cy="300"
               r={radius}
               fill="none"
-              stroke={
-                radius === 266
-                  ? paint("gold")
-                  : "#ac7040"
-              }
-              strokeWidth={
-                radius === 266 ? 10 : 1
-              }
-              opacity={
-                radius === 266 ? 1 : 0.4
-              }
+              stroke={radius === 266 ? paint("gold") : "#ac7040"}
+              strokeWidth={radius === 266 ? 10 : 1}
+              opacity={radius === 266 ? 1 : 0.4}
             />
           ))}
 
-          {Array.from(
-            { length: 8 },
-            (_, index) => (
-              <path
-                key={index}
-                d="M 300 20 l 3 6 -3 6 -3 -6 Z"
-                fill={paint("gold")}
-                transform={`rotate(${
-                  index * 45
-                } 300 300)`}
-              />
-            ),
-          )}
+          {Array.from({ length: 8 }, (_, index) => (
+            <path
+              key={index}
+              d="M 300 20 l 3 6 -3 6 -3 -6 Z"
+              fill={paint("gold")}
+              transform={`rotate(${index * 45} 300 300)`}
+            />
+          ))}
 
           <circle
             cx="300"
@@ -1295,11 +1207,7 @@ function Wheel({
               const end = angle + step / 2;
 
               const fill = paint(
-                value === 0
-                  ? "green"
-                  : red.has(value)
-                    ? "red"
-                    : "black",
+                value === 0 ? "green" : red.has(value) ? "red" : "black"
               );
 
               const label = point(225, angle);
@@ -1309,12 +1217,7 @@ function Wheel({
               return (
                 <g key={value}>
                   <path
-                    d={sector(
-                      207,
-                      247,
-                      start,
-                      end,
-                    )}
+                    d={sector(207, 247, start, end)}
                     fill={color(value)}
                     stroke="#e5be72"
                     strokeWidth=".8"
@@ -1335,12 +1238,7 @@ function Wheel({
                   </text>
 
                   <path
-                    d={sector(
-                      159,
-                      204,
-                      start,
-                      end,
-                    )}
+                    d={sector(159, 204, start, end)}
                     fill={fill}
                     stroke="#69421c"
                     strokeWidth="1"
@@ -1353,35 +1251,24 @@ function Wheel({
                   />
 
                   <path
-                    d={sector(
-                      160,
-                      166,
-                      start + 0.6,
-                      end - 0.6,
-                    )}
+                    d={sector(160, 166, start + 0.6, end - 0.6)}
                     fill="#000"
                     opacity=".38"
                   />
 
-                  {!spinning &&
-                    value === number && (
-                      <path
-                        d={sector(
-                          159,
-                          204,
-                          start,
-                          end,
-                        )}
-                        fill="none"
-                        stroke="#fff0a1"
-                        strokeWidth="2.5"
-                      />
-                    )}
+                  {!spinning && value === number && (
+                    <path
+                      d={sector(159, 204, start, end)}
+                      fill="none"
+                      stroke="#fff0a1"
+                      strokeWidth="2.5"
+                    />
+                  )}
                 </g>
               );
             })}
 
-            {[248, 206, 158].map(radius => (
+            {[248, 206, 158].map((radius) => (
               <circle
                 key={radius}
                 cx="300"
@@ -1389,9 +1276,7 @@ function Wheel({
                 r={radius}
                 fill="none"
                 stroke={paint("gold")}
-                strokeWidth={
-                  radius === 206 ? 4 : 3
-                }
+                strokeWidth={radius === 206 ? 4 : 3}
               />
             ))}
           </g>
@@ -1405,7 +1290,7 @@ function Wheel({
             strokeWidth="2"
           />
 
-          {[0, 90, 180, 270].map(angle => (
+          {[0, 90, 180, 270].map((angle) => (
             <path
               key={angle}
               d="M 300 156 L 300 300"
@@ -1507,9 +1392,7 @@ function Wheel({
           </g>
 
           <g
-            visibility={
-              ready ? "visible" : "hidden"
-            }
+            visibility={ready ? "visible" : "hidden"}
             style={{
               transformOrigin: "300px 300px",
               transform: `rotate(${ballAngle}deg)`,
@@ -1517,8 +1400,7 @@ function Wheel({
           >
             <g
               style={{
-                transform:
-                  `translateY(${-pose.radius}px)`,
+                transform: `translateY(${-pose.radius}px)`,
               }}
             >
               <ellipse
