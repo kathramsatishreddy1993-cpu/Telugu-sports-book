@@ -1,1749 +1,2333 @@
-import React, { useEffect, useMemo, useState } from "react";
-import AdminPaymentSettings from "./AdminPaymentSettings";
-import AdminSportsApiSettings from "./AdminSportsApiSettings";
+import {
+  initializeAnimatedCricket,
+  registerAnimatedCricketRoutes,
+} from "./animatedCricketRoutes.js";
 
-const COIN_HISTORY_KEY = "telugu_sports_demo_coin_history";
-const DEFAULT_WHATSAPP_NUMBER = "919346824432";
+import {
+  initializeAutoGames,
+  registerAutoGameRoutes,
+} from "./autoGameRoutes.js";
 
-const money = value =>
-  Number(value || 0).toLocaleString("en-IN");
+import {
+  initializeRoulette,
+  registerRouletteRoutes,
+} from "./rouletteRoutes.js";
 
-const isPending = item =>
-  String(item?.status || "").toUpperCase() === "PENDING";
+import {
+  initializeColorPrediction,
+  registerColorPredictionRoutes,
+} from "./colorPredictionRoutes.js";
 
-const getPromoCode = customer =>
-  customer?.promoCode || customer?.promo_code || "";
+import {
+  initializeDealOrNoDeal,
+  registerDealOrNoDealRoutes,
+} from "./dealOrNoDealRoutes.js";
 
-async function requestJson(url, options = {}) {
-  const response = await fetch(url, {
-    credentials: "same-origin",
-    cache: "no-store",
-    ...options,
-    headers: {
-      Accept: "application/json",
-      ...(options.body
-        ? { "Content-Type": "application/json" }
-        : {}),
-      ...options.headers,
-    },
-  });
+import {
+  initializeInstantGames,
+  registerInstantGameRoutes,
+} from "./instantGameRoutes.js";
 
-  let data = {};
+import {
+  initializeDiceGames,
+  registerDiceGameRoutes,
+} from "./diceGameRoutes.js";
 
-  try {
-    data = await response.json();
-  } catch {
-    data = {};
-  }
+import {
+  initializeSicBo,
+  registerSicBoRoutes,
+} from "./sicBoRoutes.js";
 
-  if (!response.ok) {
+import {
+  initializeChickenRoad,
+  registerChickenRoadRoutes,
+} from "./chickenRoadRoutes.js";
+
+import {
+  initializeTwistX,
+  registerTwistXRoutes,
+} from "./twistXRoutes.js";
+
+import {
+  initializeDreamWheel,
+  registerDreamWheelRoutes,
+} from "./dreamWheelRoutes.js";
+
+import {
+  initializeControllerAccounts,
+  registerControllerAccountRoutes,
+  requireOldAdmin,
+} from "./controllerAccounts.js";
+
+import {
+  initializeFlight,
+  registerFlightRoutes,
+} from "./flightRoutes.js";
+
+import {
+  initializeDemoBets,
+  registerDemoBetRoutes,
+  issueCustomerSession,
+} from "./demoBetRoutes.js";
+
+import express from "express";
+import path from "path";
+import https from "https";
+import bcrypt from "bcryptjs";
+import pg from "pg";
+
+import { createHash } from "node:crypto";
+import { fileURLToPath } from "url";
+import { sportsService } from "./sportsService.js";
+
+const { Pool } = pg;
+
+const __dirname = path.dirname(
+  fileURLToPath(import.meta.url),
+);
+
+const app = express();
+const PORT = process.env.PORT || 10000;
+
+const MAX_BALANCE = 2147483647;
+
+const DEFAULT_ADMIN_WHATSAPP_NUMBER =
+  "919346824432";
+
+app.use(express.json({ limit: "2mb" }));
+
+app.use(
+  express.urlencoded({
+    extended: true,
+    limit: "2mb",
+  }),
+);
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+
+  ssl:
+    process.env.NODE_ENV === "production"
+      ? { rejectUnauthorized: false }
+      : false,
+});
+
+const wrap = fn => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
+
+const normalizeLoginId = value =>
+  String(value || "").trim().toLowerCase();
+
+const normalizePromoCode = value =>
+  String(value || "").trim().toUpperCase();
+
+const validPromoCode = value =>
+  /^[A-Z0-9_-]{4,30}$/.test(value);
+
+const normalizeWhatsAppNumber = value =>
+  String(value || "").replace(/\D/g, "").trim();
+
+const isValidWhatsAppNumber = value =>
+  /^[1-9][0-9]{9,14}$/.test(value);
+
+const positiveInteger = value =>
+  Number.isSafeInteger(Number(value)) &&
+  Number(value) > 0 &&
+  Number(value) <= MAX_BALANCE;
+
+const publicCustomer = customer => ({
+  id: customer.id,
+  name: customer.name,
+  loginId: customer.login_id,
+  promoCode: customer.promo_code || null,
+
+  mustChangePassword: Boolean(
+    customer.must_change_password,
+  ),
+
+  mustChangeWithdrawalPassword: Boolean(
+    customer.must_change_withdrawal_password,
+  ),
+
+  withdrawalPasswordConfigured: Boolean(
+    customer.withdrawal_password_hash,
+  ),
+
+  status: customer.status,
+  createdAt: customer.created_at,
+
+  demoCoinBalance: Number(
+    customer.demo_coin_balance || 0,
+  ),
+
+  demo_coin_balance: Number(
+    customer.demo_coin_balance || 0,
+  ),
+});
+
+async function initializeDatabase() {
+  if (!process.env.DATABASE_URL) {
     throw new Error(
-      data?.error || "Request failed. Please try again.",
+      "DATABASE_URL is not configured.",
     );
   }
 
-  return data;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS customers (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(120) NOT NULL,
+      login_id VARCHAR(60) UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      must_change_password BOOLEAN NOT NULL DEFAULT TRUE,
+      withdrawal_password_hash TEXT,
+      must_change_withdrawal_password BOOLEAN NOT NULL DEFAULT TRUE,
+      status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+      demo_coin_balance INTEGER NOT NULL DEFAULT 0,
+      promo_code VARCHAR(30),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    ALTER TABLE customers
+      ADD COLUMN IF NOT EXISTS
+      withdrawal_password_hash TEXT;
+
+    ALTER TABLE customers
+      ADD COLUMN IF NOT EXISTS
+      must_change_withdrawal_password
+      BOOLEAN NOT NULL DEFAULT TRUE;
+
+    ALTER TABLE customers
+      ADD COLUMN IF NOT EXISTS
+      demo_coin_balance
+      INTEGER NOT NULL DEFAULT 0;
+
+    ALTER TABLE customers
+      ADD COLUMN IF NOT EXISTS
+      promo_code VARCHAR(30);
+
+    CREATE UNIQUE INDEX IF NOT EXISTS
+      customers_promo_code_unique
+      ON customers (UPPER(BTRIM(promo_code)))
+      WHERE promo_code IS NOT NULL
+        AND BTRIM(promo_code) <> '';
+
+    CREATE TABLE IF NOT EXISTS site_settings (
+      setting_key VARCHAR(100) PRIMARY KEY,
+      setting_value TEXT NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS demo_coin_transactions (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL
+        REFERENCES customers(id) ON DELETE CASCADE,
+      amount INTEGER NOT NULL,
+      transaction_type VARCHAR(20) NOT NULL,
+      note TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS tsb_admin_coin_changes (
+      request_key VARCHAR(100) PRIMARY KEY,
+      admin_id TEXT NOT NULL,
+      customer_id INTEGER NOT NULL
+        REFERENCES customers(id),
+      delta INTEGER NOT NULL CHECK(delta <> 0),
+      note TEXT NOT NULL,
+      balance_after INTEGER NOT NULL
+        CHECK(balance_after >= 0),
+      transaction_id INTEGER NOT NULL
+        REFERENCES demo_coin_transactions(id),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS demo_withdrawal_requests (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL
+        REFERENCES customers(id) ON DELETE CASCADE,
+      amount INTEGER NOT NULL,
+      account_holder_name TEXT NOT NULL,
+      bank_name TEXT NOT NULL,
+      account_number TEXT NOT NULL,
+      ifsc_code TEXT NOT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS
+      demo_withdrawal_customer_index
+      ON demo_withdrawal_requests(customer_id);
+
+    ALTER TABLE demo_withdrawal_requests
+      ADD COLUMN IF NOT EXISTS
+      coins_held BOOLEAN NOT NULL DEFAULT FALSE;
+
+    ALTER TABLE demo_withdrawal_requests
+      ADD COLUMN IF NOT EXISTS
+      coins_restored BOOLEAN NOT NULL DEFAULT FALSE;
+
+    CREATE TABLE IF NOT EXISTS demo_deposit_requests (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL
+        REFERENCES customers(id) ON DELETE CASCADE,
+      reference_number VARCHAR(12) NOT NULL UNIQUE,
+      amount INTEGER NOT NULL,
+      payment_method VARCHAR(30) NOT NULL,
+      proof_name TEXT,
+      status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS
+      demo_deposit_reference_unique
+      ON demo_deposit_requests(reference_number);
+  `);
+
+  await pool.query(
+    `INSERT INTO site_settings(
+       setting_key,
+       setting_value
+     )
+     VALUES('admin_whatsapp_number',$1)
+     ON CONFLICT(setting_key) DO NOTHING`,
+    [DEFAULT_ADMIN_WHATSAPP_NUMBER],
+  );
+
+  await initializeDemoBets(pool);
+  await initializeControllerAccounts(pool);
+  await initializeFlight(pool);
+  await initializeRoulette(pool);
+  await initializeAutoGames(pool);
+  await initializeAnimatedCricket(pool);
+  await initializeColorPrediction(pool);
+  await initializeDealOrNoDeal(pool);
+  await initializeInstantGames(pool);
+  await initializeDiceGames(pool);
+  await initializeSicBo(pool);
+  await initializeChickenRoad(pool);
+  await initializeTwistX(pool);
+  await initializeDreamWheel(pool);
+
+  console.log(
+    "Database ready; all sixteen demo games connected.",
+  );
 }
 
-export default function AdminDashboard({ admin, onLogout }) {
-  const [activeSection, setActiveSection] = useState("Dashboard");
+registerControllerAccountRoutes(app, pool);
 
-  const [depositRequests, setDepositRequests] = useState([]);
-  const [depositLoading, setDepositLoading] = useState(false);
-  const [depositError, setDepositError] = useState("");
+// Every Admin API below requires the verified Admin session.
+app.use("/api/admin", requireOldAdmin(pool));
 
-  const [withdrawalRequests, setWithdrawalRequests] = useState([]);
-  const [withdrawalLoading, setWithdrawalLoading] = useState(false);
-  const [withdrawalError, setWithdrawalError] = useState("");
+async function getAdminWhatsAppNumber() {
+  try {
+    const result = await pool.query(
+      `SELECT setting_value
+       FROM site_settings
+       WHERE setting_key=$1
+       LIMIT 1`,
+      ["admin_whatsapp_number"],
+    );
 
-  const [customers, setCustomers] = useState([]);
-  const [customerName, setCustomerName] = useState("");
-  const [customerLoginId, setCustomerLoginId] = useState("");
-  const [customerPromoCode, setCustomerPromoCode] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [withdrawalPassword, setWithdrawalPassword] = useState("");
-  const [customerLoading, setCustomerLoading] = useState(false);
-  const [customerCreating, setCustomerCreating] = useState(false);
-  const [customerMessage, setCustomerMessage] = useState("");
-  const [customerError, setCustomerError] = useState("");
+    const number = normalizeWhatsAppNumber(
+      result.rows[0]?.setting_value,
+    );
 
-  const [coinCustomerId, setCoinCustomerId] = useState("");
-  const [coinAmount, setCoinAmount] = useState("");
-  const [coinMessage, setCoinMessage] = useState("");
-  const [coinBusy, setCoinBusy] = useState(false);
+    return isValidWhatsAppNumber(number)
+      ? number
+      : DEFAULT_ADMIN_WHATSAPP_NUMBER;
+  } catch {
+    return DEFAULT_ADMIN_WHATSAPP_NUMBER;
+  }
+}
 
-  const [coinHistory, setCoinHistory] = useState(() => {
-    try {
-      const parsed = JSON.parse(
-        localStorage.getItem(COIN_HISTORY_KEY) || "[]",
-      );
+for (const route of [
+  "/api/public/settings",
+  "/api/admin/settings/whatsapp",
+]) {
+  app.get(
+    route,
+    wrap(async (req, res) => {
+      res.set("Cache-Control", "no-store");
 
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [whatsappNumber, setWhatsappNumber] = useState(
-    DEFAULT_WHATSAPP_NUMBER,
-  );
-  const [whatsappInput, setWhatsappInput] = useState(
-    DEFAULT_WHATSAPP_NUMBER,
-  );
-  const [whatsappLoading, setWhatsappLoading] = useState(false);
-  const [whatsappMessage, setWhatsappMessage] = useState("");
-  const [whatsappError, setWhatsappError] = useState("");
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        COIN_HISTORY_KEY,
-        JSON.stringify(coinHistory),
-      );
-    } catch (error) {
-      console.error(error);
-    }
-  }, [coinHistory]);
-
-  const loadDepositRequests = async () => {
-    setDepositLoading(true);
-    setDepositError("");
-
-    try {
-      const data = await requestJson(
-        "/api/admin/demo-deposits",
-      );
-
-      setDepositRequests(
-        Array.isArray(data.requests) ? data.requests : [],
-      );
-    } catch (error) {
-      setDepositError(error.message);
-    } finally {
-      setDepositLoading(false);
-    }
-  };
-
-  const loadWithdrawalRequests = async () => {
-    setWithdrawalLoading(true);
-    setWithdrawalError("");
-
-    try {
-      const data = await requestJson(
-        "/api/admin/demo-withdrawals",
-      );
-
-      setWithdrawalRequests(
-        Array.isArray(data.requests) ? data.requests : [],
-      );
-    } catch (error) {
-      setWithdrawalError(error.message);
-    } finally {
-      setWithdrawalLoading(false);
-    }
-  };
-
-  const loadCustomers = async () => {
-    setCustomerLoading(true);
-    setCustomerError("");
-
-    try {
-      const data = await requestJson("/api/admin/customers");
-
-      setCustomers(
-        Array.isArray(data.customers) ? data.customers : [],
-      );
-    } catch (error) {
-      setCustomerError(error.message);
-    } finally {
-      setCustomerLoading(false);
-    }
-  };
-
-  const loadWhatsAppNumber = async () => {
-    setWhatsappLoading(true);
-    setWhatsappError("");
-    setWhatsappMessage("");
-
-    try {
-      const data = await requestJson(
-        "/api/admin/settings/whatsapp",
-      );
-
-      const number = String(
-        data.whatsappNumber || DEFAULT_WHATSAPP_NUMBER,
-      ).replace(/\D/g, "");
-
-      setWhatsappNumber(number);
-      setWhatsappInput(number);
-    } catch (error) {
-      setWhatsappError(error.message);
-    } finally {
-      setWhatsappLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (
-      [
-        "Dashboard",
-        "Pending Deposits",
-        "Transaction History",
-      ].includes(activeSection)
-    ) {
-      loadDepositRequests();
-    }
-
-    if (
-      [
-        "Dashboard",
-        "Pending Withdrawals",
-        "Transaction History",
-      ].includes(activeSection)
-    ) {
-      loadWithdrawalRequests();
-    }
-
-    if (
-      ["Customers", "Coin Management"].includes(activeSection)
-    ) {
-      loadCustomers();
-    }
-
-    if (activeSection === "WhatsApp Settings") {
-      loadWhatsAppNumber();
-    }
-  }, [activeSection]);
-
-  const saveWhatsAppNumber = async event => {
-    event.preventDefault();
-
-    setWhatsappError("");
-    setWhatsappMessage("");
-
-    const cleanNumber = String(
-      whatsappInput || "",
-    ).replace(/\D/g, "");
-
-    if (!/^[1-9][0-9]{9,14}$/.test(cleanNumber)) {
-      setWhatsappError(
-        "Enter a valid WhatsApp number with country code. Example: 919346824432",
-      );
-      return;
-    }
-
-    if (
-      !window.confirm(
-        `Change the website WhatsApp number to +${cleanNumber}?`,
-      )
-    ) {
-      return;
-    }
-
-    setWhatsappLoading(true);
-
-    try {
-      const data = await requestJson(
-        "/api/admin/settings/whatsapp",
-        {
-          method: "PUT",
-          body: JSON.stringify({
-            whatsappNumber: cleanNumber,
-          }),
-        },
-      );
-
-      const savedNumber = String(
-        data.whatsappNumber || cleanNumber,
-      ).replace(/\D/g, "");
-
-      setWhatsappNumber(savedNumber);
-      setWhatsappInput(savedNumber);
-      setWhatsappMessage(
-        `WhatsApp number updated successfully to +${savedNumber}.`,
-      );
-    } catch (error) {
-      setWhatsappError(error.message);
-    } finally {
-      setWhatsappLoading(false);
-    }
-  };
-
-  const createCustomer = async event => {
-    event.preventDefault();
-
-    if (customerCreating) return;
-
-    setCustomerError("");
-    setCustomerMessage("");
-
-    const cleanName = customerName.trim();
-    const cleanLoginId = customerLoginId.trim().toLowerCase();
-    const cleanPromoCode = customerPromoCode.trim().toUpperCase();
-
-    if (!cleanName) {
-      setCustomerError("Customer Name is required.");
-      return;
-    }
-
-    if (!/^[a-z0-9._-]{4,30}$/.test(cleanLoginId)) {
-      setCustomerError(
-        "Login ID must contain 4–30 letters, numbers, dots, underscores or hyphens.",
-      );
-      return;
-    }
-
-    if (!/^[A-Z0-9_-]{4,30}$/.test(cleanPromoCode)) {
-      setCustomerError(
-        "Promo Code must contain 4–30 letters, numbers, underscores or hyphens.",
-      );
-      return;
-    }
-
-    if (
-      customers.some(
-        customer =>
-          getPromoCode(customer).toUpperCase() ===
-          cleanPromoCode,
-      )
-    ) {
-      setCustomerError(
-        "This Promo Code is already assigned. Enter a different code.",
-      );
-      return;
-    }
-
-    if (loginPassword.length < 6) {
-      setCustomerError(
-        "Login Password must contain at least 6 characters.",
-      );
-      return;
-    }
-
-    if (withdrawalPassword.length < 6) {
-      setCustomerError(
-        "Withdrawal Password must contain at least 6 characters.",
-      );
-      return;
-    }
-
-    if (loginPassword === withdrawalPassword) {
-      setCustomerError(
-        "Login Password and Withdrawal Password must be different.",
-      );
-      return;
-    }
-
-    setCustomerCreating(true);
-
-    try {
-      const data = await requestJson("/api/admin/customers", {
-        method: "POST",
-        body: JSON.stringify({
-          name: cleanName,
-          loginId: cleanLoginId,
-          promoCode: cleanPromoCode,
-          temporaryPassword: loginPassword,
-          temporaryWithdrawalPassword: withdrawalPassword,
-        }),
+      res.json({
+        success: true,
+        whatsappNumber:
+          await getAdminWhatsAppNumber(),
       });
+    }),
+  );
+}
 
-      const savedPromo = getPromoCode(data.customer);
+app.put(
+  "/api/admin/settings/whatsapp",
+  wrap(async (req, res) => {
+    const number = normalizeWhatsAppNumber(
+      req.body.whatsappNumber ||
+      req.body.number,
+    );
 
-      setCustomerName("");
-      setCustomerLoginId("");
-      setCustomerPromoCode("");
-      setLoginPassword("");
-      setWithdrawalPassword("");
+    if (!isValidWhatsAppNumber(number)) {
+      return res.status(400).json({
+        error:
+          "Please enter a valid WhatsApp number with country code.",
+      });
+    }
 
-      await loadCustomers();
+    const result = await pool.query(
+      `INSERT INTO site_settings(
+         setting_key,
+         setting_value,
+         updated_at
+       )
+       VALUES('admin_whatsapp_number',$1,NOW())
+       ON CONFLICT(setting_key)
+       DO UPDATE SET
+         setting_value=EXCLUDED.setting_value,
+         updated_at=NOW()
+       RETURNING *`,
+      [number],
+    );
 
-      if (savedPromo.toUpperCase() === cleanPromoCode) {
-        setCustomerMessage(
-          `Customer ${cleanLoginId} created successfully. Promo Code: ${savedPromo}`,
-        );
-      } else {
-        setCustomerError(
-          `Customer ${cleanLoginId} was created, but the server did not confirm the Promo Code. Complete the backend update before creating another customer.`,
-        );
+    res.json({
+      success: true,
+      message:
+        "WhatsApp number updated successfully.",
+      whatsappNumber: number,
+      updatedAt: result.rows[0].updated_at,
+    });
+  }),
+);
+
+app.post(
+  "/api/admin/customers",
+  wrap(async (req, res) => {
+    const name = String(
+      req.body.name || "",
+    ).trim();
+
+    const loginId = normalizeLoginId(
+      req.body.loginId,
+    );
+
+    const promoCode = normalizePromoCode(
+      req.body.promoCode,
+    );
+
+    const password = String(
+      req.body.temporaryPassword || "",
+    );
+
+    const withdrawal = String(
+      req.body.temporaryWithdrawalPassword || "",
+    );
+
+    if (!name || name.length > 120) {
+      return res.status(400).json({
+        error:
+          "Customer name is required (maximum 120 characters).",
+      });
+    }
+
+    if (!/^[a-z0-9._-]{4,30}$/.test(loginId)) {
+      return res.status(400).json({
+        error:
+          "Login ID must be 4-30 characters: letters, numbers, dot, underscore or hyphen.",
+      });
+    }
+
+    if (!validPromoCode(promoCode)) {
+      return res.status(400).json({
+        error:
+          "Promo Code must contain 4-30 letters, numbers, underscores or hyphens.",
+      });
+    }
+
+    if (
+      password.length < 6 ||
+      withdrawal.length < 6
+    ) {
+      return res.status(400).json({
+        error:
+          "Both temporary passwords must contain at least 6 characters.",
+      });
+    }
+
+    if (password === withdrawal) {
+      return res.status(400).json({
+        error:
+          "Login Password and Withdrawal Password must be different.",
+      });
+    }
+
+    const hashes = await Promise.all([
+      bcrypt.hash(password, 12),
+      bcrypt.hash(withdrawal, 12),
+    ]);
+
+    try {
+      const result = await pool.query(
+        `INSERT INTO customers(
+           name,
+           login_id,
+           password_hash,
+           withdrawal_password_hash,
+           promo_code
+         )
+         VALUES($1,$2,$3,$4,$5)
+         RETURNING *`,
+        [name, loginId, ...hashes, promoCode],
+      );
+
+      res.status(201).json({
+        success: true,
+        message:
+          "Customer created successfully.",
+        customer: publicCustomer(
+          result.rows[0],
+        ),
+      });
+    } catch (error) {
+      if (error.code === "23505") {
+        return res.status(409).json({
+          success: false,
+          error:
+            error.constraint ===
+            "customers_promo_code_unique"
+              ? "This Promo Code is already assigned. Enter a different code."
+              : "This Login ID already exists. Enter a different Login ID.",
+        });
       }
-    } catch (error) {
-      setCustomerError(error.message);
-    } finally {
-      setCustomerCreating(false);
-    }
-  };
 
-  const resetLoginPassword = async customer => {
-    const temporaryPassword = window.prompt(
-      `Enter NEW temporary Login Password for ${customer.loginId}`,
+      throw error;
+    }
+  }),
+);
+
+app.get(
+  "/api/admin/customers",
+  wrap(async (req, res) => {
+    const result = await pool.query(
+      "SELECT * FROM customers ORDER BY id DESC",
     );
 
-    if (!temporaryPassword) return;
+    res.set("Cache-Control", "no-store");
 
-    if (temporaryPassword.length < 6) {
-      window.alert(
-        "Temporary Login Password must contain at least 6 characters.",
-      );
-      return;
+    res.json({
+      success: true,
+      customers:
+        result.rows.map(publicCustomer),
+    });
+  }),
+);
+
+app.put(
+  "/api/admin/customers/:id/promo-code",
+  wrap(async (req, res) => {
+    const id = Number(req.params.id);
+
+    const promoCode = normalizePromoCode(
+      req.body.promoCode,
+    );
+
+    if (!positiveInteger(id)) {
+      return res.status(400).json({
+        error: "Invalid customer ID.",
+      });
+    }
+
+    if (!validPromoCode(promoCode)) {
+      return res.status(400).json({
+        error:
+          "Promo Code must contain 4-30 letters, numbers, underscores or hyphens.",
+      });
     }
 
     try {
-      await requestJson(
-        `/api/admin/customers/${customer.id}/reset-login-password`,
-        {
-          method: "POST",
-          body: JSON.stringify({ temporaryPassword }),
-        },
+      const result = await pool.query(
+        `UPDATE customers
+         SET promo_code=$1,
+             updated_at=NOW()
+         WHERE id=$2
+         RETURNING *`,
+        [promoCode, id],
       );
 
-      window.alert(
-        "Temporary Login Password reset successfully.",
-      );
+      if (!result.rows.length) {
+        return res.status(404).json({
+          error:
+            "Customer account not found.",
+        });
+      }
 
-      await loadCustomers();
+      res.json({
+        success: true,
+        message:
+          "Promo Code saved successfully.",
+        customer: publicCustomer(
+          result.rows[0],
+        ),
+      });
     } catch (error) {
-      window.alert(error.message);
-    }
-  };
+      if (error.code === "23505") {
+        return res.status(409).json({
+          error:
+            "This Promo Code is already assigned to another customer.",
+        });
+      }
 
-  const resetWithdrawalPassword = async customer => {
-    const temporaryWithdrawalPassword = window.prompt(
-      `Enter NEW temporary Withdrawal Password for ${customer.loginId}`,
+      throw error;
+    }
+  }),
+);
+
+app.get(
+  "/api/customer/promo-code",
+  wrap(async (req, res) => {
+    res.set("Cache-Control", "no-store");
+
+    const cookie = String(
+      req.headers.cookie || "",
+    )
+      .split(";")
+      .map(value => value.trim())
+      .find(value =>
+        value.startsWith("tsb_demo_session="),
+      );
+
+    const token = cookie
+      ? cookie.slice("tsb_demo_session=".length)
+      : "";
+
+    if (!/^[a-f0-9]{64}$/.test(token)) {
+      return res.status(401).json({
+        error: "Customer login required.",
+      });
+    }
+
+    const tokenHash = createHash("sha256")
+      .update(token)
+      .digest("hex");
+
+    const result = await pool.query(
+      `SELECT c.id,c.name,c.login_id,c.promo_code
+       FROM demo_customer_sessions s
+       JOIN customers c ON c.id=s.customer_id
+       WHERE s.token_hash=$1
+         AND s.expires_at>NOW()
+         AND c.status='ACTIVE'
+       LIMIT 1`,
+      [tokenHash],
     );
 
-    if (!temporaryWithdrawalPassword) return;
-
-    if (temporaryWithdrawalPassword.length < 6) {
-      window.alert(
-        "Temporary Withdrawal Password must contain at least 6 characters.",
-      );
-      return;
-    }
-
-    try {
-      await requestJson(
-        `/api/admin/customers/${customer.id}/reset-withdrawal-password`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            temporaryWithdrawalPassword,
-          }),
-        },
-      );
-
-      window.alert(
-        "Temporary Withdrawal Password reset successfully.",
-      );
-
-      await loadCustomers();
-    } catch (error) {
-      window.alert(error.message);
-    }
-  };
-
-  const pendingDeposits = useMemo(
-    () => depositRequests.filter(isPending).length,
-    [depositRequests],
-  );
-
-  const pendingWithdrawals = useMemo(
-    () => withdrawalRequests.filter(isPending).length,
-    [withdrawalRequests],
-  );
-
-  const updateDepositStatus = async (
-    requestId,
-    nextStatus,
-  ) => {
-    try {
-      await requestJson(
-        `/api/admin/demo-deposits/${encodeURIComponent(
-          requestId,
-        )}/status`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({ status: nextStatus }),
-        },
-      );
-
-      await loadDepositRequests();
-      return true;
-    } catch (error) {
-      window.alert(error.message);
-      return false;
-    }
-  };
-
-  const reviewDeposit = async (
-    requestId,
-    nextStatus,
-  ) => {
-    const request = depositRequests.find(
-      item => item.id === requestId,
-    );
-
-    if (!request) {
-      window.alert("Deposit request not found.");
-      return;
-    }
-
-    if (!isPending(request)) {
-      window.alert("This request has already been reviewed.");
-      return;
-    }
-
-    const question =
-      nextStatus === "APPROVED"
-        ? `Approve ₹${money(request.amount)} deposit request?`
-        : "Reject this deposit request?";
-
-    if (!window.confirm(question)) return;
-
-    if (await updateDepositStatus(requestId, nextStatus)) {
-      window.alert(
-        `Deposit request changed to ${nextStatus}.`,
-      );
-    }
-  };
-
-  const updateWithdrawalStatus = async (
-    requestId,
-    nextStatus,
-  ) => {
-    setWithdrawalError("");
-
-    try {
-      await requestJson(
-        `/api/admin/demo-withdrawals/${encodeURIComponent(
-          requestId,
-        )}/status`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({ status: nextStatus }),
-        },
-      );
-
-      await loadWithdrawalRequests();
-      return true;
-    } catch (error) {
-      setWithdrawalError(error.message);
-      window.alert(error.message);
-      return false;
-    }
-  };
-
-  const reviewWithdrawal = async (
-    requestId,
-    nextStatus,
-  ) => {
-    const request = withdrawalRequests.find(
-      item => item.id === requestId,
-    );
-
-    if (!request) {
-      window.alert("Withdrawal request not found.");
-      return;
-    }
-
-    if (!isPending(request)) {
-      window.alert(
-        "This withdrawal request has already been reviewed.",
-      );
-      return;
-    }
-
-    const action =
-      nextStatus === "APPROVED" ? "Approve" : "Reject";
-
-    if (
-      !window.confirm(
-        `${action} ${money(request.amount)} coins withdrawal request?`,
-      )
-    ) {
-      return;
-    }
-
-    if (
-      await updateWithdrawalStatus(requestId, nextStatus)
-    ) {
-      window.alert(
-        `Withdrawal request changed to ${nextStatus}.`,
-      );
-    }
-  };
-
-  const changeDemoCoins = async mode => {
-    if (coinBusy) return;
-
-    setCoinMessage("");
-
-    if (!coinCustomerId) {
-      setCoinMessage("Select customer first.");
-      return;
-    }
-
-    const amount = Number(coinAmount);
-
-    if (!Number.isSafeInteger(amount) || amount <= 0) {
-      setCoinMessage(
-        "Enter a valid whole-number Coin amount.",
-      );
-      return;
-    }
-
-    const customer = customers.find(
-      item => String(item.id) === String(coinCustomerId),
-    );
+    const customer = result.rows[0];
 
     if (!customer) {
-      setCoinMessage("Selected customer was not found.");
-      return;
+      return res.status(401).json({
+        error:
+          "Customer session expired. Please login again.",
+      });
     }
 
-    if (mode !== "ADD") {
-      setCoinMessage("Remove Coins is not available yet.");
-      return;
-    }
+    res.json({
+      success: true,
+      customerId: customer.id,
+      name: customer.name,
+      loginId: customer.login_id,
+      promoCode: customer.promo_code || null,
+    });
+  }),
+);
 
-    setCoinBusy(true);
+// Admin coin adjustments.
 
-    try {
-      const data = await requestJson(
-        `/api/admin/customers/${customer.id}/add-demo-coins`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            amount,
-            note: "Coins added by Admin",
-          }),
-        },
-      );
+const coinFailure = (message, status = 400) =>
+  Object.assign(new Error(message), { status });
 
-      const nextBalance = Number(
-        data.customer?.demo_coin_balance ??
-          data.customer?.demoCoinBalance ??
-          0,
-      );
+function coinOrigin(req) {
+  if (!req.headers.origin) return;
 
-      const record = {
-        id: Date.now(),
-        customerId: customer.id,
-        loginId: customer.loginId,
-        customerName: customer.name || customer.loginId,
-        type: "ADD",
-        amount,
-        balance: nextBalance,
-        date: new Date().toLocaleString("en-IN"),
-      };
+  let valid = false;
 
-      setCoinHistory(previous => [record, ...previous]);
-      setCoinAmount("");
+  try {
+    valid =
+      new URL(req.headers.origin).host ===
+      req.headers.host;
+  } catch {}
 
-      setCoinMessage(
-        `${money(amount)} Coins added to ${customer.name}. New balance: ${money(nextBalance)}`,
-      );
-    } catch (error) {
-      setCoinMessage(error.message);
-    } finally {
-      setCoinBusy(false);
-    }
-  };
-
-  const adminBoxes = [
-    { title: "Deposit Accounts", icon: "🏦" },
-    { title: "Coin Management", icon: "🪙" },
-    { title: "Customers", icon: "👥" },
-    { title: "WhatsApp Settings", icon: "📱" },
-    { title: "API Settings", icon: "🔌" },
-    { title: "Transaction History", icon: "📒" },
-    { title: "Admin Settings", icon: "⚙️" },
-  ];
-
-  const goBack = () => setActiveSection("Dashboard");
-
-  if (activeSection === "Deposit Accounts") {
-    return <AdminPaymentSettings onBack={goBack} />;
+  if (!valid) {
+    throw coinFailure(
+      "Invalid request origin.",
+      403,
+    );
   }
-
-  return (
-    <div className="min-h-screen bg-[#061c1a] text-white">
-      <header className="sticky top-0 z-50 bg-[#9a5a00] px-4 py-4 shadow-xl">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <div>
-            <p className="text-[9px] font-black tracking-widest text-amber-200">
-              TELUGU SPORTS BOOK
-            </p>
-
-            <h1 className="mt-1 text-lg font-black">
-              🛡️ ADMIN CONTROL PANEL
-            </h1>
-          </div>
-
-          <div className="text-right">
-            <p className="text-[8px] text-amber-100">
-              ADMIN ID
-            </p>
-
-            <p className="text-[11px] font-black">
-              {admin?.username || "admin"}
-            </p>
-          </div>
-        </div>
-      </header>
-
-      {activeSection === "Dashboard" && (
-        <main className="mx-auto max-w-5xl px-3 py-5">
-          <h2 className="text-xl font-black">
-            Admin Dashboard
-          </h2>
-
-          {depositError && (
-            <MessageBox text={depositError} error />
-          )}
-
-          {withdrawalError && (
-            <MessageBox text={withdrawalError} error />
-          )}
-
-          <div className="mt-5 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() =>
-                setActiveSection("Pending Deposits")
-              }
-              className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 text-left"
-            >
-              <span className="text-2xl">📥</span>
-
-              <p className="mt-2 text-2xl font-black text-green-300">
-                {depositLoading ? "..." : pendingDeposits}
-              </p>
-
-              <p className="text-[9px] font-black">
-                PENDING DEPOSITS
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                setActiveSection("Pending Withdrawals")
-              }
-              className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-left"
-            >
-              <span className="text-2xl">💸</span>
-
-              <p className="mt-2 text-2xl font-black text-red-300">
-                {withdrawalLoading
-                  ? "..."
-                  : pendingWithdrawals}
-              </p>
-
-              <p className="text-[9px] font-black">
-                PENDING WITHDRAWALS
-              </p>
-            </button>
-          </div>
-
-          <p className="mb-3 mt-6 text-xs font-black text-amber-300">
-            ADMIN MANAGEMENT
-          </p>
-
-          <div className="grid grid-cols-2 gap-3">
-            {adminBoxes.map(item => (
-              <button
-                type="button"
-                key={item.title}
-                onClick={() =>
-                  setActiveSection(item.title)
-                }
-                className="min-h-[130px] rounded-xl border border-[#28655f] bg-[#083d37] p-4 text-left"
-              >
-                <span className="text-3xl">
-                  {item.icon}
-                </span>
-
-                <p className="mt-4 text-[11px] font-black">
-                  {item.title}
-                </p>
-              </button>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            onClick={onLogout}
-            className="mt-6 h-[46px] w-full rounded-lg bg-red-700 text-xs font-black"
-          >
-            ADMIN LOGOUT
-          </button>
-        </main>
-      )}
-
-      {activeSection === "Pending Deposits" && (
-        <AdminPage
-          title="Pending Deposits"
-          icon="📥"
-          onBack={goBack}
-        >
-          <div className="grid grid-cols-2 gap-2">
-            <InfoBox
-              label="TOTAL PENDING"
-              value={depositLoading ? "..." : pendingDeposits}
-            />
-
-            <RefreshButton
-              loading={depositLoading}
-              onClick={loadDepositRequests}
-            />
-          </div>
-
-          {depositError && (
-            <MessageBox text={depositError} error />
-          )}
-
-          {!depositLoading && pendingDeposits === 0 && (
-            <EmptyState text="No pending deposits" />
-          )}
-
-          <div className="mt-4 space-y-3">
-            {depositRequests
-              .filter(isPending)
-              .map(request => (
-                <div
-                  key={request.id}
-                  className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
-                >
-                  <RequestHeading request={request} />
-
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <InfoBox
-                      label="AMOUNT"
-                      value={`₹${money(request.amount)}`}
-                    />
-
-                    <InfoBox
-                      label="REFERENCE / UTR"
-                      value={
-                        request.referenceNumber ||
-                        request.reference ||
-                        "—"
-                      }
-                    />
-
-                    <InfoBox
-                      label="METHOD"
-                      value={
-                        request.paymentMethod ||
-                        request.method ||
-                        "—"
-                      }
-                    />
-
-                    <InfoBox
-                      label="CUSTOMER ID"
-                      value={request.customerId || "—"}
-                    />
-                  </div>
-
-                  {request.proofName && (
-                    <div className="mt-2">
-                      <InfoBox
-                        label="PROOF FILE"
-                        value={request.proofName}
-                      />
-                    </div>
-                  )}
-
-                  <RequestDate value={request.createdAt} />
-
-                  <ReviewButtons
-                    onApprove={() =>
-                      reviewDeposit(
-                        request.id,
-                        "APPROVED",
-                      )
-                    }
-                    onReject={() =>
-                      reviewDeposit(
-                        request.id,
-                        "REJECTED",
-                      )
-                    }
-                  />
-                </div>
-              ))}
-          </div>
-        </AdminPage>
-      )}
-
-      {activeSection === "Pending Withdrawals" && (
-        <AdminPage
-          title="Pending Withdrawals"
-          icon="💸"
-          onBack={goBack}
-        >
-          <div className="grid grid-cols-2 gap-2">
-            <InfoBox
-              label="TOTAL PENDING"
-              value={
-                withdrawalLoading
-                  ? "..."
-                  : pendingWithdrawals
-              }
-            />
-
-            <RefreshButton
-              loading={withdrawalLoading}
-              onClick={loadWithdrawalRequests}
-            />
-          </div>
-
-          {withdrawalError && (
-            <MessageBox text={withdrawalError} error />
-          )}
-
-          {!withdrawalLoading &&
-            pendingWithdrawals === 0 && (
-              <EmptyState text="No pending withdrawals" />
-            )}
-
-          <div className="mt-4 space-y-3">
-            {withdrawalRequests
-              .filter(isPending)
-              .map(request => (
-                <div
-                  key={request.id}
-                  className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
-                >
-                  <RequestHeading request={request} />
-
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <InfoBox
-                      label="REQUESTED COINS"
-                      value={money(request.amount)}
-                    />
-
-                    <InfoBox
-                      label="CUSTOMER ID"
-                      value={request.customerId || "—"}
-                    />
-
-                    <InfoBox
-                      label="ACCOUNT HOLDER"
-                      value={request.accountHolderName || "—"}
-                    />
-
-                    <InfoBox
-                      label="BANK NAME"
-                      value={request.bankName || "—"}
-                    />
-
-                    <InfoBox
-                      label="ACCOUNT NUMBER"
-                      value={request.accountNumber || "—"}
-                    />
-
-                    <InfoBox
-                      label="IFSC CODE"
-                      value={request.ifscCode || "—"}
-                    />
-                  </div>
-
-                  <RequestDate value={request.createdAt} />
-
-                  <ReviewButtons
-                    onApprove={() =>
-                      reviewWithdrawal(
-                        request.id,
-                        "APPROVED",
-                      )
-                    }
-                    onReject={() =>
-                      reviewWithdrawal(
-                        request.id,
-                        "REJECTED",
-                      )
-                    }
-                  />
-                </div>
-              ))}
-          </div>
-        </AdminPage>
-      )}
-
-      {activeSection === "Customers" && (
-        <AdminPage
-          title="Customers"
-          icon="👥"
-          onBack={goBack}
-        >
-          <form
-            onSubmit={createCustomer}
-            className="rounded-xl border border-amber-500/30 bg-black/10 p-4"
-          >
-            <p className="text-xs font-black text-amber-300">
-              CREATE CUSTOMER ID
-            </p>
-
-            <fieldset
-              disabled={customerCreating}
-              className="mt-4 space-y-3"
-            >
-              <CustomerInput
-                label="CUSTOMER NAME"
-                value={customerName}
-                onChange={event =>
-                  setCustomerName(event.target.value)
-                }
-              />
-
-              <CustomerInput
-                label="LOGIN ID"
-                value={customerLoginId}
-                onChange={event =>
-                  setCustomerLoginId(event.target.value)
-                }
-              />
-
-              <CustomerInput
-                label="PROMO CODE"
-                value={customerPromoCode}
-                maxLength={30}
-                placeholder="Example: SATISH05"
-                onChange={event =>
-                  setCustomerPromoCode(
-                    event.target.value.toUpperCase(),
-                  )
-                }
-              />
-
-              <p className="text-[9px] leading-5 text-cyan-200">
-                Assign a unique Promo Code to this customer.
-                Use 4–30 letters, numbers, underscores or
-                hyphens.
-              </p>
-
-              <CustomerInput
-                label="LOGIN PASSWORD"
-                type="password"
-                value={loginPassword}
-                onChange={event =>
-                  setLoginPassword(event.target.value)
-                }
-              />
-
-              <CustomerInput
-                label="WITHDRAWAL PASSWORD"
-                type="password"
-                value={withdrawalPassword}
-                onChange={event =>
-                  setWithdrawalPassword(event.target.value)
-                }
-              />
-            </fieldset>
-
-            {customerError && (
-              <MessageBox text={customerError} error />
-            )}
-
-            {customerMessage && (
-              <MessageBox text={customerMessage} />
-            )}
-
-            <button
-              type="submit"
-              disabled={customerCreating || customerLoading}
-              className="mt-4 h-[46px] w-full rounded-lg bg-amber-500 text-[10px] font-black text-black disabled:opacity-50"
-            >
-              {customerCreating
-                ? "PLEASE WAIT..."
-                : "CREATE CUSTOMER"}
-            </button>
-          </form>
-
-          <div className="mt-5">
-            <RefreshButton
-              loading={customerLoading || customerCreating}
-              onClick={loadCustomers}
-            />
-          </div>
-
-          <div className="mt-5 space-y-3">
-            {customers.length === 0 && !customerLoading && (
-              <EmptyState text="No customers found" />
-            )}
-
-            {customers.map(customer => (
-              <div
-                key={customer.id}
-                className="rounded-xl border border-[#28655f] bg-[#083d37] p-4"
-              >
-                <div className="flex justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-black">
-                      {customer.name}
-                    </p>
-
-                    <p className="mt-1 text-[9px] text-amber-300">
-                      {customer.loginId}
-                    </p>
-                  </div>
-
-                  <StatusBadge status={customer.status} />
-                </div>
-
-                <div className="mt-3 space-y-2">
-                  <InfoBox
-                    label="PROMO CODE"
-                    value={
-                      getPromoCode(customer) || "NOT ASSIGNED"
-                    }
-                  />
-
-                  <InfoBox
-                    label="LOGIN PASSWORD"
-                    value={
-                      customer.mustChangePassword
-                        ? "CHANGE REQUIRED"
-                        : "SET"
-                    }
-                  />
-
-                  <InfoBox
-                    label="WITHDRAWAL PASSWORD"
-                    value={
-                      !customer.withdrawalPasswordConfigured
-                        ? "NOT CONFIGURED"
-                        : customer.mustChangeWithdrawalPassword
-                          ? "CHANGE REQUIRED"
-                          : "SET"
-                    }
-                  />
-                </div>
-
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      resetLoginPassword(customer)
-                    }
-                    className="min-h-[42px] rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 text-[8px] font-black text-amber-300"
-                  >
-                    RESET LOGIN PASSWORD
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      resetWithdrawalPassword(customer)
-                    }
-                    className="min-h-[42px] rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-2 text-[8px] font-black text-cyan-300"
-                  >
-                    RESET WITHDRAWAL PASSWORD
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </AdminPage>
-      )}
-
-      {activeSection === "WhatsApp Settings" && (
-        <AdminPage
-          title="WhatsApp Settings"
-          icon="📱"
-          onBack={goBack}
-        >
-          <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-4">
-            <p className="text-xs font-black text-green-300">
-              GLOBAL WHATSAPP CONTACT
-            </p>
-
-            <p className="mt-2 text-[9px] leading-5 text-gray-400">
-              Change the WhatsApp contact used by the website.
-              Customers will receive the current saved number
-              from the server.
-            </p>
-
-            <div className="mt-4">
-              <InfoBox
-                label="CURRENT WHATSAPP NUMBER"
-                value={
-                  whatsappLoading
-                    ? "Loading..."
-                    : `+${
-                        whatsappNumber ||
-                        DEFAULT_WHATSAPP_NUMBER
-                      }`
-                }
-              />
-            </div>
-
-            <form
-              onSubmit={saveWhatsAppNumber}
-              className="mt-4"
-            >
-              <label className="block">
-                <span className="text-[8px] font-black text-gray-400">
-                  NEW WHATSAPP NUMBER
-                </span>
-
-                <input
-                  type="tel"
-                  inputMode="numeric"
-                  value={whatsappInput}
-                  disabled={whatsappLoading}
-                  onChange={event =>
-                    setWhatsappInput(
-                      event.target.value.replace(/\D/g, ""),
-                    )
-                  }
-                  placeholder="Example: 919346824432"
-                  autoComplete="off"
-                  className="mt-2 h-[50px] w-full rounded-lg border border-green-500/30 bg-[#061c1a] px-3 text-sm font-bold text-white outline-none focus:border-green-400 disabled:opacity-50"
-                />
-              </label>
-
-              <p className="mt-2 text-[8px] leading-4 text-gray-500">
-                Enter country code + mobile number without
-                spaces. Example: 919346824432
-              </p>
-
-              {whatsappError && (
-                <MessageBox text={whatsappError} error />
-              )}
-
-              {whatsappMessage && (
-                <MessageBox text={whatsappMessage} />
-              )}
-
-              <button
-                type="submit"
-                disabled={whatsappLoading}
-                className="mt-4 h-[48px] w-full rounded-lg bg-[#20c968] text-[10px] font-black text-white disabled:opacity-50"
-              >
-                {whatsappLoading
-                  ? "PLEASE WAIT..."
-                  : "SAVE WHATSAPP NUMBER"}
-              </button>
-            </form>
-          </div>
-
-          <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
-            <p className="text-[9px] font-black text-amber-300">
-              IMPORTANT
-            </p>
-
-            <p className="mt-2 text-[8px] leading-5 text-gray-400">
-              Saving here updates the global website contact in
-              the database. The customer WhatsApp button must
-              use the public settings API.
-            </p>
-          </div>
-        </AdminPage>
-      )}
-
-      {activeSection === "Coin Management" && (
-        <AdminPage
-          title="Coin Management"
-          icon="🪙"
-          onBack={goBack}
-        >
-          <div className="rounded-xl border border-[#28655f] bg-[#083d37] p-4">
-            <p className="text-xs font-black text-amber-300">
-              COIN CONTROL
-            </p>
-
-            <label className="mt-4 block text-[8px] font-black text-gray-400">
-              CUSTOMER
-            </label>
-
-            <select
-              value={coinCustomerId}
-              disabled={coinBusy}
-              onChange={event =>
-                setCoinCustomerId(event.target.value)
-              }
-              className="mt-2 h-[46px] w-full rounded-lg border border-[#28655f] bg-[#061c1a] px-3 text-xs text-white"
-            >
-              <option value="">Select Customer</option>
-
-              {customers.map(customer => (
-                <option
-                  key={customer.id}
-                  value={customer.id}
-                >
-                  {customer.name} - {customer.loginId}
-                </option>
-              ))}
-            </select>
-
-            {customerError && (
-              <MessageBox text={customerError} error />
-            )}
-
-            <CustomerInput
-              label="COINS"
-              type="number"
-              value={coinAmount}
-              disabled={coinBusy}
-              onChange={event =>
-                setCoinAmount(event.target.value)
-              }
-            />
-
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                disabled={coinBusy}
-                onClick={() => changeDemoCoins("ADD")}
-                className="h-[46px] rounded-lg bg-green-700 text-[10px] font-black disabled:opacity-50"
-              >
-                {coinBusy ? "PLEASE WAIT..." : "+ ADD COINS"}
-              </button>
-
-              <button
-                type="button"
-                disabled={coinBusy}
-                onClick={() => changeDemoCoins("REMOVE")}
-                className="h-[46px] rounded-lg bg-red-700 text-[10px] font-black disabled:opacity-50"
-              >
-                − REMOVE COINS
-              </button>
-            </div>
-
-            {coinMessage && (
-              <MessageBox text={coinMessage} />
-            )}
-          </div>
-
-          <p className="mt-5 text-[10px] font-black text-amber-300">
-            RECENT COIN ACTIVITY
-          </p>
-
-          <div className="mt-3 space-y-2">
-            {coinHistory.length === 0 ? (
-              <EmptyState text="No coin activity yet" />
-            ) : (
-              coinHistory.slice(0, 20).map(item => (
-                <div
-                  key={item.id}
-                  className="rounded-lg border border-[#28655f] bg-[#083d37] p-3"
-                >
-                  <div className="flex justify-between gap-3">
-                    <div>
-                      <p className="text-[9px] font-black">
-                        {item.customerName}
-                      </p>
-
-                      <p className="mt-1 text-[8px] text-gray-400">
-                        {item.customerId}
-                      </p>
-                    </div>
-
-                    <span
-                      className={
-                        item.type === "ADD"
-                          ? "text-green-300"
-                          : "text-red-300"
-                      }
-                    >
-                      {item.type === "ADD" ? "+" : "-"}
-                      {money(item.amount)}
-                    </span>
-                  </div>
-
-                  <p className="mt-2 text-[7px] text-gray-500">
-                    {item.date}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-        </AdminPage>
-      )}
-
-      {activeSection === "Transaction History" && (
-        <AdminPage
-          title="Transaction History"
-          icon="📒"
-          onBack={goBack}
-        >
-          <div className="grid grid-cols-2 gap-2">
-            <InfoBox
-              label="DEPOSITS"
-              value={
-                depositLoading ? "..." : depositRequests.length
-              }
-            />
-
-            <InfoBox
-              label="WITHDRAWALS"
-              value={
-                withdrawalLoading
-                  ? "..."
-                  : withdrawalRequests.length
-              }
-            />
-          </div>
-
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <RefreshButton
-              loading={depositLoading}
-              onClick={loadDepositRequests}
-              text="↻ REFRESH DEPOSITS"
-            />
-
-            <RefreshButton
-              loading={withdrawalLoading}
-              onClick={loadWithdrawalRequests}
-              text="↻ REFRESH WITHDRAWALS"
-            />
-          </div>
-
-          <p className="mt-5 text-[10px] font-black text-amber-300">
-            DEPOSIT HISTORY
-          </p>
-
-          {depositError && (
-            <MessageBox text={depositError} error />
-          )}
-
-          <div className="mt-3 space-y-2">
-            {!depositLoading && depositRequests.length === 0 ? (
-              <EmptyState text="No deposit history" />
-            ) : (
-              depositRequests.map(item => (
-                <div
-                  key={item.id}
-                  className="rounded-lg border border-[#28655f] bg-[#083d37] p-3"
-                >
-                  <div className="flex justify-between gap-3">
-                    <div>
-                      <p className="text-[9px] font-black">
-                        ₹{money(item.amount)}
-                      </p>
-
-                      <p className="mt-1 text-[8px] text-gray-400">
-                        {item.customerName || "Customer"}
-                      </p>
-
-                      <p className="mt-1 text-[8px] text-amber-300">
-                        {item.loginId || item.customerId || "—"}
-                      </p>
-                    </div>
-
-                    <StatusBadge status={item.status} />
-                  </div>
-
-                  <p className="mt-2 break-all text-[8px] text-gray-500">
-                    UTR:{" "}
-                    {item.referenceNumber ||
-                      item.reference ||
-                      "—"}
-                  </p>
-
-                  {item.createdAt && (
-                    <p className="mt-1 text-[7px] text-gray-500">
-                      {new Date(
-                        item.createdAt,
-                      ).toLocaleString("en-IN")}
-                    </p>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-
-          <p className="mt-6 text-[10px] font-black text-amber-300">
-            WITHDRAWAL HISTORY
-          </p>
-
-          {withdrawalError && (
-            <MessageBox text={withdrawalError} error />
-          )}
-
-          <div className="mt-3 space-y-2">
-            {!withdrawalLoading &&
-            withdrawalRequests.length === 0 ? (
-              <EmptyState text="No withdrawal history" />
-            ) : (
-              withdrawalRequests.map(item => (
-                <div
-                  key={item.id}
-                  className="rounded-lg border border-[#28655f] bg-[#083d37] p-3"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[9px] font-black">
-                        {money(item.amount)} COINS
-                      </p>
-
-                      <p className="mt-1 text-[8px] text-gray-400">
-                        {item.customerName || "Customer"}
-                      </p>
-
-                      <p className="mt-1 text-[8px] text-amber-300">
-                        {item.loginId || item.customerId || "—"}
-                      </p>
-
-                      <p className="mt-2 text-[8px] text-gray-500">
-                        {item.bankName || "—"} •{" "}
-                        {item.accountNumber || "—"}
-                      </p>
-
-                      <p className="mt-1 text-[8px] text-gray-500">
-                        IFSC: {item.ifscCode || "—"}
-                      </p>
-
-                      {item.createdAt && (
-                        <p className="mt-1 text-[7px] text-gray-500">
-                          {new Date(
-                            item.createdAt,
-                          ).toLocaleString("en-IN")}
-                        </p>
-                      )}
-                    </div>
-
-                    <StatusBadge status={item.status} />
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </AdminPage>
-      )}
-
-      {activeSection === "API Settings" && (
-        <AdminPage
-          title="API Settings"
-          icon="🔌"
-          onBack={goBack}
-        >
-          <AdminSportsApiSettings />
-        </AdminPage>
-      )}
-
-      {activeSection === "Admin Settings" && (
-        <AdminPage
-          title="Admin Settings"
-          icon="⚙️"
-          onBack={goBack}
-        >
-          <InfoBox
-            label="ADMIN ID"
-            value={admin?.username || "admin"}
-          />
-        </AdminPage>
-      )}
-    </div>
-  );
 }
 
-function AdminPage({
-  title,
-  icon,
-  onBack,
-  children,
-}) {
-  return (
-    <main className="mx-auto max-w-5xl px-3 py-4">
-      <button
-        type="button"
-        onClick={onBack}
-        className="mb-4 rounded-md border border-amber-500/40 px-3 py-2 text-[9px] font-black text-amber-300"
-      >
-        ‹ ADMIN DASHBOARD
-      </button>
+async function adjustAdminCoins(req, mode) {
+  coinOrigin(req);
 
-      <section className="rounded-xl border border-[#28655f] bg-[#072d29] p-4">
-        <div className="mb-5 flex items-center gap-3">
-          <span className="text-3xl">{icon}</span>
+  const id = Number(req.params.id);
+  const amount = Number(req.body?.amount);
+  const requestKey = req.body?.requestKey;
 
-          <div>
-            <p className="text-[8px] font-black text-gray-500">
-              ADMIN MANAGEMENT
-            </p>
-
-            <h2 className="text-lg font-black text-amber-300">
-              {title}
-            </h2>
-          </div>
-        </div>
-
-        {children}
-      </section>
-    </main>
+  const adminId = String(
+    req.verifiedAdminId || "",
   );
-}
 
-function CustomerInput({
-  label,
-  type = "text",
-  value,
-  onChange,
-  ...props
-}) {
-  return (
-    <label className="mt-3 block">
-      <span className="text-[8px] font-black text-gray-400">
-        {label}
-      </span>
-
-      <input
-        {...props}
-        type={type}
-        value={value}
-        onChange={onChange}
-        autoComplete="off"
-        className="mt-2 h-[46px] w-full rounded-lg border border-[#28655f] bg-[#061c1a] px-3 text-xs text-white outline-none disabled:opacity-50"
-      />
-    </label>
-  );
-}
-
-function InfoBox({ label, value }) {
-  return (
-    <div className="rounded-lg border border-[#28655f] bg-black/10 p-3">
-      <p className="text-[7px] font-black text-gray-500">
-        {label}
-      </p>
-
-      <p className="mt-1 break-all text-[10px] font-black">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function StatusBadge({ status }) {
-  const value = String(
-    status || "PENDING",
-  ).toUpperCase();
-
-  let style =
-    "border-amber-500/30 bg-amber-500/10 text-amber-300";
+  if (!adminId) {
+    throw coinFailure(
+      "Main Admin login required.",
+      401,
+    );
+  }
 
   if (
-    ["APPROVED", "ACTIVE", "SUCCESS"].includes(value)
+    !positiveInteger(id) ||
+    !positiveInteger(amount)
   ) {
-    style =
-      "border-green-500/30 bg-green-500/10 text-green-300";
+    throw coinFailure(
+      "Valid customer ID and positive whole coin amount are required.",
+    );
   }
 
-  if (["REJECTED", "REJECT"].includes(value)) {
-    style =
-      "border-red-500/30 bg-red-500/10 text-red-300";
+  // Legacy Add Coins screens can still send without a key.
+  // The updated screen sends a key for both ADD and REMOVE.
+  if (
+    (
+      mode === "REMOVE" ||
+      requestKey !== undefined
+    ) &&
+    (
+      typeof requestKey !== "string" ||
+      !/^[A-Za-z0-9_-]{16,100}$/.test(requestKey)
+    )
+  ) {
+    throw coinFailure(
+      "A unique requestKey of 16-100 characters is required.",
+    );
   }
 
-  return (
-    <span
-      className={`rounded border px-2 py-1 text-[7px] font-black ${style}`}
-    >
-      {value}
-    </span>
+  const delta =
+    mode === "REMOVE" ? -amount : amount;
+
+  const note = String(
+    req.body?.note ||
+    (
+      mode === "REMOVE"
+        ? "Demo Coins removed by Admin"
+        : "Demo Coins added by Admin"
+    ),
+  ).trim();
+
+  if (!note || note.length > 500) {
+    throw coinFailure(
+      "Enter a note of 1-500 characters.",
+    );
+  }
+
+  const client = await pool.connect();
+  let committed = false;
+
+  try {
+    await client.query("BEGIN");
+
+    // Serialize wallet changes for this customer.
+    const account = await client.query(
+      `SELECT *
+       FROM customers
+       WHERE id=$1
+       FOR UPDATE`,
+      [id],
+    );
+
+    const customer = account.rows[0];
+
+    if (!customer) {
+      throw coinFailure(
+        "Customer account not found.",
+        404,
+      );
+    }
+
+    if (requestKey) {
+      const previous = await client.query(
+        `SELECT *
+         FROM tsb_admin_coin_changes
+         WHERE request_key=$1`,
+        [requestKey],
+      );
+
+      const old = previous.rows[0];
+
+      if (old) {
+        if (
+          old.admin_id !== adminId ||
+          Number(old.customer_id) !== id ||
+          Number(old.delta) !== delta ||
+          old.note !== note
+        ) {
+          throw coinFailure(
+            "Request key belongs to a different coin adjustment.",
+            409,
+          );
+        }
+
+        await client.query("COMMIT");
+        committed = true;
+
+        return {
+          success: true,
+          replayed: true,
+          message:
+            "Previous coin adjustment recovered. No second adjustment.",
+          customer: publicCustomer(customer),
+          transactionId: old.transaction_id,
+          balanceAfter: Number(
+            old.balance_after,
+          ),
+        };
+      }
+    }
+
+    const balance = Number(
+      customer.demo_coin_balance,
+    );
+
+    if (delta < 0 && balance < amount) {
+      throw coinFailure(
+        `Insufficient demo coins. Available balance: ${balance}. No coins removed.`,
+        409,
+      );
+    }
+
+    if (
+      delta > 0 &&
+      balance > MAX_BALANCE - amount
+    ) {
+      throw coinFailure(
+        "This addition would exceed the demo balance limit.",
+        409,
+      );
+    }
+
+    const updated = await client.query(
+      `UPDATE customers
+       SET demo_coin_balance=
+             demo_coin_balance+$1,
+           updated_at=NOW()
+       WHERE id=$2
+       RETURNING *`,
+      [delta, id],
+    );
+
+    const transaction = await client.query(
+      `INSERT INTO demo_coin_transactions(
+         customer_id,
+         amount,
+         transaction_type,
+         note
+       )
+       VALUES($1,$2,$3,$4)
+       RETURNING id,created_at`,
+      [
+        id,
+        delta,
+        mode === "REMOVE"
+          ? "ADMIN_DEBIT"
+          : "ADMIN_CREDIT",
+        `${note} · Admin: ${adminId}`,
+      ],
+    );
+
+    const transactionId =
+      transaction.rows[0].id;
+
+    const nextBalance = Number(
+      updated.rows[0].demo_coin_balance,
+    );
+
+    if (requestKey) {
+      await client.query(
+        `INSERT INTO tsb_admin_coin_changes(
+           request_key,
+           admin_id,
+           customer_id,
+           delta,
+           note,
+           balance_after,
+           transaction_id
+         )
+         VALUES($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          requestKey,
+          adminId,
+          id,
+          delta,
+          note,
+          nextBalance,
+          transactionId,
+        ],
+      );
+    }
+
+    await client.query("COMMIT");
+    committed = true;
+
+    return {
+      success: true,
+      replayed: false,
+      message:
+        `${amount} Demo Coins ${
+          mode === "REMOVE"
+            ? "removed"
+            : "added"
+        } successfully.`,
+      customer: publicCustomer(
+        updated.rows[0],
+      ),
+      transactionId,
+      balanceAfter: nextBalance,
+    };
+  } finally {
+    if (!committed) {
+      await client
+        .query("ROLLBACK")
+        .catch(() => {});
+    }
+
+    client.release();
+  }
+}
+
+for (const [action, mode] of [
+  ["add", "ADD"],
+  ["remove", "REMOVE"],
+]) {
+  app.post(
+    `/api/admin/customers/:id/${action}-demo-coins`,
+    wrap(async (req, res) => {
+      const data = await adjustAdminCoins(
+        req,
+        mode,
+      );
+
+      res.set("Cache-Control", "no-store");
+      res.json(data);
+    }),
   );
 }
 
-function EmptyState({ text }) {
-  return (
-    <div className="mt-4 rounded-xl border border-dashed border-[#28655f] px-4 py-8 text-center">
-      <p className="text-[10px] text-gray-500">
-        {text}
-      </p>
-    </div>
+app.get(
+  "/api/admin/demo-coin-transactions",
+  wrap(async (req, res) => {
+    const result = await pool.query(
+      `SELECT
+         t.*,
+         c.name AS customer_name,
+         c.login_id
+       FROM demo_coin_transactions t
+       JOIN customers c ON c.id=t.customer_id
+       WHERE t.transaction_type IN (
+         'ADMIN_CREDIT',
+         'ADMIN_DEBIT'
+       )
+       ORDER BY t.id DESC
+       LIMIT 100`,
+    );
+
+    res.set("Cache-Control", "no-store");
+
+    res.json({
+      success: true,
+      transactions: result.rows.map(row => ({
+        id: row.id,
+        customerId: row.customer_id,
+        customerName: row.customer_name,
+        loginId: row.login_id,
+
+        type:
+          row.transaction_type === "ADMIN_DEBIT"
+            ? "REMOVE"
+            : "ADD",
+
+        amount: Math.abs(Number(row.amount)),
+        signedAmount: Number(row.amount),
+        note: row.note,
+        createdAt: row.created_at,
+      })),
+    });
+  }),
+);
+
+app.get(
+  "/api/customers/:id/demo-balance",
+  wrap(async (req, res) => {
+    if (!positiveInteger(req.params.id)) {
+      return res.status(400).json({
+        error: "Invalid customer ID.",
+      });
+    }
+
+    const result = await pool.query(
+      `SELECT id,login_id,demo_coin_balance
+       FROM customers
+       WHERE id=$1`,
+      [Number(req.params.id)],
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({
+        error:
+          "Customer account not found.",
+      });
+    }
+
+    res.set("Cache-Control", "no-store");
+
+    res.json({
+      success: true,
+      customerId: result.rows[0].id,
+      loginId: result.rows[0].login_id,
+      balance: Number(
+        result.rows[0].demo_coin_balance,
+      ),
+    });
+  }),
+);
+
+for (const kind of ["login", "withdrawal"]) {
+  const withdrawal = kind === "withdrawal";
+
+  app.post(
+    `/api/admin/customers/:id/reset-${kind}-password`,
+    wrap(async (req, res) => {
+      if (!positiveInteger(req.params.id)) {
+        return res.status(400).json({
+          error: "Invalid customer ID.",
+        });
+      }
+
+      const password = String(
+        req.body.password ||
+        req.body.newPassword ||
+        req.body.temporaryPassword ||
+        (
+          withdrawal
+            ? req.body.temporaryWithdrawalPassword
+            : ""
+        ) ||
+        "",
+      );
+
+      if (password.length < 6) {
+        return res.status(400).json({
+          error:
+            "New password must contain at least 6 characters.",
+        });
+      }
+
+      const result = await pool.query(
+        "SELECT * FROM customers WHERE id=$1",
+        [Number(req.params.id)],
+      );
+
+      const customer = result.rows[0];
+
+      if (!customer) {
+        return res.status(404).json({
+          error:
+            "Customer account not found.",
+        });
+      }
+
+      const otherHash = withdrawal
+        ? customer.password_hash
+        : customer.withdrawal_password_hash;
+
+      if (
+        otherHash &&
+        await bcrypt.compare(
+          password,
+          otherHash,
+        )
+      ) {
+        return res.status(400).json({
+          error:
+            "Login Password and Withdrawal Password must be different.",
+        });
+      }
+
+      const newHash = await bcrypt.hash(
+        password,
+        12,
+      );
+
+      const query = withdrawal
+        ? `UPDATE customers
+           SET withdrawal_password_hash=$1,
+               must_change_withdrawal_password=TRUE,
+               updated_at=NOW()
+           WHERE id=$2
+           RETURNING *`
+        : `UPDATE customers
+           SET password_hash=$1,
+               must_change_password=TRUE,
+               updated_at=NOW()
+           WHERE id=$2
+           RETURNING *`;
+
+      const updated = await pool.query(
+        query,
+        [newHash, customer.id],
+      );
+
+      if (!withdrawal) {
+        await pool.query(
+          `DELETE FROM demo_customer_sessions
+           WHERE customer_id=$1`,
+          [customer.id],
+        );
+      }
+
+      res.json({
+        success: true,
+        message:
+          "Password reset successfully. Customer must change it before use.",
+        customer: publicCustomer(
+          updated.rows[0],
+        ),
+      });
+    }),
   );
 }
 
-function MessageBox({
-  text,
-  error = false,
-}) {
-  return (
-    <div
-      role={error ? "alert" : "status"}
-      className={`mt-3 rounded-lg border p-3 text-[9px] font-bold ${
-        error
-          ? "border-red-500/40 bg-red-500/10 text-red-300"
-          : "border-green-500/40 bg-green-500/10 text-green-300"
-      }`}
-    >
-      {text}
-    </div>
+app.post(
+  "/api/auth/customer-login",
+  wrap(async (req, res) => {
+    const loginId = normalizeLoginId(
+      req.body.loginId ||
+      req.body.identifier,
+    );
+
+    const password = String(
+      req.body.password || "",
+    );
+
+    if (!loginId || !password) {
+      return res.status(400).json({
+        error:
+          "Login ID and Password are required.",
+      });
+    }
+
+    const result = await pool.query(
+      `SELECT *
+       FROM customers
+       WHERE login_id=$1
+       LIMIT 1`,
+      [loginId],
+    );
+
+    const customer = result.rows[0];
+
+    if (
+      !customer ||
+      !await bcrypt.compare(
+        password,
+        customer.password_hash,
+      )
+    ) {
+      return res.status(401).json({
+        error:
+          "Invalid Login ID or Password.",
+      });
+    }
+
+    if (
+      String(customer.status).toUpperCase() !==
+      "ACTIVE"
+    ) {
+      return res.status(403).json({
+        error:
+          "This customer account is not active.",
+      });
+    }
+
+    await issueCustomerSession(
+      pool,
+      res,
+      customer.id,
+    );
+
+    const output = publicCustomer(customer);
+
+    res.json({
+      success: true,
+      mustChangePassword:
+        output.mustChangePassword,
+      mustChangeWithdrawalPassword:
+        output.mustChangeWithdrawalPassword,
+      withdrawalPasswordConfigured:
+        output.withdrawalPasswordConfigured,
+      customer: output,
+    });
+  }),
+);
+
+for (const kind of ["customer", "withdrawal"]) {
+  const withdrawal = kind === "withdrawal";
+
+  app.post(
+    `/api/auth/change-${kind}-password`,
+    wrap(async (req, res) => {
+      const loginId = normalizeLoginId(
+        req.body.loginId,
+      );
+
+      const current = String(
+        req.body.currentPassword || "",
+      );
+
+      const password = String(
+        req.body.newPassword || "",
+      );
+
+      const confirm = String(
+        req.body.confirmPassword || "",
+      );
+
+      if (
+        !loginId ||
+        !current ||
+        !password ||
+        !confirm
+      ) {
+        return res.status(400).json({
+          error:
+            "Please complete all password fields.",
+        });
+      }
+
+      if (
+        password.length < 6 ||
+        password !== confirm ||
+        password === current
+      ) {
+        return res.status(400).json({
+          error:
+            "New password must be different, at least 6 characters, and match confirmation.",
+        });
+      }
+
+      const result = await pool.query(
+        `SELECT *
+         FROM customers
+         WHERE login_id=$1
+         LIMIT 1`,
+        [loginId],
+      );
+
+      const customer = result.rows[0];
+
+      if (!customer) {
+        return res.status(404).json({
+          error:
+            "Customer account not found.",
+        });
+      }
+
+      const currentHash = withdrawal
+        ? customer.withdrawal_password_hash
+        : customer.password_hash;
+
+      if (
+        !currentHash ||
+        !await bcrypt.compare(
+          current,
+          currentHash,
+        )
+      ) {
+        return res.status(401).json({
+          error:
+            "Current password is incorrect or not configured.",
+        });
+      }
+
+      const otherHash = withdrawal
+        ? customer.password_hash
+        : customer.withdrawal_password_hash;
+
+      if (
+        otherHash &&
+        await bcrypt.compare(
+          password,
+          otherHash,
+        )
+      ) {
+        return res.status(400).json({
+          error:
+            "Login Password and Withdrawal Password must be different.",
+        });
+      }
+
+      const newHash = await bcrypt.hash(
+        password,
+        12,
+      );
+
+      const query = withdrawal
+        ? `UPDATE customers
+           SET withdrawal_password_hash=$1,
+               must_change_withdrawal_password=FALSE,
+               updated_at=NOW()
+           WHERE id=$2
+           RETURNING *`
+        : `UPDATE customers
+           SET password_hash=$1,
+               must_change_password=FALSE,
+               updated_at=NOW()
+           WHERE id=$2
+           RETURNING *`;
+
+      const updated = await pool.query(
+        query,
+        [newHash, customer.id],
+      );
+
+      if (!withdrawal) {
+        await pool.query(
+          `DELETE FROM demo_customer_sessions
+           WHERE customer_id=$1`,
+          [customer.id],
+        );
+
+        await issueCustomerSession(
+          pool,
+          res,
+          customer.id,
+        );
+      }
+
+      res.json({
+        success: true,
+        message:
+          "Password changed successfully.",
+        customer: publicCustomer(
+          updated.rows[0],
+        ),
+        mustChangeWithdrawalPassword: withdrawal
+          ? false
+          : Boolean(
+              customer.must_change_withdrawal_password,
+            ),
+      });
+    }),
   );
 }
 
-function RefreshButton({
-  loading,
-  onClick,
-  text = "↻ REFRESH",
-}) {
-  return (
-    <button
-      type="button"
-      disabled={loading}
-      onClick={onClick}
-      className="w-full rounded-lg border border-cyan-500/40 bg-cyan-500/10 p-3 text-[9px] font-black text-cyan-300 disabled:opacity-50"
-    >
-      {loading ? "LOADING..." : text}
-    </button>
+const otpStore = new Map();
+
+function sendFast2SMS(mobile, otp) {
+  return new Promise((resolve, reject) => {
+    const key =
+      process.env.FAST2SMS_API_KEY ||
+      process.env.SMS_API_KEY;
+
+    if (!key) {
+      return reject(
+        new Error(
+          "FAST2SMS_API_KEY environment variable is not configured on Render.",
+        ),
+      );
+    }
+
+    const params = new URLSearchParams({
+      authorization: key,
+      variables_values: otp,
+      route: "otp",
+      numbers: mobile,
+    });
+
+    const request = https.request(
+      {
+        hostname: "www.fast2sms.com",
+        path: `/dev/bulkV2?${params}`,
+        method: "GET",
+        headers: {
+          "cache-control": "no-cache",
+        },
+      },
+      response => {
+        let data = "";
+
+        response.on("data", chunk => {
+          data += chunk;
+        });
+
+        response.on("error", reject);
+
+        response.on("end", () => {
+          try {
+            const result = JSON.parse(data);
+
+            if (
+              result.return === true ||
+              result.status_code === 200
+            ) {
+              resolve(result);
+            } else {
+              reject(
+                new Error(
+                  Array.isArray(result.message)
+                    ? result.message.join(", ")
+                    : result.message ||
+                      "SMS delivery failed.",
+                ),
+              );
+            }
+          } catch {
+            reject(
+              new Error(
+                "Failed to parse Fast2SMS response.",
+              ),
+            );
+          }
+        });
+      },
+    );
+
+    request.setTimeout(
+      15000,
+      () =>
+        request.destroy(
+          new Error("SMS request timed out."),
+        ),
+    );
+
+    request.on("error", reject);
+    request.end();
+  });
+}
+
+app.post(
+  "/api/auth/send-otp",
+  wrap(async (req, res) => {
+    const mobile = String(
+      req.body.mobile || "",
+    ).replace(/\D/g, "");
+
+    if (!/^\d{10}$/.test(mobile)) {
+      return res.status(400).json({
+        error:
+          "Please enter a valid 10-digit mobile number.",
+      });
+    }
+
+    const otp = Math.floor(
+      100000 + Math.random() * 900000,
+    ).toString();
+
+    await sendFast2SMS(mobile, otp);
+
+    otpStore.set(mobile, {
+      otp,
+      expiresAt:
+        Date.now() + 10 * 60 * 1000,
+    });
+
+    res.json({
+      success: true,
+      message: "OTP sent successfully.",
+    });
+  }),
+);
+
+app.post(
+  "/api/auth/verify-otp",
+  wrap(async (req, res) => {
+    const mobile = String(
+      req.body.mobile || "",
+    ).replace(/\D/g, "");
+
+    const otp = String(
+      req.body.otp || "",
+    ).trim();
+
+    if (
+      !/^\d{10}$/.test(mobile) ||
+      !/^\d{6}$/.test(otp)
+    ) {
+      return res.status(400).json({
+        error:
+          "Valid mobile number and 6-digit OTP are required.",
+      });
+    }
+
+    const record = otpStore.get(mobile);
+
+    if (!record) {
+      return res.status(400).json({
+        error: "No active OTP found.",
+      });
+    }
+
+    if (Date.now() > record.expiresAt) {
+      otpStore.delete(mobile);
+
+      return res.status(400).json({
+        error: "OTP has expired.",
+      });
+    }
+
+    if (record.otp !== otp) {
+      return res.status(400).json({
+        error: "Invalid OTP code.",
+      });
+    }
+
+    otpStore.delete(mobile);
+
+    res.json({
+      success: true,
+      message:
+        "Mobile number verified successfully.",
+    });
+  }),
+);
+
+app.get(
+  "/api/health",
+  wrap(async (req, res) => {
+    let databaseConnected = false;
+    let apiConnected = false;
+
+    try {
+      await pool.query("SELECT 1");
+      databaseConnected = true;
+    } catch {}
+
+    try {
+      apiConnected =
+        typeof sportsService.isApiConnected ===
+        "function"
+          ? Boolean(
+              await sportsService.isApiConnected(),
+            )
+          : false;
+    } catch {}
+
+    res.json({
+      status: "ok",
+      provider: sportsService.demoMode
+        ? "mock"
+        : "sportmonks",
+      apiConnected,
+      databaseConnected,
+    });
+  }),
+);
+
+app.get(
+  "/api/sports/events",
+  wrap(async (req, res) => {
+    res.set("Cache-Control", "no-store");
+
+    res.json(
+      await sportsService.getFeedState(
+        req.query.sport || "all",
+      ),
+    );
+  }),
+);
+
+app.get(
+  "/api/sports/stream",
+  wrap(async (req, res) => {
+    await sportsService.readSaved();
+
+    res.set({
+      "Content-Type": "text/event-stream",
+      "Cache-Control":
+        "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
+
+    res.flushHeaders();
+    sportsService.addClient(res);
+
+    const heartbeat = setInterval(() => {
+      if (
+        !res.destroyed &&
+        !res.writableEnded
+      ) {
+        res.write(": keep-alive\n\n");
+      }
+    }, 15000);
+
+    heartbeat.unref?.();
+
+    req.on("close", () => {
+      clearInterval(heartbeat);
+      sportsService.removeClient(res);
+    });
+  }),
+);
+
+app.get(
+  "/api/admin/settings/sports-feed",
+  wrap(async (req, res) => {
+    res.set("Cache-Control", "no-store");
+
+    res.json(
+      await sportsService.getAdminState(),
+    );
+  }),
+);
+
+app.post(
+  "/api/admin/settings/sports-feed",
+  wrap(async (req, res) => {
+    if (req.headers.origin) {
+      let valid = false;
+
+      try {
+        valid =
+          new URL(req.headers.origin).host ===
+          req.headers.host;
+      } catch {}
+
+      if (!valid) {
+        return res.status(403).json({
+          error: "Invalid request origin.",
+        });
+      }
+    }
+
+    res.set("Cache-Control", "no-store");
+
+    res.json(
+      await sportsService.setEnabled(
+        req.body?.enabled,
+        req.body?.version,
+        req.verifiedAdminId,
+      ),
+    );
+  }),
+);
+
+const depositJSON = row => ({
+  id: row.id,
+  customerId: row.customer_id,
+  customerName: row.customer_name,
+  loginId: row.login_id,
+  referenceNumber: row.reference_number,
+  reference: row.reference_number,
+  amount: Number(row.amount),
+  paymentMethod: row.payment_method,
+  method: row.payment_method,
+  proofName: row.proof_name,
+  status: row.status,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const withdrawalJSON = row => ({
+  id: row.id,
+  customerId: row.customer_id,
+  customerName: row.customer_name,
+  loginId: row.login_id,
+  amount: Number(row.amount),
+  accountHolderName: row.account_holder_name,
+  bankName: row.bank_name,
+  accountNumber: row.account_number,
+  ifscCode: row.ifsc_code,
+  status: row.status,
+  coinsHeld: row.coins_held,
+  coinsRestored: row.coins_restored,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+app.post(
+  "/api/demo-deposits",
+  wrap(async (req, res) => {
+    const id = Number(req.body.customerId);
+    const amount = Number(req.body.amount);
+
+    const reference = String(
+      req.body.referenceNumber ||
+      req.body.reference ||
+      "",
+    ).trim();
+
+    const method = String(
+      req.body.paymentMethod ||
+      req.body.method ||
+      "ACCOUNT",
+    ).trim().toUpperCase();
+
+    if (
+      !positiveInteger(id) ||
+      !positiveInteger(amount)
+    ) {
+      return res.status(400).json({
+        error:
+          "Valid customer ID and whole-number amount are required.",
+      });
+    }
+
+    if (!/^\d{12}$/.test(reference)) {
+      return res.status(400).json({
+        error:
+          "Reference number must contain exactly 12 digits.",
+      });
+    }
+
+    if (method.length > 30) {
+      return res.status(400).json({
+        error: "Invalid payment method.",
+      });
+    }
+
+    const result = await pool.query(
+      "SELECT * FROM customers WHERE id=$1",
+      [id],
+    );
+
+    const customer = result.rows[0];
+
+    if (!customer) {
+      return res.status(404).json({
+        error:
+          "Customer account not found.",
+      });
+    }
+
+    if (customer.status !== "ACTIVE") {
+      return res.status(403).json({
+        error:
+          "Customer account is not active.",
+      });
+    }
+
+    try {
+      const saved = await pool.query(
+        `INSERT INTO demo_deposit_requests(
+           customer_id,
+           reference_number,
+           amount,
+           payment_method,
+           proof_name
+         )
+         VALUES($1,$2,$3,$4,$5)
+         RETURNING *`,
+        [
+          id,
+          reference,
+          amount,
+          method,
+          String(
+            req.body.proofName || "",
+          ).trim() || null,
+        ],
+      );
+
+      res.status(201).json({
+        success: true,
+        message:
+          "Demo request submitted successfully.",
+        request: depositJSON({
+          ...saved.rows[0],
+          customer_name: customer.name,
+          login_id: customer.login_id,
+        }),
+      });
+    } catch (error) {
+      if (error.code === "23505") {
+        return res.status(409).json({
+          success: false,
+          code: "REPEATED_REFERENCE",
+          error:
+            "REPEATED REFERENCE — This reference number has already been submitted.",
+        });
+      }
+
+      throw error;
+    }
+  }),
+);
+
+for (const kind of ["deposits", "withdrawals"]) {
+  const table =
+    kind === "deposits"
+      ? "demo_deposit_requests"
+      : "demo_withdrawal_requests";
+
+  const serialize =
+    kind === "deposits"
+      ? depositJSON
+      : withdrawalJSON;
+
+  app.get(
+    `/api/customers/:id/demo-${kind}`,
+    wrap(async (req, res) => {
+      if (!positiveInteger(req.params.id)) {
+        return res.status(400).json({
+          error: "Invalid customer ID.",
+        });
+      }
+
+      const customer = await pool.query(
+        `SELECT id,name,login_id
+         FROM customers
+         WHERE id=$1`,
+        [Number(req.params.id)],
+      );
+
+      if (!customer.rows.length) {
+        return res.status(404).json({
+          error: "Customer not found.",
+        });
+      }
+
+      const result = await pool.query(
+        `SELECT *
+         FROM ${table}
+         WHERE customer_id=$1
+         ORDER BY id DESC
+         LIMIT 100`,
+        [Number(req.params.id)],
+      );
+
+      res.json({
+        success: true,
+        customer: {
+          id: customer.rows[0].id,
+          name: customer.rows[0].name,
+          loginId:
+            customer.rows[0].login_id,
+        },
+        requests: result.rows.map(serialize),
+      });
+    }),
+  );
+
+  app.get(
+    `/api/admin/demo-${kind}`,
+    wrap(async (req, res) => {
+      const status = String(
+        req.query.status || "",
+      ).trim().toUpperCase();
+
+      const filter = [
+        "PENDING",
+        "APPROVED",
+        "REJECTED",
+      ].includes(status);
+
+      const result = await pool.query(
+        `SELECT
+           d.*,
+           c.name AS customer_name,
+           c.login_id
+         FROM ${table} d
+         JOIN customers c
+           ON c.id=d.customer_id
+         ${filter ? "WHERE d.status=$1" : ""}
+         ORDER BY d.id DESC
+         LIMIT 200`,
+        filter ? [status] : [],
+      );
+
+      res.json({
+        success: true,
+        requests: result.rows.map(serialize),
+      });
+    }),
+  );
+
+  app.get(
+    `/api/admin/demo-${kind}/:id`,
+    wrap(async (req, res) => {
+      if (!positiveInteger(req.params.id)) {
+        return res.status(400).json({
+          error: "Invalid request ID.",
+        });
+      }
+
+      const result = await pool.query(
+        `SELECT
+           d.*,
+           c.name AS customer_name,
+           c.login_id
+         FROM ${table} d
+         JOIN customers c
+           ON c.id=d.customer_id
+         WHERE d.id=$1
+         LIMIT 1`,
+        [Number(req.params.id)],
+      );
+
+      if (!result.rows.length) {
+        return res.status(404).json({
+          error: "Request not found.",
+        });
+      }
+
+      res.json({
+        success: true,
+        request: serialize(result.rows[0]),
+      });
+    }),
   );
 }
 
-function RequestHeading({ request }) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <div>
-        <p className="text-sm font-black">
-          {request.customerName || "Customer"}
-        </p>
+app.patch(
+  "/api/admin/demo-deposits/:id/status",
+  wrap(async (req, res) => {
+    const id = Number(req.params.id);
 
-        <p className="mt-1 text-[9px] font-black text-amber-300">
-          {request.loginId || `ID: ${request.customerId}`}
-        </p>
-      </div>
+    const status = String(
+      req.body.status || "",
+    ).trim().toUpperCase();
 
-      <StatusBadge status={request.status} />
-    </div>
+    if (
+      !positiveInteger(id) ||
+      ![
+        "PENDING",
+        "APPROVED",
+        "REJECTED",
+      ].includes(status)
+    ) {
+      return res.status(400).json({
+        error:
+          "Invalid request ID or status.",
+      });
+    }
+
+    const result = await pool.query(
+      `UPDATE demo_deposit_requests
+       SET status=$1,
+           updated_at=NOW()
+       WHERE id=$2
+       RETURNING *`,
+      [status, id],
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({
+        error: "Request not found.",
+      });
+    }
+
+    res.json({
+      success: true,
+      message:
+        "Request status updated successfully.",
+      request: depositJSON(result.rows[0]),
+    });
+  }),
+);
+
+app.post(
+  "/api/demo-withdrawals",
+  wrap(async (req, res) => {
+    const body = req.body || {};
+
+    const id = Number(body.customerId);
+    const amount = Number(body.amount);
+
+    if (
+      !positiveInteger(id) ||
+      !positiveInteger(amount)
+    ) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "Valid customer ID and withdrawal amount are required.",
+      });
+    }
+
+    const details = [
+      body.accountHolderName,
+      body.bankName,
+      body.accountNumber,
+      body.ifscCode,
+    ].map(value =>
+      String(value || "").trim(),
+    );
+
+    if (details.some(value => !value)) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "Complete bank account details are required.",
+      });
+    }
+
+    details[3] = details[3].toUpperCase();
+
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const result = await client.query(
+        `SELECT *
+         FROM customers
+         WHERE id=$1
+         FOR UPDATE`,
+        [id],
+      );
+
+      const customer = result.rows[0];
+
+      if (
+        !customer ||
+        customer.status !== "ACTIVE"
+      ) {
+        await client.query("ROLLBACK");
+
+        return res.status(
+          customer ? 403 : 404,
+        ).json({
+          success: false,
+          error:
+            "Customer not found or inactive.",
+        });
+      }
+
+      if (
+        amount >
+        Number(customer.demo_coin_balance)
+      ) {
+        await client.query("ROLLBACK");
+
+        return res.status(400).json({
+          success: false,
+          code: "LOW_BALANCE",
+          error: "LOW BALANCE",
+          balance: Number(
+            customer.demo_coin_balance,
+          ),
+        });
+      }
+
+      const saved = await client.query(
+        `INSERT INTO demo_withdrawal_requests(
+           customer_id,
+           amount,
+           account_holder_name,
+           bank_name,
+           account_number,
+           ifsc_code,
+           status,
+           coins_held,
+           coins_restored
+         )
+         VALUES(
+           $1,$2,$3,$4,$5,$6,
+           'PENDING',TRUE,FALSE
+         )
+         RETURNING *`,
+        [id, amount, ...details],
+      );
+
+      const balance =
+        Number(customer.demo_coin_balance) -
+        amount;
+
+      await client.query(
+        `UPDATE customers
+         SET demo_coin_balance=$1,
+             updated_at=NOW()
+         WHERE id=$2`,
+        [balance, id],
+      );
+
+      await client.query(
+        `INSERT INTO demo_coin_transactions(
+           customer_id,
+           amount,
+           transaction_type,
+           note
+         )
+         VALUES($1,$2,'WITHDRAWAL_HOLD',$3)`,
+        [
+          id,
+          -amount,
+          "Demo withdrawal request submitted",
+        ],
+      );
+
+      await client.query("COMMIT");
+
+      res.status(201).json({
+        success: true,
+        message:
+          "Demo withdrawal request submitted successfully.",
+        balance,
+        request: withdrawalJSON({
+          ...saved.rows[0],
+          customer_name: customer.name,
+          login_id: customer.login_id,
+        }),
+      });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }),
+);
+
+app.patch(
+  "/api/admin/demo-withdrawals/:id/status",
+  wrap(async (req, res) => {
+    const id = Number(req.params.id);
+
+    const status = String(
+      req.body.status || "",
+    ).trim().toUpperCase();
+
+    if (
+      !positiveInteger(id) ||
+      !["APPROVED", "REJECTED"].includes(status)
+    ) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "Valid ID and APPROVED or REJECTED status are required.",
+      });
+    }
+
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const result = await client.query(
+        `SELECT *
+         FROM demo_withdrawal_requests
+         WHERE id=$1
+         FOR UPDATE`,
+        [id],
+      );
+
+      const request = result.rows[0];
+
+      if (!request) {
+        await client.query("ROLLBACK");
+
+        return res.status(404).json({
+          success: false,
+          error:
+            "Withdrawal request not found.",
+        });
+      }
+
+      if (request.status !== "PENDING") {
+        await client.query("ROLLBACK");
+
+        return res.status(409).json({
+          success: false,
+          error:
+            `Withdrawal request is already ${request.status}.`,
+        });
+      }
+
+      if (
+        status === "REJECTED" &&
+        request.coins_held &&
+        !request.coins_restored
+      ) {
+        await client.query(
+          `UPDATE customers
+           SET demo_coin_balance=
+                 demo_coin_balance+$1::INTEGER,
+               updated_at=NOW()
+           WHERE id=$2::INTEGER`,
+          [
+            Number(request.amount),
+            request.customer_id,
+          ],
+        );
+
+        await client.query(
+          `INSERT INTO demo_coin_transactions(
+             customer_id,
+             amount,
+             transaction_type,
+             note
+           )
+           VALUES($1,$2,'WITHDRAWAL_RESTORE',$3)`,
+          [
+            request.customer_id,
+            Number(request.amount),
+            `Withdrawal request #${id} rejected - demo coins restored`,
+          ],
+        );
+      }
+
+      const updated = await client.query(
+        `UPDATE demo_withdrawal_requests
+         SET status=$1::VARCHAR(20),
+             coins_restored=CASE
+               WHEN
+                 $1::VARCHAR(20)='REJECTED'
+                 AND coins_held=TRUE
+               THEN TRUE
+               ELSE coins_restored
+             END,
+             updated_at=NOW()
+         WHERE id=$2::INTEGER
+         RETURNING *`,
+        [status, id],
+      );
+
+      const balance = await client.query(
+        `SELECT demo_coin_balance
+         FROM customers
+         WHERE id=$1`,
+        [request.customer_id],
+      );
+
+      await client.query("COMMIT");
+
+      res.json({
+        success: true,
+        request: withdrawalJSON(
+          updated.rows[0],
+        ),
+        demoCoinBalance: Number(
+          balance.rows[0]?.demo_coin_balance ||
+          0,
+        ),
+      });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }),
+);
+
+// Register game APIs before the API 404 handler.
+
+registerDemoBetRoutes(app, pool);
+registerFlightRoutes(app, pool);
+registerRouletteRoutes(app, pool);
+registerInstantGameRoutes(app, pool);
+
+const startDiceGames =
+  registerDiceGameRoutes(app, pool);
+
+const startSicBo =
+  registerSicBoRoutes(app, pool);
+
+registerChickenRoadRoutes(app, pool);
+registerTwistXRoutes(app, pool);
+
+const startDreamWheel =
+  registerDreamWheelRoutes(app, pool);
+
+const startAutoGames = registerAutoGameRoutes(
+  app,
+  pool,
+  requireOldAdmin(pool),
+);
+
+const animatedCricket =
+  registerAnimatedCricketRoutes(app, pool);
+
+const startColorPrediction =
+  registerColorPredictionRoutes(app, pool);
+
+const startDealOrNoDeal =
+  registerDealOrNoDealRoutes(app, pool);
+
+app.all("/api/*", (req, res) =>
+  res.status(404).json({
+    error:
+      `API endpoint ${req.originalUrl} not found.`,
+  }),
+);
+
+app.use((error, req, res, next) => {
+  console.error("API error:", error);
+
+  if (res.headersSent) {
+    return next(error);
+  }
+
+  if (error.code === "23505") {
+    return res.status(409).json({
+      success: false,
+      error:
+        error.constraint ===
+        "customers_promo_code_unique"
+          ? "This Promo Code is already assigned to another customer."
+          : "This record already exists.",
+    });
+  }
+
+  res.status(error.status || 500).json({
+    success: false,
+    error: error.status
+      ? error.message
+      : "Unable to complete request. Please try again.",
+  });
+});
+
+app.use(
+  express.static(
+    path.join(__dirname, "dist"),
+  ),
+);
+
+app.get("*", (req, res) =>
+  res.sendFile(
+    path.join(
+      __dirname,
+      "dist",
+      "index.html",
+    ),
+  ),
+);
+
+async function startServer() {
+  await initializeDatabase();
+
+  await sportsService.initialize(pool);
+  sportsService.start();
+
+  startAutoGames();
+  animatedCricket.start();
+  startColorPrediction();
+  startDealOrNoDeal();
+
+  startDiceGames();
+  startSicBo();
+  startDreamWheel();
+
+  app.listen(PORT, () =>
+    console.log(
+      `Server listening on port ${PORT}`,
+    ),
   );
 }
 
-function RequestDate({ value }) {
-  if (!value) return null;
-
-  return (
-    <div className="mt-2">
-      <InfoBox
-        label="REQUEST DATE"
-        value={new Date(value).toLocaleString("en-IN")}
-      />
-    </div>
+startServer().catch(error => {
+  console.error(
+    "Server startup failed:",
+    error,
   );
-}
 
-function ReviewButtons({
-  onApprove,
-  onReject,
-}) {
-  return (
-    <div className="mt-4 grid grid-cols-2 gap-2">
-      <button
-        type="button"
-        onClick={onApprove}
-        className="h-[44px] rounded-lg bg-green-700 text-[10px] font-black"
-      >
-        ✓ APPROVE
-      </button>
-
-      <button
-        type="button"
-        onClick={onReject}
-        className="h-[44px] rounded-lg bg-red-700 text-[10px] font-black"
-      >
-        ✕ REJECT
-      </button>
-    </div>
-  );
-}
+  process.exitCode = 1;
+  pool.end();
+});
