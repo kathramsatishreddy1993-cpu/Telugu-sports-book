@@ -13,7 +13,9 @@ import CricketMatchList from "./CricketMatchList";
 import MyPromoCodePage from "./MyPromoCodePage";
 import GameArtwork from "./GameArtwork";
 
-const LOGO = "/games/file_0000000092bc82118617f615539c5f17.png";
+const LOGO =
+  "/games/file_0000000092bc82118617f615539c5f17.png";
+
 const HEADER_BACKGROUND = "/games/tsb-header-bg.jpg";
 
 const WINE_LABEL = {
@@ -27,10 +29,14 @@ const GREEN_LABEL = {
 };
 
 const gridLabelColor = (index) =>
-  [0, 3].includes(index % 4) ? WINE_LABEL : GREEN_LABEL;
+  [0, 3].includes(index % 4)
+    ? WINE_LABEL
+    : GREEN_LABEL;
 
 const sliderLabelColor = (index) =>
-  index % 2 === 0 ? WINE_LABEL : GREEN_LABEL;
+  index % 2 === 0
+    ? WINE_LABEL
+    : GREEN_LABEL;
 
 const GAMES = [
   {
@@ -145,7 +151,10 @@ const sports = [
 const newLaunch = [
   { name: "JILI", image: "/games/jili.png" },
   { name: "GOLDEN KICK", image: "/games/golden-kick.png" },
-  { name: "SNAKES & LADDERS", image: "/games/snakes-ladders.png" },
+  {
+    name: "SNAKES & LADDERS",
+    image: "/games/snakes-ladders.png",
+  },
   { name: "PREDIX", image: "/games/predix.png" },
   { name: "MONEY HEIST", image: "/games/money-heist.png" },
   { name: "FOOTBALL X", image: "/games/football-x.png" },
@@ -158,7 +167,10 @@ const favourites = [
   { name: "AVIATOR X", image: "/games/aviator-x.png" },
   { name: "FANTASY 11", image: "/games/fantasy-11.png" },
   { name: "CRICKET BATTLE", image: "/games/cricket-battle.png" },
-  { name: "LIGHTNING ROULETTE", image: "/games/lightning-roulette.png" },
+  {
+    name: "LIGHTNING ROULETTE",
+    image: "/games/lightning-roulette.png",
+  },
   { name: "BACCARAT", image: "/games/baccarat.png" },
   { name: "TEEN PATTI", image: "/games/teen-patti.png" },
 ];
@@ -235,12 +247,19 @@ function navigationKey(user) {
 
 function restoreNavigation(key) {
   const initial = defaultNavigation();
+
   if (!key) return initial;
 
   try {
-    const saved = JSON.parse(sessionStorage.getItem(key) || "null");
+    const saved = JSON.parse(
+      sessionStorage.getItem(key) || "null"
+    );
 
-    if (!saved || saved.version !== 1 || !PAGES.has(saved.page)) {
+    if (
+      !saved ||
+      saved.version !== 1 ||
+      !PAGES.has(saved.page)
+    ) {
       return initial;
     }
 
@@ -256,19 +275,25 @@ function restoreNavigation(key) {
 
     return {
       page: saved.page,
+
       selectedSport: sports.some(
         (sport) => sport.name === saved.selectedSport
       )
         ? saved.selectedSport
         : initial.selectedSport,
+
       selectedTab: TABS.includes(saved.selectedTab)
         ? saved.selectedTab
         : initial.selectedTab,
+
       matchFilter: FILTERS.includes(saved.matchFilter)
         ? saved.matchFilter
         : initial.matchFilter,
+
       selectedMatch:
-        saved.page === "home" && validMatch ? match : null,
+        saved.page === "home" && validMatch
+          ? match
+          : null,
     };
   } catch {
     return initial;
@@ -281,7 +306,10 @@ function saveNavigation(key, navigation) {
   try {
     sessionStorage.setItem(
       key,
-      JSON.stringify({ version: 1, ...navigation })
+      JSON.stringify({
+        version: 1,
+        ...navigation,
+      })
     );
   } catch {
     // Browser storage may be unavailable.
@@ -312,9 +340,13 @@ function GameImage({ game }) {
   if (failed || !game.image) {
     return game.icon ? (
       <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-[#061a25] via-[#113f48] to-[#791b3e] p-2 text-center text-white">
-        <span aria-hidden="true" className="text-3xl sm:text-5xl">
+        <span
+          aria-hidden="true"
+          className="text-3xl sm:text-5xl"
+        >
           {game.icon}
         </span>
+
         <span className="text-[9px] font-black leading-tight text-amber-200 sm:text-sm">
           {game.name}
         </span>
@@ -351,6 +383,7 @@ function GameSection({
       {title && (
         <div className="mb-3 flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-[#08b7bc] shadow-[0_0_10px_rgba(8,183,188,.3)]" />
+
           <h2 className="text-sm font-black uppercase tracking-wide text-slate-900">
             {title}
           </h2>
@@ -477,19 +510,28 @@ function TopGamesSlider({ onGameClick }) {
 
   const handlePointerMove = (event) => {
     const gesture = gestureRef.current;
+
     if (!gesture || gesture.id !== event.pointerId) return;
 
     const distanceX = event.clientX - gesture.x;
     const distanceY = event.clientY - gesture.y;
 
-    if (Math.abs(distanceX) > 8 || Math.abs(distanceY) > 8) {
+    if (
+      Math.abs(distanceX) > 8 ||
+      Math.abs(distanceY) > 8
+    ) {
       gesture.moved = true;
     }
 
-    if (gesture.type === "mouse" && Math.abs(distanceX) > 8) {
+    if (
+      gesture.type === "mouse" &&
+      Math.abs(distanceX) > 8
+    ) {
       event.preventDefault();
 
-      if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+      if (
+        !event.currentTarget.hasPointerCapture(event.pointerId)
+      ) {
         event.currentTarget.setPointerCapture(event.pointerId);
       }
 
@@ -500,6 +542,7 @@ function TopGamesSlider({ onGameClick }) {
 
   const finishGesture = (event) => {
     const gesture = gestureRef.current;
+
     if (!gesture || gesture.id !== event.pointerId) return;
 
     if (gesture.moved) {
@@ -509,7 +552,9 @@ function TopGamesSlider({ onGameClick }) {
     gestureRef.current = null;
     pause();
 
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+    if (
+      event.currentTarget.hasPointerCapture(event.pointerId)
+    ) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
   };
@@ -549,7 +594,9 @@ function TopGamesSlider({ onGameClick }) {
           pause();
         }}
         onBlurCapture={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget)) {
+          if (
+            !event.currentTarget.contains(event.relatedTarget)
+          ) {
             focusedRef.current = false;
             pause();
           }
@@ -608,7 +655,9 @@ function DashboardContent({ user, onLogout, storageKey }) {
   const navigationRef = useRef(navigation);
   const loggedOutRef = useRef(false);
 
-  const [showCustomerMenu, setShowCustomerMenu] = useState(false);
+  const [showCustomerMenu, setShowCustomerMenu] =
+    useState(false);
+
   const [demoBalance, setDemoBalance] = useState(null);
   const [balanceError, setBalanceError] = useState("");
   const [notice, setNotice] = useState("");
@@ -617,7 +666,10 @@ function DashboardContent({ user, onLogout, storageKey }) {
     user?.id ?? user?.customerId ?? user?.customer_id;
 
   const navigate = (patch) => {
-    const next = { ...navigationRef.current, ...patch };
+    const next = {
+      ...navigationRef.current,
+      ...patch,
+    };
 
     navigationRef.current = next;
     saveNavigation(storageKey, next);
@@ -640,7 +692,10 @@ function DashboardContent({ user, onLogout, storageKey }) {
 
     return () => {
       window.removeEventListener("pagehide", persist);
-      document.removeEventListener("visibilitychange", onVisibility);
+      document.removeEventListener(
+        "visibilitychange",
+        onVisibility
+      );
     };
   }, [storageKey]);
 
@@ -677,7 +732,9 @@ function DashboardContent({ user, onLogout, storageKey }) {
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || "Unable to load balance.");
+          throw new Error(
+            data.error || "Unable to load balance."
+          );
         }
 
         const rawBalance =
@@ -715,12 +772,19 @@ function DashboardContent({ user, onLogout, storageKey }) {
     void loadBalance();
 
     window.addEventListener("focus", loadBalance);
-    window.addEventListener("demo-balance-updated", loadBalance);
-    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener(
+      "demo-balance-updated",
+      loadBalance
+    );
+    document.addEventListener(
+      "visibilitychange",
+      onVisibility
+    );
 
     return () => {
       active = false;
       controller.abort();
+
       window.removeEventListener("focus", loadBalance);
       window.removeEventListener(
         "demo-balance-updated",
@@ -760,9 +824,11 @@ function DashboardContent({ user, onLogout, storageKey }) {
     loggedOutRef.current = true;
 
     try {
-      if (storageKey) sessionStorage.removeItem(storageKey);
+      if (storageKey) {
+        sessionStorage.removeItem(storageKey);
+      }
     } catch {
-      // Storage may be disabled.
+      // Storage may be unavailable.
     }
 
     navigationRef.current = defaultNavigation();
@@ -790,7 +856,9 @@ function DashboardContent({ user, onLogout, storageKey }) {
   }
 
   if (page === "statement") {
-    return <AccountStatementPage user={user} onBack={goHome} />;
+    return (
+      <AccountStatementPage user={user} onBack={goHome} />
+    );
   }
 
   if (page === "history") {
@@ -802,7 +870,9 @@ function DashboardContent({ user, onLogout, storageKey }) {
   }
 
   if (page === "buttons") {
-    return <SetButtonValuesPage user={user} onBack={goHome} />;
+    return (
+      <SetButtonValuesPage user={user} onBack={goHome} />
+    );
   }
 
   if (page === "password") {
@@ -881,6 +951,31 @@ function DashboardContent({ user, onLogout, storageKey }) {
           background-repeat: no-repeat;
         }
 
+        .tsb-dashboard .tsb-wallet-plain {
+          display: block;
+          margin: 0;
+          padding: 0;
+          border: 0;
+          border-radius: 0;
+          background: transparent;
+          box-shadow: none;
+          color: #ffffff;
+          font-size: 20px;
+          font-weight: 900;
+          line-height: 1.4;
+          font-variant-numeric: tabular-nums;
+          white-space: nowrap;
+        }
+
+        .tsb-wallet-demo-label {
+          display: block;
+          margin-top: 2px;
+          color: #ffffff;
+          font-size: 8px;
+          font-weight: 700;
+          letter-spacing: .3px;
+        }
+
         .tsb-neon-track {
           display: flex;
           width: max-content;
@@ -929,7 +1024,8 @@ function DashboardContent({ user, onLogout, storageKey }) {
       <header
         className="tsb-header border-b border-slate-200 px-4 pb-3 pt-4 text-white"
         style={{
-          "--tsb-header-image": `url("${HEADER_BACKGROUND}")`,
+          "--tsb-header-image":
+            `url("${HEADER_BACKGROUND}")`,
         }}
       >
         <div className="flex items-start justify-between gap-3">
@@ -943,6 +1039,7 @@ function DashboardContent({ user, onLogout, storageKey }) {
                 <span className="text-amber-400">TELUGU</span>{" "}
                 SPORTS
               </h1>
+
               <p className="mt-1 text-[9px] font-black tracking-[0.24em] text-cyan-400">
                 BOOK
               </p>
@@ -950,44 +1047,23 @@ function DashboardContent({ user, onLogout, storageKey }) {
           </div>
 
           <div className="relative shrink-0 text-right">
-            <div
+            <p
+              className="tsb-wallet-plain"
               aria-live="polite"
               aria-label="Demo wallet balance"
-              className="rounded-xl border-2 border-[#166534] bg-white px-3 py-2"
             >
-              <p className="text-center text-[9px] font-black tracking-wide text-[#166534]">
-                WALLET BALANCE
-              </p>
+              {demoBalance === null
+                ? balanceError
+                  ? "—"
+                  : "Loading…"
+                : `₹${demoBalance.toLocaleString("en-IN", {
+                    maximumFractionDigits: 2,
+                  })}`}
+            </p>
 
-              <div className="mt-1 flex items-center justify-center gap-2">
-                <span
-                  aria-hidden="true"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#166534] text-xl font-black text-white"
-                >
-                  ₹
-                </span>
-
-                <strong className="text-lg font-black tabular-nums text-[#166534]">
-                  {demoBalance === null
-                    ? balanceError
-                      ? "—"
-                      : "Loading…"
-                    : demoBalance.toLocaleString("en-IN", {
-                        maximumFractionDigits: 2,
-                      })}
-                </strong>
-              </div>
-
-              <p className="mt-1 text-center text-[9px] font-bold text-[#722f37]">
-                DEMO COINS
-              </p>
-
-              {balanceError && demoBalance !== null && (
-                <p className="mt-1 text-center text-[8px] font-bold text-[#722f37]">
-                  LAST RECEIVED BALANCE
-                </p>
-              )}
-            </div>
+            <span className="tsb-wallet-demo-label">
+              DEMO COINS
+            </span>
 
             <button
               type="button"
@@ -1151,7 +1227,9 @@ function DashboardContent({ user, onLogout, storageKey }) {
             <button
               key={filter}
               type="button"
-              onClick={() => navigate({ matchFilter: filter })}
+              onClick={() =>
+                navigate({ matchFilter: filter })
+              }
               className={`rounded-lg border px-4 py-2 text-[8px] font-black text-white ${
                 matchFilter === filter
                   ? "border-[#ac2854] bg-[#ac2854]"
@@ -1171,13 +1249,14 @@ function DashboardContent({ user, onLogout, storageKey }) {
           aria-label="Matches. Scroll through matches, then continue scrolling the page."
           tabIndex={0}
         >
-          {selectedSport === "CRICKET" && matchFilter === "LIVE" ? (
+          {selectedSport === "CRICKET" &&
+          matchFilter === "LIVE" ? (
             <CricketMatchList onOpenMatch={openMatch} />
           ) : (
             <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs leading-6 text-slate-600">
               No {matchFilter.toLowerCase()}{" "}
-              {selectedSport.toLowerCase()} fixtures are available
-              in this view.
+              {selectedSport.toLowerCase()} fixtures are
+              available in this view.
             </p>
           )}
         </div>
@@ -1205,16 +1284,19 @@ function DashboardContent({ user, onLogout, storageKey }) {
         compact
         onGameClick={handleGameClick}
       />
+
       <GameSection
         title="NEW LAUNCH"
         games={newLaunch}
         onGameClick={handleGameClick}
       />
+
       <GameSection
         title="MY FAVOURITES"
         games={favourites}
         onGameClick={handleGameClick}
       />
+
       <GameSection
         title="OUR PROVIDERS"
         games={providers}
