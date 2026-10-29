@@ -13,9 +13,7 @@ import CricketMatchList from "./CricketMatchList";
 import MyPromoCodePage from "./MyPromoCodePage";
 import GameArtwork from "./GameArtwork";
 
-const LOGO =
-  "/games/file_0000000092bc82118617f615539c5f17.png";
-
+const LOGO = "/games/file_0000000092bc82118617f615539c5f17.png";
 const HEADER_BACKGROUND = "/games/tsb-header-bg.jpg";
 
 const WINE_LABEL = {
@@ -28,15 +26,11 @@ const GREEN_LABEL = {
   color: "#000000",
 };
 
-const gridLabelColor = index =>
-  [0, 3].includes(index % 4)
-    ? WINE_LABEL
-    : GREEN_LABEL;
+const gridLabelColor = (index) =>
+  [0, 3].includes(index % 4) ? WINE_LABEL : GREEN_LABEL;
 
-const sliderLabelColor = index =>
-  index % 2 === 0
-    ? WINE_LABEL
-    : GREEN_LABEL;
+const sliderLabelColor = (index) =>
+  index % 2 === 0 ? WINE_LABEL : GREEN_LABEL;
 
 const GAMES = [
   {
@@ -150,98 +144,35 @@ const sports = [
 
 const newLaunch = [
   { name: "JILI", image: "/games/jili.png" },
-  {
-    name: "GOLDEN KICK",
-    image: "/games/golden-kick.png",
-  },
-  {
-    name: "SNAKES & LADDERS",
-    image: "/games/snakes-ladders.png",
-  },
+  { name: "GOLDEN KICK", image: "/games/golden-kick.png" },
+  { name: "SNAKES & LADDERS", image: "/games/snakes-ladders.png" },
   { name: "PREDIX", image: "/games/predix.png" },
-  {
-    name: "MONEY HEIST",
-    image: "/games/money-heist.png",
-  },
-  {
-    name: "FOOTBALL X",
-    image: "/games/football-x.png",
-  },
-  {
-    name: "INSTANT RUMMY",
-    image: "/games/instant-rummy.png",
-  },
-  {
-    name: "BLACKJACK",
-    image: "/games/blackjack.png",
-  },
-  {
-    name: "LOOT BOXES",
-    image: "/games/loot-boxes.png",
-  },
+  { name: "MONEY HEIST", image: "/games/money-heist.png" },
+  { name: "FOOTBALL X", image: "/games/football-x.png" },
+  { name: "INSTANT RUMMY", image: "/games/instant-rummy.png" },
+  { name: "BLACKJACK", image: "/games/blackjack.png" },
+  { name: "LOOT BOXES", image: "/games/loot-boxes.png" },
 ];
 
 const favourites = [
-  {
-    name: "AVIATOR X",
-    image: "/games/aviator-x.png",
-  },
-  {
-    name: "FANTASY 11",
-    image: "/games/fantasy-11.png",
-  },
-  {
-    name: "CRICKET BATTLE",
-    image: "/games/cricket-battle.png",
-  },
-  {
-    name: "LIGHTNING ROULETTE",
-    image: "/games/lightning-roulette.png",
-  },
-  {
-    name: "BACCARAT",
-    image: "/games/baccarat.png",
-  },
-  {
-    name: "TEEN PATTI",
-    image: "/games/teen-patti.png",
-  },
+  { name: "AVIATOR X", image: "/games/aviator-x.png" },
+  { name: "FANTASY 11", image: "/games/fantasy-11.png" },
+  { name: "CRICKET BATTLE", image: "/games/cricket-battle.png" },
+  { name: "LIGHTNING ROULETTE", image: "/games/lightning-roulette.png" },
+  { name: "BACCARAT", image: "/games/baccarat.png" },
+  { name: "TEEN PATTI", image: "/games/teen-patti.png" },
 ];
 
 const providers = [
   { name: "MAC88", image: "/games/mac88.png" },
-  {
-    name: "EZUGI",
-    image: "/games/ezugi-provider.png",
-  },
-  {
-    name: "SMARTSOFT",
-    image: "/games/smartsoft.png",
-  },
-  {
-    name: "SPRIBE",
-    image: "/games/spribe.png",
-  },
-  {
-    name: "EVOLUTION",
-    image: "/games/evolution.png",
-  },
-  {
-    name: "JILI",
-    image: "/games/jili-provider.png",
-  },
-  {
-    name: "TURBO GAMES",
-    image: "/games/turbo-games.png",
-  },
-  {
-    name: "GAMZIX",
-    image: "/games/gamzix.png",
-  },
-  {
-    name: "KING MIDAS",
-    image: "/games/king-midas.png",
-  },
+  { name: "EZUGI", image: "/games/ezugi-provider.png" },
+  { name: "SMARTSOFT", image: "/games/smartsoft.png" },
+  { name: "SPRIBE", image: "/games/spribe.png" },
+  { name: "EVOLUTION", image: "/games/evolution.png" },
+  { name: "JILI", image: "/games/jili-provider.png" },
+  { name: "TURBO GAMES", image: "/games/turbo-games.png" },
+  { name: "GAMZIX", image: "/games/gamzix.png" },
+  { name: "KING MIDAS", image: "/games/king-midas.png" },
 ];
 
 const MENU_ITEMS = [
@@ -304,19 +235,12 @@ function navigationKey(user) {
 
 function restoreNavigation(key) {
   const initial = defaultNavigation();
-
   if (!key) return initial;
 
   try {
-    const saved = JSON.parse(
-      sessionStorage.getItem(key) || "null",
-    );
+    const saved = JSON.parse(sessionStorage.getItem(key) || "null");
 
-    if (
-      !saved ||
-      saved.version !== 1 ||
-      !PAGES.has(saved.page)
-    ) {
+    if (!saved || saved.version !== 1 || !PAGES.has(saved.page)) {
       return initial;
     }
 
@@ -332,25 +256,19 @@ function restoreNavigation(key) {
 
     return {
       page: saved.page,
-
       selectedSport: sports.some(
-        sport => sport.name === saved.selectedSport,
+        (sport) => sport.name === saved.selectedSport
       )
         ? saved.selectedSport
         : initial.selectedSport,
-
       selectedTab: TABS.includes(saved.selectedTab)
         ? saved.selectedTab
         : initial.selectedTab,
-
       matchFilter: FILTERS.includes(saved.matchFilter)
         ? saved.matchFilter
         : initial.matchFilter,
-
       selectedMatch:
-        saved.page === "home" && validMatch
-          ? match
-          : null,
+        saved.page === "home" && validMatch ? match : null,
     };
   } catch {
     return initial;
@@ -363,10 +281,7 @@ function saveNavigation(key, navigation) {
   try {
     sessionStorage.setItem(
       key,
-      JSON.stringify({
-        version: 1,
-        ...navigation,
-      }),
+      JSON.stringify({ version: 1, ...navigation })
     );
   } catch {
     // Browser storage may be unavailable.
@@ -397,13 +312,9 @@ function GameImage({ game }) {
   if (failed || !game.image) {
     return game.icon ? (
       <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-[#061a25] via-[#113f48] to-[#791b3e] p-2 text-center text-white">
-        <span
-          aria-hidden="true"
-          className="text-3xl sm:text-5xl"
-        >
+        <span aria-hidden="true" className="text-3xl sm:text-5xl">
           {game.icon}
         </span>
-
         <span className="text-[9px] font-black leading-tight text-amber-200 sm:text-sm">
           {game.name}
         </span>
@@ -440,7 +351,6 @@ function GameSection({
       {title && (
         <div className="mb-3 flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-[#08b7bc] shadow-[0_0_10px_rgba(8,183,188,.3)]" />
-
           <h2 className="text-sm font-black uppercase tracking-wide text-slate-900">
             {title}
           </h2>
@@ -497,11 +407,10 @@ function TopGamesSlider({ onGameClick }) {
 
   useEffect(() => {
     const scroller = scrollerRef.current;
-
     if (!scroller) return undefined;
 
     const motion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
+      "(prefers-reduced-motion: reduce)"
     );
 
     let frameId;
@@ -509,7 +418,7 @@ function TopGamesSlider({ onGameClick }) {
     let position = scroller.scrollLeft;
     let direction = 1;
 
-    const animate = now => {
+    const animate = (now) => {
       const elapsed = previousTime
         ? Math.min(now - previousTime, 50)
         : 0;
@@ -547,12 +456,10 @@ function TopGamesSlider({ onGameClick }) {
 
     frameId = window.requestAnimationFrame(animate);
 
-    return () => {
-      window.cancelAnimationFrame(frameId);
-    };
+    return () => window.cancelAnimationFrame(frameId);
   }, []);
 
-  const handlePointerDown = event => {
+  const handlePointerDown = (event) => {
     if (!event.isPrimary || event.button !== 0) return;
 
     pause();
@@ -568,37 +475,22 @@ function TopGamesSlider({ onGameClick }) {
     };
   };
 
-  const handlePointerMove = event => {
+  const handlePointerMove = (event) => {
     const gesture = gestureRef.current;
-
-    if (!gesture || gesture.id !== event.pointerId) {
-      return;
-    }
+    if (!gesture || gesture.id !== event.pointerId) return;
 
     const distanceX = event.clientX - gesture.x;
     const distanceY = event.clientY - gesture.y;
 
-    if (
-      Math.abs(distanceX) > 8 ||
-      Math.abs(distanceY) > 8
-    ) {
+    if (Math.abs(distanceX) > 8 || Math.abs(distanceY) > 8) {
       gesture.moved = true;
     }
 
-    if (
-      gesture.type === "mouse" &&
-      Math.abs(distanceX) > 8
-    ) {
+    if (gesture.type === "mouse" && Math.abs(distanceX) > 8) {
       event.preventDefault();
 
-      if (
-        !event.currentTarget.hasPointerCapture(
-          event.pointerId,
-        )
-      ) {
-        event.currentTarget.setPointerCapture(
-          event.pointerId,
-        );
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.setPointerCapture(event.pointerId);
       }
 
       event.currentTarget.scrollLeft =
@@ -606,29 +498,19 @@ function TopGamesSlider({ onGameClick }) {
     }
   };
 
-  const finishGesture = event => {
+  const finishGesture = (event) => {
     const gesture = gestureRef.current;
-
-    if (!gesture || gesture.id !== event.pointerId) {
-      return;
-    }
+    if (!gesture || gesture.id !== event.pointerId) return;
 
     if (gesture.moved) {
-      suppressClickUntilRef.current =
-        performance.now() + 800;
+      suppressClickUntilRef.current = performance.now() + 800;
     }
 
     gestureRef.current = null;
     pause();
 
-    if (
-      event.currentTarget.hasPointerCapture(
-        event.pointerId,
-      )
-    ) {
-      event.currentTarget.releasePointerCapture(
-        event.pointerId,
-      );
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
     }
   };
 
@@ -644,12 +526,10 @@ function TopGamesSlider({ onGameClick }) {
         onPointerUp={finishGesture}
         onPointerCancel={finishGesture}
         onLostPointerCapture={finishGesture}
-        onPointerLeave={event => {
+        onPointerLeave={(event) => {
           if (
             event.pointerType === "mouse" &&
-            !event.currentTarget.hasPointerCapture(
-              event.pointerId,
-            )
+            !event.currentTarget.hasPointerCapture(event.pointerId)
           ) {
             finishGesture(event);
           }
@@ -662,34 +542,28 @@ function TopGamesSlider({ onGameClick }) {
             pause();
           }
         }}
-        onFocusCapture={event => {
+        onFocusCapture={(event) => {
           if (event.target.matches(":focus-visible")) {
             focusedRef.current = true;
           }
-
           pause();
         }}
-        onBlurCapture={event => {
-          if (
-            !event.currentTarget.contains(
-              event.relatedTarget,
-            )
-          ) {
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) {
             focusedRef.current = false;
             pause();
           }
         }}
-        onClickCapture={event => {
+        onClickCapture={(event) => {
           if (
             event.detail !== 0 &&
-            performance.now() <
-              suppressClickUntilRef.current
+            performance.now() < suppressClickUntilRef.current
           ) {
             event.preventDefault();
             event.stopPropagation();
           }
         }}
-        onDragStart={event => event.preventDefault()}
+        onDragStart={(event) => event.preventDefault()}
       >
         <div className="flex w-max gap-2 px-3 pb-1">
           {GAMES.map((game, index) => (
@@ -718,13 +592,9 @@ function TopGamesSlider({ onGameClick }) {
   );
 }
 
-function DashboardContent({
-  user,
-  onLogout,
-  storageKey,
-}) {
+function DashboardContent({ user, onLogout, storageKey }) {
   const [navigation, setNavigation] = useState(() =>
-    restoreNavigation(storageKey),
+    restoreNavigation(storageKey)
   );
 
   const {
@@ -738,23 +608,16 @@ function DashboardContent({
   const navigationRef = useRef(navigation);
   const loggedOutRef = useRef(false);
 
-  const [showCustomerMenu, setShowCustomerMenu] =
-    useState(false);
-
-  const [demoBalance, setDemoBalance] = useState(0);
+  const [showCustomerMenu, setShowCustomerMenu] = useState(false);
+  const [demoBalance, setDemoBalance] = useState(null);
   const [balanceError, setBalanceError] = useState("");
   const [notice, setNotice] = useState("");
 
   const customerId =
-    user?.id ??
-    user?.customerId ??
-    user?.customer_id;
+    user?.id ?? user?.customerId ?? user?.customer_id;
 
-  const navigate = patch => {
-    const next = {
-      ...navigationRef.current,
-      ...patch,
-    };
+  const navigate = (patch) => {
+    const next = { ...navigationRef.current, ...patch };
 
     navigationRef.current = next;
     saveNavigation(storageKey, next);
@@ -764,38 +627,26 @@ function DashboardContent({
   useEffect(() => {
     const persist = () => {
       if (!loggedOutRef.current) {
-        saveNavigation(
-          storageKey,
-          navigationRef.current,
-        );
+        saveNavigation(storageKey, navigationRef.current);
       }
     };
 
     const onVisibility = () => {
-      if (document.visibilityState === "hidden") {
-        persist();
-      }
+      if (document.visibilityState === "hidden") persist();
     };
 
     window.addEventListener("pagehide", persist);
-    document.addEventListener(
-      "visibilitychange",
-      onVisibility,
-    );
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       window.removeEventListener("pagehide", persist);
-      document.removeEventListener(
-        "visibilitychange",
-        onVisibility,
-      );
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [storageKey]);
 
   useEffect(() => {
     let active = true;
     let loading = false;
-
     const controller = new AbortController();
 
     const loadBalance = async () => {
@@ -803,12 +654,11 @@ function DashboardContent({
 
       if (!customerId) {
         if (active) {
-          setDemoBalance(0);
+          setDemoBalance(null);
           setBalanceError(
-            "Customer ID is missing. Please login again.",
+            "Customer ID is missing. Please login again."
           );
         }
-
         return;
       }
 
@@ -821,26 +671,34 @@ function DashboardContent({
             credentials: "same-origin",
             cache: "no-store",
             signal: controller.signal,
-          },
+          }
         );
 
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(
-            data.error || "Unable to load balance.",
-          );
+          throw new Error(data.error || "Unable to load balance.");
+        }
+
+        const rawBalance =
+          data.balance ??
+          data.demo_coin_balance ??
+          data.customer?.demo_coin_balance;
+
+        if (
+          rawBalance === null ||
+          rawBalance === undefined ||
+          !Number.isFinite(Number(rawBalance))
+        ) {
+          throw new Error("Wallet balance is unavailable.");
         }
 
         if (active) {
-          setDemoBalance(Number(data.balance) || 0);
+          setDemoBalance(Number(rawBalance));
           setBalanceError("");
         }
       } catch (failure) {
-        if (
-          active &&
-          failure.name !== "AbortError"
-        ) {
+        if (active && failure.name !== "AbortError") {
           setBalanceError(failure.message);
         }
       } finally {
@@ -848,56 +706,51 @@ function DashboardContent({
       }
     };
 
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void loadBalance();
+      }
+    };
+
     void loadBalance();
 
     window.addEventListener("focus", loadBalance);
-    window.addEventListener(
-      "demo-balance-updated",
-      loadBalance,
-    );
+    window.addEventListener("demo-balance-updated", loadBalance);
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       active = false;
       controller.abort();
-
       window.removeEventListener("focus", loadBalance);
       window.removeEventListener(
         "demo-balance-updated",
-        loadBalance,
+        loadBalance
+      );
+      document.removeEventListener(
+        "visibilitychange",
+        onVisibility
       );
     };
   }, [customerId, page, selectedMatch]);
 
   const goHome = () => {
-    navigate({
-      page: "home",
-      selectedMatch: null,
-    });
-
+    navigate({ page: "home", selectedMatch: null });
     setShowCustomerMenu(false);
     setNotice("");
     window.scrollTo(0, 0);
   };
 
-  const openPage = nextPage => {
+  const openPage = (nextPage) => {
     if (!PAGES.has(nextPage)) return;
 
-    navigate({
-      page: nextPage,
-      selectedMatch: null,
-    });
-
+    navigate({ page: nextPage, selectedMatch: null });
     setShowCustomerMenu(false);
     setNotice("");
     window.scrollTo(0, 0);
   };
 
-  const openMatch = match => {
-    navigate({
-      page: "home",
-      selectedMatch: match,
-    });
-
+  const openMatch = (match) => {
+    navigate({ page: "home", selectedMatch: match });
     setShowCustomerMenu(false);
     setNotice("");
     window.scrollTo(0, 0);
@@ -907,9 +760,7 @@ function DashboardContent({
     loggedOutRef.current = true;
 
     try {
-      if (storageKey) {
-        sessionStorage.removeItem(storageKey);
-      }
+      if (storageKey) sessionStorage.removeItem(storageKey);
     } catch {
       // Storage may be disabled.
     }
@@ -920,13 +771,9 @@ function DashboardContent({
     onLogout?.();
   };
 
-  const handleGameClick = game => {
+  const handleGameClick = (game) => {
     if (game.href) {
-      saveNavigation(
-        storageKey,
-        navigationRef.current,
-      );
-
+      saveNavigation(storageKey, navigationRef.current);
       window.location.assign(game.href);
       return;
     }
@@ -943,9 +790,7 @@ function DashboardContent({
   }
 
   if (page === "statement") {
-    return (
-      <AccountStatementPage user={user} onBack={goHome} />
-    );
+    return <AccountStatementPage user={user} onBack={goHome} />;
   }
 
   if (page === "history") {
@@ -953,15 +798,11 @@ function DashboardContent({
   }
 
   if (page === "unsettled") {
-    return (
-      <UnsettledBetPage user={user} onBack={goHome} />
-    );
+    return <UnsettledBetPage user={user} onBack={goHome} />;
   }
 
   if (page === "buttons") {
-    return (
-      <SetButtonValuesPage user={user} onBack={goHome} />
-    );
+    return <SetButtonValuesPage user={user} onBack={goHome} />;
   }
 
   if (page === "password") {
@@ -976,9 +817,7 @@ function DashboardContent({
   }
 
   if (page === "promo") {
-    return (
-      <MyPromoCodePage user={user} onBack={goHome} />
-    );
+    return <MyPromoCodePage user={user} onBack={goHome} />;
   }
 
   if (page === "rules") {
@@ -1060,13 +899,8 @@ function DashboardContent({
         }
 
         @keyframes tsbNeonSlide {
-          from {
-            transform: translateX(0);
-          }
-
-          to {
-            transform: translateX(-50%);
-          }
+          from { transform: translateX(0); }
+          to { transform: translateX(-50%); }
         }
 
         .tsb-scrollbar {
@@ -1088,17 +922,14 @@ function DashboardContent({
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .tsb-neon-track {
-            animation: none;
-          }
+          .tsb-neon-track { animation: none; }
         }
       `}</style>
 
       <header
         className="tsb-header border-b border-slate-200 px-4 pb-3 pt-4 text-white"
         style={{
-          "--tsb-header-image":
-            `url("${HEADER_BACKGROUND}")`,
+          "--tsb-header-image": `url("${HEADER_BACKGROUND}")`,
         }}
       >
         <div className="flex items-start justify-between gap-3">
@@ -1109,12 +940,9 @@ function DashboardContent({
 
             <div className="min-w-0">
               <h1 className="text-base font-black tracking-wide sm:text-lg">
-                <span className="text-amber-400">
-                  TELUGU
-                </span>{" "}
+                <span className="text-amber-400">TELUGU</span>{" "}
                 SPORTS
               </h1>
-
               <p className="mt-1 text-[9px] font-black tracking-[0.24em] text-cyan-400">
                 BOOK
               </p>
@@ -1122,10 +950,43 @@ function DashboardContent({
           </div>
 
           <div className="relative shrink-0 text-right">
-            <div className="rounded-xl border border-amber-400/30 bg-[#03121d]/90 px-3 py-2">
-              <p className="whitespace-nowrap text-sm font-black tabular-nums text-amber-300">
-                ₹{demoBalance.toLocaleString("en-IN")}
+            <div
+              aria-live="polite"
+              aria-label="Demo wallet balance"
+              className="rounded-xl border-2 border-[#166534] bg-white px-3 py-2"
+            >
+              <p className="text-center text-[9px] font-black tracking-wide text-[#166534]">
+                WALLET BALANCE
               </p>
+
+              <div className="mt-1 flex items-center justify-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#166534] text-xl font-black text-white"
+                >
+                  ₹
+                </span>
+
+                <strong className="text-lg font-black tabular-nums text-[#166534]">
+                  {demoBalance === null
+                    ? balanceError
+                      ? "—"
+                      : "Loading…"
+                    : demoBalance.toLocaleString("en-IN", {
+                        maximumFractionDigits: 2,
+                      })}
+                </strong>
+              </div>
+
+              <p className="mt-1 text-center text-[9px] font-bold text-[#722f37]">
+                DEMO COINS
+              </p>
+
+              {balanceError && demoBalance !== null && (
+                <p className="mt-1 text-center text-[8px] font-bold text-[#722f37]">
+                  LAST RECEIVED BALANCE
+                </p>
+              )}
             </div>
 
             <button
@@ -1133,7 +994,7 @@ function DashboardContent({
               aria-expanded={showCustomerMenu}
               aria-controls="customer-menu"
               onClick={() =>
-                setShowCustomerMenu(value => !value)
+                setShowCustomerMenu((value) => !value)
               }
               className="mt-2 max-w-[135px] truncate rounded-lg border border-cyan-400/50 bg-[#031b29]/90 px-3 py-2 text-[10px] font-black text-cyan-200"
             >
@@ -1158,11 +1019,7 @@ function DashboardContent({
                         ? goHome()
                         : openPage(target)
                     }
-                    className={`block w-full border-b border-slate-100 px-4 py-3 text-left text-[11px] font-bold hover:bg-slate-50 ${
-                      target === "promo"
-                        ? "text-violet-700"
-                        : "text-slate-900"
-                    }`}
+                    className="block w-full border-b border-slate-100 px-4 py-3 text-left text-[11px] font-bold text-[#791b3e] hover:bg-slate-50"
                   >
                     {label}
                   </button>
@@ -1171,7 +1028,7 @@ function DashboardContent({
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="block w-full bg-red-50 px-4 py-3 text-left text-[11px] font-black text-red-700"
+                  className="block w-full bg-[#791b3e] px-4 py-3 text-left text-[11px] font-black text-white"
                 >
                   Logout
                 </button>
@@ -1181,10 +1038,7 @@ function DashboardContent({
         </div>
 
         {balanceError && (
-          <p
-            role="alert"
-            className="mt-2 text-[10px] text-amber-300"
-          >
+          <p role="alert" className="mt-2 text-[10px] text-white">
             {balanceError}
           </p>
         )}
@@ -1197,30 +1051,8 @@ function DashboardContent({
           >
             <span className="flex items-center gap-2">
               <span className="text-2xl">💰</span>
-
-              <span className="relative">
-                <span
-                  aria-hidden="true"
-                  className="invisible block text-xs font-bold"
-                >
-                  &nbsp;
-                </span>
-
-                <span
-                  aria-hidden="true"
-                  className="invisible text-[8px]"
-                >
-                  &nbsp;
-                </span>
-
-                <strong className="absolute inset-0 flex items-center text-xs text-white">
-                  DEPOSIT
-                </strong>
-              </span>
-
-              <span className="ml-auto text-xl text-white">
-                ›
-              </span>
+              <strong className="text-xs text-white">DEPOSIT</strong>
+              <span className="ml-auto text-xl text-white">›</span>
             </span>
           </button>
 
@@ -1231,37 +1063,17 @@ function DashboardContent({
           >
             <span className="flex items-center gap-2">
               <span className="text-2xl">💵</span>
-
-              <span className="relative">
-                <span
-                  aria-hidden="true"
-                  className="invisible block text-xs font-bold"
-                >
-                  &nbsp;
-                </span>
-
-                <span
-                  aria-hidden="true"
-                  className="invisible text-[8px]"
-                >
-                  &nbsp;
-                </span>
-
-                <strong className="absolute inset-0 flex items-center whitespace-nowrap text-xs text-white">
-                  WITHDRAWAL
-                </strong>
-              </span>
-
-              <span className="ml-auto text-xl text-white">
-                ›
-              </span>
+              <strong className="whitespace-nowrap text-xs text-white">
+                WITHDRAWAL
+              </strong>
+              <span className="ml-auto text-xl text-white">›</span>
             </span>
           </button>
         </div>
 
         <div className="mt-3 overflow-hidden rounded-lg border border-black bg-black">
           <div className="tsb-neon-track">
-            {[0, 1].map(index => (
+            {[0, 1].map((index) => (
               <span
                 key={index}
                 aria-hidden={index === 1}
@@ -1285,13 +1097,11 @@ function DashboardContent({
 
       <nav className="tsb-scrollbar overflow-x-auto border-b border-slate-200 bg-white">
         <div className="flex w-max min-w-full gap-2 px-3 py-2">
-          {TABS.map(tab => (
+          {TABS.map((tab) => (
             <button
               key={tab}
               type="button"
-              onClick={() =>
-                navigate({ selectedTab: tab })
-              }
+              onClick={() => navigate({ selectedTab: tab })}
               className={`shrink-0 rounded-lg border px-4 py-2 text-[9px] font-black text-white ${
                 selectedTab === tab
                   ? "border-[#a72a55] bg-[#a12450] shadow-[0_0_10px_rgba(161,36,80,.2)]"
@@ -1306,14 +1116,12 @@ function DashboardContent({
 
       <section className="tsb-scrollbar overflow-x-auto border-b border-slate-200 bg-white">
         <div className="flex w-max gap-2 px-3 py-3">
-          {sports.map(sport => (
+          {sports.map((sport) => (
             <button
               key={sport.name}
               type="button"
               onClick={() =>
-                navigate({
-                  selectedSport: sport.name,
-                })
+                navigate({ selectedSport: sport.name })
               }
               className={`w-[90px] shrink-0 rounded-xl border bg-[#08b7bc] px-2 py-2 text-center text-black ${
                 selectedSport === sport.name
@@ -1321,10 +1129,7 @@ function DashboardContent({
                   : "border-[#08b7bc]"
               }`}
             >
-              <span className="block text-xl">
-                {sport.icon}
-              </span>
-
+              <span className="block text-xl">{sport.icon}</span>
               <span className="mt-2 block whitespace-nowrap text-[7px] font-black">
                 {sport.name}
               </span>
@@ -1336,22 +1141,17 @@ function DashboardContent({
       <section className="px-3 pb-2 pt-4">
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_12px_#ef4444]" />
-
           <h2 className="text-lg font-black text-slate-900">
             LIVE SPORTS
           </h2>
         </div>
 
         <div className="mt-3 flex gap-2">
-          {FILTERS.map(filter => (
+          {FILTERS.map((filter) => (
             <button
               key={filter}
               type="button"
-              onClick={() =>
-                navigate({
-                  matchFilter: filter,
-                })
-              }
+              onClick={() => navigate({ matchFilter: filter })}
               className={`rounded-lg border px-4 py-2 text-[8px] font-black text-white ${
                 matchFilter === filter
                   ? "border-[#ac2854] bg-[#ac2854]"
@@ -1371,16 +1171,13 @@ function DashboardContent({
           aria-label="Matches. Scroll through matches, then continue scrolling the page."
           tabIndex={0}
         >
-          {selectedSport === "CRICKET" &&
-          matchFilter === "LIVE" ? (
-            <CricketMatchList
-              onOpenMatch={openMatch}
-            />
+          {selectedSport === "CRICKET" && matchFilter === "LIVE" ? (
+            <CricketMatchList onOpenMatch={openMatch} />
           ) : (
             <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs leading-6 text-slate-600">
               No {matchFilter.toLowerCase()}{" "}
-              {selectedSport.toLowerCase()} fixtures
-              are available in this view.
+              {selectedSport.toLowerCase()} fixtures are available
+              in this view.
             </p>
           )}
         </div>
@@ -1389,10 +1186,9 @@ function DashboardContent({
       {notice && (
         <div
           role="status"
-          className="mx-3 mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900"
+          className="mx-3 mb-3 flex items-center justify-between gap-3 rounded-xl border border-[#791b3e] bg-white p-3 text-xs text-[#791b3e]"
         >
           <span>{notice}</span>
-
           <button
             type="button"
             aria-label="Dismiss message"
@@ -1409,19 +1205,16 @@ function DashboardContent({
         compact
         onGameClick={handleGameClick}
       />
-
       <GameSection
         title="NEW LAUNCH"
         games={newLaunch}
         onGameClick={handleGameClick}
       />
-
       <GameSection
         title="MY FAVOURITES"
         games={favourites}
         onGameClick={handleGameClick}
       />
-
       <GameSection
         title="OUR PROVIDERS"
         games={providers}
@@ -1446,10 +1239,7 @@ function DashboardContent({
   );
 }
 
-export default function DemoDashboard({
-  user,
-  onLogout,
-}) {
+export default function DemoDashboard({ user, onLogout }) {
   const storageKey = navigationKey(user);
 
   return (
