@@ -8,20 +8,15 @@ const LOCK_ID = 824063;
 const OPEN_DELAY_MS = 5000;
 const BET_MS = 30000;
 const SPIN_MS = 10000;
+const STOP_MS = 9000;
+
+// Result remains visible without another spin.
 const RESULT_MS = 5000;
 const MAX_BONUS_SPINS = 3;
 const MAX_BALANCE = 2147483647;
 
-const NUMBERS = [
-  "1",
-  "2",
-  "5",
-  "10",
-  "20",
-  "40",
-];
+const NUMBERS = ["1", "2", "5", "10", "20", "40"];
 
-// Used only to read and settle previously saved rounds.
 const HISTORICAL_NUMBERS = Array.from(
   { length: 40 },
   (_, index) => String(index + 1),
@@ -61,9 +56,7 @@ export const DREAM_SEGMENTS =
   Object.freeze(numbered);
 
 const fail = (message, status = 400) =>
-  Object.assign(new Error(message), {
-    status,
-  });
+  Object.assign(new Error(message), { status });
 
 const json = value =>
   typeof value === "string"
@@ -75,14 +68,17 @@ const digest = value =>
     .update(value)
     .digest("hex");
 
-const cookie = (req, name) =>
-  String(req.headers.cookie || "")
-    .split(";")
-    .map(value => value.trim())
-    .find(value =>
-      value.startsWith(`${name}=`),
-    )
-    ?.slice(name.length + 1) || "";
+function cookie(req, name) {
+  return (
+    String(req.headers.cookie || "")
+      .split(";")
+      .map(value => value.trim())
+      .find(value =>
+        value.startsWith(`${name}=`),
+      )
+      ?.slice(name.length + 1) || ""
+  );
+}
 
 function keyFrom(body) {
   const key = body?.requestKey;
@@ -104,25 +100,21 @@ function validatePlan(value, allowed) {
     !Array.isArray(value) ||
     value.length < 1 ||
     value.length > MAX_BONUS_SPINS + 1 ||
-    value.some(
-      item => typeof item !== "string",
-    )
+    value.some(item => typeof item !== "string")
   ) {
     throw fail(
-      "Plan needs zero to three bonus spins followed by one number.",
+      "Plan needs zero to three bonus factors followed by one number.",
     );
   }
 
   if (
-    !allowed.includes(
-      value[value.length - 1],
-    ) ||
-    value.slice(0, -1).some(
-      item => !Object.hasOwn(BONUS, item),
-    )
+    !allowed.includes(value[value.length - 1]) ||
+    value
+      .slice(0, -1)
+      .some(item => !Object.hasOwn(BONUS, item))
   ) {
     throw fail(
-      "Choose an allowed final number. Only 2x/7x bonuses may precede it.",
+      "Only 2x/7x bonuses may precede the final number.",
     );
   }
 
@@ -140,24 +132,18 @@ export function dreamReturn(bets, plan) {
       : step.value,
   );
 
-  validatePlan(
-    values,
-    HISTORICAL_NUMBERS,
-  );
+  validatePlan(values, HISTORICAL_NUMBERS);
 
-  const winner =
-    values[values.length - 1];
+  const winner = values[values.length - 1];
 
   const multiplier = values
     .slice(0, -1)
     .reduce(
-      (product, value) =>
-        product * BONUS[value],
+      (product, value) => product * BONUS[value],
       1,
     );
 
-  const profitOdds =
-    Number(winner) * multiplier;
+  const profitOdds = Number(winner) * multiplier;
 
   const areas = bets.map(bet => ({
     ...bet,
@@ -182,10 +168,7 @@ export function dreamReturn(bets, plan) {
 
 function normalizeBet(body) {
   const key = keyFrom(body);
-
-  const roundId = String(
-    body?.roundId || "",
-  );
+  const roundId = String(body?.roundId || "");
 
   if (
     !/^[1-9][0-9]{0,18}$/.test(roundId) ||
@@ -211,7 +194,7 @@ function normalizeBet(body) {
         bet.amount > 25000
       ) {
         throw fail(
-          "Choose distinct numbers 1, 2, 5, 10, 20 or 40 with 10-25000 whole demo coins each.",
+          "Choose distinct numbers with 10-25000 whole demo coins each.",
         );
       }
 
@@ -223,8 +206,7 @@ function normalizeBet(body) {
       };
     })
     .sort(
-      (a, b) =>
-        Number(a.area) - Number(b.area),
+      (a, b) => Number(a.area) - Number(b.area),
     );
 
   const stake = bets.reduce(
@@ -238,12 +220,7 @@ function normalizeBet(body) {
     );
   }
 
-  return {
-    key,
-    roundId,
-    bets,
-    stake,
-  };
+  return { key, roundId, bets, stake };
 }
 
 async function transaction(pool, operation) {
@@ -286,23 +263,16 @@ async function nowAt(client) {
 }
 
 async function requireCustomer(client, req) {
-  const token = cookie(
-    req,
-    "tsb_demo_session",
-  );
+  const token = cookie(req, "tsb_demo_session");
 
   if (!/^[a-f0-9]{64}$/.test(token)) {
-    throw fail(
-      "Customer login required.",
-      401,
-    );
+    throw fail("Customer login required.", 401);
   }
 
   const result = await client.query(
     `SELECT c.id
      FROM demo_customer_sessions s
-     JOIN customers c
-       ON c.id=s.customer_id
+     JOIN customers c ON c.id=s.customer_id
      WHERE s.token_hash=$1
        AND s.expires_at>NOW()
        AND c.status='ACTIVE'
@@ -322,10 +292,7 @@ async function requireCustomer(client, req) {
   return result.rows[0].id;
 }
 
-async function requireDreamController(
-  client,
-  req,
-) {
+async function requireDreamController(client, req) {
   const token = cookie(
     req,
     "tsb_game_controller",
@@ -367,9 +334,7 @@ async function requireDreamController(
   return result.rows[0];
 }
 
-export async function initializeDreamWheel(
-  pool,
-) {
+export async function initializeDreamWheel(pool) {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS tsb_dream_rounds (
       id BIGSERIAL PRIMARY KEY,
@@ -425,19 +390,25 @@ export async function initializeDreamWheel(
 
     CREATE OR REPLACE FUNCTION
       tsb_dream_plan_locked()
-    RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
+      RETURNS trigger
+      LANGUAGE plpgsql AS $$
     BEGIN
-      IF NEW.controller_id IS DISTINCT FROM OLD.controller_id
-        OR NEW.request_key IS DISTINCT FROM OLD.request_key
+      IF NEW.controller_id
+           IS DISTINCT FROM OLD.controller_id
+        OR NEW.request_key
+           IS DISTINCT FROM OLD.request_key
         OR NEW.plan IS DISTINCT FROM OLD.plan
         OR NEW.salt IS DISTINCT FROM OLD.salt
-        OR NEW.commitment IS DISTINCT FROM OLD.commitment
-        OR NEW.opens_at IS DISTINCT FROM OLD.opens_at
-        OR NEW.closes_at IS DISTINCT FROM OLD.closes_at
-        OR NEW.reveals_at IS DISTINCT FROM OLD.reveals_at
-        OR NEW.ends_at IS DISTINCT FROM OLD.ends_at
+        OR NEW.commitment
+           IS DISTINCT FROM OLD.commitment
+        OR NEW.opens_at
+           IS DISTINCT FROM OLD.opens_at
+        OR NEW.closes_at
+           IS DISTINCT FROM OLD.closes_at
+        OR NEW.reveals_at
+           IS DISTINCT FROM OLD.reveals_at
+        OR NEW.ends_at
+           IS DISTINCT FROM OLD.ends_at
         OR (
           OLD.settled=TRUE
           AND NEW.settled=FALSE
@@ -477,10 +448,7 @@ async function advanceRound(client) {
   if (
     round &&
     !round.settled &&
-    now >=
-      new Date(
-        round.reveals_at,
-      ).getTime()
+    now >= new Date(round.reveals_at).getTime()
   ) {
     const records = await client.query(
       `SELECT *
@@ -569,12 +537,10 @@ async function advanceRound(client) {
 function publicRound(round, now) {
   if (!round) return null;
 
-  const plan = json(round.plan).map(
-    step => ({
-      value: step.value,
-      segment: Number(step.segment),
-    }),
-  );
+  const plan = json(round.plan).map(step => ({
+    value: step.value,
+    segment: Number(step.segment),
+  }));
 
   const opens =
     new Date(round.opens_at).getTime();
@@ -582,17 +548,45 @@ function publicRound(round, now) {
   const closes =
     new Date(round.closes_at).getTime();
 
+  const reveals =
+    new Date(round.reveals_at).getTime();
+
+  // Preserve already published historical rounds.
+  const singleSpin =
+    reveals - closes === SPIN_MS;
+
   const final =
-    now >=
-      new Date(
-        round.reveals_at,
-      ).getTime() &&
-    round.settled;
+    now >= reveals && round.settled;
+
+  const phase =
+    now < opens
+      ? "WAITING"
+      : now < closes
+        ? "BETTING"
+        : final
+          ? now < new Date(round.ends_at).getTime()
+            ? "RESULT"
+            : "FINISHED"
+          : "SPINNING";
 
   const revealed = final
     ? plan
-    : plan.slice(
-        0,
+    : singleSpin
+      ? []
+      : plan.slice(
+          0,
+          Math.max(
+            0,
+            Math.floor(
+              (now - closes) / SPIN_MS,
+            ),
+          ),
+        );
+
+  const spinIndex = singleSpin
+    ? plan.length - 1
+    : Math.min(
+        plan.length - 1,
         Math.max(
           0,
           Math.floor(
@@ -601,54 +595,67 @@ function publicRound(round, now) {
         ),
       );
 
-  const phase =
-    now < opens
-      ? "WAITING"
-      : now < closes
-        ? "BETTING"
-        : final
-          ? now <
-            new Date(
-              round.ends_at,
-            ).getTime()
-            ? "RESULT"
-            : "FINISHED"
-          : "SPINNING";
+  const starts = singleSpin
+    ? closes
+    : closes + spinIndex * SPIN_MS;
+
+  // The landing target is public only after
+  // betting has closed. It never changes later.
+  const activeSpin =
+    now >= closes
+      ? {
+          key: `${round.id}:${
+            singleSpin ? "single" : spinIndex
+          }`,
+          value: plan[spinIndex].value,
+          segment: plan[spinIndex].segment,
+          startsAt:
+            new Date(starts).toISOString(),
+          stopsAt:
+            new Date(starts + STOP_MS)
+              .toISOString(),
+          revealsAt:
+            new Date(starts + SPIN_MS)
+              .toISOString(),
+        }
+      : null;
 
   return {
     id: round.id,
     mode: "CONTROLLER_PLANNED_DEMO",
+    animationVersion: 2,
+    singleSpin,
     commitment: round.commitment,
     opensAt: round.opens_at,
     closesAt: round.closes_at,
     phase,
     revealedSpins: revealed,
+    activeSpin,
 
     spinNumber:
       phase === "SPINNING"
-        ? revealed.length + 1
+        ? singleSpin
+          ? 1
+          : spinIndex + 1
         : null,
 
     spinEndsAt:
       phase === "SPINNING"
-        ? new Date(
-            closes +
-              (revealed.length + 1) *
-                SPIN_MS,
-          ).toISOString()
+        ? activeSpin.revealsAt
         : null,
 
-    bonusMultiplier: revealed.reduce(
-      (product, step) =>
-        product * (BONUS[step.value] || 1),
-      1,
-    ),
+    bonusMultiplier: final
+      ? dreamReturn([], plan).bonusMultiplier
+      : singleSpin
+        ? 1
+        : revealed.reduce(
+            (product, step) =>
+              product * (BONUS[step.value] || 1),
+            1,
+          ),
 
     endsAt: final ? round.ends_at : null,
-
-    result: final
-      ? dreamReturn([], plan)
-      : null,
+    result: final ? dreamReturn([], plan) : null,
 
     proof: final
       ? {
@@ -668,11 +675,9 @@ const betJSON = row => ({
   bets: json(row.bets),
   stake: row.stake,
   payout: row.payout,
-
   settlement: row.settlement
     ? json(row.settlement)
     : null,
-
   createdAt: row.created_at,
 });
 
@@ -688,28 +693,16 @@ function originCheck(req) {
   } catch {}
 
   if (!valid) {
-    throw fail(
-      "Invalid request origin.",
-      403,
-    );
+    throw fail("Invalid request origin.", 403);
   }
 }
 
-export function registerDreamWheelRoutes(
-  app,
-  pool,
-) {
+export function registerDreamWheelRoutes(app, pool) {
   const wrap = fn => (req, res, next) =>
-    Promise.resolve(
-      fn(req, res),
-    ).catch(next);
+    Promise.resolve(fn(req, res)).catch(next);
 
   const send = (res, value) => {
-    res.set(
-      "Cache-Control",
-      "no-store",
-    );
-
+    res.set("Cache-Control", "no-store");
     res.json(value);
   };
 
@@ -721,14 +714,16 @@ export function registerDreamWheelRoutes(
       send(res, {
         success: true,
         demoOnly: true,
-        resultMode:
-          "CONTROLLER_PLANNED_DEMO",
+        resultMode: "CONTROLLER_PLANNED_DEMO",
         segments: DREAM_SEGMENTS,
         areas: NUMBERS,
         bettingSeconds: 30,
         spinSeconds: 10,
+        stopSeconds: 9,
         resultSeconds: 5,
         maxBonusSpins: MAX_BONUS_SPINS,
+        singleSpin: true,
+        animationVersion: 2,
         minAreaStake: 10,
         maxRoundStake: 25000,
 
@@ -736,7 +731,7 @@ export function registerDreamWheelRoutes(
           "Number labels are profit odds. Winning total return = stake + stake × number × accumulated bonus multiplier. Other areas return zero.",
 
         rules:
-          "A controller locks the entire round plan before betting. Final numbers are 1, 2, 5, 10, 20 and 40. Bonus 2x/7x spins stack and retain all bets without accepting new bets. At most three bonus spins may precede the final number. The robot host is animation, not live video. No round opens until a controller publishes a plan.",
+          "A controller locks the entire round plan before betting. Selected 2x/7x bonus factors multiply the final payout without adding more spins. New rounds have one 10-second lock: the wheel stops by second 9 and the result appears at second 10. The AI host gives one push at the outer rim, then releases the wheel. This is animation, not live video. No round opens until a controller publishes a plan.",
       });
     }),
   );
@@ -748,10 +743,7 @@ export function registerDreamWheelRoutes(
         pool,
         async client => {
           const customerId =
-            await requireCustomer(
-              client,
-              req,
-            );
+            await requireCustomer(client, req);
 
           const { round, now } =
             await advanceRound(client);
@@ -786,28 +778,19 @@ export function registerDreamWheelRoutes(
             success: true,
             serverTime:
               new Date(now).toISOString(),
-
             balance: Number(
-              balance.rows[0]
-                .demo_coin_balance,
+              balance.rows[0].demo_coin_balance,
             ),
-
-            round: publicRound(
-              round,
-              now,
-            ),
-
+            round: publicRound(round, now),
             bets: bets.rows.map(betJSON),
 
-            recentResults: recent.rows.map(
-              row => ({
-                id: row.id,
-                result: dreamReturn(
-                  [],
-                  json(row.plan),
-                ),
-              }),
-            ),
+            recentResults: recent.rows.map(row => ({
+              id: row.id,
+              result: dreamReturn(
+                [],
+                json(row.plan),
+              ),
+            })),
           };
         },
       );
@@ -839,10 +822,7 @@ export function registerDreamWheelRoutes(
 
         bets: records.rows.map(row => ({
           ...betJSON(row),
-          result: dreamReturn(
-            [],
-            json(row.plan),
-          ),
+          result: dreamReturn([], json(row.plan)),
         })),
       });
     }),
@@ -853,18 +833,13 @@ export function registerDreamWheelRoutes(
     wrap(async (req, res) => {
       originCheck(req);
 
-      const input = normalizeBet(
-        req.body,
-      );
+      const input = normalizeBet(req.body);
 
       const value = await transaction(
         pool,
         async client => {
           const customerId =
-            await requireCustomer(
-              client,
-              req,
-            );
+            await requireCustomer(client, req);
 
           const old = await client.query(
             `SELECT *
@@ -875,29 +850,19 @@ export function registerDreamWheelRoutes(
           );
 
           if (old.rows[0]) {
-            const previous =
-              old.rows[0];
+            const previous = old.rows[0];
 
-            const canonical =
-              normalizeBet({
-                requestKey: input.key,
-                roundId:
-                  previous.round_id,
-                bets: json(
-                  previous.bets,
-                ),
-              });
+            const canonical = normalizeBet({
+              requestKey: input.key,
+              roundId: previous.round_id,
+              bets: json(previous.bets),
+            });
 
             if (
-              String(
-                previous.round_id,
-              ) !== input.roundId ||
-              JSON.stringify(
-                canonical.bets,
-              ) !==
-                JSON.stringify(
-                  input.bets,
-                )
+              String(previous.round_id) !==
+                input.roundId ||
+              JSON.stringify(canonical.bets) !==
+                JSON.stringify(input.bets)
             ) {
               throw fail(
                 "Request key belongs to a different bet.",
@@ -905,23 +870,19 @@ export function registerDreamWheelRoutes(
               );
             }
 
-            const balance =
-              await client.query(
-                `SELECT demo_coin_balance
-                 FROM customers
-                 WHERE id=$1`,
-                [customerId],
-              );
+            const balance = await client.query(
+              `SELECT demo_coin_balance
+               FROM customers
+               WHERE id=$1`,
+              [customerId],
+            );
 
             return {
               success: true,
               replayed: true,
-
               balance: Number(
-                balance.rows[0]
-                  .demo_coin_balance,
+                balance.rows[0].demo_coin_balance,
               ),
-
               bet: betJSON(previous),
             };
           }
@@ -929,22 +890,19 @@ export function registerDreamWheelRoutes(
           const { round } =
             await advanceRound(client);
 
-          const account =
-            await client.query(
-              `SELECT *
-               FROM customers
-               WHERE id=$1
-               FOR UPDATE`,
-              [customerId],
-            );
+          const account = await client.query(
+            `SELECT *
+             FROM customers
+             WHERE id=$1
+             FOR UPDATE`,
+            [customerId],
+          );
 
-          const customer =
-            account.rows[0];
+          const customer = account.rows[0];
 
           if (
             !customer ||
-            customer.status !==
-              "ACTIVE" ||
+            customer.status !== "ACTIVE" ||
             customer.must_change_password ||
             customer.must_change_withdrawal_password
           ) {
@@ -954,22 +912,16 @@ export function registerDreamWheelRoutes(
             );
           }
 
-          const now =
-            await nowAt(client);
+          const now = await nowAt(client);
 
           if (
             !round ||
-            String(round.id) !==
-              input.roundId ||
+            String(round.id) !== input.roundId ||
             round.settled ||
             now <
-              new Date(
-                round.opens_at,
-              ).getTime() ||
+              new Date(round.opens_at).getTime() ||
             now >=
-              new Date(
-                round.closes_at,
-              ).getTime()
+              new Date(round.closes_at).getTime()
           ) {
             throw fail(
               "Betting is not open for this round.",
@@ -977,21 +929,17 @@ export function registerDreamWheelRoutes(
             );
           }
 
-          const total =
-            await client.query(
-              `SELECT
-                 COALESCE(SUM(stake),0)
-                   AS stake
-               FROM tsb_dream_bets
-               WHERE customer_id=$1
-                 AND round_id=$2`,
-              [customerId, round.id],
-            );
+          const total = await client.query(
+            `SELECT COALESCE(SUM(stake),0) AS stake
+             FROM tsb_dream_bets
+             WHERE customer_id=$1
+               AND round_id=$2`,
+            [customerId, round.id],
+          );
 
           if (
-            Number(
-              total.rows[0].stake,
-            ) + input.stake >
+            Number(total.rows[0].stake) +
+              input.stake >
             25000
           ) {
             throw fail(
@@ -1000,37 +948,31 @@ export function registerDreamWheelRoutes(
           }
 
           const balance =
-            Number(
-              customer.demo_coin_balance,
-            ) - input.stake;
+            Number(customer.demo_coin_balance) -
+            input.stake;
 
           if (balance < 0) {
             throw fail("LOW BALANCE");
           }
 
-          const saved =
-            await client.query(
-              `INSERT INTO tsb_dream_bets(
-                 customer_id,
-                 round_id,
-                 request_key,
-                 bets,
-                 stake
-               )
-               VALUES(
-                 $1,$2,$3,$4::JSONB,$5
-               )
-               RETURNING *`,
-              [
-                customerId,
-                round.id,
-                input.key,
-                JSON.stringify(
-                  input.bets,
-                ),
-                input.stake,
-              ],
-            );
+          const saved = await client.query(
+            `INSERT INTO tsb_dream_bets(
+               customer_id,
+               round_id,
+               request_key,
+               bets,
+               stake
+             )
+             VALUES($1,$2,$3,$4::JSONB,$5)
+             RETURNING *`,
+            [
+              customerId,
+              round.id,
+              input.key,
+              JSON.stringify(input.bets),
+              input.stake,
+            ],
+          );
 
           await client.query(
             `UPDATE customers
@@ -1059,9 +1001,7 @@ export function registerDreamWheelRoutes(
             success: true,
             replayed: false,
             balance,
-            bet: betJSON(
-              saved.rows[0],
-            ),
+            bet: betJSON(saved.rows[0]),
           };
         },
       );
@@ -1087,20 +1027,14 @@ export function registerDreamWheelRoutes(
 
           return {
             success: true,
-            controllerId:
-              controller.login_id,
+            controllerId: controller.login_id,
             serverTime:
               new Date(now).toISOString(),
 
             round: round
               ? {
-                  ...publicRound(
-                    round,
-                    now,
-                  ),
-                  lockedPlan: json(
-                    round.plan,
-                  ),
+                  ...publicRound(round, now),
+                  lockedPlan: json(round.plan),
                 }
               : null,
           };
@@ -1117,11 +1051,9 @@ export function registerDreamWheelRoutes(
       originCheck(req);
 
       const key = keyFrom(req.body);
-
-      const outcomes =
-        validateDreamPlan(
-          req.body.outcomes,
-        );
+      const outcomes = validateDreamPlan(
+        req.body.outcomes,
+      );
 
       const value = await transaction(
         pool,
@@ -1132,27 +1064,21 @@ export function registerDreamWheelRoutes(
               req,
             );
 
-          const old =
-            await client.query(
-              `SELECT *
-               FROM tsb_dream_rounds
-               WHERE controller_id=$1
-                 AND request_key=$2`,
-              [controller.id, key],
-            );
+          const old = await client.query(
+            `SELECT *
+             FROM tsb_dream_rounds
+             WHERE controller_id=$1
+               AND request_key=$2`,
+            [controller.id, key],
+          );
 
           if (old.rows[0]) {
-            const previousValues =
-              json(
-                old.rows[0].plan,
-              ).map(
-                step => step.value,
-              );
+            const previous = json(
+              old.rows[0].plan,
+            ).map(step => step.value);
 
             if (
-              JSON.stringify(
-                previousValues,
-              ) !==
+              JSON.stringify(previous) !==
               JSON.stringify(outcomes)
             ) {
               throw fail(
@@ -1164,8 +1090,7 @@ export function registerDreamWheelRoutes(
             return {
               success: true,
               replayed: true,
-              roundId:
-                old.rows[0].id,
+              roundId: old.rows[0].id,
               commitment:
                 old.rows[0].commitment,
             };
@@ -1179,9 +1104,7 @@ export function registerDreamWheelRoutes(
             (
               !round.settled ||
               now <
-                new Date(
-                  round.ends_at,
-                ).getTime()
+                new Date(round.ends_at).getTime()
             )
           ) {
             throw fail(
@@ -1190,91 +1113,71 @@ export function registerDreamWheelRoutes(
             );
           }
 
-          const plan = outcomes.map(
-            value => {
-              const matching =
-                DREAM_SEGMENTS
-                  .map(
-                    (segment, index) =>
-                      segment === value
-                        ? index
-                        : -1,
-                  )
-                  .filter(
-                    index => index >= 0,
-                  );
+          const plan = outcomes.map(value => {
+            const matching = DREAM_SEGMENTS
+              .map((segment, index) =>
+                segment === value
+                  ? index
+                  : -1,
+              )
+              .filter(index => index >= 0);
 
-              return {
-                value,
-                segment:
-                  matching[
-                    randomInt(
-                      0,
-                      matching.length,
-                    )
-                  ],
-              };
-            },
-          );
+            return {
+              value,
+              segment:
+                matching[
+                  randomInt(0, matching.length)
+                ],
+            };
+          });
 
-          const salt =
-            randomBytes(32)
-              .toString("hex");
+          const salt = randomBytes(32)
+            .toString("hex");
 
           const commitment = digest(
-            JSON.stringify(plan) +
-              ":" +
-              salt,
+            JSON.stringify(plan) + ":" + salt,
           );
 
-          const opens =
-            now + OPEN_DELAY_MS;
+          const opens = now + OPEN_DELAY_MS;
+          const closes = opens + BET_MS;
 
-          const closes =
-            opens + BET_MS;
+          // Always one 10-second lock window.
+          const reveals = closes + SPIN_MS;
 
-          const reveals =
-            closes +
-            plan.length * SPIN_MS;
-
-          const saved =
-            await client.query(
-              `INSERT INTO tsb_dream_rounds(
-                 controller_id,
-                 request_key,
-                 plan,
-                 salt,
-                 commitment,
-                 opens_at,
-                 closes_at,
-                 reveals_at,
-                 ends_at
-               )
-               VALUES(
-                 $1,$2,$3::JSONB,$4,$5,
-                 $6,$7,$8,$9
-               )
-               RETURNING *`,
-              [
-                controller.id,
-                key,
-                JSON.stringify(plan),
-                salt,
-                commitment,
-                new Date(opens),
-                new Date(closes),
-                new Date(reveals),
-                new Date(
-                  reveals + RESULT_MS,
-                ),
-              ],
-            );
+          const saved = await client.query(
+            `INSERT INTO tsb_dream_rounds(
+               controller_id,
+               request_key,
+               plan,
+               salt,
+               commitment,
+               opens_at,
+               closes_at,
+               reveals_at,
+               ends_at
+             )
+             VALUES(
+               $1,$2,$3::JSONB,$4,$5,
+               $6,$7,$8,$9
+             )
+             RETURNING *`,
+            [
+              controller.id,
+              key,
+              JSON.stringify(plan),
+              salt,
+              commitment,
+              new Date(opens),
+              new Date(closes),
+              new Date(reveals),
+              new Date(reveals + RESULT_MS),
+            ],
+          );
 
           return {
             success: true,
             replayed: false,
-            roundId:
-              saved.rows[0].id,
+            roundId: saved.rows[0].id,
             commitment,
           };
         },
@@ -1295,8 +1198,7 @@ export function registerDreamWheelRoutes(
     try {
       await transaction(
         pool,
-        client =>
-          advanceRound(client),
+        client => advanceRound(client),
       );
     } catch (error) {
       console.error(
