@@ -1,6 +1,20 @@
 import React, { useEffect, useRef, useState } from "react";
 
-const COINS = (value) => {
+import {
+  flightApi,
+  flightRequestKey,
+  notifyFlightWallet,
+  useFlightState,
+} from "./flightClient";
+
+const MODES = [
+  { id: "30s", label: "30 Sec" },
+  { id: "1m", label: "1 Min" },
+  { id: "3m", label: "3 Min" },
+  { id: "5m", label: "5 Min" },
+];
+
+const coins = (value) => {
   if (
     value === null ||
     value === undefined ||
@@ -14,1572 +28,972 @@ const COINS = (value) => {
   });
 };
 
-const MONEY = (value) => {
-  const formatted = COINS(value);
+const money = (value) => {
+  const formatted = coins(value);
   return formatted === "—" ? "—" : `₹${formatted}`;
 };
 
-const FALLBACK_NAMES = {
-  easy: "Easy",
-  medium: "Medium",
-  hard: "Hard",
-  daredevil: "DareDevil",
-};
-
-const TRAFFIC_BASE_SPEED = 220;
-
-function trafficVelocity(levelSpeed, step) {
+function AmountBox({ label, value }) {
   return (
-    TRAFFIC_BASE_SPEED *
-    Math.max(1, Number(levelSpeed) || 1) *
-    (1 + Math.max(0, step - 1) * 0.12)
-  );
-}
+    <div className="inline-flex max-w-full flex-col items-center justify-center gap-1 rounded-xl border border-[#166534] bg-white px-3 py-2">
+      {label && (
+        <span className="text-center text-[9px] font-black text-[#722f37]">
+          {label}
+        </span>
+      )}
 
-function AmountBox({ label, value, signed = false }) {
-  return (
-    <div className="cr-money-box">
-      {label && <span className="cr-money-label">{label}</span>}
-      <strong>
-        {signed && Number(value) > 0 ? "+" : ""}
-        {MONEY(value)}
+      <strong className="break-all text-base font-black tabular-nums text-[#166534]">
+        {money(value)}
       </strong>
     </div>
   );
 }
 
-function RoadCar({ lane = 1, down = false }) {
-  const color = [
-    "#e65353",
-    "#31a6d6",
-    "#edbf4c",
-    "#9b77d4",
-  ][lane % 4];
+function marketLabel(key) {
+  if (key?.startsWith("NUMBER_")) {
+    return `Number ${key.slice(7)}`;
+  }
 
   return (
-    <svg
-      className={`cr-car-body ${down ? "cr-facing-down" : ""}`}
-      viewBox="0 0 44 86"
-      aria-hidden="true"
-    >
-      <ellipse
-        cx="22"
-        cy="46"
-        rx="20"
-        ry="37"
-        fill="#15201e"
-        opacity=".35"
-      />
-
-      <rect x="2" y="16" width="6" height="16" rx="2" fill="#101717" />
-      <rect x="36" y="16" width="6" height="16" rx="2" fill="#101717" />
-      <rect x="2" y="57" width="6" height="16" rx="2" fill="#101717" />
-      <rect x="36" y="57" width="6" height="16" rx="2" fill="#101717" />
-
-      <rect
-        x="7"
-        y="5"
-        width="30"
-        height="75"
-        rx="11"
-        fill={color}
-        stroke="#132c33"
-        strokeWidth="2"
-      />
-
-      <path
-        d="M12 25 L32 25 L34 38 L10 38Z"
-        fill="#a9e7ec"
-        stroke="#244351"
-        strokeWidth="2"
-      />
-
-      <rect
-        x="12"
-        y="41"
-        width="20"
-        height="20"
-        rx="4"
-        fill={color}
-        stroke="#ffffff55"
-        strokeWidth="2"
-      />
-
-      <path
-        d="M11 64 L33 64 L31 72 L13 72Z"
-        fill="#427584"
-        stroke="#244351"
-        strokeWidth="2"
-      />
-
-      <rect x="10" y="9" width="7" height="4" rx="1" fill="#fff2b8" />
-      <rect x="27" y="9" width="7" height="4" rx="1" fill="#fff2b8" />
-      <rect x="10" y="75" width="6" height="3" rx="1" fill="#aa202d" />
-      <rect x="28" y="75" width="6" height="3" rx="1" fill="#aa202d" />
-    </svg>
+    {
+      GREEN: "Green",
+      VIOLET: "Violet",
+      RED: "Red",
+      BIG: "Big",
+      SMALL: "Small",
+    }[key] || key
   );
 }
 
-function RoadTraffic({ lanes, clearedStep, speed, collision }) {
-  const nodes = useRef([]);
-  const velocity = useRef(speed);
-  velocity.current = speed;
+function numberBackground(number) {
+  if (number === 0) {
+    return "linear-gradient(135deg,#ef4444 50%,#a855f7 50%)";
+  }
+
+  if (number === 5) {
+    return "linear-gradient(135deg,#22c55e 50%,#a855f7 50%)";
+  }
+
+  return number % 2 === 1 ? "#16a86b" : "#e44350";
+}
+
+function ResultBall({ number, small = false }) {
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center justify-center rounded-full border-2 border-white/40 font-black text-white shadow-lg ${
+        small ? "h-8 w-8 text-sm" : "h-12 w-12 text-xl"
+      }`}
+      style={{ background: numberBackground(number) }}
+    >
+      {number}
+    </span>
+  );
+}
+
+export default function ColorPredictionPage({
+  onBack = () => window.location.assign("/"),
+}) {
+  const [mode, setMode] = useState("30s");
+
+  return (
+    <ColorGame
+      key={mode}
+      mode={mode}
+      onChangeMode={setMode}
+      onBack={onBack}
+    />
+  );
+}
+
+function ColorGame({ mode, onChangeMode, onBack }) {
+  const {
+    data,
+    error,
+    unauthorized,
+    receivedAt,
+    refresh,
+  } = useFlightState(`/api/color-prediction/${mode}/state`);
+
+  const [clock, setClock] = useState(Date.now());
+  const [amount, setAmount] = useState("100");
+  const [selection, setSelection] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState(null);
+  const [pendingCancel, setPendingCancel] = useState(null);
+  const [message, setMessage] = useState("");
+  const [tab, setTab] = useState("HISTORY");
+  const [showRules, setShowRules] = useState(false);
+
+  const inFlight = useRef(false);
+  const confirmBox = useRef(null);
+  const mounted = useRef(false);
+  const lastBalance = useRef(null);
 
   useEffect(() => {
-    const media = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)"
-    );
-
-    const distance = 545;
-    const positions = Array.from(
-      { length: lanes },
-      (_, index) => ((index * 0.273 + 0.18) % 1) * distance
-    );
-
-    let frame;
-    let previous = null;
-
-    const paint = () => {
-      nodes.current.forEach((node, index) => {
-        if (!node) return;
-
-        const down = index % 2 === 0;
-        const y = down
-          ? positions[index] - 100
-          : 445 - positions[index];
-
-        node.style.transform = `translate3d(0,${y}px,0)`;
-      });
-    };
-
-    const animate = (time) => {
-      const elapsed =
-        previous === null
-          ? 0
-          : Math.min(50, Math.max(0, time - previous));
-
-      previous = time;
-
-      for (let index = 0; index < lanes; index++) {
-        positions[index] =
-          (positions[index] +
-            (velocity.current * elapsed) / 1000) %
-          distance;
-      }
-
-      paint();
-      frame = window.requestAnimationFrame(animate);
-    };
-
-    const changed = () => {
-      if (frame !== undefined) {
-        window.cancelAnimationFrame(frame);
-      }
-
-      frame = undefined;
-      previous = null;
-
-      if (!media?.matches) {
-        frame = window.requestAnimationFrame(animate);
-      } else {
-        nodes.current.forEach((node) => {
-          if (node) {
-            node.style.transform = "translate3d(0,25px,0)";
-          }
-        });
-      }
-    };
-
-    paint();
-    changed();
-    media?.addEventListener?.("change", changed);
+    mounted.current = true;
+    const timer = setInterval(() => setClock(Date.now()), 100);
 
     return () => {
-      if (frame !== undefined) {
-        window.cancelAnimationFrame(frame);
-      }
-      media?.removeEventListener?.("change", changed);
+      mounted.current = false;
+      clearInterval(timer);
     };
-  }, [lanes]);
+  }, []);
 
-  return (
-    <div className="cr-traffic" aria-hidden="true">
-      {Array.from({ length: lanes }, (_, index) => (
-        <div
-          key={index}
-          ref={(node) => {
-            nodes.current[index] = node;
-          }}
-          className="cr-car"
-          data-lane={index + 1}
-          hidden={index + 1 <= clearedStep || collision}
-          style={{ left: 86 + index * 106 + 29 }}
-        >
-          <RoadCar lane={index + 1} down={index % 2 === 0} />
-        </div>
-      ))}
-    </div>
-  );
-}
+  const matchingData = data?.round?.mode === mode;
+  const round = matchingData ? data.round : null;
 
-function readPending(key) {
-  try {
-    const saved = JSON.parse(
-      sessionStorage.getItem(key) || "null"
-    );
-
-    return ["play", "jump", "cashout"].includes(saved?.action) &&
-      typeof saved.body?.requestKey === "string"
-      ? saved
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-function writePending(key, value) {
-  try {
-    sessionStorage.setItem(key, JSON.stringify(value));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function removePending(key) {
-  try {
-    sessionStorage.removeItem(key);
-  } catch {
-    // Storage may be unavailable.
-  }
-}
-
-function uniqueKey() {
-  const bytes = new Uint8Array(20);
-  window.crypto.getRandomValues(bytes);
-
-  return Array.from(
-    bytes,
-    (value) => value.toString(16).padStart(2, "0")
-  ).join("");
-}
-
-async function api(path, options = {}) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
-
-  try {
-    const response = await fetch(`/api/chicken-road/${path}`, {
-      ...options,
-      credentials: "same-origin",
-      cache: "no-store",
-      signal: controller.signal,
-    });
-
-    const data = await response.json();
-
-    if (!response.ok || data.success === false) {
-      throw Object.assign(
-        new Error(data.error || "Request failed."),
-        { status: response.status }
-      );
-    }
-
-    return data;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-export default function ChickenRoadPage({
-  user,
-  onBack,
-  onLogout,
-}) {
-  const customerId =
-    user?.id ?? user?.customerId ?? user?.customer_id;
-
-  const storageKey = `tsb_chicken_pending_v1:${customerId}`;
-
-  return customerId ? (
-    <ChickenGame
-      key={storageKey}
-      user={user}
-      onBack={onBack}
-      onLogout={onLogout}
-      storageKey={storageKey}
-    />
-  ) : (
-    <main className="min-h-screen bg-slate-950 p-6 text-white">
-      Customer login required.
-      <button
-        type="button"
-        onClick={onBack}
-        className="ml-4 underline"
-      >
-        Back
-      </button>
-    </main>
-  );
-}
-
-function ChickenGame({ user, onBack, onLogout, storageKey }) {
-  const [rules, setRules] = useState(null);
-  const [data, setData] = useState(null);
-  const [amount, setAmount] = useState("10");
-  const [difficulty, setDifficulty] = useState("easy");
-  const [tab, setTab] = useState("game");
-  const [history, setHistory] = useState([]);
-
-  const [pending, setPending] = useState(
-    () => readPending(storageKey)
+  const paused = Boolean(
+    matchingData &&
+      (data.paused === true || data.control?.paused === true)
   );
 
-  const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [visualStep, setVisualStep] = useState(0);
-  const [motion, setMotion] = useState("");
-  const [sound, setSound] = useState(false);
+  const elapsed = Number.isFinite(receivedAt)
+    ? Math.max(0, clock - receivedAt)
+    : Infinity;
 
-  const alive = useRef(false);
-  const running = useRef(false);
-  const recovery = useRef(pending);
-  const version = useRef(0);
-  const timer = useRef(null);
-  const scroller = useRef(null);
-  const audio = useRef(null);
+  const serverTime = Date.parse(data?.serverTime);
 
-  const session = data?.session;
-  const activeGame = session?.status === "ACTIVE";
+  const now =
+    Number.isFinite(serverTime) && Number.isFinite(elapsed)
+      ? serverTime + (paused ? 0 : elapsed)
+      : clock;
 
-  const selectedDifficulty = activeGame
-    ? session.difficulty
-    : difficulty;
-
-  const level = rules?.levels?.[selectedDifficulty];
-  const lanes = level?.lanes || 30;
-
-  const trafficSpeed = trafficVelocity(
-    level?.speed || 1,
-    visualStep
+  const fresh = Boolean(
+    matchingData &&
+      !error &&
+      !unauthorized &&
+      Number.isFinite(serverTime) &&
+      elapsed < 3500
   );
 
-  const locked = busy || Boolean(pending) || loading;
+  const closesAt = Date.parse(round?.closesAt);
+  const endsAt = Date.parse(round?.endsAt);
+
+  const open = Boolean(
+    fresh &&
+      !paused &&
+      round?.phase === "BETTING" &&
+      now < closesAt
+  );
+
+  const drawing = Boolean(round && now >= closesAt);
+
+  const seconds = round
+    ? Math.max(
+        0,
+        Math.ceil(((drawing ? endsAt : closesAt) - now) / 1000) || 0
+      )
+    : 0;
+
+  const timerText =
+    `${String(Math.floor(seconds / 60)).padStart(2, "0")}:` +
+    String(seconds % 60).padStart(2, "0");
+
+  const bets = matchingData ? data.bets || [] : [];
+  const history = matchingData ? data.history || [] : [];
+
+  const currentBets = bets.filter(
+    (bet) => String(bet.roundId) === String(round?.id)
+  );
+
+  const unresolved = Boolean(pending || pendingCancel);
+  const locked = busy || unresolved;
+  const stake = Number(amount);
+
+  const validAmount =
+    Number.isSafeInteger(stake) &&
+    stake >= 100 &&
+    stake <= 25000;
+
+  const selectedForRound = Boolean(
+    selection &&
+      String(selection.roundId) === String(round?.id)
+  );
+
+  const canConfirm =
+    open && selectedForRound && validAmount && !locked;
 
   const balanceAvailable =
+    matchingData &&
+    !unauthorized &&
     data?.balance !== null &&
     data?.balance !== undefined &&
     Number.isFinite(Number(data.balance));
 
-  const prepareAudio = () => {
-    if (!sound) return;
+  useEffect(() => {
+    setSelection(null);
+  }, [round?.id]);
 
+  useEffect(() => {
+    if (paused) setSelection(null);
+  }, [paused]);
+
+  useEffect(() => {
+    if (
+      !matchingData ||
+      unauthorized ||
+      data?.balance === null ||
+      data?.balance === undefined ||
+      !Number.isFinite(Number(data.balance))
+    ) {
+      return;
+    }
+
+    const balance = Number(data.balance);
+    const previous = lastBalance.current;
+    lastBalance.current = balance;
+
+    if (previous !== null && previous !== balance) {
+      notifyFlightWallet();
+    }
+  }, [matchingData, unauthorized, data?.balance]);
+
+  const chooseMarket = (key) => {
+    if (!open || locked) return;
+
+    setSelection({ key, roundId: round.id });
+    setMessage("");
+
+    requestAnimationFrame(() => {
+      confirmBox.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+  };
+
+  const changeAmount = (value) => {
+    if (locked) return;
+    setAmount(String(Math.min(25000, Math.max(100, value))));
+  };
+
+  const refreshSafely = async () => {
     try {
-      const AudioContext =
-        window.AudioContext || window.webkitAudioContext;
-
-      if (!audio.current && AudioContext) {
-        audio.current = new AudioContext();
-      }
-
-      audio.current?.resume()?.catch(() => {});
+      await refresh();
     } catch {
-      // Audio may be unavailable.
+      // Regular state polling will retry.
     }
   };
 
-  const tone = (collision) => {
-    if (!sound || !audio.current) return;
+  const requestBet = async (retry = false) => {
+    if (inFlight.current || pendingCancel) return;
 
-    try {
-      const ctx = audio.current;
-      const oscillator = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      oscillator.type = collision ? "triangle" : "sine";
-
-      oscillator.frequency.setValueAtTime(
-        collision ? 180 : 700,
-        ctx.currentTime
+    if (!retry && !canConfirm) {
+      setMessage(
+        paused
+          ? "Color Prediction is paused by Admin."
+          : "Choose a market and enter ₹100–₹25,000 in demo balance during betting."
       );
-
-      oscillator.frequency.exponentialRampToValueAtTime(
-        collision ? 45 : 1100,
-        ctx.currentTime + 0.16
-      );
-
-      gain.gain.setValueAtTime(0.055, ctx.currentTime);
-
-      gain.gain.exponentialRampToValueAtTime(
-        0.0001,
-        ctx.currentTime + 0.22
-      );
-
-      oscillator.connect(gain);
-      gain.connect(ctx.destination);
-
-      oscillator.onended = () => {
-        oscillator.disconnect();
-        gain.disconnect();
-      };
-
-      oscillator.start();
-      oscillator.stop(ctx.currentTime + 0.22);
-    } catch {
-      // Audio may be unavailable.
+      return;
     }
-  };
 
-  const loadState = async () => {
-    const currentVersion = version.current;
+    const payload = retry
+      ? pending
+      : {
+          roundId: round.id,
+          market: selection.key,
+          amount: stake,
+          requestKey: flightRequestKey(),
+        };
+
+    if (!payload) return;
+
+    inFlight.current = true;
+    setBusy(true);
+    setPending(payload);
+    setMessage("");
 
     try {
-      const value = await api("state");
+      const result = await flightApi(
+        `/api/color-prediction/${mode}/bets`,
+        payload
+      );
 
-      if (
-        !alive.current ||
-        currentVersion !== version.current ||
-        running.current
-      ) {
-        return;
+      notifyFlightWallet();
+
+      if (mounted.current) {
+        setPending(null);
+        setSelection(null);
+        setMessage(
+          result.bet?.status === "CANCELLED"
+            ? "This bet was already cancelled."
+            : "Bet recorded."
+        );
       }
+    } catch (requestError) {
+      if (mounted.current) {
+        if (
+          requestError.status >= 400 &&
+          requestError.status < 500
+        ) {
+          setPending(null);
+        }
 
-      setData(value);
-      setVisualStep(value.session?.step || 0);
-
-      if (value.session?.status === "ACTIVE") {
-        setDifficulty(value.session.difficulty);
-        setAmount(String(value.session.stake));
-      }
-    } catch (err) {
-      if (
-        alive.current &&
-        currentVersion === version.current
-      ) {
-        setError(err.message);
+        setMessage(
+          requestError.message || "Unable to confirm bet."
+        );
       }
     } finally {
-      if (
-        alive.current &&
-        currentVersion === version.current
-      ) {
-        setLoading(false);
+      inFlight.current = false;
+
+      if (mounted.current) {
+        setBusy(false);
+        void refreshSafely();
       }
     }
   };
 
-  const loadRules = async () => {
-    try {
-      const value = await api("rules");
-      if (alive.current) setRules(value);
-    } catch (err) {
-      if (alive.current) setError(err.message);
-    }
-  };
+  const cancelBet = async (betId) => {
+    if (inFlight.current || pending) return;
 
-  const loadHistory = async () => {
-    try {
-      const value = await api("history");
-      if (alive.current) setHistory(value.sessions || []);
-    } catch (err) {
-      if (alive.current) setError(err.message);
-    }
-  };
-
-  const loadRef = useRef(null);
-  loadRef.current = loadState;
-
-  useEffect(() => {
-    alive.current = true;
-
-    void loadRules();
-    void loadRef.current();
-
-    const focus = () => {
-      if (!running.current) void loadRef.current();
-    };
-
-    window.addEventListener("focus", focus);
-
-    return () => {
-      alive.current = false;
-
-      if (timer.current !== null) {
-        clearTimeout(timer.current);
-      }
-
-      window.removeEventListener("focus", focus);
-      audio.current?.close()?.catch(() => {});
-    };
-  }, []);
-
-  useEffect(() => {
-    const element = scroller.current;
-    if (!element) return;
-
-    const reduced = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)"
-    )?.matches;
-
-    element.scrollTo({
-      left: Math.max(
-        0,
-        visualStep * 106 - element.clientWidth / 2 + 85
-      ),
-      behavior: reduced ? "auto" : "smooth",
-    });
-  }, [visualStep, tab]);
-
-  const finish = (value) => {
-    if (!alive.current) return;
-
-    setData(value);
-    setVisualStep(value.session?.step || 0);
-    setMotion("");
-    setBusy(false);
-    setLoading(false);
-    running.current = false;
-
-    setNotice(
-      value.event === "COLLISION"
-        ? "Collision. This round has ended."
-        : value.event === "COMPLETED"
-          ? "Final lane completed. Your demo return was credited."
-          : value.event === "CASHED_OUT"
-            ? "Cash out completed."
-            : value.event === "SAFE"
-              ? "Safe crossing. Jump again or cash out whenever you choose."
-              : "Game started. Press JUMP to move."
-    );
-
-    window.dispatchEvent(new Event("demo-balance-updated"));
-    void loadRef.current();
-  };
-
-  const perform = async (requestedAction) => {
-    if (running.current) return;
-
-    let job = recovery.current;
-
-    if (!job) {
-      if (!rules || loading || !data) {
-        setError("Wait for rules and balance to load.");
-        return;
-      }
-
-      if (requestedAction === "play") {
-        const stake = Number(amount);
-        if (activeGame) return;
-
-        if (
-          !Number.isSafeInteger(stake) ||
-          stake < rules.minStake ||
-          stake > rules.maxStake
-        ) {
-          setError("Stake must be ₹10–₹25,000 in whole demo units.");
-          return;
-        }
-
-        if (!balanceAvailable) {
-          setError("Wallet balance is unavailable. Please refresh.");
-          return;
-        }
-
-        if (stake > Number(data.balance)) {
-          setError("LOW BALANCE");
-          return;
-        }
-
-        if (!Object.hasOwn(rules.levels, difficulty)) {
-          setError("Select a valid difficulty.");
-          return;
-        }
-
-        job = {
-          action: "play",
-          body: { difficulty, amount: stake },
-        };
-      } else {
-        if (
-          !activeGame ||
-          !["jump", "cashout"].includes(requestedAction)
-        ) {
-          return;
-        }
-
-        job = {
-          action: requestedAction,
-          body: { sessionId: String(session.id) },
-        };
-      }
-
-      try {
-        job.body.requestKey = uniqueKey();
-      } catch {
-        setError("A secure HTTPS browser connection is required.");
-        return;
-      }
-
-      if (!writePending(storageKey, job)) {
-        setError(
-          "Enable browser session storage to recover interrupted actions."
-        );
-        return;
-      }
-
-      recovery.current = job;
-      setPending(job);
+    if (
+      pendingCancel &&
+      String(pendingCancel) !== String(betId)
+    ) {
+      return;
     }
 
-    running.current = true;
-    version.current += 1;
+    if (!pendingCancel && !open) {
+      setMessage(
+        paused
+          ? "Color Prediction is paused by Admin."
+          : "Betting is closed or the connection is unavailable."
+      );
+      return;
+    }
+
+    inFlight.current = true;
     setBusy(true);
-    setError("");
-    setNotice("");
-    prepareAudio();
+    setPendingCancel(betId);
+    setMessage("");
 
     try {
-      const value = await api(job.action, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(job.body),
-      });
-
-      removePending(storageKey);
-      recovery.current = null;
-
-      if (!alive.current) return;
-
-      setPending(null);
-
-      const reduced = window.matchMedia?.(
-        "(prefers-reduced-motion: reduce)"
-      )?.matches;
-
-      if (job.action === "jump" && !value.replayed && !reduced) {
-        const collision = value.event === "COLLISION";
-
-        setMotion(collision ? "collision" : "jump");
-
-        setVisualStep(
-          value.session.step + (collision ? 1 : 0)
-        );
-
-        tone(collision);
-
-        timer.current = setTimeout(() => {
-          timer.current = null;
-          finish(value);
-        }, collision ? 850 : 600);
-      } else {
-        tone(value.event === "COLLISION");
-        finish(value);
-      }
-    } catch (err) {
-      if (!alive.current) return;
-
-      if ([400, 401, 403, 404, 409, 422].includes(err.status)) {
-        removePending(storageKey);
-        recovery.current = null;
-        setPending(null);
-      }
-
-      setError(
-        err.status
-          ? err.message
-          : "Connection interrupted. Press RETRY SAME ACTION to recover the original request."
+      await flightApi(
+        `/api/color-prediction/${mode}/cancel`,
+        { betId }
       );
 
-      running.current = false;
-      setBusy(false);
-      setLoading(false);
-      void loadRef.current();
+      notifyFlightWallet();
+
+      if (mounted.current) {
+        setPendingCancel(null);
+        setMessage("Bet cancelled. Full stake returned.");
+      }
+    } catch (requestError) {
+      if (mounted.current) {
+        if (
+          requestError.status >= 400 &&
+          requestError.status < 500
+        ) {
+          setPendingCancel(null);
+        }
+
+        setMessage(
+          requestError.message || "Unable to cancel bet."
+        );
+      }
+    } finally {
+      inFlight.current = false;
+
+      if (mounted.current) {
+        setBusy(false);
+        void refreshSafely();
+      }
     }
   };
 
-  const chickenLeft =
-    visualStep === 0
-      ? 18
-      : 86 + (visualStep - 1) * 106 + 23;
+  const reserved = currentBets
+    .filter((bet) => bet.status === "PLACED")
+    .reduce((total, bet) => total + Number(bet.amount), 0);
 
   return (
-    <div className="cr-page">
-      <style>{`
-        .cr-page {
-          min-height:100vh;
-          background:#202725;
-          color:#f8f5e8;
-          font-family:Arial,sans-serif;
-          padding-bottom:24px;
-        }
-        .cr-page * { box-sizing:border-box; }
-        .cr-page button,.cr-page input,.cr-page select { font:inherit; }
-        .cr-page button { cursor:pointer; }
-        .cr-page button:disabled { opacity:.45; cursor:default; }
-
-        .cr-header {
-          display:flex;
-          flex-wrap:wrap;
-          gap:12px;
-          align-items:center;
-          padding:15px;
-          background:#121c19;
-          border-bottom:1px solid #ffffff20;
-        }
-        .cr-header h1 { margin:0; font-size:17px; color:#f9d875; }
-        .cr-header small {
-          display:block;
-          font-size:10px;
-          color:#cad6cc;
-          margin-top:5px;
-        }
-        .cr-wallet {
-          margin-left:auto;
-          max-width:100%;
-          text-align:center;
-          border:2px solid #166534;
-          border-radius:12px;
-          background:#fff;
-          color:#166534;
-          padding:10px 12px;
-        }
-        .cr-wallet-title {
-          display:block;
-          font-size:9px;
-          font-weight:900;
-          letter-spacing:.5px;
-        }
-        .cr-wallet-value {
-          display:flex;
-          align-items:center;
-          justify-content:center;
-          gap:8px;
-          margin-top:6px;
-        }
-        .cr-wallet-symbol {
-          display:grid;
-          place-items:center;
-          flex-shrink:0;
-          width:32px;
-          height:32px;
-          border-radius:8px;
-          background:#166534;
-          color:#fff;
-          font-size:23px;
-          font-weight:900;
-        }
-        .cr-wallet-number {
-          font-size:20px;
-          font-weight:900;
-          overflow-wrap:anywhere;
-          font-variant-numeric:tabular-nums;
-        }
-        .cr-wallet small { color:#722f37; font-weight:bold; }
-
-        .cr-money-grid {
-          display:grid;
-          grid-template-columns:repeat(2,minmax(0,1fr));
-          gap:10px;
-          margin-top:12px;
-        }
-        .cr-money-box {
-          display:inline-flex;
-          flex-direction:column;
-          align-items:center;
-          justify-content:center;
-          gap:6px;
-          max-width:100%;
-          border:1px solid #166534;
-          border-radius:10px;
-          padding:10px 12px;
-          background:#fff;
-          color:#166534;
-          font-variant-numeric:tabular-nums;
-        }
-        .cr-money-box strong {
-          font-size:18px;
-          color:#166534;
-          overflow-wrap:anywhere;
-        }
-        .cr-money-label {
-          font-size:10px;
-          font-weight:bold;
-          color:#722f37;
-          text-align:center;
-        }
-        .cr-wrap { max-width:900px; margin:auto; padding:12px; }
-        .cr-tabs,.cr-row {
-          display:flex;
-          gap:8px;
-          flex-wrap:wrap;
-          align-items:center;
-          margin-bottom:12px;
-        }
-        .cr-row { margin-top:12px; }
-        .cr-btn {
-          padding:10px 12px;
-          border:1px solid #ffffff30;
-          border-radius:8px;
-          background:#ffffff10;
-          color:inherit;
-        }
-        .cr-tabs [aria-pressed=true] {
-          background:#166534;
-          border-color:#166534;
-          color:#fff;
-        }
-        .cr-alert {
-          border:1px solid #722f37;
-          background:#fff;
-          color:#722f37;
-          padding:12px;
-          border-radius:10px;
-          font-size:13px;
-          line-height:1.7;
-          margin:12px 0;
-        }
-        .cr-alert button {
-          margin:5px;
-          background:#722f37;
-          border-color:#722f37;
-          color:#fff;
-        }
-        .cr-hint { font-size:12px; line-height:1.7; color:#d0dad4; }
-
-        .cr-road-window {
-          position:relative;
-          overflow:auto;
-          border:2px solid #59635e;
-          border-radius:15px;
-          background:#73716a;
-          scrollbar-color:#d9c17e #4e5550;
-          touch-action:pan-x pan-y;
-        }
-        .cr-road {
-          position:relative;
-          display:flex;
-          height:345px;
-          min-width:100%;
-          isolation:isolate;
-        }
-        .cr-sidewalk {
-          width:86px;
-          flex-shrink:0;
-          background:repeating-linear-gradient(
-            0deg,#a4a898 0 45px,#7c8475 46px 49px
-          );
-          border-right:5px solid #cad0bb;
-          position:relative;
-        }
-        .cr-sidewalk::before {
-          content:'🌳';
-          position:absolute;
-          top:20px;
-          font-size:70px;
-          left:-20px;
-        }
-        .cr-lane {
-          width:106px;
-          flex-shrink:0;
-          position:relative;
-          border-right:3px dashed #d2d0bc;
-          background:#73716a;
-        }
-        .cr-lane.is-safe { background:#617866; }
-        .cr-multiplier {
-          position:absolute;
-          left:10px;
-          right:10px;
-          top:174px;
-          height:76px;
-          display:flex;
-          flex-direction:column;
-          gap:4px;
-          align-items:center;
-          justify-content:center;
-          border:4px solid #51564d;
-          border-radius:50%;
-          background:repeating-linear-gradient(
-            90deg,#85877b 0 5px,#737569 6px 10px
-          );
-          font-weight:900;
-          color:#e5e5d8;
-          text-shadow:0 2px 1px #333;
-          font-size:18px;
-        }
-        .cr-multiplier small { font-size:9px; color:#d9dfd1; }
-        .cr-traffic {
-          position:absolute;
-          inset:0;
-          z-index:2;
-          pointer-events:none;
-          overflow:hidden;
-        }
-        .cr-car {
-          position:absolute;
-          top:0;
-          width:44px;
-          height:86px;
-          will-change:transform;
-          pointer-events:none;
-        }
-        .cr-car[hidden] { display:none; }
-        .cr-car-body { display:block; width:44px; height:86px; }
-        .cr-facing-down { transform:rotate(180deg); }
-        .cr-player {
-          position:absolute;
-          z-index:4;
-          top:160px;
-          font-size:57px;
-          width:60px;
-          height:80px;
-          transition:left .55s ease;
-          filter:drop-shadow(1px 5px 2px #0006);
-        }
-        .cr-player.cr-jump { animation:crHop .55s ease; }
-        .cr-player.cr-collision { animation:crHit .8s ease forwards; }
-        .cr-crash-car {
-          position:absolute;
-          z-index:5;
-          top:0;
-          width:44px;
-          height:86px;
-          animation:crCrash .8s linear forwards;
-          pointer-events:none;
-        }
-
-        .cr-controls,.cr-card {
-          border:1px solid #ffffff25;
-          border-radius:14px;
-          padding:15px;
-          background:#101a1680;
-          margin-top:14px;
-        }
-        .cr-select {
-          padding:12px;
-          border:1px solid #ffffff40;
-          border-radius:8px;
-          background:#39433d;
-          color:white;
-          width:100%;
-        }
-        .cr-input-box {
-          display:flex;
-          align-items:center;
-          min-width:0;
-          flex:1;
-          max-width:220px;
-          overflow:hidden;
-          border:2px solid #166534;
-          border-radius:10px;
-          background:#fff;
-          color:#166534;
-        }
-        .cr-input-prefix {
-          align-self:stretch;
-          display:grid;
-          place-items:center;
-          padding:0 12px;
-          background:#166534;
-          color:#fff;
-          font-size:22px;
-          font-weight:900;
-        }
-        .cr-input {
-          width:100%;
-          min-width:0;
-          padding:12px;
-          border:0;
-          background:#fff;
-          color:#166534;
-          font-weight:900;
-        }
-        .cr-quick {
-          padding:10px 12px;
-          border:1px solid #166534;
-          border-radius:8px;
-          background:#fff;
-          color:#166534;
-          font-weight:bold;
-        }
-        .cr-play,.cr-jump-btn,.cr-cashout {
-          border:0;
-          border-radius:11px;
-          padding:16px;
-          font-weight:900;
-          color:#fff;
-          min-height:57px;
-          background:#166534;
-        }
-        .cr-play { width:100%; margin-top:15px; }
-        .cr-actions {
-          display:grid;
-          grid-template-columns:1fr 1fr;
-          gap:12px;
-          margin-top:14px;
-        }
-        .cr-cashout { background:#722f37; color:#fff; }
-        .cr-cashout-amount {
-          display:block;
-          margin-top:8px;
-          border:1px solid #166534;
-          border-radius:8px;
-          padding:7px;
-          background:#fff;
-          color:#166534;
-          overflow-wrap:anywhere;
-          font-variant-numeric:tabular-nums;
-        }
-        .cr-result {
-          margin-top:14px;
-          border:1px solid #166534;
-          border-radius:12px;
-          text-align:center;
-          padding:15px;
-          line-height:1.8;
-        }
-        .cr-result-title { font-size:22px; color:#f9dc89; }
-        .cr-multiplier-list { display:flex; gap:7px; flex-wrap:wrap; }
-        .cr-multiplier-list span {
-          border:1px solid #ffffff20;
-          padding:7px;
-          border-radius:7px;
-          font-size:11px;
-        }
-        .cr-table {
-          width:100%;
-          min-width:580px;
-          font-size:12px;
-          border-collapse:collapse;
-        }
-        .cr-table th,.cr-table td {
-          text-align:left;
-          padding:10px 5px;
-          border-bottom:1px solid #ffffff20;
-        }
-        .cr-table th { color:#e7d092; }
-        .cr-overflow { overflow:auto; }
-        .cr-page :focus-visible {
-          outline:3px solid #fff;
-          outline-offset:3px;
-        }
-
-        @keyframes crHop {
-          0%,100% { transform:translateY(0); }
-          50% { transform:translateY(-35px); }
-        }
-        @keyframes crHit {
-          0% { transform:rotate(0); }
-          60%,100% {
-            transform:rotate(100deg) scale(.65);
-            opacity:.3;
-          }
-        }
-        @keyframes crCrash {
-          from { transform:translateY(-100px); }
-          to { transform:translateY(420px); }
-        }
-        @media(max-width:360px) {
-          .cr-wrap { padding:8px; }
-          .cr-header { padding:12px 8px; gap:8px; }
-          .cr-header h1 { font-size:14px; }
-          .cr-wallet { padding:8px; }
-          .cr-wallet-number { font-size:17px; }
-        }
-        @media(prefers-reduced-motion:reduce) {
-          .cr-player { transition:none; }
-          .cr-player.cr-jump,.cr-player.cr-collision,.cr-crash-car {
-            animation:none;
-          }
-        }
-      `}</style>
-
-      <header className="cr-header">
-        <button
-          type="button"
-          className="cr-btn"
-          onClick={onBack}
-          aria-label="Customer home"
-        >
-          ←
-        </button>
-
-        <div>
-          <h1>CHICKEN ROAD CROSS</h1>
-          <small>INDIVIDUAL DEMO · DEMO COINS ONLY</small>
-        </div>
-
-        <div
-          className="cr-wallet"
-          aria-live="polite"
-          aria-label="Demo wallet balance"
-        >
-          <span className="cr-wallet-title">WALLET BALANCE</span>
-
-          <div className="cr-wallet-value">
-            <span className="cr-wallet-symbol" aria-hidden="true">₹</span>
-            <strong className="cr-wallet-number">
-              {balanceAvailable
-                ? COINS(data.balance)
-                : data || error
-                  ? "—"
-                  : "Loading…"}
-            </strong>
-          </div>
-
-          <small>DEMO COINS</small>
-          <small>
-            {user?.name || user?.loginId || "Customer"}
-          </small>
-        </div>
-      </header>
-
-      <main className="cr-wrap">
-        <nav className="cr-tabs" aria-label="Game sections">
-          {["game", "rules", "history"].map((value) => (
-            <button
-              key={value}
-              type="button"
-              className="cr-btn"
-              aria-pressed={tab === value}
-              disabled={busy}
-              onClick={() => {
-                setTab(value);
-                if (value === "history") void loadHistory();
-              }}
-            >
-              {value.toUpperCase()}
-            </button>
-          ))}
-
+    <main className="min-h-screen bg-[#111535] p-3 text-white">
+      <div className="mx-auto max-w-2xl space-y-3">
+        <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#09204e] p-4">
           <button
             type="button"
-            className="cr-btn"
-            aria-pressed={sound}
-            onClick={() => {
-              if (sound) {
-                audio.current?.suspend()?.catch(() => {});
-              }
-              setSound((value) => !value);
-            }}
+            disabled={locked}
+            onClick={onBack}
+            className="text-xs font-black disabled:opacity-40"
           >
-            {sound ? "SOUND ON" : "SOUND OFF"}
+            ‹ HOME
           </button>
+
+          <h1 className="min-w-0 flex-1 text-center text-sm font-black">
+            COLOR PREDICTION
+          </h1>
+
+          <div
+            aria-live="polite"
+            aria-label="Demo wallet balance"
+            className="max-w-full rounded-xl border-2 border-[#166534] bg-white px-3 py-2"
+          >
+            <p className="text-center text-[9px] font-black tracking-wide text-[#166534]">
+              WALLET BALANCE
+            </p>
+
+            <div className="mt-1 flex items-center justify-center gap-2">
+              <span
+                aria-hidden="true"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#166534] text-xl font-black text-white"
+              >
+                ₹
+              </span>
+
+              <strong className="break-all text-lg font-black tabular-nums text-[#166534]">
+                {balanceAvailable
+                  ? coins(data.balance)
+                  : data || error || unauthorized
+                    ? "—"
+                    : "Loading…"}
+              </strong>
+            </div>
+
+            <p className="mt-1 text-center text-[9px] font-bold text-[#722f37]">
+              DEMO COINS
+            </p>
+
+            {balanceAvailable && !fresh && (
+              <p className="mt-1 text-center text-[9px] font-bold text-[#722f37]">
+                LAST RECEIVED BALANCE
+              </p>
+            )}
+          </div>
+        </header>
+
+        <nav className="grid grid-cols-4 gap-2">
+          {MODES.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              disabled={locked}
+              aria-pressed={mode === item.id}
+              onClick={() => onChangeMode(item.id)}
+              className={`rounded-xl border px-1 py-4 text-xs font-black disabled:opacity-40 ${
+                mode === item.id
+                  ? "border-cyan-200/60 bg-blue-500"
+                  : "border-white/10 bg-[#303b7d] text-slate-300"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
         </nav>
 
-        {error && (
-          <div className="cr-alert" role="alert">
-            {error}
-            <button
-              type="button"
-              className="cr-btn"
-              disabled={busy}
-              onClick={() => {
-                setError("");
-                void loadRules();
-                void loadRef.current();
-              }}
-            >
-              Refresh
-            </button>
+        {(message || error) && (
+          <p
+            role="status"
+            className="rounded-xl border border-amber-200/20 bg-amber-200/10 p-3 text-xs leading-6 text-amber-100"
+          >
+            {message || String(error?.message || error)}
+          </p>
+        )}
+
+        {unauthorized && (
+          <button
+            type="button"
+            disabled={locked}
+            onClick={onBack}
+            className="w-full rounded-xl bg-[#722f37] p-3 text-xs font-black text-white disabled:opacity-40"
+          >
+            RETURN HOME TO LOGIN
+          </button>
+        )}
+
+        {paused && (
+          <div
+            role="status"
+            className="rounded-xl border border-amber-300/40 bg-amber-300/15 p-3 text-center"
+          >
+            <p className="text-sm font-black text-amber-200">
+              Ⅱ PAUSED BY ADMIN
+            </p>
+            <p className="mt-1 text-xs leading-5 text-amber-100">
+              All four time modes are paused. Existing bets remain
+              reserved. The timer resumes when Admin selects Play.
+            </p>
           </div>
         )}
 
-        {notice && (
-          <p role="status" className="cr-hint">{notice}</p>
-        )}
-
-        {pending && (
-          <div className="cr-alert" role="status">
-            An interrupted {pending.action} needs recovery.
-            Retry uses the same request.
-            <button
-              type="button"
-              className="cr-btn"
-              disabled={busy}
-              onClick={() => void perform(pending.action)}
-            >
-              {busy ? "CHECKING…" : "RETRY SAME ACTION"}
-            </button>
-          </div>
-        )}
-
-        {tab === "game" && (
-          <>
-            <div
-              className="cr-road-window"
-              ref={scroller}
-              role="region"
-              aria-label="Road lanes. Swipe horizontally to view."
-              tabIndex={0}
-            >
-              <div
-                className="cr-road"
-                style={{ width: 86 + lanes * 106 + 70 }}
+        <section className="rounded-2xl border border-blue-300/20 bg-gradient-to-br from-blue-500 to-indigo-700 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowRules((value) => !value)}
+                aria-expanded={showRules}
+                className="rounded-full border border-white/50 px-3 py-1 text-xs font-bold"
               >
-                <div className="cr-sidewalk" />
+                How to play
+              </button>
 
-                {Array.from(
-                  { length: lanes },
-                  (_, index) => index + 1
-                ).map((step) => (
-                  <div
-                    key={step}
-                    className={`cr-lane ${
-                      session && step <= session.step ? "is-safe" : ""
-                    }`}
-                  >
-                    <div className="cr-multiplier">
-                      {level?.multipliers?.[step - 1]?.toFixed(2) || "—"}x
-                      <small>LANE {step}</small>
-                    </div>
-                  </div>
+              <h2 className="mt-3 text-lg font-black">
+                Win Go {MODES.find((item) => item.id === mode)?.label}
+              </h2>
+
+              <div className="mt-3 flex flex-wrap gap-1">
+                {history.slice(0, 5).map((item) => (
+                  <ResultBall
+                    key={item.id}
+                    number={item.result.number}
+                    small
+                  />
                 ))}
-
-                <RoadTraffic
-                  lanes={lanes}
-                  clearedStep={session?.step || 0}
-                  speed={trafficSpeed}
-                  collision={motion === "collision"}
-                />
-
-                <div
-                  className={`cr-player ${
-                    motion ? `cr-${motion}` : ""
-                  }`}
-                  style={{ left: chickenLeft }}
-                  role="img"
-                  aria-label={`Chicken at lane ${visualStep}`}
-                >
-                  🐔
-                </div>
-
-                {motion === "collision" && (
-                  <span
-                    className="cr-crash-car"
-                    aria-hidden="true"
-                    style={{ left: chickenLeft + 5 }}
-                  >
-                    <RoadCar down />
-                  </span>
-                )}
               </div>
             </div>
 
-            <section className="cr-controls" aria-label="Game controls">
-              {activeGame ? (
-                <>
-                  <p className="cr-hint">
-                    {session.difficultyName} · Lane{" "}
-                    {session.step}/{session.lanes} ·{" "}
-                    {Number(session.multiplier).toFixed(2)}x
-                  </p>
-
-                  <div className="cr-money-grid">
-                    <AmountBox label="YOUR STAKE" value={session.stake} />
-                    <AmountBox
-                      label="CASH OUT VALUE"
-                      value={session.cashoutValue}
-                    />
-                  </div>
-
-                  <p className="cr-hint">
-                    No time limit. The chicken stays here until
-                    you press JUMP or CASH OUT.
-                  </p>
-
-                  <div className="cr-actions">
-                    <button
-                      type="button"
-                      className="cr-jump-btn"
-                      disabled={locked}
-                      onClick={() => void perform("jump")}
-                    >
-                      JUMP →
-                    </button>
-
-                    <button
-                      type="button"
-                      className="cr-cashout"
-                      disabled={locked}
-                      onClick={() => void perform("cashout")}
-                    >
-                      CASH OUT
-                      <span className="cr-cashout-amount">
-                        {MONEY(session.cashoutValue)}
-                      </span>
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <label className="cr-hint" htmlFor="cr-stake">
-                    Demo stake
-                  </label>
-
-                  <div className="cr-row">
-                    <button
-                      type="button"
-                      className="cr-btn"
-                      disabled={locked}
-                      onClick={() => setAmount("10")}
-                    >
-                      MIN
-                    </button>
-
-                    <div className="cr-input-box">
-                      <span className="cr-input-prefix" aria-hidden="true">
-                        ₹
-                      </span>
-                      <input
-                        id="cr-stake"
-                        type="number"
-                        inputMode="numeric"
-                        min="10"
-                        max="25000"
-                        step="1"
-                        className="cr-input"
-                        value={amount}
-                        disabled={locked}
-                        onChange={(event) =>
-                          setAmount(event.target.value)
-                        }
-                      />
-                    </div>
-
-                    <button
-                      type="button"
-                      className="cr-btn"
-                      disabled={locked}
-                      onClick={() => setAmount("25000")}
-                    >
-                      MAX
-                    </button>
-                  </div>
-
-                  <div className="cr-row">
-                    {[10, 20, 100, 200, 500, 1000].map((value) => (
-                      <button
-                        key={value}
-                        type="button"
-                        className="cr-quick"
-                        disabled={locked}
-                        onClick={() => setAmount(String(value))}
-                      >
-                        {MONEY(value)}
-                      </button>
-                    ))}
-                  </div>
-
-                  <label htmlFor="cr-difficulty" className="cr-hint">
-                    Difficulty
-                  </label>
-
-                  <select
-                    id="cr-difficulty"
-                    className="cr-select"
-                    value={difficulty}
-                    disabled={locked}
-                    onChange={(event) =>
-                      setDifficulty(event.target.value)
-                    }
-                  >
-                    {Object.entries(FALLBACK_NAMES).map(([id, name]) => (
-                      <option key={id} value={id}>
-                        {name} · {rules?.levels?.[id]?.lanes || "—"}
-                        {" lanes · starts "}
-                        {rules?.levels?.[id]?.first?.toFixed(2) || "—"}x
-                      </option>
-                    ))}
-                  </select>
-
-                  <button
-                    type="button"
-                    className="cr-play"
-                    disabled={locked || !rules || !data}
-                    onClick={() => void perform("play")}
-                  >
-                    {busy ? "STARTING…" : "PLAY"}
-                  </button>
-                </>
-              )}
-
-              <p className="cr-hint">
-                Traffic speed{" "}
-                {(trafficSpeed / TRAFFIC_BASE_SPEED).toFixed(2)}x
-                {" · "}increases as you cross more lanes.
+            <div className="text-right">
+              <p className="text-xs font-bold">
+                {!round
+                  ? "CONNECTING…"
+                  : paused
+                    ? "PAUSED BY ADMIN"
+                    : drawing
+                      ? "Waiting for draw"
+                      : "Betting closes in"}
               </p>
 
-              <p className="cr-hint">
-                Vehicles are animation. Each JUMP gets a random
-                server result; timing the moving cars does not
-                improve your odds.
+              <p
+                className={`mt-2 font-mono text-4xl font-black ${
+                  paused ? "text-amber-200" : ""
+                }`}
+              >
+                {timerText}
               </p>
 
-              <p className="cr-hint">
-                Demo coins only. ₹ is the display symbol for
-                virtual demo balance.
+              <p className="mt-3 break-all text-[9px]">
+                {round?.period || "—"}
               </p>
-            </section>
+            </div>
+          </div>
 
-            {session && session.status !== "ACTIVE" && (
-              <section className="cr-result" role="status">
-                <strong className="cr-result-title">
-                  {session.status === "LOST"
-                    ? "COLLISION"
-                    : "CASHED OUT"}
-                </strong>
+          {round && !fresh && (
+            <p className="mt-3 text-xs text-amber-100">
+              Connection unavailable. Actions paused.
+            </p>
+          )}
+        </section>
 
-                <div>Lane {session.step}</div>
+        {showRules && (
+          <section className="rounded-xl border border-white/15 bg-[#202951] p-4 text-xs leading-6 text-slate-200">
+            <h2 className="font-black text-white">How to play</h2>
 
-                <div className="cr-money-grid">
-                  <AmountBox label="YOUR STAKE" value={session.stake} />
-                  <AmountBox label="TOTAL RETURN" value={session.payout} />
-                </div>
-
-                <div style={{ marginTop: 10 }}>
-                  <AmountBox
-                    label="NET RESULT"
-                    value={session.payout - session.stake}
-                    signed
-                  />
-                </div>
-              </section>
-            )}
-          </>
-        )}
-
-        {tab === "rules" && (
-          <section className="cr-card">
-            <h2>How to play</h2>
-
-            <p className="cr-hint">
-              Choose a stake and difficulty, then press PLAY.
-              Your stake is deducted once. Each JUMP attempts
-              one lane. A safe crossing increases the cashout
-              multiplier; a collision ends the game with zero
-              return. There is no automatic jumping or waiting
-              timeout. Waiting does not change the crossing odds.
+            <p className="mt-2">
+              Each result is a random number from 0 to 9.
+              A 2% fee is deducted from each stake.
+              Returns use the remaining 98%.
             </p>
 
-            <p className="cr-hint">
-              CASH OUT returns the shown total to your demo balance.
-              Cashing out before the first jump returns your original
-              stake. Completing the final lane cashes out automatically.
-              Difficulty and stake cannot change during an active game.
+            <ul className="mt-2 list-disc space-y-1 pl-4">
+              <li>Green: 1, 3, 7, 9 → 2×; 5 → 1.5×.</li>
+              <li>Red: 2, 4, 6, 8 → 2×; 0 → 1.5×.</li>
+              <li>Violet: 0 or 5 → 2×.</li>
+              <li>Exact number match → 9×.</li>
+              <li>Big: 5–9 → 2×.</li>
+              <li>Small: 0–4 → 2×.</li>
+            </ul>
+
+            <p className="mt-2">
+              For a ₹100 demo stake, the contract amount is ₹98.
+              A 2× win returns ₹196 in total demo balance.
+              Fractional returns round down per bet.
+              The final 5 seconds are reserved for the draw.
+              Results can repeat.
             </p>
 
-            <p className="cr-hint">
-              Minimum ₹10 · Maximum ₹25,000 in whole demo units.
-              Multipliers include the original stake; payouts round
-              down to whole demo units. Demo target return{" "}
-              {rules?.targetReturnPercent || 97}%.
-              Whole-unit rounding can reduce it. Vehicle animation
-              and player timing do not determine outcomes.
+            <p className="mt-2">
+              Switching time modes does not cancel existing bets.
+              Confirmed bets can be cancelled before betting closes
+              while the game is playing.
             </p>
 
-            <p className="cr-hint">
-              Virtual demo coins only. ₹ is used for display.
+            <p className="mt-2">
+              Admin Pause freezes all four time modes.
+              New bets and cancellations are unavailable while paused.
+              Existing bets stay reserved, and Play resumes the game
+              from the same logical time.
+              Pause does not change a round&apos;s result.
             </p>
 
-            {Object.entries(rules?.levels || {}).map(([id, item]) => (
-              <div key={id}>
-                <h3>{item.name} · {item.lanes} lanes</h3>
-
-                <div className="cr-multiplier-list">
-                  {item.multipliers.map((value, index) => (
-                    <span key={index}>
-                      {index + 1}: {value.toFixed(2)}x
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
+            <p className="mt-2">
+              Demo coins only. ₹ is the display symbol for virtual
+              demo balance.
+            </p>
           </section>
         )}
 
-        {tab === "history" && (
-          <section className="cr-card">
-            <h2>Your completed games</h2>
+        <section className="rounded-2xl border border-white/10 bg-[#242e65] p-4">
+          <div className="flex flex-wrap justify-between gap-2">
+            <h2 className="text-sm font-black">BET AMOUNT</h2>
+            <span className="text-[10px] text-slate-300">
+              ₹100–₹25,000 · Demo balance
+            </span>
+          </div>
+
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              aria-label="Decrease stake"
+              disabled={locked}
+              onClick={() => changeAmount((stake || 100) - 100)}
+              className="w-10 rounded-xl bg-[#166534] text-xl text-white disabled:opacity-40"
+            >
+              −
+            </button>
+
+            <div className="flex min-w-0 flex-1 items-center overflow-hidden rounded-xl border-2 border-[#166534] bg-white">
+              <span
+                aria-hidden="true"
+                className="flex self-stretch items-center bg-[#166534] px-3 text-2xl font-black text-white"
+              >
+                ₹
+              </span>
+
+              <input
+                aria-label="Demo bet amount"
+                type="text"
+                inputMode="numeric"
+                value={amount}
+                disabled={locked}
+                onChange={(event) => {
+                  if (/^\d*$/.test(event.target.value)) {
+                    setAmount(event.target.value);
+                  }
+                }}
+                className="min-w-0 flex-1 bg-white p-3 text-center text-2xl font-black text-[#166534] outline-none disabled:opacity-40"
+              />
+            </div>
 
             <button
               type="button"
-              className="cr-btn"
-              onClick={() => void loadHistory()}
+              aria-label="Increase stake"
+              disabled={locked}
+              onClick={() => changeAmount((stake || 0) + 100)}
+              className="w-10 rounded-xl bg-[#166534] text-xl text-white disabled:opacity-40"
             >
-              Refresh history
+              +
             </button>
+          </div>
 
-            {history.length ? (
-              <div className="cr-overflow">
-                <table className="cr-table">
-                  <thead>
-                    <tr>
-                      <th>Game / Time (IST)</th>
-                      <th>Difficulty / Lane</th>
-                      <th>Stake</th>
-                      <th>Total return</th>
-                    </tr>
-                  </thead>
+          <div className="mt-3 grid grid-cols-4 gap-2">
+            {[100, 500, 1000, 5000].map((value) => (
+              <button
+                key={value}
+                type="button"
+                disabled={locked}
+                onClick={() => changeAmount((stake || 0) + value)}
+                className="rounded-lg border border-[#166534] bg-white py-2 text-[10px] font-black text-[#166534] disabled:opacity-40"
+              >
+                +{money(value)}
+              </button>
+            ))}
+          </div>
 
-                  <tbody>
-                    {history.map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          #{item.id}
-                          <br />
-                          {new Date(item.updatedAt).toLocaleString(
-                            "en-IN",
-                            { timeZone: "Asia/Kolkata" }
-                          )}
-                        </td>
+          <div className="mt-3">
+            <AmountBox label="RESERVED THIS ROUND" value={reserved} />
+          </div>
+        </section>
 
-                        <td>
-                          {item.difficultyName} · {item.step}
-                          <br />
-                          {item.status}
-                        </td>
+        <section
+          ref={confirmBox}
+          className="scroll-mt-4 rounded-2xl border border-amber-200/30 bg-[#182e3b] p-4"
+        >
+          <h2 className="text-sm font-black">
+            {paused
+              ? "Paused by Admin"
+              : selectedForRound
+                ? marketLabel(selection.key)
+                : "Select a color, number, Big or Small"}
+          </h2>
 
-                        <td>
-                          <AmountBox value={item.stake} />
-                        </td>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <AmountBox label="STAKE" value={stake} />
 
-                        <td>
-                          <AmountBox value={item.payout} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="cr-hint">No completed games available.</p>
+            {validAmount && (
+              <AmountBox
+                label="CONTRACT AMOUNT · FEE 2%"
+                value={(stake * 98) / 100}
+              />
             )}
-          </section>
-        )}
+          </div>
 
-        <footer className="cr-row">
           <button
             type="button"
-            className="cr-btn"
-            onClick={onBack}
+            disabled={!canConfirm}
+            onClick={() => requestBet()}
+            className="mt-3 w-full rounded-xl bg-[#166534] p-3 text-sm font-black text-white disabled:opacity-40"
           >
-            ← Customer home
+            {busy
+              ? "PROCESSING…"
+              : paused
+                ? "PAUSED BY ADMIN"
+                : "CONFIRM BET"}
           </button>
 
-          {onLogout && (
-            <button
-              type="button"
-              className="cr-btn"
-              onClick={onLogout}
-            >
-              Logout
-            </button>
+          <p className="mt-2 text-[10px] text-slate-300">
+            Virtual demo coins only.
+          </p>
+        </section>
+
+        {pending && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => requestBet(true)}
+            className="w-full rounded-xl bg-[#722f37] p-3 text-xs font-black text-white disabled:opacity-40"
+          >
+            RETRY SAME BET REQUEST
+          </button>
+        )}
+
+        {pendingCancel && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => cancelBet(pendingCancel)}
+            className="w-full rounded-xl bg-[#722f37] p-3 text-xs font-black text-white disabled:opacity-40"
+          >
+            RETRY SAME CANCEL REQUEST
+          </button>
+        )}
+
+        <section className="rounded-2xl border border-white/10 bg-[#242e65] p-3">
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              ["GREEN", "bg-emerald-500"],
+              ["VIOLET", "bg-violet-500"],
+              ["RED", "bg-red-500"],
+            ].map(([key, color]) => (
+              <button
+                key={key}
+                type="button"
+                disabled={!open || locked}
+                aria-pressed={
+                  selectedForRound && selection.key === key
+                }
+                onClick={() => chooseMarket(key)}
+                className={`rounded-xl py-3 text-sm font-black disabled:opacity-40 ${color} ${
+                  selectedForRound && selection.key === key
+                    ? "ring-2 ring-amber-200"
+                    : ""
+                }`}
+              >
+                {marketLabel(key)}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-4 grid grid-cols-5 gap-3">
+            {Array.from({ length: 10 }, (_, number) => {
+              const key = `NUMBER_${number}`;
+
+              return (
+                <button
+                  key={number}
+                  type="button"
+                  aria-label={`Bet on number ${number}`}
+                  aria-pressed={
+                    selectedForRound && selection.key === key
+                  }
+                  disabled={!open || locked}
+                  onClick={() => chooseMarket(key)}
+                  style={{ background: numberBackground(number) }}
+                  className={`aspect-square rounded-full border-4 border-white/40 text-2xl font-black shadow-lg disabled:opacity-40 ${
+                    selectedForRound && selection.key === key
+                      ? "ring-2 ring-amber-200 ring-offset-2 ring-offset-[#242e65]"
+                      : ""
+                  }`}
+                >
+                  {number}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {[
+              ["BIG", "5–9", "bg-orange-400"],
+              ["SMALL", "0–4", "bg-blue-400"],
+            ].map(([key, range, color]) => (
+              <button
+                key={key}
+                type="button"
+                disabled={!open || locked}
+                aria-pressed={
+                  selectedForRound && selection.key === key
+                }
+                onClick={() => chooseMarket(key)}
+                className={`rounded-full py-3 text-sm font-black disabled:opacity-40 ${color} ${
+                  selectedForRound && selection.key === key
+                    ? "ring-2 ring-amber-200"
+                    : ""
+                }`}
+              >
+                {marketLabel(key)} · {range}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-white/10 bg-[#202951] p-4">
+          <h2 className="text-sm font-black">This round</h2>
+
+          {!currentBets.length && (
+            <p className="mt-3 text-xs text-slate-400">
+              No bets placed.
+            </p>
           )}
-        </footer>
-      </main>
-    </div>
+
+          {currentBets.map((bet) => (
+            <div
+              key={bet.id}
+              className="mt-3 rounded-xl border border-white/10 p-3"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black">
+                    {marketLabel(bet.market)}
+                  </p>
+                  <p className="mt-1 text-[10px] text-slate-300">
+                    {bet.status}
+                  </p>
+                </div>
+
+                {open && bet.status === "PLACED" && (
+                  <button
+                    type="button"
+                    disabled={locked}
+                    onClick={() => cancelBet(bet.id)}
+                    className="rounded-lg bg-[#722f37] px-3 py-2 text-[10px] font-black text-white disabled:opacity-40"
+                  >
+                    CANCEL
+                  </button>
+                )}
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <AmountBox label="STAKE" value={bet.amount} />
+
+                {bet.status !== "PLACED" ? (
+                  <AmountBox label="RETURNED" value={bet.payout} />
+                ) : (
+                  <div className="flex items-center justify-center rounded-xl border border-white/20 p-2 text-[10px] font-bold text-slate-300">
+                    RETURN PENDING
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </section>
+
+        <nav className="grid grid-cols-2 gap-2">
+          {[
+            ["HISTORY", "Game History"],
+            ["BETS", "My Bets"],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={tab === key}
+              onClick={() => setTab(key)}
+              className={`rounded-xl py-3 text-xs font-black ${
+                tab === key ? "bg-blue-500" : "bg-[#202951]"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        <section className="overflow-x-auto rounded-2xl border border-white/10 bg-[#202951] p-3">
+          {tab === "HISTORY" ? (
+            <table className="w-full text-left text-[10px]">
+              <thead className="text-slate-300">
+                <tr>
+                  <th className="py-2">Period</th>
+                  <th>Number</th>
+                  <th>Big/Small</th>
+                  <th>Color</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {history.map((item) => (
+                  <tr
+                    key={item.id}
+                    className="border-t border-white/10"
+                  >
+                    <td className="py-3 pr-2">{item.period}</td>
+                    <td>
+                      <ResultBall
+                        number={item.result.number}
+                        small
+                      />
+                    </td>
+                    <td>
+                      {item.result.size === "BIG" ? "Big" : "Small"}
+                    </td>
+                    <td>
+                      <div className="flex gap-1">
+                        {item.result.colors.map((color) => (
+                          <span
+                            key={color}
+                            title={marketLabel(color)}
+                            aria-label={marketLabel(color)}
+                            className={`h-3 w-3 rounded-full ${
+                              color === "GREEN"
+                                ? "bg-emerald-400"
+                                : color === "RED"
+                                  ? "bg-red-400"
+                                  : "bg-violet-400"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="space-y-3">
+              {bets.map((bet) => (
+                <div
+                  key={bet.id}
+                  className="rounded-xl border border-white/10 p-3 text-xs"
+                >
+                  <p className="font-black">
+                    {marketLabel(bet.market)}
+                  </p>
+
+                  <p className="mt-1 text-[10px] text-slate-300">
+                    {bet.period} · {bet.status}
+                  </p>
+
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <AmountBox label="STAKE" value={bet.amount} />
+
+                    {bet.status === "PLACED" ? (
+                      <div className="flex items-center justify-center rounded-xl border border-white/20 p-2 text-[10px] font-bold text-slate-300">
+                        RETURN PENDING
+                      </div>
+                    ) : (
+                      <AmountBox label="RETURNED" value={bet.payout} />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {((tab === "HISTORY" && !history.length) ||
+            (tab === "BETS" && !bets.length)) && (
+            <p className="py-5 text-center text-xs text-slate-400">
+              No records yet.
+            </p>
+          )}
+        </section>
+      </div>
+    </main>
   );
 }
