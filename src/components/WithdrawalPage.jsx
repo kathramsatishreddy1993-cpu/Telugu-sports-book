@@ -1,44 +1,44 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from "react";
 
-const AUTH_KEY = 'telugu_sports_auth_user';
+const AUTH_KEY = "telugu_sports_auth_user";
 const MIN_WITHDRAWAL = 100;
 const HISTORY_LIMIT = 20;
 
 const EMPTY_FORM = {
-  holderName: '',
-  bankName: '',
-  accountNumber: '',
-  confirmAccountNumber: '',
-  ifsc: '',
-  password: '',
+  holderName: "",
+  bankName: "",
+  accountNumber: "",
+  confirmAccountNumber: "",
+  ifsc: "",
+  password: "",
 };
 
-function formatAmount(value) {
+function money(value) {
   const number = Number(value);
 
   return `₹${(Number.isFinite(number) ? number : 0).toLocaleString(
-    'en-IN',
+    "en-IN",
     { maximumFractionDigits: 2 }
   )}`;
 }
 
 function maskAccount(value) {
-  return value ? `XXXX XXXX ${String(value).slice(-4)}` : '—';
+  return value ? `XXXX XXXX ${String(value).slice(-4)}` : "—";
 }
 
 function formatDate(value) {
-  if (!value) return '—';
+  if (!value) return "—";
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
+  if (Number.isNaN(date.getTime())) return "—";
 
-  return `${date.toLocaleString('en-IN', {
-    timeZone: 'Asia/Kolkata',
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+  return `${date.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
     hour12: true,
   })} IST`;
 }
@@ -52,18 +52,12 @@ export default function WithdrawalPage({ user, onBack }) {
         const saved = localStorage.getItem(AUTH_KEY);
         if (saved) source = JSON.parse(saved);
       } catch (error) {
-        console.error('Unable to read customer:', error);
+        console.error("Unable to read customer:", error);
       }
     }
 
     return {
       customerId: Number(source?.id || source?.customerId || 0),
-      customerName:
-        source?.name ||
-        source?.username ||
-        source?.loginId ||
-        source?.identifier ||
-        'Customer',
     };
   }, [user]);
 
@@ -71,25 +65,25 @@ export default function WithdrawalPage({ user, onBack }) {
     ? `tsb_withdrawal_account_${String(customer.customerId)
         .trim()
         .toLowerCase()
-        .replace(/[^a-z0-9_-]/g, '_')}`
-    : '';
+        .replace(/[^a-z0-9_-]/g, "_")}`
+    : "";
 
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [account, setAccount] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyError, setHistoryError] = useState('');
+  const [historyError, setHistoryError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [balance, setBalance] = useState(0);
   const [balanceLoading, setBalanceLoading] = useState(true);
-  const [balanceError, setBalanceError] = useState('');
+  const [balanceError, setBalanceError] = useState("");
   const [form, setForm] = useState({ ...EMPTY_FORM });
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState("");
 
   useEffect(() => {
     setAccount(null);
     setShowAddAccount(false);
-    setAmount('');
+    setAmount("");
     setForm({ ...EMPTY_FORM });
 
     if (!accountKey) return;
@@ -99,11 +93,12 @@ export default function WithdrawalPage({ user, onBack }) {
       if (!saved) return;
 
       const parsed = JSON.parse(saved);
-      if (parsed && typeof parsed === 'object') {
+
+      if (parsed && typeof parsed === "object") {
         setAccount(parsed);
       }
     } catch (error) {
-      console.error('Unable to load bank account:', error);
+      console.error("Unable to load bank account:", error);
     }
   }, [accountKey]);
 
@@ -112,21 +107,21 @@ export default function WithdrawalPage({ user, onBack }) {
 
     if (!customerId) {
       setBalance(0);
-      setBalanceError('Customer ID not available.');
+      setBalanceError("Customer ID not available.");
       setBalanceLoading(false);
       return;
     }
 
     setBalanceLoading(true);
-    setBalanceError('');
+    setBalanceError("");
 
     try {
       const response = await fetch(
         `/api/customers/${encodeURIComponent(customerId)}/demo-balance`,
         {
-          method: 'GET',
-          headers: { Accept: 'application/json' },
-          cache: 'no-store',
+          method: "GET",
+          headers: { Accept: "application/json" },
+          cache: "no-store",
         }
       );
 
@@ -134,7 +129,7 @@ export default function WithdrawalPage({ user, onBack }) {
 
       if (!response.ok) {
         throw new Error(
-          data?.error || 'Unable to load available balance.'
+          data?.error || "Unable to load available balance."
         );
       }
 
@@ -147,10 +142,10 @@ export default function WithdrawalPage({ user, onBack }) {
 
       setBalance(Number.isFinite(nextBalance) ? nextBalance : 0);
     } catch (error) {
-      console.error('Balance Load Error:', error);
+      console.error("Balance Load Error:", error);
       setBalance(0);
       setBalanceError(
-        error?.message || 'Unable to load available balance.'
+        error?.message || "Unable to load available balance."
       );
     } finally {
       setBalanceLoading(false);
@@ -162,21 +157,21 @@ export default function WithdrawalPage({ user, onBack }) {
 
     if (!customerId) {
       setTransactions([]);
-      setHistoryError('Customer ID not available.');
+      setHistoryError("Customer ID not available.");
       setHistoryLoading(false);
       return;
     }
 
     setHistoryLoading(true);
-    setHistoryError('');
+    setHistoryError("");
 
     try {
       const response = await fetch(
         `/api/customers/${encodeURIComponent(customerId)}/demo-withdrawals`,
         {
-          method: 'GET',
-          headers: { Accept: 'application/json' },
-          cache: 'no-store',
+          method: "GET",
+          headers: { Accept: "application/json" },
+          cache: "no-store",
         }
       );
 
@@ -184,7 +179,7 @@ export default function WithdrawalPage({ user, onBack }) {
 
       if (!response.ok) {
         throw new Error(
-          data?.error || 'Unable to load withdrawal history.'
+          data?.error || "Unable to load withdrawal history."
         );
       }
 
@@ -192,10 +187,10 @@ export default function WithdrawalPage({ user, onBack }) {
         Array.isArray(data?.requests) ? data.requests : []
       );
     } catch (error) {
-      console.error('Withdrawal History Load Error:', error);
+      console.error("Withdrawal History Load Error:", error);
       setTransactions([]);
       setHistoryError(
-        error?.message || 'Unable to load withdrawal history.'
+        error?.message || "Unable to load withdrawal history."
       );
     } finally {
       setHistoryLoading(false);
@@ -203,8 +198,8 @@ export default function WithdrawalPage({ user, onBack }) {
   };
 
   useEffect(() => {
-    loadBalance();
-    loadWithdrawalHistory();
+    void loadBalance();
+    void loadWithdrawalHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer.customerId]);
 
@@ -221,11 +216,11 @@ export default function WithdrawalPage({ user, onBack }) {
 
     setForm({
       ...EMPTY_FORM,
-      holderName: account?.holderName || '',
-      bankName: account?.bankName || '',
-      accountNumber: account?.accountNumber || '',
-      confirmAccountNumber: account?.accountNumber || '',
-      ifsc: account?.ifsc || '',
+      holderName: account?.holderName || "",
+      bankName: account?.bankName || "",
+      accountNumber: account?.accountNumber || "",
+      confirmAccountNumber: account?.accountNumber || "",
+      ifsc: account?.ifsc || "",
     });
 
     setShowAddAccount(true);
@@ -235,7 +230,7 @@ export default function WithdrawalPage({ user, onBack }) {
     event.preventDefault();
 
     if (!accountKey) {
-      alert('Customer ID not available');
+      alert("Customer ID not available");
       return;
     }
 
@@ -246,35 +241,35 @@ export default function WithdrawalPage({ user, onBack }) {
     const ifsc = form.ifsc.trim().toUpperCase();
 
     if (!holderName) {
-      alert('Enter account holder name');
+      alert("Enter account holder name");
       return;
     }
 
     if (!bankName) {
-      alert('Enter bank name');
+      alert("Enter bank name");
       return;
     }
 
     if (!/^[0-9]{9,18}$/.test(accountNumber)) {
-      alert('Enter a valid account number');
+      alert("Enter a valid account number");
       return;
     }
 
     if (accountNumber !== confirmAccountNumber) {
-      alert('Account numbers do not match');
+      alert("Account numbers do not match");
       return;
     }
 
     if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
-      alert('Enter a valid IFSC code');
+      alert("Enter a valid IFSC code");
       return;
     }
 
-    // Existing local validation only; this does not verify the
-    // withdrawal password against the server.
-    // The password is never saved to localStorage.
+    // Existing local validation only.
+    // The password is not verified by the server here
+    // and is never saved to localStorage.
     if (!form.password || form.password.length < 6) {
-      alert('Enter your Withdrawal Password');
+      alert("Enter your Withdrawal Password");
       return;
     }
 
@@ -288,8 +283,8 @@ export default function WithdrawalPage({ user, onBack }) {
     try {
       localStorage.setItem(accountKey, JSON.stringify(newAccount));
     } catch (error) {
-      console.error('Unable to save account:', error);
-      alert('Unable to save account');
+      console.error("Unable to save account:", error);
+      alert("Unable to save account");
       return;
     }
 
@@ -304,47 +299,47 @@ export default function WithdrawalPage({ user, onBack }) {
     if (submitting) return;
 
     if (!account) {
-      alert('Please add a bank account first');
+      alert("Please add a bank account first");
       return;
     }
 
     const customerId = customer.customerId;
 
     if (!Number.isInteger(customerId) || customerId <= 0) {
-      alert('Customer ID not available');
+      alert("Customer ID not available");
       return;
     }
 
     const value = Number(amount);
 
     if (!Number.isInteger(value) || value < MIN_WITHDRAWAL) {
-      alert(`Minimum withdrawal is ${formatAmount(MIN_WITHDRAWAL)}`);
+      alert(`Minimum withdrawal is ${money(MIN_WITHDRAWAL)}`);
       return;
     }
 
     if (balanceLoading) {
-      alert('Please wait. Available balance is loading.');
+      alert("Please wait. Available balance is loading.");
       return;
     }
 
     if (balanceError) {
-      alert('Available balance could not be verified.');
+      alert("Available balance could not be verified.");
       return;
     }
 
     if (value > balance) {
-      alert('LOW BALANCE');
+      alert("LOW BALANCE");
       return;
     }
 
     setSubmitting(true);
 
     try {
-      const response = await fetch('/api/demo-withdrawals', {
-        method: 'POST',
+      const response = await fetch("/api/demo-withdrawals", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
         body: JSON.stringify({
           customerId,
@@ -360,19 +355,20 @@ export default function WithdrawalPage({ user, onBack }) {
 
       if (!response.ok) {
         throw new Error(
-          data?.error || 'Unable to submit withdrawal request.'
+          data?.error || "Unable to submit withdrawal request."
         );
       }
 
-      setAmount('');
+      setAmount("");
       await loadWithdrawalHistory();
       await loadBalance();
 
-      alert('Withdrawal request submitted.');
+      window.dispatchEvent(new Event("demo-balance-updated"));
+      alert("Withdrawal request submitted.");
     } catch (error) {
-      console.error('Withdrawal Submit Error:', error);
+      console.error("Withdrawal Submit Error:", error);
       alert(
-        error?.message || 'Unable to submit withdrawal request.'
+        error?.message || "Unable to submit withdrawal request."
       );
     } finally {
       setSubmitting(false);
@@ -380,13 +376,13 @@ export default function WithdrawalPage({ user, onBack }) {
   };
 
   const deleteAccount = () => {
-    if (!window.confirm('Remove saved bank account?')) return;
+    if (!window.confirm("Remove saved bank account?")) return;
 
     try {
       if (accountKey) localStorage.removeItem(accountKey);
     } catch (error) {
-      console.error('Unable to remove account:', error);
-      alert('Unable to remove saved bank account.');
+      console.error("Unable to remove account:", error);
+      alert("Unable to remove saved bank account.");
       return;
     }
 
@@ -408,411 +404,401 @@ export default function WithdrawalPage({ user, onBack }) {
     <div className="tsb-withdrawal">
       <style>{`
         .tsb-withdrawal {
-          --green: #166534;
-          --wine: #722f37;
-          --white: #ffffff;
-          min-height: 100vh;
-          background: var(--white);
-          color: var(--green);
-          font-family: inherit;
-          padding-bottom: 30px;
+          --green:#166534;
+          --wine:#722f37;
+          --white:#ffffff;
+          min-height:100vh;
+          background:var(--white);
+          color:var(--green);
+          font-family:inherit;
+          padding-bottom:30px;
         }
 
         .tsb-withdrawal,
         .tsb-withdrawal * {
-          box-sizing: border-box;
+          box-sizing:border-box;
         }
 
         .tsb-withdrawal button,
         .tsb-withdrawal input {
-          font: inherit;
+          font:inherit;
         }
 
         .tsb-withdrawal button {
-          cursor: pointer;
-          transition: opacity .15s ease;
-        }
-
-        .tsb-withdrawal button:hover {
-          opacity: .9;
+          cursor:pointer;
         }
 
         .tsb-withdrawal button:disabled {
-          cursor: not-allowed;
-          opacity: .5;
+          cursor:not-allowed;
+          opacity:.5;
         }
 
         .tsb-withdrawal button:focus-visible,
         .tsb-withdrawal input:focus-visible {
-          outline: 3px solid var(--wine);
-          outline-offset: 3px;
+          outline:3px solid var(--wine);
+          outline-offset:3px;
         }
 
         .tsb-withdrawal .wd-header {
-          background: var(--green);
-          color: var(--white);
-          border-bottom: 4px solid var(--wine);
-          padding: 18px 16px;
+          background:var(--green);
+          color:var(--white);
+          border-bottom:4px solid var(--wine);
+          padding:18px 16px;
         }
 
         .tsb-withdrawal .wd-header-inner,
         .tsb-withdrawal .wd-main {
-          width: 100%;
-          max-width: 768px;
-          margin: 0 auto;
+          width:100%;
+          max-width:768px;
+          margin:0 auto;
         }
 
         .tsb-withdrawal .wd-brand {
-          margin: 0 0 5px;
-          font-size: 10px;
-          font-weight: 800;
-          letter-spacing: 1.5px;
+          margin:0 0 5px;
+          font-size:10px;
+          font-weight:800;
+          letter-spacing:1.5px;
         }
 
         .tsb-withdrawal h1 {
-          margin: 0;
-          font-size: 22px;
-          font-weight: 900;
+          margin:0;
+          font-size:22px;
+          font-weight:900;
         }
 
         .tsb-withdrawal .wd-main {
-          padding: 20px 16px;
+          padding:20px 16px;
         }
 
         .tsb-withdrawal .wd-button {
-          border: 1px solid var(--green);
-          border-radius: 10px;
-          background: var(--green);
-          color: var(--white);
-          padding: 12px 18px;
-          font-size: 12px;
-          font-weight: 900;
+          border:1px solid var(--green);
+          border-radius:10px;
+          background:var(--green);
+          color:var(--white);
+          padding:12px 18px;
+          font-size:12px;
+          font-weight:900;
         }
 
         .tsb-withdrawal .wd-wine {
-          background: var(--wine);
-          border-color: var(--wine);
+          background:var(--wine);
+          border-color:var(--wine);
         }
 
         .tsb-withdrawal .wd-back {
-          margin-bottom: 18px;
+          margin-bottom:18px;
         }
 
         .tsb-withdrawal .wd-card {
-          background: var(--white);
-          border: 1px solid var(--green);
-          border-radius: 16px;
-          padding: 20px;
-          margin-bottom: 20px;
+          background:var(--white);
+          border:1px solid var(--green);
+          border-radius:16px;
+          padding:20px;
+          margin-bottom:20px;
         }
 
         .tsb-withdrawal .wd-wallet {
-          text-align: center;
-          border: 2px solid var(--green);
+          margin:0 0 24px;
+          padding:8px 0;
+          border:0;
+          border-radius:0;
+          background:transparent;
+          box-shadow:none;
+          text-align:center;
         }
 
         .tsb-withdrawal .wd-caption {
-          margin: 0;
-          font-size: 11px;
-          font-weight: 800;
-          letter-spacing: .5px;
-        }
-
-        .tsb-withdrawal .wd-balance-box {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 12px;
-          max-width: 100%;
-          margin-top: 14px;
-          border: 2px solid var(--green);
-          border-radius: 14px;
-          padding: 14px 20px;
-          background: var(--white);
-        }
-
-        .tsb-withdrawal .wd-rupee {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-          width: 42px;
-          height: 42px;
-          border-radius: 10px;
-          background: var(--green);
-          color: var(--white);
-          font-size: 28px;
-          font-weight: 900;
+          margin:0;
+          font-size:11px;
+          font-weight:800;
+          letter-spacing:.5px;
         }
 
         .tsb-withdrawal .wd-balance {
-          min-width: 0;
-          overflow-wrap: anywhere;
-          font-size: clamp(24px, 7vw, 36px);
-          font-weight: 900;
-          line-height: 1.2;
+          display:block;
+          margin:8px 0 0;
+          padding:0;
+          border:0;
+          border-radius:0;
+          background:transparent;
+          box-shadow:none;
+          color:var(--green);
+          font-size:28px;
+          font-weight:900;
+          line-height:1.3;
+          overflow-wrap:anywhere;
+          font-variant-numeric:tabular-nums;
         }
 
         .tsb-withdrawal .wd-note {
-          margin: 10px 0 0;
-          font-size: 11px;
-          line-height: 1.6;
-          color: var(--wine);
+          margin:10px 0 0;
+          font-size:11px;
+          line-height:1.6;
+          color:var(--wine);
         }
 
         .tsb-withdrawal .wd-error {
-          margin: 12px 0;
-          color: var(--wine);
-          font-size: 12px;
-          font-weight: 800;
-          overflow-wrap: anywhere;
+          margin:12px 0;
+          color:var(--wine);
+          font-size:12px;
+          font-weight:800;
+          overflow-wrap:anywhere;
         }
 
         .tsb-withdrawal .wd-center {
-          text-align: center;
-          margin-bottom: 20px;
+          text-align:center;
+          margin-bottom:20px;
         }
 
         .tsb-withdrawal .wd-title {
-          margin: 0 0 12px;
-          font-size: 18px;
-          font-weight: 900;
+          margin:0 0 12px;
+          font-size:18px;
+          font-weight:900;
         }
 
         .tsb-withdrawal .wd-form {
-          display: grid;
-          gap: 16px;
+          display:grid;
+          gap:16px;
         }
 
         .tsb-withdrawal .wd-label {
-          display: block;
-          margin-bottom: 7px;
-          font-size: 11px;
-          font-weight: 900;
+          display:block;
+          margin-bottom:7px;
+          font-size:11px;
+          font-weight:900;
         }
 
         .tsb-withdrawal .wd-input {
-          width: 100%;
-          min-width: 0;
-          border: 1px solid var(--green);
-          border-radius: 10px;
-          padding: 14px;
-          background: var(--white);
-          color: var(--green);
-          font-size: 16px;
+          width:100%;
+          min-width:0;
+          border:1px solid var(--green);
+          border-radius:10px;
+          padding:14px;
+          background:var(--white);
+          color:var(--green);
+          font-size:16px;
         }
 
         .tsb-withdrawal .wd-input::placeholder {
-          color: var(--green);
-          opacity: .7;
+          color:var(--green);
+          opacity:.7;
         }
 
         .tsb-withdrawal .wd-full {
-          width: 100%;
-          padding: 16px;
-          font-size: 15px;
+          width:100%;
+          padding:16px;
+          font-size:15px;
         }
 
         .tsb-withdrawal .wd-information {
-          margin: 0;
-          padding-left: 18px;
-          color: var(--wine);
-          font-size: 12px;
-          line-height: 1.8;
+          margin:0;
+          padding-left:18px;
+          color:var(--wine);
+          font-size:12px;
+          line-height:1.8;
         }
 
         .tsb-withdrawal .wd-information li + li {
-          margin-top: 6px;
+          margin-top:6px;
         }
 
         .tsb-withdrawal .wd-account-heading,
         .tsb-withdrawal .wd-history-heading {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 12px;
-          margin-bottom: 16px;
+          display:flex;
+          align-items:flex-start;
+          justify-content:space-between;
+          gap:12px;
+          margin-bottom:16px;
         }
 
         .tsb-withdrawal .wd-holder {
-          margin: 5px 0 0;
-          font-size: 18px;
-          font-weight: 900;
-          overflow-wrap: anywhere;
+          margin:5px 0 0;
+          font-size:18px;
+          font-weight:900;
+          overflow-wrap:anywhere;
         }
 
         .tsb-withdrawal .wd-account-details {
-          border: 1px solid var(--green);
-          border-radius: 12px;
-          overflow: hidden;
+          border:1px solid var(--green);
+          border-radius:12px;
+          overflow:hidden;
         }
 
         .tsb-withdrawal .wd-account-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 12px;
-          padding: 13px;
-          border-bottom: 1px solid var(--green);
-          font-size: 12px;
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:12px;
+          padding:13px;
+          border-bottom:1px solid var(--green);
+          font-size:12px;
         }
 
         .tsb-withdrawal .wd-account-row:last-child {
-          border-bottom: 0;
+          border-bottom:0;
         }
 
         .tsb-withdrawal .wd-account-value {
-          font-weight: 800;
-          text-align: right;
-          overflow-wrap: anywhere;
-          min-width: 0;
+          font-weight:800;
+          text-align:right;
+          overflow-wrap:anywhere;
+          min-width:0;
         }
 
         .tsb-withdrawal .wd-withdraw-form {
-          margin-top: 20px;
+          margin-top:20px;
         }
 
-        .tsb-withdrawal .wd-amount-wrap {
-          display: flex;
-          align-items: center;
-          border: 1px solid var(--green);
-          border-radius: 10px;
-          overflow: hidden;
+        .tsb-withdrawal .wd-amount-line {
+          display:flex;
+          align-items:center;
+          gap:6px;
+          margin-top:4px;
+          border:0;
+          background:transparent;
         }
 
         .tsb-withdrawal .wd-amount-prefix {
-          align-self: stretch;
-          display: flex;
-          align-items: center;
-          padding: 0 16px;
-          background: var(--green);
-          color: var(--white);
-          font-size: 23px;
-          font-weight: 900;
+          font-size:23px;
+          font-weight:900;
+          color:var(--green);
         }
 
-        .tsb-withdrawal .wd-amount-wrap input {
-          border: 0;
-          border-radius: 0;
+        .tsb-withdrawal .wd-amount-input {
+          width:100%;
+          min-width:0;
+          margin:0;
+          padding:8px 0;
+          border:0;
+          border-radius:0;
+          background:transparent;
+          box-shadow:none;
+          color:var(--green);
+          font-size:20px;
+          font-weight:900;
+        }
+
+        .tsb-withdrawal .wd-amount-input::placeholder {
+          color:var(--green);
+          opacity:.65;
         }
 
         .tsb-withdrawal .wd-quick {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 8px;
+          display:grid;
+          grid-template-columns:repeat(4,minmax(0,1fr));
+          gap:8px;
         }
 
         .tsb-withdrawal .wd-quick button {
-          border: 1px solid var(--green);
-          border-radius: 8px;
-          padding: 12px 3px;
-          background: var(--white);
-          color: var(--green);
-          font-size: 12px;
-          font-weight: 900;
+          border:0;
+          border-radius:0;
+          padding:10px 2px;
+          background:transparent;
+          box-shadow:none;
+          color:var(--green);
+          font-size:13px;
+          font-weight:900;
         }
 
         .tsb-withdrawal .wd-quick button[aria-pressed="true"] {
-          background: var(--green);
-          color: var(--white);
+          color:var(--wine);
+          text-decoration:underline;
+          text-underline-offset:4px;
         }
 
         .tsb-withdrawal .wd-empty {
-          text-align: center;
-          font-size: 13px;
-          line-height: 1.8;
+          text-align:center;
+          font-size:13px;
+          line-height:1.8;
         }
 
         .tsb-withdrawal .wd-history {
-          padding: 0;
-          overflow: hidden;
+          padding:0;
+          overflow:hidden;
         }
 
         .tsb-withdrawal .wd-history-heading {
-          padding: 18px 16px 0;
+          padding:18px 16px 0;
         }
 
         .tsb-withdrawal .wd-history-heading .wd-title {
-          font-size: 16px;
-          margin-bottom: 5px;
+          font-size:16px;
+          margin-bottom:5px;
         }
 
         .tsb-withdrawal .wd-history-caption {
-          margin: 0;
-          font-size: 10px;
+          margin:0;
+          font-size:10px;
         }
 
         .tsb-withdrawal .wd-history-error {
-          margin: 0 16px 16px;
-          padding: 12px;
-          border: 1px solid var(--wine);
-          border-radius: 8px;
+          margin:0 16px 16px;
         }
 
         .tsb-withdrawal .wd-table-scroll {
-          overflow-x: auto;
+          overflow-x:auto;
         }
 
         .tsb-withdrawal table {
-          border-collapse: collapse;
-          width: 100%;
-          min-width: 560px;
-          font-size: 12px;
+          border-collapse:collapse;
+          width:100%;
+          min-width:560px;
+          font-size:12px;
         }
 
         .tsb-withdrawal thead {
-          background: var(--green);
-          color: var(--white);
+          background:var(--green);
+          color:var(--white);
         }
 
         .tsb-withdrawal th,
         .tsb-withdrawal td {
-          padding: 13px;
-          text-align: left;
+          padding:13px;
+          text-align:left;
         }
 
         .tsb-withdrawal tbody tr + tr {
-          border-top: 1px solid var(--green);
+          border-top:1px solid var(--green);
         }
 
         .tsb-withdrawal .wd-status {
-          display: inline-block;
-          border: 1px solid var(--wine);
-          border-radius: 6px;
-          padding: 6px 9px;
-          color: var(--wine);
-          background: var(--white);
-          font-size: 10px;
-          font-weight: 900;
+          display:inline-block;
+          border:1px solid var(--wine);
+          border-radius:6px;
+          padding:6px 9px;
+          color:var(--wine);
+          background:var(--white);
+          font-size:10px;
+          font-weight:900;
         }
 
         .tsb-withdrawal .wd-status-success {
-          border-color: var(--green);
-          background: var(--green);
-          color: var(--white);
+          border-color:var(--green);
+          background:var(--green);
+          color:var(--white);
         }
 
         .tsb-withdrawal .wd-status-rejected {
-          background: var(--wine);
-          color: var(--white);
+          background:var(--wine);
+          color:var(--white);
         }
 
         .tsb-withdrawal .wd-table-empty {
-          text-align: center;
-          padding: 30px 16px;
+          text-align:center;
+          padding:30px 16px;
         }
 
-        @media (max-width: 380px) {
+        @media(max-width:380px) {
           .tsb-withdrawal .wd-card {
-            padding: 16px;
+            padding:16px;
           }
 
           .tsb-withdrawal .wd-history {
-            padding: 0;
+            padding:0;
           }
 
           .tsb-withdrawal .wd-quick {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns:repeat(2,minmax(0,1fr));
           }
         }
       `}</style>
@@ -833,38 +819,25 @@ export default function WithdrawalPage({ user, onBack }) {
           ← BACK
         </button>
 
-        <section className="wd-card wd-wallet">
-          <p className="wd-caption">AVAILABLE WALLET BALANCE</p>
+        <section className="wd-wallet">
+          <p className="wd-caption">AVAILABLE BALANCE</p>
 
-          <div
-            className="wd-balance-box"
-            aria-live="polite"
-            aria-label={
-              balanceLoading
-                ? 'Balance loading'
-                : balanceError
-                  ? 'Balance unavailable'
-                  : `Available demo balance ${formatAmount(balance)}`
-            }
-          >
-            <span className="wd-rupee" aria-hidden="true">₹</span>
+          <p className="wd-balance" aria-live="polite">
+            {balanceLoading
+              ? "Loading..."
+              : balanceError
+                ? "—"
+                : money(balance)}
+          </p>
 
-            <span className="wd-balance">
-              {balanceLoading
-                ? 'Loading...'
-                : balanceError
-                  ? '—'
-                  : Number(balance).toLocaleString('en-IN', {
-                      maximumFractionDigits: 2,
-                    })}
-            </span>
-          </div>
-
-          <p className="wd-note">DEMO BALANCE · VIRTUAL COINS ONLY</p>
+          <p className="wd-note">DEMO COINS</p>
 
           {balanceError && (
             <div>
-              <p className="wd-error" role="alert">{balanceError}</p>
+              <p className="wd-error" role="alert">
+                {balanceError}
+              </p>
+
               <button
                 type="button"
                 onClick={loadBalance}
@@ -885,10 +858,10 @@ export default function WithdrawalPage({ user, onBack }) {
             aria-controls="wd-bank-form"
           >
             {showAddAccount
-              ? 'CANCEL'
+              ? "CANCEL"
               : account
-                ? '✎ CHANGE ACCOUNT'
-                : '+ ADD ACCOUNT'}
+                ? "✎ CHANGE ACCOUNT"
+                : "+ ADD ACCOUNT"}
           </button>
         </div>
 
@@ -900,8 +873,11 @@ export default function WithdrawalPage({ user, onBack }) {
           >
             <div>
               <h2 className="wd-title">
-                {account ? 'CHANGE BANK ACCOUNT' : 'ADD BANK ACCOUNT'}
+                {account
+                  ? "CHANGE BANK ACCOUNT"
+                  : "ADD BANK ACCOUNT"}
               </h2>
+
               <p className="wd-note">
                 Enter your bank details and withdrawal password.
               </p>
@@ -914,7 +890,7 @@ export default function WithdrawalPage({ user, onBack }) {
                 placeholder="Enter account holder name"
                 value={form.holderName}
                 onChange={(event) =>
-                  updateForm('holderName', event.target.value)
+                  updateForm("holderName", event.target.value)
                 }
                 className="wd-input"
                 required
@@ -928,7 +904,7 @@ export default function WithdrawalPage({ user, onBack }) {
                 placeholder="Enter bank name"
                 value={form.bankName}
                 onChange={(event) =>
-                  updateForm('bankName', event.target.value)
+                  updateForm("bankName", event.target.value)
                 }
                 className="wd-input"
                 required
@@ -945,8 +921,8 @@ export default function WithdrawalPage({ user, onBack }) {
                 value={form.accountNumber}
                 onChange={(event) =>
                   updateForm(
-                    'accountNumber',
-                    event.target.value.replace(/\D/g, '')
+                    "accountNumber",
+                    event.target.value.replace(/\D/g, "")
                   )
                 }
                 className="wd-input"
@@ -954,7 +930,10 @@ export default function WithdrawalPage({ user, onBack }) {
               />
             </Field>
 
-            <Field label="CONFIRM ACCOUNT NUMBER" id="wd-confirm-account">
+            <Field
+              label="CONFIRM ACCOUNT NUMBER"
+              id="wd-confirm-account"
+            >
               <input
                 id="wd-confirm-account"
                 type="text"
@@ -964,8 +943,8 @@ export default function WithdrawalPage({ user, onBack }) {
                 value={form.confirmAccountNumber}
                 onChange={(event) =>
                   updateForm(
-                    'confirmAccountNumber',
-                    event.target.value.replace(/\D/g, '')
+                    "confirmAccountNumber",
+                    event.target.value.replace(/\D/g, "")
                   )
                 }
                 className="wd-input"
@@ -981,7 +960,7 @@ export default function WithdrawalPage({ user, onBack }) {
                 placeholder="Enter IFSC code"
                 value={form.ifsc}
                 onChange={(event) =>
-                  updateForm('ifsc', event.target.value.toUpperCase())
+                  updateForm("ifsc", event.target.value.toUpperCase())
                 }
                 className="wd-input"
                 required
@@ -997,7 +976,7 @@ export default function WithdrawalPage({ user, onBack }) {
                 placeholder="Enter withdrawal password"
                 value={form.password}
                 onChange={(event) =>
-                  updateForm('password', event.target.value)
+                  updateForm("password", event.target.value)
                 }
                 className="wd-input"
                 required
@@ -1012,10 +991,18 @@ export default function WithdrawalPage({ user, onBack }) {
 
         <section className="wd-card">
           <ol className="wd-information">
-            <li>Demo withdrawal requests use available virtual balance only.</li>
-            <li>Requests are recorded separately for each customer.</li>
-            <li>Minimum request amount: {formatAmount(MIN_WITHDRAWAL)}.</li>
-            <li>Pending requests can be reviewed by the Admin.</li>
+            <li>
+              Demo withdrawal requests use available virtual balance only.
+            </li>
+            <li>
+              Requests are recorded separately for each customer.
+            </li>
+            <li>
+              Minimum request amount: {money(MIN_WITHDRAWAL)}.
+            </li>
+            <li>
+              Pending requests can be reviewed by the Admin.
+            </li>
           </ol>
         </section>
 
@@ -1025,7 +1012,7 @@ export default function WithdrawalPage({ user, onBack }) {
               <div>
                 <p className="wd-caption">SAVED BANK ACCOUNT</p>
                 <h2 className="wd-holder">
-                  {String(account.holderName || '').toUpperCase()}
+                  {String(account.holderName || "").toUpperCase()}
                 </h2>
               </div>
 
@@ -1052,8 +1039,11 @@ export default function WithdrawalPage({ user, onBack }) {
               className="wd-form wd-withdraw-form"
             >
               <Field label="ENTER AMOUNT" id="wd-amount">
-                <div className="wd-amount-wrap">
-                  <span className="wd-amount-prefix" aria-hidden="true">₹</span>
+                <div className="wd-amount-line">
+                  <span className="wd-amount-prefix" aria-hidden="true">
+                    ₹
+                  </span>
+
                   <input
                     id="wd-amount"
                     type="number"
@@ -1063,7 +1053,7 @@ export default function WithdrawalPage({ user, onBack }) {
                     placeholder="Enter amount"
                     value={amount}
                     onChange={(event) => setAmount(event.target.value)}
-                    className="wd-input"
+                    className="wd-amount-input"
                     required
                   />
                 </div>
@@ -1077,7 +1067,7 @@ export default function WithdrawalPage({ user, onBack }) {
                     onClick={() => setAmount(String(value))}
                     aria-pressed={Number(amount) === value}
                   >
-                    {formatAmount(value)}
+                    {money(value)}
                   </button>
                 ))}
               </div>
@@ -1091,7 +1081,7 @@ export default function WithdrawalPage({ user, onBack }) {
                 }
                 className="wd-button wd-wine wd-full"
               >
-                {submitting ? 'SUBMITTING...' : 'WITHDRAW'}
+                {submitting ? "SUBMITTING..." : "WITHDRAW"}
               </button>
             </form>
           </section>
@@ -1118,7 +1108,7 @@ export default function WithdrawalPage({ user, onBack }) {
               disabled={historyLoading}
               className="wd-button"
             >
-              {historyLoading ? 'LOADING...' : 'REFRESH'}
+              {historyLoading ? "LOADING..." : "REFRESH"}
             </button>
           </div>
 
@@ -1144,49 +1134,53 @@ export default function WithdrawalPage({ user, onBack }) {
                   <tr>
                     <td colSpan={4} className="wd-table-empty">
                       {historyLoading
-                        ? 'Loading withdrawal history...'
+                        ? "Loading withdrawal history..."
                         : historyError
-                          ? 'Withdrawal history unavailable'
-                          : 'No withdrawal requests yet'}
+                          ? "Withdrawal history unavailable"
+                          : "No withdrawal requests yet"}
                     </td>
                   </tr>
                 ) : (
                   history.map((transaction) => {
                     const status = String(
-                      transaction.status || 'PENDING'
+                      transaction.status || "PENDING"
                     ).toUpperCase();
 
-                    const success = ['APPROVED', 'SUCCESS'].includes(status);
-                    const rejected = ['REJECTED', 'REJECT'].includes(status);
+                    const success = ["APPROVED", "SUCCESS"].includes(status);
+                    const rejected = ["REJECTED", "REJECT"].includes(status);
 
                     const last4 = String(
                       transaction.accountNumber ??
                         transaction.account_number ??
-                        ''
+                        ""
                     ).slice(-4);
 
                     return (
                       <tr key={transaction.id}>
                         <td>
-                          <strong>{formatAmount(transaction.amount)}</strong>
+                          <strong>{money(transaction.amount)}</strong>
                         </td>
+
                         <td>
                           <span
                             className={`wd-status${
                               success
-                                ? ' wd-status-success'
+                                ? " wd-status-success"
                                 : rejected
-                                  ? ' wd-status-rejected'
-                                  : ''
+                                  ? " wd-status-rejected"
+                                  : ""
                             }`}
                           >
                             {status}
                           </span>
                         </td>
-                        <td>{last4 ? `XXXX-${last4}` : '—'}</td>
+
+                        <td>{last4 ? `XXXX-${last4}` : "—"}</td>
+
                         <td>
                           {formatDate(
-                            transaction.createdAt ?? transaction.created_at
+                            transaction.createdAt ??
+                              transaction.created_at
                           )}
                         </td>
                       </tr>
@@ -1217,7 +1211,7 @@ function AccountRow({ label, value }) {
   return (
     <div className="wd-account-row">
       <span>{label}</span>
-      <span className="wd-account-value">{value || '—'}</span>
+      <span className="wd-account-value">{value || "—"}</span>
     </div>
   );
 }
