@@ -1,7 +1,23 @@
 import React, { useEffect, useRef, useState } from "react";
 
-const COINS = value =>
-  Number(value || 0).toLocaleString("en-IN");
+const COINS = (value) => {
+  if (
+    value === null ||
+    value === undefined ||
+    !Number.isFinite(Number(value))
+  ) {
+    return "—";
+  }
+
+  return Number(value).toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+  });
+};
+
+const MONEY = (value) => {
+  const formatted = COINS(value);
+  return formatted === "—" ? "—" : `₹${formatted}`;
+};
 
 const FALLBACK_NAMES = {
   easy: "Easy",
@@ -10,7 +26,6 @@ const FALLBACK_NAMES = {
   daredevil: "DareDevil",
 };
 
-// Fast traffic from the first step.
 const TRAFFIC_BASE_SPEED = 220;
 
 function trafficVelocity(levelSpeed, step) {
@@ -18,6 +33,18 @@ function trafficVelocity(levelSpeed, step) {
     TRAFFIC_BASE_SPEED *
     Math.max(1, Number(levelSpeed) || 1) *
     (1 + Math.max(0, step - 1) * 0.12)
+  );
+}
+
+function AmountBox({ label, value, signed = false }) {
+  return (
+    <div className="cr-money-box">
+      {label && <span className="cr-money-label">{label}</span>}
+      <strong>
+        {signed && Number(value) > 0 ? "+" : ""}
+        {MONEY(value)}
+      </strong>
+    </div>
   );
 }
 
@@ -31,9 +58,7 @@ function RoadCar({ lane = 1, down = false }) {
 
   return (
     <svg
-      className={`cr-car-body ${
-        down ? "cr-facing-down" : ""
-      }`}
+      className={`cr-car-body ${down ? "cr-facing-down" : ""}`}
       viewBox="0 0 44 86"
       aria-hidden="true"
     >
@@ -95,28 +120,20 @@ function RoadCar({ lane = 1, down = false }) {
   );
 }
 
-function RoadTraffic({
-  lanes,
-  clearedStep,
-  speed,
-  collision,
-}) {
+function RoadTraffic({ lanes, clearedStep, speed, collision }) {
   const nodes = useRef([]);
   const velocity = useRef(speed);
-
   velocity.current = speed;
 
   useEffect(() => {
     const media = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)",
+      "(prefers-reduced-motion: reduce)"
     );
 
     const distance = 545;
-
     const positions = Array.from(
       { length: lanes },
-      (_, index) =>
-        ((index * 0.273 + 0.18) % 1) * distance,
+      (_, index) => ((index * 0.273 + 0.18) % 1) * distance
     );
 
     let frame;
@@ -127,39 +144,31 @@ function RoadTraffic({
         if (!node) return;
 
         const down = index % 2 === 0;
-
         const y = down
           ? positions[index] - 100
           : 445 - positions[index];
 
-        node.style.transform =
-          `translate3d(0,${y}px,0)`;
+        node.style.transform = `translate3d(0,${y}px,0)`;
       });
     };
 
-    const animate = time => {
+    const animate = (time) => {
       const elapsed =
         previous === null
           ? 0
-          : Math.min(
-              50,
-              Math.max(0, time - previous),
-            );
+          : Math.min(50, Math.max(0, time - previous));
 
       previous = time;
 
       for (let index = 0; index < lanes; index++) {
         positions[index] =
-          (
-            positions[index] +
-            velocity.current * elapsed / 1000
-          ) % distance;
+          (positions[index] +
+            (velocity.current * elapsed) / 1000) %
+          distance;
       }
 
       paint();
-
-      frame =
-        window.requestAnimationFrame(animate);
+      frame = window.requestAnimationFrame(animate);
     };
 
     const changed = () => {
@@ -171,13 +180,11 @@ function RoadTraffic({
       previous = null;
 
       if (!media?.matches) {
-        frame =
-          window.requestAnimationFrame(animate);
+        frame = window.requestAnimationFrame(animate);
       } else {
-        nodes.current.forEach(node => {
+        nodes.current.forEach((node) => {
           if (node) {
-            node.style.transform =
-              "translate3d(0,25px,0)";
+            node.style.transform = "translate3d(0,25px,0)";
           }
         });
       }
@@ -185,18 +192,13 @@ function RoadTraffic({
 
     paint();
     changed();
-
     media?.addEventListener?.("change", changed);
 
     return () => {
       if (frame !== undefined) {
         window.cancelAnimationFrame(frame);
       }
-
-      media?.removeEventListener?.(
-        "change",
-        changed,
-      );
+      media?.removeEventListener?.("change", changed);
     };
   }, [lanes]);
 
@@ -205,23 +207,15 @@ function RoadTraffic({
       {Array.from({ length: lanes }, (_, index) => (
         <div
           key={index}
-          ref={node => {
+          ref={(node) => {
             nodes.current[index] = node;
           }}
           className="cr-car"
           data-lane={index + 1}
-          hidden={
-            index + 1 <= clearedStep ||
-            collision
-          }
-          style={{
-            left: 86 + index * 106 + 29,
-          }}
+          hidden={index + 1 <= clearedStep || collision}
+          style={{ left: 86 + index * 106 + 29 }}
         >
-          <RoadCar
-            lane={index + 1}
-            down={index % 2 === 0}
-          />
+          <RoadCar lane={index + 1} down={index % 2 === 0} />
         </div>
       ))}
     </div>
@@ -231,15 +225,11 @@ function RoadTraffic({
 function readPending(key) {
   try {
     const saved = JSON.parse(
-      sessionStorage.getItem(key) || "null",
+      sessionStorage.getItem(key) || "null"
     );
 
-    return (
-      ["play", "jump", "cashout"].includes(
-        saved?.action,
-      ) &&
+    return ["play", "jump", "cashout"].includes(saved?.action) &&
       typeof saved.body?.requestKey === "string"
-    )
       ? saved
       : null;
   } catch {
@@ -249,10 +239,7 @@ function readPending(key) {
 
 function writePending(key, value) {
   try {
-    sessionStorage.setItem(
-      key,
-      JSON.stringify(value),
-    );
+    sessionStorage.setItem(key, JSON.stringify(value));
     return true;
   } catch {
     return false;
@@ -262,7 +249,9 @@ function writePending(key, value) {
 function removePending(key) {
   try {
     sessionStorage.removeItem(key);
-  } catch {}
+  } catch {
+    // Storage may be unavailable.
+  }
 }
 
 function uniqueKey() {
@@ -271,35 +260,28 @@ function uniqueKey() {
 
   return Array.from(
     bytes,
-    value => value.toString(16).padStart(2, "0"),
+    (value) => value.toString(16).padStart(2, "0")
   ).join("");
 }
 
 async function api(path, options = {}) {
   const controller = new AbortController();
-
-  const timeout = setTimeout(
-    () => controller.abort(),
-    15000,
-  );
+  const timeout = setTimeout(() => controller.abort(), 15000);
 
   try {
-    const response = await fetch(
-      `/api/chicken-road/${path}`,
-      {
-        ...options,
-        credentials: "same-origin",
-        cache: "no-store",
-        signal: controller.signal,
-      },
-    );
+    const response = await fetch(`/api/chicken-road/${path}`, {
+      ...options,
+      credentials: "same-origin",
+      cache: "no-store",
+      signal: controller.signal,
+    });
 
     const data = await response.json();
 
     if (!response.ok || data.success === false) {
       throw Object.assign(
         new Error(data.error || "Request failed."),
-        { status: response.status },
+        { status: response.status }
       );
     }
 
@@ -315,12 +297,9 @@ export default function ChickenRoadPage({
   onLogout,
 }) {
   const customerId =
-    user?.id ??
-    user?.customerId ??
-    user?.customer_id;
+    user?.id ?? user?.customerId ?? user?.customer_id;
 
-  const storageKey =
-    `tsb_chicken_pending_v1:${customerId}`;
+  const storageKey = `tsb_chicken_pending_v1:${customerId}`;
 
   return customerId ? (
     <ChickenGame
@@ -344,12 +323,7 @@ export default function ChickenRoadPage({
   );
 }
 
-function ChickenGame({
-  user,
-  onBack,
-  onLogout,
-  storageKey,
-}) {
+function ChickenGame({ user, onBack, onLogout, storageKey }) {
   const [rules, setRules] = useState(null);
   const [data, setData] = useState(null);
   const [amount, setAmount] = useState("10");
@@ -357,8 +331,8 @@ function ChickenGame({
   const [tab, setTab] = useState("game");
   const [history, setHistory] = useState([]);
 
-  const [pending, setPending] = useState(() =>
-    readPending(storageKey),
+  const [pending, setPending] = useState(
+    () => readPending(storageKey)
   );
 
   const [busy, setBusy] = useState(false);
@@ -384,36 +358,39 @@ function ChickenGame({
     ? session.difficulty
     : difficulty;
 
-  const level =
-    rules?.levels?.[selectedDifficulty];
-
+  const level = rules?.levels?.[selectedDifficulty];
   const lanes = level?.lanes || 30;
 
   const trafficSpeed = trafficVelocity(
     level?.speed || 1,
-    visualStep,
+    visualStep
   );
 
-  const locked =
-    busy || Boolean(pending) || loading;
+  const locked = busy || Boolean(pending) || loading;
+
+  const balanceAvailable =
+    data?.balance !== null &&
+    data?.balance !== undefined &&
+    Number.isFinite(Number(data.balance));
 
   const prepareAudio = () => {
     if (!sound) return;
 
     try {
       const AudioContext =
-        window.AudioContext ||
-        window.webkitAudioContext;
+        window.AudioContext || window.webkitAudioContext;
 
       if (!audio.current && AudioContext) {
         audio.current = new AudioContext();
       }
 
       audio.current?.resume()?.catch(() => {});
-    } catch {}
+    } catch {
+      // Audio may be unavailable.
+    }
   };
 
-  const tone = collision => {
+  const tone = (collision) => {
     if (!sound || !audio.current) return;
 
     try {
@@ -421,35 +398,38 @@ function ChickenGame({
       const oscillator = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      oscillator.type = collision
-        ? "triangle"
-        : "sine";
+      oscillator.type = collision ? "triangle" : "sine";
 
       oscillator.frequency.setValueAtTime(
         collision ? 180 : 700,
-        ctx.currentTime,
+        ctx.currentTime
       );
 
       oscillator.frequency.exponentialRampToValueAtTime(
         collision ? 45 : 1100,
-        ctx.currentTime + 0.16,
+        ctx.currentTime + 0.16
       );
 
-      gain.gain.setValueAtTime(
-        0.055,
-        ctx.currentTime,
-      );
+      gain.gain.setValueAtTime(0.055, ctx.currentTime);
 
       gain.gain.exponentialRampToValueAtTime(
         0.0001,
-        ctx.currentTime + 0.22,
+        ctx.currentTime + 0.22
       );
 
       oscillator.connect(gain);
       gain.connect(ctx.destination);
+
+      oscillator.onended = () => {
+        oscillator.disconnect();
+        gain.disconnect();
+      };
+
       oscillator.start();
       oscillator.stop(ctx.currentTime + 0.22);
-    } catch {}
+    } catch {
+      // Audio may be unavailable.
+    }
   };
 
   const loadState = async () => {
@@ -502,10 +482,7 @@ function ChickenGame({
   const loadHistory = async () => {
     try {
       const value = await api("history");
-
-      if (alive.current) {
-        setHistory(value.sessions || []);
-      }
+      if (alive.current) setHistory(value.sessions || []);
     } catch (err) {
       if (alive.current) setError(err.message);
     }
@@ -521,9 +498,7 @@ function ChickenGame({
     void loadRef.current();
 
     const focus = () => {
-      if (!running.current) {
-        void loadRef.current();
-      }
+      if (!running.current) void loadRef.current();
     };
 
     window.addEventListener("focus", focus);
@@ -545,21 +520,19 @@ function ChickenGame({
     if (!element) return;
 
     const reduced = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
+      "(prefers-reduced-motion: reduce)"
+    )?.matches;
 
     element.scrollTo({
       left: Math.max(
         0,
-        visualStep * 106 -
-          element.clientWidth / 2 +
-          85,
+        visualStep * 106 - element.clientWidth / 2 + 85
       ),
       behavior: reduced ? "auto" : "smooth",
     });
   }, [visualStep, tab]);
 
-  const finish = value => {
+  const finish = (value) => {
     if (!alive.current) return;
 
     setData(value);
@@ -578,32 +551,26 @@ function ChickenGame({
             ? "Cash out completed."
             : value.event === "SAFE"
               ? "Safe crossing. Jump again or cash out whenever you choose."
-              : "Game started. Press JUMP to move.",
+              : "Game started. Press JUMP to move."
     );
 
-    window.dispatchEvent(
-      new Event("demo-balance-updated"),
-    );
-
+    window.dispatchEvent(new Event("demo-balance-updated"));
     void loadRef.current();
   };
 
-  const perform = async requestedAction => {
+  const perform = async (requestedAction) => {
     if (running.current) return;
 
     let job = recovery.current;
 
     if (!job) {
       if (!rules || loading || !data) {
-        setError(
-          "Wait for rules and balance to load.",
-        );
+        setError("Wait for rules and balance to load.");
         return;
       }
 
       if (requestedAction === "play") {
         const stake = Number(amount);
-
         if (activeGame) return;
 
         if (
@@ -611,9 +578,12 @@ function ChickenGame({
           stake < rules.minStake ||
           stake > rules.maxStake
         ) {
-          setError(
-            "Stake must be 10–25,000 whole demo coins.",
-          );
+          setError("Stake must be ₹10–₹25,000 in whole demo units.");
+          return;
+        }
+
+        if (!balanceAvailable) {
+          setError("Wallet balance is unavailable. Please refresh.");
           return;
         }
 
@@ -622,50 +592,39 @@ function ChickenGame({
           return;
         }
 
-        if (
-          !Object.hasOwn(rules.levels, difficulty)
-        ) {
+        if (!Object.hasOwn(rules.levels, difficulty)) {
           setError("Select a valid difficulty.");
           return;
         }
 
         job = {
           action: "play",
-          body: {
-            difficulty,
-            amount: stake,
-          },
+          body: { difficulty, amount: stake },
         };
       } else {
         if (
           !activeGame ||
-          !["jump", "cashout"].includes(
-            requestedAction,
-          )
+          !["jump", "cashout"].includes(requestedAction)
         ) {
           return;
         }
 
         job = {
           action: requestedAction,
-          body: {
-            sessionId: String(session.id),
-          },
+          body: { sessionId: String(session.id) },
         };
       }
 
       try {
         job.body.requestKey = uniqueKey();
       } catch {
-        setError(
-          "A secure HTTPS browser connection is required.",
-        );
+        setError("A secure HTTPS browser connection is required.");
         return;
       }
 
       if (!writePending(storageKey, job)) {
         setError(
-          "Enable browser session storage to recover interrupted actions.",
+          "Enable browser session storage to recover interrupted actions."
         );
         return;
       }
@@ -676,7 +635,6 @@ function ChickenGame({
 
     running.current = true;
     version.current += 1;
-
     setBusy(true);
     setError("");
     setNotice("");
@@ -685,9 +643,7 @@ function ChickenGame({
     try {
       const value = await api(job.action, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(job.body),
       });
 
@@ -699,24 +655,16 @@ function ChickenGame({
       setPending(null);
 
       const reduced = window.matchMedia?.(
-        "(prefers-reduced-motion: reduce)",
-      ).matches;
+        "(prefers-reduced-motion: reduce)"
+      )?.matches;
 
-      if (
-        job.action === "jump" &&
-        !value.replayed &&
-        !reduced
-      ) {
-        const collision =
-          value.event === "COLLISION";
+      if (job.action === "jump" && !value.replayed && !reduced) {
+        const collision = value.event === "COLLISION";
 
-        setMotion(
-          collision ? "collision" : "jump",
-        );
+        setMotion(collision ? "collision" : "jump");
 
         setVisualStep(
-          value.session.step +
-            (collision ? 1 : 0),
+          value.session.step + (collision ? 1 : 0)
         );
 
         tone(collision);
@@ -732,11 +680,7 @@ function ChickenGame({
     } catch (err) {
       if (!alive.current) return;
 
-      if (
-        [400, 401, 403, 404, 409, 422].includes(
-          err.status,
-        )
-      ) {
+      if ([400, 401, 403, 404, 409, 422].includes(err.status)) {
         removePending(storageKey);
         recovery.current = null;
         setPending(null);
@@ -745,7 +689,7 @@ function ChickenGame({
       setError(
         err.status
           ? err.message
-          : "Connection interrupted. Press RETRY SAME ACTION. Your request will not be charged twice.",
+          : "Connection interrupted. Press RETRY SAME ACTION to recover the original request."
       );
 
       running.current = false;
@@ -763,86 +707,392 @@ function ChickenGame({
   return (
     <div className="cr-page">
       <style>{`
-        .cr-page{min-height:100vh;background:#202725;color:#f8f5e8;font-family:Arial,sans-serif;padding-bottom:24px}
-        .cr-page *{box-sizing:border-box}
-        .cr-page button,.cr-page input,.cr-page select{font:inherit}
-        .cr-page button{cursor:pointer}
-        .cr-page button:disabled{opacity:.45;cursor:default}
-        .cr-header{display:flex;gap:12px;align-items:center;padding:15px;background:#121c19;border-bottom:1px solid #ffffff20}
-        .cr-header h1{margin:0;font-size:17px;color:#f9d875}
-        .cr-header small{display:block;font-size:10px;color:#cad6cc;margin-top:5px}
-        .cr-wallet{margin-left:auto;text-align:right;font-weight:bold}
-        .cr-wrap{max-width:900px;margin:auto;padding:12px}
-        .cr-tabs,.cr-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
-        .cr-row{margin-top:12px}
-        .cr-btn{padding:10px 12px;border:1px solid #ffffff30;border-radius:8px;background:#ffffff10;color:inherit}
-        .cr-tabs [aria-pressed=true]{background:#ecd381;color:#243229}
-        .cr-alert{border:1px solid #d8b266;background:#4d331e;color:#ffe8b4;padding:12px;border-radius:10px;font-size:13px;line-height:1.7;margin:12px 0}
-        .cr-alert button{margin:5px}
-        .cr-hint{font-size:12px;line-height:1.7;color:#d0dad4}
+        .cr-page {
+          min-height:100vh;
+          background:#202725;
+          color:#f8f5e8;
+          font-family:Arial,sans-serif;
+          padding-bottom:24px;
+        }
+        .cr-page * { box-sizing:border-box; }
+        .cr-page button,.cr-page input,.cr-page select { font:inherit; }
+        .cr-page button { cursor:pointer; }
+        .cr-page button:disabled { opacity:.45; cursor:default; }
 
-        .cr-road-window{position:relative;overflow:auto;border:2px solid #59635e;border-radius:15px;background:#73716a;scrollbar-color:#d9c17e #4e5550;touch-action:pan-x pan-y}
-        .cr-road{position:relative;display:flex;height:345px;min-width:100%;isolation:isolate}
-        .cr-sidewalk{width:86px;flex-shrink:0;background:repeating-linear-gradient(0deg,#a4a898 0 45px,#7c8475 46px 49px);border-right:5px solid #cad0bb;position:relative}
-        .cr-sidewalk::before{content:'🌳';position:absolute;top:20px;font-size:70px;left:-20px}
-        .cr-lane{width:106px;flex-shrink:0;position:relative;border-right:3px dashed #d2d0bc;background:#73716a}
-        .cr-lane.is-safe{background:#617866}
-        .cr-multiplier{position:absolute;left:10px;right:10px;top:174px;height:76px;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;border:4px solid #51564d;border-radius:50%;background:repeating-linear-gradient(90deg,#85877b 0 5px,#737569 6px 10px);font-weight:900;color:#e5e5d8;text-shadow:0 2px 1px #333;font-size:18px}
-        .cr-multiplier small{font-size:9px;color:#d9dfd1}
+        .cr-header {
+          display:flex;
+          flex-wrap:wrap;
+          gap:12px;
+          align-items:center;
+          padding:15px;
+          background:#121c19;
+          border-bottom:1px solid #ffffff20;
+        }
+        .cr-header h1 { margin:0; font-size:17px; color:#f9d875; }
+        .cr-header small {
+          display:block;
+          font-size:10px;
+          color:#cad6cc;
+          margin-top:5px;
+        }
+        .cr-wallet {
+          margin-left:auto;
+          max-width:100%;
+          text-align:center;
+          border:2px solid #166534;
+          border-radius:12px;
+          background:#fff;
+          color:#166534;
+          padding:10px 12px;
+        }
+        .cr-wallet-title {
+          display:block;
+          font-size:9px;
+          font-weight:900;
+          letter-spacing:.5px;
+        }
+        .cr-wallet-value {
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          gap:8px;
+          margin-top:6px;
+        }
+        .cr-wallet-symbol {
+          display:grid;
+          place-items:center;
+          flex-shrink:0;
+          width:32px;
+          height:32px;
+          border-radius:8px;
+          background:#166534;
+          color:#fff;
+          font-size:23px;
+          font-weight:900;
+        }
+        .cr-wallet-number {
+          font-size:20px;
+          font-weight:900;
+          overflow-wrap:anywhere;
+          font-variant-numeric:tabular-nums;
+        }
+        .cr-wallet small { color:#722f37; font-weight:bold; }
 
-        .cr-traffic{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden}
-        .cr-car{position:absolute;top:0;width:44px;height:86px;will-change:transform;pointer-events:none}
-        .cr-car[hidden]{display:none}
-        .cr-car-body{display:block;width:44px;height:86px}
-        .cr-facing-down{transform:rotate(180deg)}
+        .cr-money-grid {
+          display:grid;
+          grid-template-columns:repeat(2,minmax(0,1fr));
+          gap:10px;
+          margin-top:12px;
+        }
+        .cr-money-box {
+          display:inline-flex;
+          flex-direction:column;
+          align-items:center;
+          justify-content:center;
+          gap:6px;
+          max-width:100%;
+          border:1px solid #166534;
+          border-radius:10px;
+          padding:10px 12px;
+          background:#fff;
+          color:#166534;
+          font-variant-numeric:tabular-nums;
+        }
+        .cr-money-box strong {
+          font-size:18px;
+          color:#166534;
+          overflow-wrap:anywhere;
+        }
+        .cr-money-label {
+          font-size:10px;
+          font-weight:bold;
+          color:#722f37;
+          text-align:center;
+        }
+        .cr-wrap { max-width:900px; margin:auto; padding:12px; }
+        .cr-tabs,.cr-row {
+          display:flex;
+          gap:8px;
+          flex-wrap:wrap;
+          align-items:center;
+          margin-bottom:12px;
+        }
+        .cr-row { margin-top:12px; }
+        .cr-btn {
+          padding:10px 12px;
+          border:1px solid #ffffff30;
+          border-radius:8px;
+          background:#ffffff10;
+          color:inherit;
+        }
+        .cr-tabs [aria-pressed=true] {
+          background:#166534;
+          border-color:#166534;
+          color:#fff;
+        }
+        .cr-alert {
+          border:1px solid #722f37;
+          background:#fff;
+          color:#722f37;
+          padding:12px;
+          border-radius:10px;
+          font-size:13px;
+          line-height:1.7;
+          margin:12px 0;
+        }
+        .cr-alert button {
+          margin:5px;
+          background:#722f37;
+          border-color:#722f37;
+          color:#fff;
+        }
+        .cr-hint { font-size:12px; line-height:1.7; color:#d0dad4; }
 
-        .cr-player{position:absolute;z-index:4;top:160px;font-size:57px;width:60px;height:80px;transition:left .55s ease;filter:drop-shadow(1px 5px 2px #0006)}
-        .cr-player.cr-jump{animation:crHop .55s ease}
-        .cr-player.cr-collision{animation:crHit .8s ease forwards}
-        .cr-crash-car{position:absolute;z-index:5;top:0;width:44px;height:86px;animation:crCrash .8s linear forwards;pointer-events:none}
+        .cr-road-window {
+          position:relative;
+          overflow:auto;
+          border:2px solid #59635e;
+          border-radius:15px;
+          background:#73716a;
+          scrollbar-color:#d9c17e #4e5550;
+          touch-action:pan-x pan-y;
+        }
+        .cr-road {
+          position:relative;
+          display:flex;
+          height:345px;
+          min-width:100%;
+          isolation:isolate;
+        }
+        .cr-sidewalk {
+          width:86px;
+          flex-shrink:0;
+          background:repeating-linear-gradient(
+            0deg,#a4a898 0 45px,#7c8475 46px 49px
+          );
+          border-right:5px solid #cad0bb;
+          position:relative;
+        }
+        .cr-sidewalk::before {
+          content:'🌳';
+          position:absolute;
+          top:20px;
+          font-size:70px;
+          left:-20px;
+        }
+        .cr-lane {
+          width:106px;
+          flex-shrink:0;
+          position:relative;
+          border-right:3px dashed #d2d0bc;
+          background:#73716a;
+        }
+        .cr-lane.is-safe { background:#617866; }
+        .cr-multiplier {
+          position:absolute;
+          left:10px;
+          right:10px;
+          top:174px;
+          height:76px;
+          display:flex;
+          flex-direction:column;
+          gap:4px;
+          align-items:center;
+          justify-content:center;
+          border:4px solid #51564d;
+          border-radius:50%;
+          background:repeating-linear-gradient(
+            90deg,#85877b 0 5px,#737569 6px 10px
+          );
+          font-weight:900;
+          color:#e5e5d8;
+          text-shadow:0 2px 1px #333;
+          font-size:18px;
+        }
+        .cr-multiplier small { font-size:9px; color:#d9dfd1; }
+        .cr-traffic {
+          position:absolute;
+          inset:0;
+          z-index:2;
+          pointer-events:none;
+          overflow:hidden;
+        }
+        .cr-car {
+          position:absolute;
+          top:0;
+          width:44px;
+          height:86px;
+          will-change:transform;
+          pointer-events:none;
+        }
+        .cr-car[hidden] { display:none; }
+        .cr-car-body { display:block; width:44px; height:86px; }
+        .cr-facing-down { transform:rotate(180deg); }
+        .cr-player {
+          position:absolute;
+          z-index:4;
+          top:160px;
+          font-size:57px;
+          width:60px;
+          height:80px;
+          transition:left .55s ease;
+          filter:drop-shadow(1px 5px 2px #0006);
+        }
+        .cr-player.cr-jump { animation:crHop .55s ease; }
+        .cr-player.cr-collision { animation:crHit .8s ease forwards; }
+        .cr-crash-car {
+          position:absolute;
+          z-index:5;
+          top:0;
+          width:44px;
+          height:86px;
+          animation:crCrash .8s linear forwards;
+          pointer-events:none;
+        }
 
-        .cr-controls,.cr-card{border:1px solid #ffffff25;border-radius:14px;padding:15px;background:#101a1680;margin-top:14px}
-        .cr-input,.cr-select{padding:12px;border:1px solid #ffffff40;border-radius:8px;background:#39433d;color:white}
-        .cr-input{width:140px}
-        .cr-select{width:100%}
-        .cr-play,.cr-jump-btn,.cr-cashout{border:0;border-radius:11px;padding:16px;font-weight:900;color:#112b1e;min-height:57px;background:#4bd37a}
-        .cr-play{width:100%;margin-top:15px}
-        .cr-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
-        .cr-cashout{background:#f0cf74;color:#352812}
-        .cr-result{margin-top:14px;border:1px solid #e0c47c;border-radius:12px;text-align:center;padding:15px;line-height:1.8}
-        .cr-result strong{font-size:22px;color:#f9dc89}
-        .cr-multiplier-list{display:flex;gap:7px;flex-wrap:wrap}
-        .cr-multiplier-list span{border:1px solid #ffffff20;padding:7px;border-radius:7px;font-size:11px}
-        .cr-table{width:100%;font-size:12px;border-collapse:collapse}
-        .cr-table th,.cr-table td{text-align:left;padding:10px 5px;border-bottom:1px solid #ffffff20}
-        .cr-table th{color:#e7d092}
-        .cr-overflow{overflow:auto}
-        .cr-page :focus-visible{outline:3px solid #ffe5a1;outline-offset:3px}
+        .cr-controls,.cr-card {
+          border:1px solid #ffffff25;
+          border-radius:14px;
+          padding:15px;
+          background:#101a1680;
+          margin-top:14px;
+        }
+        .cr-select {
+          padding:12px;
+          border:1px solid #ffffff40;
+          border-radius:8px;
+          background:#39433d;
+          color:white;
+          width:100%;
+        }
+        .cr-input-box {
+          display:flex;
+          align-items:center;
+          min-width:0;
+          flex:1;
+          max-width:220px;
+          overflow:hidden;
+          border:2px solid #166534;
+          border-radius:10px;
+          background:#fff;
+          color:#166534;
+        }
+        .cr-input-prefix {
+          align-self:stretch;
+          display:grid;
+          place-items:center;
+          padding:0 12px;
+          background:#166534;
+          color:#fff;
+          font-size:22px;
+          font-weight:900;
+        }
+        .cr-input {
+          width:100%;
+          min-width:0;
+          padding:12px;
+          border:0;
+          background:#fff;
+          color:#166534;
+          font-weight:900;
+        }
+        .cr-quick {
+          padding:10px 12px;
+          border:1px solid #166534;
+          border-radius:8px;
+          background:#fff;
+          color:#166534;
+          font-weight:bold;
+        }
+        .cr-play,.cr-jump-btn,.cr-cashout {
+          border:0;
+          border-radius:11px;
+          padding:16px;
+          font-weight:900;
+          color:#fff;
+          min-height:57px;
+          background:#166534;
+        }
+        .cr-play { width:100%; margin-top:15px; }
+        .cr-actions {
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:12px;
+          margin-top:14px;
+        }
+        .cr-cashout { background:#722f37; color:#fff; }
+        .cr-cashout-amount {
+          display:block;
+          margin-top:8px;
+          border:1px solid #166534;
+          border-radius:8px;
+          padding:7px;
+          background:#fff;
+          color:#166534;
+          overflow-wrap:anywhere;
+          font-variant-numeric:tabular-nums;
+        }
+        .cr-result {
+          margin-top:14px;
+          border:1px solid #166534;
+          border-radius:12px;
+          text-align:center;
+          padding:15px;
+          line-height:1.8;
+        }
+        .cr-result-title { font-size:22px; color:#f9dc89; }
+        .cr-multiplier-list { display:flex; gap:7px; flex-wrap:wrap; }
+        .cr-multiplier-list span {
+          border:1px solid #ffffff20;
+          padding:7px;
+          border-radius:7px;
+          font-size:11px;
+        }
+        .cr-table {
+          width:100%;
+          min-width:580px;
+          font-size:12px;
+          border-collapse:collapse;
+        }
+        .cr-table th,.cr-table td {
+          text-align:left;
+          padding:10px 5px;
+          border-bottom:1px solid #ffffff20;
+        }
+        .cr-table th { color:#e7d092; }
+        .cr-overflow { overflow:auto; }
+        .cr-page :focus-visible {
+          outline:3px solid #fff;
+          outline-offset:3px;
+        }
 
         @keyframes crHop {
-          0%,100%{transform:translateY(0)}
-          50%{transform:translateY(-35px)}
+          0%,100% { transform:translateY(0); }
+          50% { transform:translateY(-35px); }
         }
-
         @keyframes crHit {
-          0%{transform:rotate(0)}
-          60%,100%{transform:rotate(100deg) scale(.65);opacity:.3}
+          0% { transform:rotate(0); }
+          60%,100% {
+            transform:rotate(100deg) scale(.65);
+            opacity:.3;
+          }
         }
-
         @keyframes crCrash {
-          from{transform:translateY(-100px)}
-          to{transform:translateY(420px)}
+          from { transform:translateY(-100px); }
+          to { transform:translateY(420px); }
         }
-
         @media(max-width:360px) {
-          .cr-wrap{padding:8px}
-          .cr-header{padding:12px 8px}
-          .cr-header h1{font-size:14px}
+          .cr-wrap { padding:8px; }
+          .cr-header { padding:12px 8px; gap:8px; }
+          .cr-header h1 { font-size:14px; }
+          .cr-wallet { padding:8px; }
+          .cr-wallet-number { font-size:17px; }
         }
-
         @media(prefers-reduced-motion:reduce) {
-          .cr-player{transition:none}
-          .cr-player.cr-jump,.cr-player.cr-collision,.cr-crash-car{animation:none}
+          .cr-player { transition:none; }
+          .cr-player.cr-jump,.cr-player.cr-collision,.cr-crash-car {
+            animation:none;
+          }
         }
       `}</style>
 
@@ -861,8 +1111,25 @@ function ChickenGame({
           <small>INDIVIDUAL DEMO · DEMO COINS ONLY</small>
         </div>
 
-        <div className="cr-wallet">
-          {data ? COINS(data.balance) : "…"}
+        <div
+          className="cr-wallet"
+          aria-live="polite"
+          aria-label="Demo wallet balance"
+        >
+          <span className="cr-wallet-title">WALLET BALANCE</span>
+
+          <div className="cr-wallet-value">
+            <span className="cr-wallet-symbol" aria-hidden="true">₹</span>
+            <strong className="cr-wallet-number">
+              {balanceAvailable
+                ? COINS(data.balance)
+                : data || error
+                  ? "—"
+                  : "Loading…"}
+            </strong>
+          </div>
+
+          <small>DEMO COINS</small>
           <small>
             {user?.name || user?.loginId || "Customer"}
           </small>
@@ -871,7 +1138,7 @@ function ChickenGame({
 
       <main className="cr-wrap">
         <nav className="cr-tabs" aria-label="Game sections">
-          {["game", "rules", "history"].map(value => (
+          {["game", "rules", "history"].map((value) => (
             <button
               key={value}
               type="button"
@@ -895,7 +1162,7 @@ function ChickenGame({
               if (sound) {
                 audio.current?.suspend()?.catch(() => {});
               }
-              setSound(value => !value);
+              setSound((value) => !value);
             }}
           >
             {sound ? "SOUND ON" : "SOUND OFF"}
@@ -905,7 +1172,6 @@ function ChickenGame({
         {error && (
           <div className="cr-alert" role="alert">
             {error}
-
             <button
               type="button"
               className="cr-btn"
@@ -922,16 +1188,13 @@ function ChickenGame({
         )}
 
         {notice && (
-          <p role="status" className="cr-hint">
-            {notice}
-          </p>
+          <p role="status" className="cr-hint">{notice}</p>
         )}
 
         {pending && (
           <div className="cr-alert" role="status">
             An interrupted {pending.action} needs recovery.
             Retry uses the same request.
-
             <button
               type="button"
               className="cr-btn"
@@ -960,20 +1223,16 @@ function ChickenGame({
 
                 {Array.from(
                   { length: lanes },
-                  (_, i) => i + 1,
-                ).map(step => (
+                  (_, index) => index + 1
+                ).map((step) => (
                   <div
                     key={step}
                     className={`cr-lane ${
-                      session && step <= session.step
-                        ? "is-safe"
-                        : ""
+                      session && step <= session.step ? "is-safe" : ""
                     }`}
                   >
                     <div className="cr-multiplier">
-                      {level?.multipliers?.[
-                        step - 1
-                      ]?.toFixed(2) || "—"}x
+                      {level?.multipliers?.[step - 1]?.toFixed(2) || "—"}x
                       <small>LANE {step}</small>
                     </div>
                   </div>
@@ -1009,22 +1268,26 @@ function ChickenGame({
               </div>
             </div>
 
-            <section
-              className="cr-controls"
-              aria-label="Game controls"
-            >
+            <section className="cr-controls" aria-label="Game controls">
               {activeGame ? (
                 <>
                   <p className="cr-hint">
                     {session.difficultyName} · Lane{" "}
-                    {session.step}/{session.lanes} · Stake{" "}
-                    {COINS(session.stake)} ·{" "}
-                    {session.multiplier.toFixed(2)}x
+                    {session.step}/{session.lanes} ·{" "}
+                    {Number(session.multiplier).toFixed(2)}x
                   </p>
 
+                  <div className="cr-money-grid">
+                    <AmountBox label="YOUR STAKE" value={session.stake} />
+                    <AmountBox
+                      label="CASH OUT VALUE"
+                      value={session.cashoutValue}
+                    />
+                  </div>
+
                   <p className="cr-hint">
-                    No time limit. The chicken stays here
-                    until you press JUMP or CASH OUT.
+                    No time limit. The chicken stays here until
+                    you press JUMP or CASH OUT.
                   </p>
 
                   <div className="cr-actions">
@@ -1044,8 +1307,9 @@ function ChickenGame({
                       onClick={() => void perform("cashout")}
                     >
                       CASH OUT
-                      <br />
-                      {COINS(session.cashoutValue)}
+                      <span className="cr-cashout-amount">
+                        {MONEY(session.cashoutValue)}
+                      </span>
                     </button>
                   </div>
                 </>
@@ -1065,20 +1329,25 @@ function ChickenGame({
                       MIN
                     </button>
 
-                    <input
-                      id="cr-stake"
-                      type="number"
-                      inputMode="numeric"
-                      min="10"
-                      max="25000"
-                      step="1"
-                      className="cr-input"
-                      value={amount}
-                      disabled={locked}
-                      onChange={event =>
-                        setAmount(event.target.value)
-                      }
-                    />
+                    <div className="cr-input-box">
+                      <span className="cr-input-prefix" aria-hidden="true">
+                        ₹
+                      </span>
+                      <input
+                        id="cr-stake"
+                        type="number"
+                        inputMode="numeric"
+                        min="10"
+                        max="25000"
+                        step="1"
+                        className="cr-input"
+                        value={amount}
+                        disabled={locked}
+                        onChange={(event) =>
+                          setAmount(event.target.value)
+                        }
+                      />
+                    </div>
 
                     <button
                       type="button"
@@ -1091,23 +1360,20 @@ function ChickenGame({
                   </div>
 
                   <div className="cr-row">
-                    {[10, 20, 100, 200, 500, 1000].map(value => (
+                    {[10, 20, 100, 200, 500, 1000].map((value) => (
                       <button
                         key={value}
                         type="button"
-                        className="cr-btn"
+                        className="cr-quick"
                         disabled={locked}
                         onClick={() => setAmount(String(value))}
                       >
-                        {COINS(value)}
+                        {MONEY(value)}
                       </button>
                     ))}
                   </div>
 
-                  <label
-                    htmlFor="cr-difficulty"
-                    className="cr-hint"
-                  >
+                  <label htmlFor="cr-difficulty" className="cr-hint">
                     Difficulty
                   </label>
 
@@ -1116,22 +1382,17 @@ function ChickenGame({
                     className="cr-select"
                     value={difficulty}
                     disabled={locked}
-                    onChange={event =>
+                    onChange={(event) =>
                       setDifficulty(event.target.value)
                     }
                   >
-                    {Object.entries(FALLBACK_NAMES).map(
-                      ([id, name]) => (
-                        <option key={id} value={id}>
-                          {name} ·{" "}
-                          {rules?.levels?.[id]?.lanes || "—"}
-                          {" lanes · starts "}
-                          {rules?.levels?.[
-                            id
-                          ]?.first?.toFixed(2) || "—"}x
-                        </option>
-                      ),
-                    )}
+                    {Object.entries(FALLBACK_NAMES).map(([id, name]) => (
+                      <option key={id} value={id}>
+                        {name} · {rules?.levels?.[id]?.lanes || "—"}
+                        {" lanes · starts "}
+                        {rules?.levels?.[id]?.first?.toFixed(2) || "—"}x
+                      </option>
+                    ))}
                   </select>
 
                   <button
@@ -1152,32 +1413,38 @@ function ChickenGame({
               </p>
 
               <p className="cr-hint">
-                Vehicles are animation. Each JUMP gets a
-                random server result; timing the moving
-                cars does not improve your odds.
+                Vehicles are animation. Each JUMP gets a random
+                server result; timing the moving cars does not
+                improve your odds.
+              </p>
+
+              <p className="cr-hint">
+                Demo coins only. ₹ is the display symbol for
+                virtual demo balance.
               </p>
             </section>
 
             {session && session.status !== "ACTIVE" && (
               <section className="cr-result" role="status">
-                <strong>
+                <strong className="cr-result-title">
                   {session.status === "LOST"
                     ? "COLLISION"
                     : "CASHED OUT"}
                 </strong>
 
-                <div>
-                  Lane {session.step} · Stake{" "}
-                  {COINS(session.stake)}
+                <div>Lane {session.step}</div>
+
+                <div className="cr-money-grid">
+                  <AmountBox label="YOUR STAKE" value={session.stake} />
+                  <AmountBox label="TOTAL RETURN" value={session.payout} />
                 </div>
 
-                <div>
-                  Total return {COINS(session.payout)} · Net{" "}
-                  {session.payout - session.stake >= 0
-                    ? "+"
-                    : ""}
-                  {COINS(session.payout - session.stake)}
-                  {" demo coins"}
+                <div style={{ marginTop: 10 }}>
+                  <AmountBox
+                    label="NET RESULT"
+                    value={session.payout - session.stake}
+                    signed
+                  />
                 </div>
               </section>
             )}
@@ -1189,51 +1456,47 @@ function ChickenGame({
             <h2>How to play</h2>
 
             <p className="cr-hint">
-              Choose a stake and difficulty, then press
-              PLAY. Your stake is deducted once. Each JUMP
-              attempts one lane. A safe crossing increases
-              the cashout multiplier; a collision ends the
-              game with zero return. There is no automatic
-              jumping or waiting timeout. Waiting does not
-              change the crossing odds.
+              Choose a stake and difficulty, then press PLAY.
+              Your stake is deducted once. Each JUMP attempts
+              one lane. A safe crossing increases the cashout
+              multiplier; a collision ends the game with zero
+              return. There is no automatic jumping or waiting
+              timeout. Waiting does not change the crossing odds.
             </p>
 
             <p className="cr-hint">
-              CASH OUT returns the shown total to your demo
-              balance. Cashing out before the first jump
-              returns your original stake. Completing the
-              final lane cashes out automatically.
-              Difficulty and stake cannot change during
-              an active game.
+              CASH OUT returns the shown total to your demo balance.
+              Cashing out before the first jump returns your original
+              stake. Completing the final lane cashes out automatically.
+              Difficulty and stake cannot change during an active game.
             </p>
 
             <p className="cr-hint">
-              Minimum 10 · Maximum 25,000 whole demo coins.
-              Multipliers include the original stake;
-              payouts round down to whole coins. Demo
-              target return {rules?.targetReturnPercent || 97}%.
-              Whole-coin rounding can reduce it. Vehicle
-              animation and player timing do not determine
-              outcomes.
+              Minimum ₹10 · Maximum ₹25,000 in whole demo units.
+              Multipliers include the original stake; payouts round
+              down to whole demo units. Demo target return{" "}
+              {rules?.targetReturnPercent || 97}%.
+              Whole-unit rounding can reduce it. Vehicle animation
+              and player timing do not determine outcomes.
             </p>
 
-            {Object.entries(rules?.levels || {}).map(
-              ([id, item]) => (
-                <div key={id}>
-                  <h3>
-                    {item.name} · {item.lanes} lanes
-                  </h3>
+            <p className="cr-hint">
+              Virtual demo coins only. ₹ is used for display.
+            </p>
 
-                  <div className="cr-multiplier-list">
-                    {item.multipliers.map((value, index) => (
-                      <span key={index}>
-                        {index + 1}: {value.toFixed(2)}x
-                      </span>
-                    ))}
-                  </div>
+            {Object.entries(rules?.levels || {}).map(([id, item]) => (
+              <div key={id}>
+                <h3>{item.name} · {item.lanes} lanes</h3>
+
+                <div className="cr-multiplier-list">
+                  {item.multipliers.map((value, index) => (
+                    <span key={index}>
+                      {index + 1}: {value.toFixed(2)}x
+                    </span>
+                  ))}
                 </div>
-              ),
-            )}
+              </div>
+            ))}
           </section>
         )}
 
@@ -1254,7 +1517,7 @@ function ChickenGame({
                 <table className="cr-table">
                   <thead>
                     <tr>
-                      <th>Game / Time</th>
+                      <th>Game / Time (IST)</th>
                       <th>Difficulty / Lane</th>
                       <th>Stake</th>
                       <th>Total return</th>
@@ -1262,14 +1525,14 @@ function ChickenGame({
                   </thead>
 
                   <tbody>
-                    {history.map(item => (
+                    {history.map((item) => (
                       <tr key={item.id}>
                         <td>
                           #{item.id}
                           <br />
                           {new Date(item.updatedAt).toLocaleString(
                             "en-IN",
-                            { timeZone: "Asia/Kolkata" },
+                            { timeZone: "Asia/Kolkata" }
                           )}
                         </td>
 
@@ -1279,17 +1542,20 @@ function ChickenGame({
                           {item.status}
                         </td>
 
-                        <td>{COINS(item.stake)}</td>
-                        <td>{COINS(item.payout)}</td>
+                        <td>
+                          <AmountBox value={item.stake} />
+                        </td>
+
+                        <td>
+                          <AmountBox value={item.payout} />
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             ) : (
-              <p className="cr-hint">
-                No completed games available.
-              </p>
+              <p className="cr-hint">No completed games available.</p>
             )}
           </section>
         )}
