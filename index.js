@@ -59,16 +59,6 @@ import {
   requireOldAdmin,
 } from "./controllerAccounts.js";
 
-import express from "express";
-import path from "path";
-import https from "https";
-import bcrypt from "bcryptjs";
-import pg from "pg";
-
-import { createHash } from "node:crypto";
-import { fileURLToPath } from "url";
-import { sportsService } from "./sportsService.js";
-
 import {
   initializeFlight,
   registerFlightRoutes,
@@ -80,6 +70,16 @@ import {
   issueCustomerSession,
 } from "./demoBetRoutes.js";
 
+import express from "express";
+import path from "path";
+import https from "https";
+import bcrypt from "bcryptjs";
+import pg from "pg";
+
+import { createHash } from "node:crypto";
+import { fileURLToPath } from "url";
+import { sportsService } from "./sportsService.js";
+
 const { Pool } = pg;
 
 const __dirname = path.dirname(
@@ -87,8 +87,9 @@ const __dirname = path.dirname(
 );
 
 const app = express();
-
 const PORT = process.env.PORT || 10000;
+
+const MAX_BALANCE = 2147483647;
 
 const DEFAULT_ADMIN_WHATSAPP_NUMBER =
   "919346824432";
@@ -132,13 +133,12 @@ const isValidWhatsAppNumber = value =>
 const positiveInteger = value =>
   Number.isSafeInteger(Number(value)) &&
   Number(value) > 0 &&
-  Number(value) <= 2147483647;
+  Number(value) <= MAX_BALANCE;
 
 const publicCustomer = customer => ({
   id: customer.id,
   name: customer.name,
   loginId: customer.login_id,
-
   promoCode: customer.promo_code || null,
 
   mustChangePassword: Boolean(
@@ -189,20 +189,25 @@ async function initializeDatabase() {
     );
 
     ALTER TABLE customers
-      ADD COLUMN IF NOT EXISTS withdrawal_password_hash TEXT;
+      ADD COLUMN IF NOT EXISTS
+      withdrawal_password_hash TEXT;
 
     ALTER TABLE customers
-      ADD COLUMN IF NOT EXISTS must_change_withdrawal_password
+      ADD COLUMN IF NOT EXISTS
+      must_change_withdrawal_password
       BOOLEAN NOT NULL DEFAULT TRUE;
 
     ALTER TABLE customers
-      ADD COLUMN IF NOT EXISTS demo_coin_balance
+      ADD COLUMN IF NOT EXISTS
+      demo_coin_balance
       INTEGER NOT NULL DEFAULT 0;
 
     ALTER TABLE customers
-      ADD COLUMN IF NOT EXISTS promo_code VARCHAR(30);
+      ADD COLUMN IF NOT EXISTS
+      promo_code VARCHAR(30);
 
-    CREATE UNIQUE INDEX IF NOT EXISTS customers_promo_code_unique
+    CREATE UNIQUE INDEX IF NOT EXISTS
+      customers_promo_code_unique
       ON customers (UPPER(BTRIM(promo_code)))
       WHERE promo_code IS NOT NULL
         AND BTRIM(promo_code) <> '';
@@ -223,6 +228,20 @@ async function initializeDatabase() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS tsb_admin_coin_changes (
+      request_key VARCHAR(100) PRIMARY KEY,
+      admin_id TEXT NOT NULL,
+      customer_id INTEGER NOT NULL
+        REFERENCES customers(id),
+      delta INTEGER NOT NULL CHECK(delta <> 0),
+      note TEXT NOT NULL,
+      balance_after INTEGER NOT NULL
+        CHECK(balance_after >= 0),
+      transaction_id INTEGER NOT NULL
+        REFERENCES demo_coin_transactions(id),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
     CREATE TABLE IF NOT EXISTS demo_withdrawal_requests (
       id SERIAL PRIMARY KEY,
       customer_id INTEGER NOT NULL
@@ -237,16 +256,17 @@ async function initializeDatabase() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
-    CREATE INDEX IF NOT EXISTS demo_withdrawal_customer_index
+    CREATE INDEX IF NOT EXISTS
+      demo_withdrawal_customer_index
       ON demo_withdrawal_requests(customer_id);
 
     ALTER TABLE demo_withdrawal_requests
-      ADD COLUMN IF NOT EXISTS coins_held
-      BOOLEAN NOT NULL DEFAULT FALSE;
+      ADD COLUMN IF NOT EXISTS
+      coins_held BOOLEAN NOT NULL DEFAULT FALSE;
 
     ALTER TABLE demo_withdrawal_requests
-      ADD COLUMN IF NOT EXISTS coins_restored
-      BOOLEAN NOT NULL DEFAULT FALSE;
+      ADD COLUMN IF NOT EXISTS
+      coins_restored BOOLEAN NOT NULL DEFAULT FALSE;
 
     CREATE TABLE IF NOT EXISTS demo_deposit_requests (
       id SERIAL PRIMARY KEY,
@@ -261,7 +281,8 @@ async function initializeDatabase() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
-    CREATE UNIQUE INDEX IF NOT EXISTS demo_deposit_reference_unique
+    CREATE UNIQUE INDEX IF NOT EXISTS
+      demo_deposit_reference_unique
       ON demo_deposit_requests(reference_number);
   `);
 
@@ -283,7 +304,6 @@ async function initializeDatabase() {
   await initializeAnimatedCricket(pool);
   await initializeColorPrediction(pool);
   await initializeDealOrNoDeal(pool);
-
   await initializeInstantGames(pool);
   await initializeDiceGames(pool);
   await initializeSicBo(pool);
@@ -298,6 +318,7 @@ async function initializeDatabase() {
 
 registerControllerAccountRoutes(app, pool);
 
+// Every Admin API below requires the verified Admin session.
 app.use("/api/admin", requireOldAdmin(pool));
 
 async function getAdminWhatsAppNumber() {
@@ -345,7 +366,7 @@ app.put(
   wrap(async (req, res) => {
     const number = normalizeWhatsAppNumber(
       req.body.whatsappNumber ||
-        req.body.number,
+      req.body.number,
     );
 
     if (!isValidWhatsAppNumber(number)) {
@@ -527,7 +548,8 @@ app.put(
     try {
       const result = await pool.query(
         `UPDATE customers
-         SET promo_code=$1,updated_at=NOW()
+         SET promo_code=$1,
+             updated_at=NOW()
          WHERE id=$2
          RETURNING *`,
         [promoCode, id],
@@ -619,75 +641,323 @@ app.get(
   }),
 );
 
-app.post(
-  "/api/admin/customers/:id/add-demo-coins",
-  wrap(async (req, res) => {
-    const id = Number(req.params.id);
-    const amount = Number(req.body.amount);
+// Admin coin adjustments.
+
+const coinFailure = (message, status = 400) =>
+  Object.assign(new Error(message), { status });
+
+function coinOrigin(req) {
+  if (!req.headers.origin) return;
+
+  let valid = false;
+
+  try {
+    valid =
+      new URL(req.headers.origin).host ===
+      req.headers.host;
+  } catch {}
+
+  if (!valid) {
+    throw coinFailure(
+      "Invalid request origin.",
+      403,
+    );
+  }
+}
+
+async function adjustAdminCoins(req, mode) {
+  coinOrigin(req);
+
+  const id = Number(req.params.id);
+  const amount = Number(req.body?.amount);
+  const requestKey = req.body?.requestKey;
+
+  const adminId = String(
+    req.verifiedAdminId || "",
+  );
+
+  if (!adminId) {
+    throw coinFailure(
+      "Main Admin login required.",
+      401,
+    );
+  }
+
+  if (
+    !positiveInteger(id) ||
+    !positiveInteger(amount)
+  ) {
+    throw coinFailure(
+      "Valid customer ID and positive whole coin amount are required.",
+    );
+  }
+
+  // Legacy Add Coins screens can still send without a key.
+  // The updated screen sends a key for both ADD and REMOVE.
+  if (
+    (
+      mode === "REMOVE" ||
+      requestKey !== undefined
+    ) &&
+    (
+      typeof requestKey !== "string" ||
+      !/^[A-Za-z0-9_-]{16,100}$/.test(requestKey)
+    )
+  ) {
+    throw coinFailure(
+      "A unique requestKey of 16-100 characters is required.",
+    );
+  }
+
+  const delta =
+    mode === "REMOVE" ? -amount : amount;
+
+  const note = String(
+    req.body?.note ||
+    (
+      mode === "REMOVE"
+        ? "Demo Coins removed by Admin"
+        : "Demo Coins added by Admin"
+    ),
+  ).trim();
+
+  if (!note || note.length > 500) {
+    throw coinFailure(
+      "Enter a note of 1-500 characters.",
+    );
+  }
+
+  const client = await pool.connect();
+  let committed = false;
+
+  try {
+    await client.query("BEGIN");
+
+    // Serialize wallet changes for this customer.
+    const account = await client.query(
+      `SELECT *
+       FROM customers
+       WHERE id=$1
+       FOR UPDATE`,
+      [id],
+    );
+
+    const customer = account.rows[0];
+
+    if (!customer) {
+      throw coinFailure(
+        "Customer account not found.",
+        404,
+      );
+    }
+
+    if (requestKey) {
+      const previous = await client.query(
+        `SELECT *
+         FROM tsb_admin_coin_changes
+         WHERE request_key=$1`,
+        [requestKey],
+      );
+
+      const old = previous.rows[0];
+
+      if (old) {
+        if (
+          old.admin_id !== adminId ||
+          Number(old.customer_id) !== id ||
+          Number(old.delta) !== delta ||
+          old.note !== note
+        ) {
+          throw coinFailure(
+            "Request key belongs to a different coin adjustment.",
+            409,
+          );
+        }
+
+        await client.query("COMMIT");
+        committed = true;
+
+        return {
+          success: true,
+          replayed: true,
+          message:
+            "Previous coin adjustment recovered. No second adjustment.",
+          customer: publicCustomer(customer),
+          transactionId: old.transaction_id,
+          balanceAfter: Number(
+            old.balance_after,
+          ),
+        };
+      }
+    }
+
+    const balance = Number(
+      customer.demo_coin_balance,
+    );
+
+    if (delta < 0 && balance < amount) {
+      throw coinFailure(
+        `Insufficient demo coins. Available balance: ${balance}. No coins removed.`,
+        409,
+      );
+    }
 
     if (
-      !positiveInteger(id) ||
-      !positiveInteger(amount)
+      delta > 0 &&
+      balance > MAX_BALANCE - amount
     ) {
-      return res.status(400).json({
-        error:
-          "Valid customer ID and positive whole coin amount are required.",
-      });
+      throw coinFailure(
+        "This addition would exceed the demo balance limit.",
+        409,
+      );
     }
 
-    const client = await pool.connect();
+    const updated = await client.query(
+      `UPDATE customers
+       SET demo_coin_balance=
+             demo_coin_balance+$1,
+           updated_at=NOW()
+       WHERE id=$2
+       RETURNING *`,
+      [delta, id],
+    );
 
-    try {
-      await client.query("BEGIN");
+    const transaction = await client.query(
+      `INSERT INTO demo_coin_transactions(
+         customer_id,
+         amount,
+         transaction_type,
+         note
+       )
+       VALUES($1,$2,$3,$4)
+       RETURNING id,created_at`,
+      [
+        id,
+        delta,
+        mode === "REMOVE"
+          ? "ADMIN_DEBIT"
+          : "ADMIN_CREDIT",
+        `${note} · Admin: ${adminId}`,
+      ],
+    );
 
-      const result = await client.query(
-        `UPDATE customers
-         SET demo_coin_balance=demo_coin_balance+$1,
-             updated_at=NOW()
-         WHERE id=$2
-         RETURNING
-           id,name,login_id,demo_coin_balance,status`,
-        [amount, id],
-      );
+    const transactionId =
+      transaction.rows[0].id;
 
-      if (!result.rows.length) {
-        await client.query("ROLLBACK");
+    const nextBalance = Number(
+      updated.rows[0].demo_coin_balance,
+    );
 
-        return res.status(404).json({
-          error:
-            "Customer account not found.",
-        });
-      }
-
+    if (requestKey) {
       await client.query(
-        `INSERT INTO demo_coin_transactions(
-           customer_id,amount,transaction_type,note
+        `INSERT INTO tsb_admin_coin_changes(
+           request_key,
+           admin_id,
+           customer_id,
+           delta,
+           note,
+           balance_after,
+           transaction_id
          )
-         VALUES($1,$2,'ADMIN_CREDIT',$3)`,
+         VALUES($1,$2,$3,$4,$5,$6,$7)`,
         [
+          requestKey,
+          adminId,
           id,
-          amount,
-          String(
-            req.body.note ||
-              "Demo Coins added by Admin",
-          ).trim(),
+          delta,
+          note,
+          nextBalance,
+          transactionId,
         ],
       );
-
-      await client.query("COMMIT");
-
-      res.json({
-        success: true,
-        message:
-          `${amount} Demo Coins added successfully.`,
-        customer: result.rows[0],
-      });
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
     }
+
+    await client.query("COMMIT");
+    committed = true;
+
+    return {
+      success: true,
+      replayed: false,
+      message:
+        `${amount} Demo Coins ${
+          mode === "REMOVE"
+            ? "removed"
+            : "added"
+        } successfully.`,
+      customer: publicCustomer(
+        updated.rows[0],
+      ),
+      transactionId,
+      balanceAfter: nextBalance,
+    };
+  } finally {
+    if (!committed) {
+      await client
+        .query("ROLLBACK")
+        .catch(() => {});
+    }
+
+    client.release();
+  }
+}
+
+for (const [action, mode] of [
+  ["add", "ADD"],
+  ["remove", "REMOVE"],
+]) {
+  app.post(
+    `/api/admin/customers/:id/${action}-demo-coins`,
+    wrap(async (req, res) => {
+      const data = await adjustAdminCoins(
+        req,
+        mode,
+      );
+
+      res.set("Cache-Control", "no-store");
+      res.json(data);
+    }),
+  );
+}
+
+app.get(
+  "/api/admin/demo-coin-transactions",
+  wrap(async (req, res) => {
+    const result = await pool.query(
+      `SELECT
+         t.*,
+         c.name AS customer_name,
+         c.login_id
+       FROM demo_coin_transactions t
+       JOIN customers c ON c.id=t.customer_id
+       WHERE t.transaction_type IN (
+         'ADMIN_CREDIT',
+         'ADMIN_DEBIT'
+       )
+       ORDER BY t.id DESC
+       LIMIT 100`,
+    );
+
+    res.set("Cache-Control", "no-store");
+
+    res.json({
+      success: true,
+      transactions: result.rows.map(row => ({
+        id: row.id,
+        customerId: row.customer_id,
+        customerName: row.customer_name,
+        loginId: row.login_id,
+
+        type:
+          row.transaction_type === "ADMIN_DEBIT"
+            ? "REMOVE"
+            : "ADD",
+
+        amount: Math.abs(Number(row.amount)),
+        signedAmount: Number(row.amount),
+        note: row.note,
+        createdAt: row.created_at,
+      })),
+    });
   }),
 );
 
@@ -741,14 +1011,14 @@ for (const kind of ["login", "withdrawal"]) {
 
       const password = String(
         req.body.password ||
-          req.body.newPassword ||
-          req.body.temporaryPassword ||
-          (
-            withdrawal
-              ? req.body.temporaryWithdrawalPassword
-              : ""
-          ) ||
-          "",
+        req.body.newPassword ||
+        req.body.temporaryPassword ||
+        (
+          withdrawal
+            ? req.body.temporaryWithdrawalPassword
+            : ""
+        ) ||
+        "",
       );
 
       if (password.length < 6) {
@@ -778,7 +1048,10 @@ for (const kind of ["login", "withdrawal"]) {
 
       if (
         otherHash &&
-        await bcrypt.compare(password, otherHash)
+        await bcrypt.compare(
+          password,
+          otherHash,
+        )
       ) {
         return res.status(400).json({
           error:
@@ -835,7 +1108,7 @@ app.post(
   wrap(async (req, res) => {
     const loginId = normalizeLoginId(
       req.body.loginId ||
-        req.body.identifier,
+      req.body.identifier,
     );
 
     const password = String(
@@ -971,7 +1244,10 @@ for (const kind of ["customer", "withdrawal"]) {
 
       if (
         !currentHash ||
-        !await bcrypt.compare(current, currentHash)
+        !await bcrypt.compare(
+          current,
+          currentHash,
+        )
       ) {
         return res.status(401).json({
           error:
@@ -985,7 +1261,10 @@ for (const kind of ["customer", "withdrawal"]) {
 
       if (
         otherHash &&
-        await bcrypt.compare(password, otherHash)
+        await bcrypt.compare(
+          password,
+          otherHash,
+        )
       ) {
         return res.status(400).json({
           error:
@@ -1104,7 +1383,7 @@ function sendFast2SMS(mobile, otp) {
                   Array.isArray(result.message)
                     ? result.message.join(", ")
                     : result.message ||
-                        "SMS delivery failed.",
+                      "SMS delivery failed.",
                 ),
               );
             }
@@ -1318,9 +1597,7 @@ app.post(
         valid =
           new URL(req.headers.origin).host ===
           req.headers.host;
-      } catch {
-        valid = false;
-      }
+      } catch {}
 
       if (!valid) {
         return res.status(403).json({
@@ -1382,14 +1659,14 @@ app.post(
 
     const reference = String(
       req.body.referenceNumber ||
-        req.body.reference ||
-        "",
+      req.body.reference ||
+      "",
     ).trim();
 
     const method = String(
       req.body.paymentMethod ||
-        req.body.method ||
-        "ACCOUNT",
+      req.body.method ||
+      "ACCOUNT",
     ).trim().toUpperCase();
 
     if (
@@ -1633,7 +1910,8 @@ app.patch(
 
     const result = await pool.query(
       `UPDATE demo_deposit_requests
-       SET status=$1,updated_at=NOW()
+       SET status=$1,
+           updated_at=NOW()
        WHERE id=$2
        RETURNING *`,
       [status, id],
@@ -1658,6 +1936,7 @@ app.post(
   "/api/demo-withdrawals",
   wrap(async (req, res) => {
     const body = req.body || {};
+
     const id = Number(body.customerId);
     const amount = Number(body.amount);
 
@@ -1776,9 +2055,7 @@ app.post(
            transaction_type,
            note
          )
-         VALUES(
-           $1,$2,'WITHDRAWAL_HOLD',$3
-         )`,
+         VALUES($1,$2,'WITHDRAWAL_HOLD',$3)`,
         [
           id,
           -amount,
@@ -1887,9 +2164,7 @@ app.patch(
              transaction_type,
              note
            )
-           VALUES(
-             $1,$2,'WITHDRAWAL_RESTORE',$3
-           )`,
+           VALUES($1,$2,'WITHDRAWAL_RESTORE',$3)`,
           [
             request.customer_id,
             Number(request.amount),
@@ -1930,7 +2205,7 @@ app.patch(
         ),
         demoCoinBalance: Number(
           balance.rows[0]?.demo_coin_balance ||
-            0,
+          0,
         ),
       });
     } catch (error) {
@@ -1942,12 +2217,11 @@ app.patch(
   }),
 );
 
-// Register all game APIs before the API 404 handler.
+// Register game APIs before the API 404 handler.
 
 registerDemoBetRoutes(app, pool);
 registerFlightRoutes(app, pool);
 registerRouletteRoutes(app, pool);
-
 registerInstantGameRoutes(app, pool);
 
 const startDiceGames =
@@ -2002,9 +2276,7 @@ app.use((error, req, res, next) => {
     });
   }
 
-  res.status(
-    error.status || 500,
-  ).json({
+  res.status(error.status || 500).json({
     success: false,
     error: error.status
       ? error.message
@@ -2042,9 +2314,6 @@ async function startServer() {
   startDiceGames();
   startSicBo();
   startDreamWheel();
-
-  // Mini Roulette, Keno, Chicken Road and Twist X
-  // process actions on requests; no background timer.
 
   app.listen(PORT, () =>
     console.log(
