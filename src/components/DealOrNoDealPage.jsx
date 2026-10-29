@@ -1,8 +1,4 @@
-import React, {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import {
   flightApi,
@@ -18,7 +14,6 @@ import {
 } from "./GameSound";
 
 const BASE = "/api/deal-or-no-deal";
-
 const RESULT_DISPLAY_MS = 3000;
 
 const LEVELS = [
@@ -33,40 +28,50 @@ const LEVELS = [
   [9, 2, "800.00"],
 ];
 
-const coins = value => {
+const coins = (value) => {
   const number = Number(value);
 
-  return Number.isFinite(number)
-    ? number.toLocaleString("en-IN")
+  return value !== null &&
+    value !== undefined &&
+    Number.isFinite(number)
+    ? number.toLocaleString("en-IN", {
+        maximumFractionDigits: 2,
+      })
     : "—";
 };
 
-const timeValue = value => {
+const money = (value) => {
+  const formatted = coins(value);
+  return formatted === "—" ? "—" : `₹${formatted}`;
+};
+
+const timeValue = (value) => {
   if (!value) return 0;
-
-  const parsed =
-    new Date(value).getTime();
-
-  return Number.isFinite(parsed)
-    ? parsed
-    : 0;
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
 };
 
 const secondsUntil = (deadline, now) =>
   deadline
-    ? Math.max(
-        0,
-        Math.ceil(
-          (deadline - now) / 1000,
-        ),
-      )
+    ? Math.max(0, Math.ceil((deadline - now) / 1000))
     : 0;
 
 const positiveNumber = (value, fallback) =>
-  Number.isFinite(Number(value)) &&
-  Number(value) > 0
+  Number.isFinite(Number(value)) && Number(value) > 0
     ? Number(value)
     : fallback;
+
+function AmountBox({ value, large = false }) {
+  return (
+    <span
+      className={`inline-flex max-w-full items-center justify-center rounded-xl border border-[#166534] bg-white px-3 py-2 font-black tabular-nums text-[#166534] ${
+        large ? "text-3xl" : "text-base"
+      }`}
+    >
+      {money(value)}
+    </span>
+  );
+}
 
 function SessionRecord({
   session,
@@ -86,30 +91,24 @@ function SessionRecord({
 
       {!session.seed && (
         <p className="mt-2">
-          Unrevealed winning cases remain
-          hidden. The complete record is
-          available after this session
-          finishes.
+          Unrevealed winning cases remain hidden. The complete
+          record is available after this session finishes.
         </p>
       )}
 
       {session.seed && (
-        <p className="mt-3 break-all">
-          Seed: {session.seed}
-        </p>
+        <p className="mt-3 break-all">Seed: {session.seed}</p>
       )}
 
       {session.plan && (
         <p className="mt-3 break-all">
-          Locked plan:{" "}
-          {JSON.stringify(session.plan)}
+          Locked plan: {JSON.stringify(session.plan)}
         </p>
       )}
 
       {session.offers && (
         <p className="mt-3 break-all">
-          Offer percentages:{" "}
-          {JSON.stringify(session.offers)}
+          Offer percentages: {JSON.stringify(session.offers)}
         </p>
       )}
     </details>
@@ -117,8 +116,7 @@ function SessionRecord({
 }
 
 export default function DealOrNoDealPage({
-  onBack = () =>
-    window.location.assign("/"),
+  onBack = () => window.location.assign("/"),
 }) {
   const {
     data,
@@ -128,29 +126,14 @@ export default function DealOrNoDealPage({
     refresh,
   } = useFlightState(`${BASE}/state`);
 
-  const [clock, setClock] =
-    useState(Date.now());
-
-  const [amount, setAmount] =
-    useState("100");
-
-  const [selection, setSelection] =
-    useState(null);
-
-  const [busy, setBusy] =
-    useState(false);
-
-  const [pending, setPending] =
-    useState(null);
-
-  const [message, setMessage] =
-    useState("");
-
-  const [showHistory, setShowHistory] =
-    useState(false);
-
-  const [declinedOffer, setDeclinedOffer] =
-    useState("");
+  const [clock, setClock] = useState(Date.now());
+  const [amount, setAmount] = useState("100");
+  const [selection, setSelection] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState(null);
+  const [message, setMessage] = useState("");
+  const [showHistory, setShowHistory] = useState(false);
+  const [declinedOffer, setDeclinedOffer] = useState("");
 
   const inFlight = useRef(false);
   const mounted = useRef(false);
@@ -162,11 +145,7 @@ export default function DealOrNoDealPage({
 
   useEffect(() => {
     mounted.current = true;
-
-    const timer = setInterval(
-      () => setClock(Date.now()),
-      250,
-    );
+    const timer = setInterval(() => setClock(Date.now()), 250);
 
     return () => {
       mounted.current = false;
@@ -175,9 +154,7 @@ export default function DealOrNoDealPage({
   }, []);
 
   const session = data?.session;
-
-  const serverTime =
-    timeValue(data?.serverTime);
+  const serverTime = timeValue(data?.serverTime);
 
   const age = Number.isFinite(receivedAt)
     ? Math.max(0, clock - receivedAt)
@@ -193,95 +170,67 @@ export default function DealOrNoDealPage({
       serverTime &&
       !error &&
       !unauthorized &&
-      age < 3500,
+      age < 3500
   );
 
-  const entries =
-    Array.isArray(data?.entries)
-      ? data.entries
-      : [];
+  const entries = Array.isArray(data?.entries)
+    ? data.entries
+    : [];
 
   const entry = entries.find(
-    item =>
-      String(item.sessionId) ===
-        String(session?.id) &&
-      item.status !== "CANCELLED",
+    (item) =>
+      String(item.sessionId) === String(session?.id) &&
+      item.status !== "CANCELLED"
   );
 
   const previousEntry = !entry
     ? entries.find(
-        item =>
-          String(item.sessionId) !==
-            String(session?.id) &&
-          ["COLLECTED", "LOST"].includes(
-            item.status,
-          ),
+        (item) =>
+          String(item.sessionId) !== String(session?.id) &&
+          ["COLLECTED", "LOST"].includes(item.status)
       )
     : null;
 
-  const level =
-    Number(session?.level || 1);
+  const level = Number(session?.level || 1);
 
   const resultMode =
-    session?.resultMode ||
-    data?.resultMode ||
-    "AUTO_RANDOM";
+    session?.resultMode || data?.resultMode || "AUTO_RANDOM";
 
   const legacySession = Boolean(
-    session &&
-      resultMode === "ADMIN_SELECTED",
+    session && resultMode === "ADMIN_SELECTED"
   );
 
   const resultLabel = legacySession
     ? "PREVIOUS ADMIN-SELECTED SESSION"
     : "AUTOMATIC RANDOM · DEMO COINS";
 
-  const bettingMs = positiveNumber(
-    data?.timing?.bettingMs,
-    30000,
-  );
-
-  const revealMs = positiveNumber(
-    data?.timing?.revealMs,
-    5000,
-  );
-
-  const sessionOpensAt =
-    timeValue(session?.opensAt);
+  const bettingMs = positiveNumber(data?.timing?.bettingMs, 30000);
+  const revealMs = positiveNumber(data?.timing?.revealMs, 5000);
+  const sessionOpensAt = timeValue(session?.opensAt);
 
   const deadline =
     session?.phase === "WAITING"
       ? timeValue(session.opensAt)
       : session?.phase === "BETTING"
-        ? timeValue(
-            session.bettingClosesAt,
-          )
+        ? timeValue(session.bettingClosesAt)
         : session?.phase === "DRAWING"
-          ? timeValue(
-              session.revealsAt,
-            )
+          ? timeValue(session.revealsAt)
           : 0;
 
-  const remaining =
-    secondsUntil(deadline, now);
+  const remaining = secondsUntil(deadline, now);
 
   const bettingOpen = Boolean(
-    fresh &&
-      session?.phase === "BETTING" &&
-      remaining > 0,
+    fresh && session?.phase === "BETTING" && remaining > 0
   );
 
   const canJoin = Boolean(
-    bettingOpen &&
-      level === 1 &&
-      !entry,
+    bettingOpen && level === 1 && !entry
   );
 
   const canContinue = Boolean(
     bettingOpen &&
       entry?.status === "WON" &&
-      level ===
-        Number(entry.completedLevel) + 1,
+      level === Number(entry.completedLevel) + 1
   );
 
   const continuationDeadline =
@@ -289,23 +238,21 @@ export default function DealOrNoDealPage({
     sessionOpensAt &&
     Number(entry.completedLevel) < 9
       ? sessionOpensAt +
-        Number(entry.completedLevel) *
-          (bettingMs + revealMs) +
+        Number(entry.completedLevel) * (bettingMs + revealMs) +
         bettingMs
       : 0;
 
-  const continuationSeconds =
-    secondsUntil(
-      continuationDeadline,
-      now,
-    );
+  const continuationSeconds = secondsUntil(
+    continuationDeadline,
+    now
+  );
 
   const canCollect = Boolean(
     fresh &&
       entry?.status === "WON" &&
       continuationSeconds > 0 &&
       !busy &&
-      !pending,
+      !pending
   );
 
   const canCancel = Boolean(
@@ -314,16 +261,13 @@ export default function DealOrNoDealPage({
       entry?.status === "PLAYING" &&
       Number(entry.completedLevel) === 0 &&
       !busy &&
-      !pending,
+      !pending
   );
 
-  const offerSeconds =
-    secondsUntil(
-      timeValue(
-        entry?.offer?.deadline,
-      ),
-      now,
-    );
+  const offerSeconds = secondsUntil(
+    timeValue(entry?.offer?.deadline),
+    now
+  );
 
   const offerKey = entry
     ? `${entry.sessionId}:${entry.id}:${entry.completedLevel}`
@@ -333,57 +277,46 @@ export default function DealOrNoDealPage({
     canCollect &&
       entry?.offer &&
       offerSeconds > 0 &&
-      declinedOffer !== offerKey,
+      declinedOffer !== offerKey
   );
 
-  const revealed =
-    Array.isArray(session?.revealed)
-      ? session.revealed
-      : [];
+  const revealed = Array.isArray(session?.revealed)
+    ? session.revealed
+    : [];
 
-  const sameLevelResult =
-    revealed.find(
-      item =>
-        Number(item.level) === level,
-    );
+  const sameLevelResult = revealed.find(
+    (item) => Number(item.level) === level
+  );
 
   const lastResult = revealed.length
     ? revealed[revealed.length - 1]
     : null;
 
   const selectedNumber =
-    selection?.sessionId ===
-      String(session?.id) &&
+    selection?.sessionId === String(session?.id) &&
     selection?.level === level
       ? selection.number
       : null;
 
-  const recentSessions =
-    Array.isArray(data?.recentSessions)
-      ? data.recentSessions.filter(
-          item =>
-            String(item.id) !==
-            String(session?.id),
-        )
-      : [];
+  const recentSessions = Array.isArray(data?.recentSessions)
+    ? data.recentSessions.filter(
+        (item) => String(item.id) !== String(session?.id)
+      )
+    : [];
 
   const payoutLevels =
-    Array.isArray(data?.levels) &&
-    data.levels.length
-      ? data.levels.map(item => [
+    Array.isArray(data?.levels) && data.levels.length
+      ? data.levels.map((item) => [
           item.level,
           item.winningCases,
-          Number(
-            item.multiplier,
-          ).toFixed(2),
+          Number(item.multiplier).toFixed(2),
         ])
       : LEVELS;
 
   const lastRevealAt =
     lastResult && sessionOpensAt
       ? sessionOpensAt +
-        Number(lastResult.level) *
-          (bettingMs + revealMs)
+        Number(lastResult.level) * (bettingMs + revealMs)
       : 0;
 
   const previousLevelResult =
@@ -391,71 +324,55 @@ export default function DealOrNoDealPage({
     Number(lastResult.level) === level - 1 &&
     lastRevealAt &&
     now >= lastRevealAt &&
-    now <
-      lastRevealAt + RESULT_DISPLAY_MS
+    now < lastRevealAt + RESULT_DISPLAY_MS
       ? lastResult
       : null;
 
   const recentFinalSession =
     session?.phase === "WAITING"
-      ? recentSessions.find(item => {
-          const endedAt =
-            timeValue(item.endsAt);
+      ? recentSessions.find((item) => {
+          const endedAt = timeValue(item.endsAt);
 
           return (
             endedAt &&
             now >= endedAt &&
-            now <
-              endedAt +
-                RESULT_DISPLAY_MS
+            now < endedAt + RESULT_DISPLAY_MS
           );
         })
       : null;
 
   const finalResult =
     recentFinalSession?.revealed?.find(
-      item =>
-        Number(item.level) === 9,
+      (item) => Number(item.level) === 9
     ) ||
     recentFinalSession?.plan?.find(
-      item =>
-        Number(item.level) === 9,
+      (item) => Number(item.level) === 9
     ) ||
     null;
 
   const displayResult =
-    sameLevelResult ||
-    previousLevelResult ||
-    finalResult;
+    sameLevelResult || previousLevelResult || finalResult;
 
   const resultSessionId =
-    finalResult &&
-    !sameLevelResult &&
-    !previousLevelResult
+    finalResult && !sameLevelResult && !previousLevelResult
       ? recentFinalSession.id
       : session?.id;
 
-  const displayLevel =
-    displayResult
-      ? Number(displayResult.level)
-      : level;
+  const displayLevel = displayResult
+    ? Number(displayResult.level)
+    : level;
 
-  const displayedEntry =
-    displayResult
-      ? entries.find(
-          item =>
-            String(item.sessionId) ===
-              String(resultSessionId) &&
-            item.status !== "CANCELLED",
-        )
-      : entry;
+  const displayedEntry = displayResult
+    ? entries.find(
+        (item) =>
+          String(item.sessionId) === String(resultSessionId) &&
+          item.status !== "CANCELLED"
+      )
+    : entry;
 
-  const choice =
-    displayedEntry?.choices?.find(
-      item =>
-        Number(item.level) ===
-        displayLevel,
-    );
+  const choice = displayedEntry?.choices?.find(
+    (item) => Number(item.level) === displayLevel
+  );
 
   const canSelect =
     (canJoin || canContinue) &&
@@ -463,8 +380,12 @@ export default function DealOrNoDealPage({
     !busy &&
     !pending;
 
-  const summaryResult =
-    displayResult || lastResult;
+  const summaryResult = displayResult || lastResult;
+
+  const balanceAvailable =
+    data?.balance !== null &&
+    data?.balance !== undefined &&
+    Number.isFinite(Number(data.balance));
 
   useDealSound(sound, {
     session,
@@ -475,56 +396,36 @@ export default function DealOrNoDealPage({
 
   useEffect(() => {
     setSelection(null);
-  }, [
-    session?.id,
-    session?.level,
-  ]);
+  }, [session?.id, session?.level]);
 
   useEffect(() => {
     if (
-      !data ||
-      !Number.isFinite(
-        Number(data.balance),
-      )
+      data?.balance === null ||
+      data?.balance === undefined ||
+      !Number.isFinite(Number(data.balance))
     ) {
       return;
     }
 
-    const balance =
-      Number(data.balance);
-
-    const previous =
-      lastBalance.current;
-
+    const balance = Number(data.balance);
+    const previous = lastBalance.current;
     lastBalance.current = balance;
 
-    if (
-      previous !== null &&
-      previous !== balance
-    ) {
+    if (previous !== null && previous !== balance) {
       notifyFlightWallet();
     }
   }, [data?.balance]);
 
-  const sendRequest = async request => {
-    if (
-      inFlight.current ||
-      !request
-    ) {
-      return;
-    }
+  const sendRequest = async (request) => {
+    if (inFlight.current || !request) return;
 
     inFlight.current = true;
-
     setBusy(true);
     setMessage("");
     setPending(request);
 
     try {
-      await flightApi(
-        request.path,
-        request.body,
-      );
+      await flightApi(request.path, request.body);
 
       if (mounted.current) {
         setPending(null);
@@ -537,7 +438,7 @@ export default function DealOrNoDealPage({
               ? "Case confirmed for the next level."
               : request.kind === "CANCEL"
                 ? "Bet cancelled. Stake returned."
-                : "Demo coins collected.",
+                : "Demo balance collected."
         );
 
         if (
@@ -553,7 +454,7 @@ export default function DealOrNoDealPage({
       if (mounted.current) {
         setMessage(
           requestError.message ||
-            "Unable to confirm the request. Retry the same request.",
+            "Unable to confirm the request. Retry the same request."
         );
 
         if (
@@ -569,17 +470,14 @@ export default function DealOrNoDealPage({
       } catch {
         if (mounted.current) {
           setMessage(
-            current =>
+            (current) =>
               current ||
-              "Unable to refresh game state. Waiting for the server connection.",
+              "Unable to refresh game state. Waiting for the server connection."
           );
         }
       } finally {
         inFlight.current = false;
-
-        if (mounted.current) {
-          setBusy(false);
-        }
+        if (mounted.current) setBusy(false);
       }
     }
   };
@@ -595,29 +493,24 @@ export default function DealOrNoDealPage({
     }
 
     if (canJoin) {
-      const stake =
-        Number(amount);
+      const stake = Number(amount);
 
       if (
         !Number.isSafeInteger(stake) ||
         stake < 100 ||
         stake > 25000
       ) {
-        setMessage(
-          "Enter 100–25,000 whole demo coins.",
-        );
-
+        setMessage("Enter ₹100–₹25,000 in whole demo units.");
         return;
       }
 
-      if (
-        stake >
-        Number(data.balance)
-      ) {
-        setMessage(
-          "Insufficient demo coins.",
-        );
+      if (!balanceAvailable) {
+        setMessage("Wallet balance is unavailable. Please wait.");
+        return;
+      }
 
+      if (stake > Number(data.balance)) {
+        setMessage("Insufficient demo balance.");
         return;
       }
 
@@ -627,63 +520,32 @@ export default function DealOrNoDealPage({
         body: {
           sessionId: session.id,
           amount: stake,
-          caseNumber:
-            selectedNumber,
-          requestKey:
-            flightRequestKey(),
+          caseNumber: selectedNumber,
+          requestKey: flightRequestKey(),
         },
       });
 
       return;
     }
 
-    if (
-      canContinue &&
-      entry
-    ) {
+    if (canContinue && entry) {
       void sendRequest({
         kind: "CONTINUE",
         path: `${BASE}/entries/${entry.id}/action`,
         body: {
           action: "CONTINUE",
           level,
-          caseNumber:
-            selectedNumber,
+          caseNumber: selectedNumber,
         },
       });
     }
   };
 
-  const act = action => {
-    if (
-      !entry ||
-      inFlight.current ||
-      pending ||
-      !fresh
-    ) {
-      return;
-    }
-
-    if (
-      action === "CANCEL" &&
-      !canCancel
-    ) {
-      return;
-    }
-
-    if (
-      action === "COLLECT" &&
-      !canCollect
-    ) {
-      return;
-    }
-
-    if (
-      action === "DEAL" &&
-      !canDeal
-    ) {
-      return;
-    }
+  const act = (action) => {
+    if (!entry || inFlight.current || pending || !fresh) return;
+    if (action === "CANCEL" && !canCancel) return;
+    if (action === "COLLECT" && !canCollect) return;
+    if (action === "DEAL" && !canDeal) return;
 
     void sendRequest({
       kind: action,
@@ -693,19 +555,16 @@ export default function DealOrNoDealPage({
         level:
           action === "CANCEL"
             ? 1
-            : Number(
-                entry.completedLevel,
-              ),
+            : Number(entry.completedLevel),
       },
     });
   };
 
-  const chooseCase = number => {
+  const chooseCase = (number) => {
     if (!canSelect) return;
 
     setSelection({
-      sessionId:
-        String(session.id),
+      sessionId: String(session.id),
       level,
       number,
     });
@@ -725,7 +584,7 @@ export default function DealOrNoDealPage({
     setDeclinedOffer(offerKey);
 
     setMessage(
-      "NO DEAL selected. Choose a case and confirm CONTINUE before the betting window closes.",
+      "NO DEAL selected. Choose a case and confirm CONTINUE before the betting window closes."
     );
 
     sound.cue("select");
@@ -755,33 +614,57 @@ export default function DealOrNoDealPage({
   return (
     <main className="min-h-screen bg-black p-3 text-white">
       <div className="mx-auto max-w-3xl space-y-4">
-        <header className="flex items-center justify-between gap-3 rounded-xl border border-amber-300/25 bg-[#171108] p-4">
+        <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/25 bg-[#171108] p-4">
           <button
             type="button"
-            disabled={
-              busy ||
-              Boolean(pending)
-            }
+            disabled={busy || Boolean(pending)}
             onClick={onBack}
             className="text-xs font-bold disabled:opacity-40"
           >
             ‹ HOME
           </button>
 
-          <h1 className="min-w-0 text-center text-sm font-black text-amber-300 sm:text-xl">
+          <h1 className="min-w-0 flex-1 text-center text-sm font-black text-amber-300 sm:text-xl">
             DEAL OR NO DEAL
           </h1>
 
-          <div className="shrink-0 rounded-xl border border-amber-400/30 bg-[#03121d]/90 px-3 py-2 text-right">
-            <p className="whitespace-nowrap text-sm font-black tabular-nums text-amber-300">
-              {data
-                ? coins(data.balance)
-                : "Loading…"}
+          <div
+            className="max-w-full rounded-xl border-2 border-[#166534] bg-white px-3 py-2"
+            aria-live="polite"
+            aria-label="Demo wallet balance"
+          >
+            <p className="text-center text-[9px] font-black tracking-wide text-[#166534]">
+              WALLET BALANCE
             </p>
 
-            <p className="mt-1 text-[9px] font-bold text-amber-100/70">
+            <div className="mt-1 flex items-center justify-center gap-2">
+              <span
+                aria-hidden="true"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#166534] text-xl font-black text-white"
+              >
+                ₹
+              </span>
+
+              <strong className="break-all text-lg font-black tabular-nums text-[#166534]">
+                {unauthorized
+                  ? "—"
+                  : balanceAvailable
+                    ? coins(data.balance)
+                    : data || error
+                      ? "—"
+                      : "Loading…"}
+              </strong>
+            </div>
+
+            <p className="mt-1 text-center text-[9px] font-bold text-[#722f37]">
               DEMO COINS
             </p>
+
+            {balanceAvailable && !fresh && (
+              <p className="mt-1 text-center text-[9px] font-bold text-[#722f37]">
+                LAST RECEIVED BALANCE
+              </p>
+            )}
           </div>
         </header>
 
@@ -799,11 +682,9 @@ export default function DealOrNoDealPage({
 
         {legacySession && (
           <p className="rounded-xl border border-amber-300/20 p-3 text-xs leading-6 text-amber-100">
-            This previously published session
-            will finish with its locked
-            results. The following sessions
-            start automatically with random
-            results.
+            This previously published session will finish with its
+            locked results. The following sessions start
+            automatically with random results.
           </p>
         )}
 
@@ -831,9 +712,7 @@ export default function DealOrNoDealPage({
             role="alert"
             className="rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-200"
           >
-            {String(
-              error.message || error,
-            )}
+            {String(error.message || error)}
           </p>
         )}
 
@@ -848,42 +727,36 @@ export default function DealOrNoDealPage({
 
           {!legacySession && (
             <p className="mt-2 text-[10px] leading-5 text-amber-100/70">
-              New sessions start automatically.
-              Join during Level 1 betting.
+              New sessions start automatically. Join during Level 1
+              betting.
             </p>
           )}
 
-          {displayResult &&
-            session?.phase === "BETTING" && (
-              <p className="mt-2 text-[10px] leading-5 text-amber-100">
-                Next: Level {level}
-                {" · "}
-                Betting closes in{" "}
-                {remaining}s
-              </p>
-            )}
+          {displayResult && session?.phase === "BETTING" && (
+            <p className="mt-2 text-[10px] leading-5 text-amber-100">
+              Next: Level {level} · Betting closes in {remaining}s
+            </p>
+          )}
         </section>
 
         {previousEntry && (
           <section className="rounded-xl border border-white/10 bg-[#12100c] p-3 text-center text-xs">
             <p className="text-slate-400">
-              Previous entry · Session #
-              {previousEntry.sessionId}
+              Previous entry · Session #{previousEntry.sessionId}
             </p>
 
-            <p
-              className={`mt-2 font-black ${
-                previousEntry.status ===
-                "COLLECTED"
-                  ? "text-emerald-300"
-                  : "text-red-300"
-              }`}
-            >
-              {previousEntry.status ===
-              "COLLECTED"
-                ? `COLLECTED ${coins(previousEntry.payout)} DEMO COINS`
-                : "Your previous entry ended with a losing case."}
-            </p>
+            {previousEntry.status === "COLLECTED" ? (
+              <div className="mt-2">
+                <p className="mb-2 font-black text-emerald-300">
+                  COLLECTED · DEMO BALANCE
+                </p>
+                <AmountBox value={previousEntry.payout} />
+              </div>
+            ) : (
+              <p className="mt-2 font-black text-red-300">
+                Your previous entry ended with a losing case.
+              </p>
+            )}
           </section>
         )}
 
@@ -892,170 +765,132 @@ export default function DealOrNoDealPage({
           aria-label="Choose a case"
           className="grid scroll-mt-4 grid-cols-3 gap-x-3 gap-y-6 rounded-2xl border border-amber-300/10 bg-[radial-gradient(ellipse_at_center,_#51340a_0%,_#080705_70%)] px-3 py-6"
         >
-          {Array.from(
-            { length: 9 },
-            (_, index) => index + 1,
-          ).map(number => {
-            const won = displayResult
-              ? displayResult.winners.includes(
-                  number,
-                )
-              : null;
+          {Array.from({ length: 9 }, (_, index) => index + 1).map(
+            (number) => {
+              const won = displayResult
+                ? displayResult.winners.includes(number)
+                : null;
 
-            const selected =
-              !displayResult &&
-              selectedNumber === number;
+              const selected =
+                !displayResult && selectedNumber === number;
 
-            const confirmed =
-              Number(
-                choice?.caseNumber,
-              ) === number;
+              const confirmed =
+                Number(choice?.caseNumber) === number;
 
-            return (
-              <button
-                key={number}
-                type="button"
-                disabled={!canSelect}
-                aria-label={`Case ${number}`}
-                aria-pressed={selected}
-                data-result={
-                  won === null
-                    ? "CLOSED"
-                    : won
-                      ? "WIN"
-                      : "LOSS"
-                }
-                data-result-level={
-                  displayLevel
-                }
-                onClick={() =>
-                  chooseCase(number)
-                }
-                className="relative pt-3 disabled:cursor-default"
-              >
-                <span className="absolute left-1/2 top-0 h-5 w-8 -translate-x-1/2 rounded-t-lg border-2 border-slate-300" />
-
-                <span
-                  className={`relative flex aspect-[4/3] flex-col items-center justify-center rounded-lg border-[3px] shadow-lg ${
-                    won === true
-                      ? "border-[#475c9b] bg-[#101d3d] text-green-500 shadow-blue-900/50"
-                      : won === false
-                        ? "border-red-500 bg-[#351111] text-red-500 shadow-red-700/50"
-                        : selected || confirmed
-                          ? "border-amber-300 bg-amber-100 text-black"
-                          : "border-slate-400 bg-gradient-to-b from-white via-slate-200 to-slate-400 text-black"
-                  }`}
+              return (
+                <button
+                  key={number}
+                  type="button"
+                  disabled={!canSelect}
+                  aria-label={`Case ${number}`}
+                  aria-pressed={selected}
+                  data-result={
+                    won === null ? "CLOSED" : won ? "WIN" : "LOSS"
+                  }
+                  data-result-level={displayLevel}
+                  onClick={() => chooseCase(number)}
+                  className="relative pt-3 disabled:cursor-default"
                 >
-                  {won === null && (
-                    <span
-                      aria-hidden="true"
-                      className="absolute inset-x-0 top-2 h-1 border-y border-slate-400/70"
-                    />
-                  )}
+                  <span className="absolute left-1/2 top-0 h-5 w-8 -translate-x-1/2 rounded-t-lg border-2 border-slate-300" />
 
-                  <strong
-                    className={
-                      won === null
-                        ? "text-3xl font-black sm:text-5xl"
-                        : "text-5xl font-black leading-none sm:text-6xl"
-                    }
+                  <span
+                    className={`relative flex aspect-[4/3] flex-col items-center justify-center rounded-lg border-[3px] shadow-lg ${
+                      won === true
+                        ? "border-[#475c9b] bg-[#101d3d] text-green-500 shadow-blue-900/50"
+                        : won === false
+                          ? "border-red-500 bg-[#351111] text-red-500 shadow-red-700/50"
+                          : selected || confirmed
+                            ? "border-amber-300 bg-amber-100 text-black"
+                            : "border-slate-400 bg-gradient-to-b from-white via-slate-200 to-slate-400 text-black"
+                    }`}
                   >
-                    {won === true
-                      ? "✓"
-                      : won === false
-                        ? "✕"
-                        : String(
-                            number,
-                          ).padStart(
-                            2,
-                            "0",
-                          )}
-                  </strong>
+                    {won === null && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-x-0 top-2 h-1 border-y border-slate-400/70"
+                      />
+                    )}
 
-                  {won !== null && (
-                    <span
-                      className={`mt-1 text-sm font-black sm:text-lg ${
-                        won
-                          ? "text-white"
-                          : "text-red-400"
-                      }`}
+                    <strong
+                      className={
+                        won === null
+                          ? "text-3xl font-black sm:text-5xl"
+                          : "text-5xl font-black leading-none sm:text-6xl"
+                      }
                     >
-                      {won
-                        ? "WIN"
-                        : "LOSS"}
-                    </span>
-                  )}
+                      {won === true
+                        ? "✓"
+                        : won === false
+                          ? "✕"
+                          : String(number).padStart(2, "0")}
+                    </strong>
 
-                  {won === null && (
-                    <span
-                      aria-hidden="true"
-                      className="absolute inset-x-0 bottom-2 h-2 border-y-2 border-slate-400/70"
-                    />
-                  )}
+                    {won !== null && (
+                      <span
+                        className={`mt-1 text-sm font-black sm:text-lg ${
+                          won ? "text-white" : "text-red-400"
+                        }`}
+                      >
+                        {won ? "WIN" : "LOSS"}
+                      </span>
+                    )}
 
-                  {won !== null && (
-                    <span
-                      aria-hidden="true"
-                      className="absolute -bottom-2 left-1/2 h-3 w-[110%] -translate-x-1/2 rounded-b-lg border-2 border-slate-400 bg-gradient-to-b from-slate-200 via-slate-500 to-slate-900"
-                    />
-                  )}
-                </span>
+                    {won === null && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-x-0 bottom-2 h-2 border-y-2 border-slate-400/70"
+                      />
+                    )}
 
-                <span className="relative mx-auto mt-2 block w-fit rounded-full bg-amber-300 px-2 py-1 text-[9px] font-black text-black">
-                  CASE{" "}
-                  {String(number).padStart(
-                    2,
-                    "0",
-                  )}
-                  {confirmed
-                    ? " · YOUR PICK"
-                    : ""}
-                  {selected
-                    ? " · SELECTED"
-                    : ""}
-                </span>
-              </button>
-            );
-          })}
+                    {won !== null && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute -bottom-2 left-1/2 h-3 w-[110%] -translate-x-1/2 rounded-b-lg border-2 border-slate-400 bg-gradient-to-b from-slate-200 via-slate-500 to-slate-900"
+                      />
+                    )}
+                  </span>
+
+                  <span className="relative mx-auto mt-2 block w-fit rounded-full bg-amber-300 px-2 py-1 text-[9px] font-black text-black">
+                    CASE {String(number).padStart(2, "0")}
+                    {confirmed ? " · YOUR PICK" : ""}
+                    {selected ? " · SELECTED" : ""}
+                  </span>
+                </button>
+              );
+            }
+          )}
         </section>
 
         {summaryResult && (
           <p className="rounded-xl border border-amber-300/30 bg-[#2c1906] p-3 text-center text-xs font-bold text-amber-100">
             Level {summaryResult.level}:{" "}
-            {summaryResult.winners.join(", ")}
-            {" "}are the winners
+            {summaryResult.winners.join(", ")} are the winners
           </p>
         )}
 
         {entry && (
           <section className="rounded-xl border border-white/10 bg-[#12100c] p-4">
-            <div className="flex justify-between gap-3 text-xs">
-              <span>
-                Your stake
+            <div className="flex flex-wrap justify-between gap-3 text-xs">
+              <div>
+                <p className="mb-2">Your stake</p>
+                <AmountBox value={entry.stake} />
+              </div>
 
-                <strong className="mt-1 block text-lg text-amber-200">
-                  {coins(entry.stake)} coins
-                </strong>
-              </span>
-
-              <span className="text-right">
-                Status
-
+              <div className="text-right">
+                <p>Status</p>
                 <strong className="mt-1 block text-sm text-amber-200">
                   {entry.status}
                 </strong>
-              </span>
+              </div>
             </div>
 
             <p className="mt-3 text-xs text-slate-400">
-              Completed level:{" "}
-              {entry.completedLevel}
+              Completed level: {entry.completedLevel}
             </p>
 
             {entry.status === "PLAYING" && (
               <p className="mt-3 text-sm text-amber-100">
-                Your case is confirmed.
-                Waiting for the shared draw.
+                Your case is confirmed. Waiting for the shared draw.
               </p>
             )}
 
@@ -1065,33 +900,24 @@ export default function DealOrNoDealPage({
                   CURRENT COLLECT VALUE
                 </p>
 
-                <p className="mt-1 text-center text-3xl font-black text-emerald-300">
-                  {coins(
-                    entry.collectAmount,
-                  )}
-                </p>
+                <div className="mt-2 text-center">
+                  <AmountBox value={entry.collectAmount} large />
+                </div>
 
                 <button
                   type="button"
                   disabled={!canCollect}
-                  onClick={() =>
-                    act("COLLECT")
-                  }
+                  onClick={() => act("COLLECT")}
                   className="mt-4 w-full rounded-xl bg-emerald-400 p-3 font-black text-black disabled:opacity-40"
                 >
-                  COLLECT{" "}
-                  {coins(
-                    entry.collectAmount,
-                  )}
+                  COLLECT {money(entry.collectAmount)}
                 </button>
 
                 <p className="mt-3 text-center text-xs leading-5 text-slate-400">
-                  Choose a case and confirm
-                  CONTINUE during the next
-                  level's betting window.
-                  No extra stake is deducted.
-                  A losing case loses the
-                  current uncollected winnings.
+                  Choose a case and confirm CONTINUE during the
+                  next level&apos;s betting window. No extra stake
+                  is deducted. A losing case loses the current
+                  uncollected winnings.
                 </p>
 
                 <p className="mt-2 text-center text-xs font-bold text-amber-200">
@@ -1108,24 +934,19 @@ export default function DealOrNoDealPage({
                   BANKER’S OFFER
                 </h2>
 
-                <p className="mt-2 text-2xl font-black">
-                  {coins(
-                    entry.offer.amount,
-                  )}
-                </p>
+                <div className="mt-3">
+                  <AmountBox value={entry.offer.amount} large />
+                </div>
 
-                <p className="mt-1 text-xs text-amber-100">
-                  Offer expires in{" "}
-                  {offerSeconds}s
+                <p className="mt-2 text-xs text-amber-100">
+                  Offer expires in {offerSeconds}s
                 </p>
 
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     disabled={!canDeal}
-                    onClick={() =>
-                      act("DEAL")
-                    }
+                    onClick={() => act("DEAL")}
                     className="rounded-xl bg-amber-300 p-3 text-xs font-black text-black disabled:opacity-40"
                   >
                     DEAL · COLLECT OFFER
@@ -1142,21 +963,19 @@ export default function DealOrNoDealPage({
                 </div>
 
                 <p className="mt-3 text-xs leading-5 text-slate-300">
-                  NO DEAL does not confirm a
-                  case. Select a case and press
-                  CONTINUE to play the next
-                  level.
+                  NO DEAL does not confirm a case. Select a case
+                  and press CONTINUE to play the next level.
                 </p>
               </div>
             )}
 
-            {entry.status ===
-              "COLLECTED" && (
-              <p className="mt-4 text-center text-lg font-black text-emerald-300">
-                COLLECTED{" "}
-                {coins(entry.payout)}{" "}
-                DEMO COINS
-              </p>
+            {entry.status === "COLLECTED" && (
+              <div className="mt-4 text-center">
+                <p className="mb-2 font-black text-emerald-300">
+                  COLLECTED · DEMO BALANCE
+                </p>
+                <AmountBox value={entry.payout} large />
+              </div>
             )}
 
             {entry.status === "LOST" && (
@@ -1168,9 +987,7 @@ export default function DealOrNoDealPage({
             {canCancel && (
               <button
                 type="button"
-                onClick={() =>
-                  act("CANCEL")
-                }
+                onClick={() => act("CANCEL")}
                 className="mt-4 w-full rounded-xl border border-white/20 p-3 text-xs font-bold"
               >
                 CANCEL BET · RETURN STAKE
@@ -1193,54 +1010,44 @@ export default function DealOrNoDealPage({
 
           {!entry && (
             <>
-              <input
-                type="number"
-                inputMode="numeric"
-                aria-label="Demo coin stake"
-                min="100"
-                max="25000"
-                step="1"
-                value={amount}
-                disabled={
-                  busy ||
-                  Boolean(pending)
-                }
-                onChange={event =>
-                  setAmount(
-                    event.target.value,
-                  )
-                }
-                className="w-full rounded-xl border border-amber-300/20 bg-black/40 p-3 text-center text-2xl font-black text-white"
-              />
+              <div className="flex items-center overflow-hidden rounded-xl border-2 border-[#166534] bg-white">
+                <span
+                  aria-hidden="true"
+                  className="flex self-stretch items-center bg-[#166534] px-4 text-2xl font-black text-white"
+                >
+                  ₹
+                </span>
+
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  aria-label="Demo stake amount"
+                  min="100"
+                  max="25000"
+                  step="1"
+                  value={amount}
+                  disabled={busy || Boolean(pending)}
+                  onChange={(event) => setAmount(event.target.value)}
+                  className="min-w-0 flex-1 bg-white p-3 text-center text-2xl font-black text-[#166534] outline-none disabled:opacity-50"
+                />
+              </div>
 
               <div className="grid grid-cols-4 gap-2">
-                {[
-                  100,
-                  500,
-                  1000,
-                  5000,
-                ].map(value => (
+                {[100, 500, 1000, 5000].map((value) => (
                   <button
                     key={value}
                     type="button"
-                    disabled={
-                      busy ||
-                      Boolean(pending)
-                    }
-                    onClick={() =>
-                      setAmount(
-                        String(value),
-                      )
-                    }
-                    className="rounded-full border border-amber-300/20 bg-black/30 py-2 text-xs font-bold disabled:opacity-40"
+                    disabled={busy || Boolean(pending)}
+                    onClick={() => setAmount(String(value))}
+                    className="rounded-lg border border-[#166534] bg-white px-1 py-2 text-xs font-black text-[#166534] disabled:opacity-40"
                   >
-                    {coins(value)}
+                    {money(value)}
                   </button>
                 ))}
               </div>
 
               <p className="text-center text-[10px] text-slate-400">
-                100–25,000 whole demo coins
+                ₹100–₹25,000 · Whole demo units only
               </p>
             </>
           )}
@@ -1257,10 +1064,7 @@ export default function DealOrNoDealPage({
 
           <button
             type="button"
-            disabled={
-              !canSelect ||
-              !selectedNumber
-            }
+            disabled={!canSelect || !selectedNumber}
             onClick={confirmSelection}
             className="w-full rounded-xl bg-amber-300 p-4 font-black text-black disabled:opacity-35"
           >
@@ -1274,19 +1078,15 @@ export default function DealOrNoDealPage({
           {pending && (
             <div className="space-y-3 rounded-xl border border-amber-300/30 bg-black/30 p-3">
               <p className="text-xs leading-5 text-amber-100">
-                Waiting for a definite response.
-                Retry sends the same request,
-                including the same bet request
-                key.
+                Waiting for a definite response. Retry sends the
+                same request, including the same bet request key.
               </p>
 
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => {
-                  void sendRequest(
-                    pending,
-                  );
+                  void sendRequest(pending);
                 }}
                 className="w-full rounded-lg bg-amber-200 p-3 text-xs font-black text-black disabled:opacity-40"
               >
@@ -1300,20 +1100,11 @@ export default function DealOrNoDealPage({
           <button
             type="button"
             aria-expanded={showHistory}
-            onClick={() =>
-              setShowHistory(
-                current => !current,
-              )
-            }
+            onClick={() => setShowHistory((current) => !current)}
             className="flex w-full items-center justify-between text-sm font-black text-amber-200"
           >
-            <span>
-              MY GAME HISTORY
-            </span>
-
-            <span>
-              {showHistory ? "−" : "+"}
-            </span>
+            <span>MY GAME HISTORY</span>
+            <span>{showHistory ? "−" : "+"}</span>
           </button>
 
           {showHistory && (
@@ -1324,48 +1115,44 @@ export default function DealOrNoDealPage({
                 </p>
               )}
 
-              {entries.map(item => (
+              {entries.map((item) => (
                 <div
                   key={item.id}
                   className="rounded-lg bg-white/5 p-3 text-xs"
                 >
                   <div className="flex justify-between gap-3">
-                    <strong>
-                      Session #
-                      {item.sessionId}
-                    </strong>
+                    <strong>Session #{item.sessionId}</strong>
+                    <span>{item.status}</span>
+                  </div>
 
-                    <span>
-                      {item.status}
-                    </span>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="mb-1 text-slate-400">Stake</p>
+                      <AmountBox value={item.stake} />
+                    </div>
+
+                    <div>
+                      <p className="mb-1 text-slate-400">Returned</p>
+                      <AmountBox value={item.payout} />
+                    </div>
                   </div>
 
                   <p className="mt-2 text-slate-400">
-                    Stake:{" "}
-                    {coins(item.stake)}
-                    {" · "}
-                    Level:{" "}
-                    {item.completedLevel}
-                  </p>
-
-                  <p className="mt-1 text-amber-200">
-                    Returned:{" "}
-                    {coins(item.payout)}{" "}
-                    demo coins
+                    Level: {item.completedLevel} · Demo balance
                   </p>
 
                   {!!item.choices?.length && (
                     <p className="mt-2 leading-5 text-slate-400">
                       {item.choices
                         .map(
-                          pick =>
+                          (pick) =>
                             `L${pick.level}: Case ${pick.caseNumber} ${
                               pick.won === true
                                 ? "✓"
                                 : pick.won === false
                                   ? "✕"
                                   : "pending"
-                            }`,
+                            }`
                         )
                         .join(" · ")}
                     </p>
@@ -1388,121 +1175,88 @@ export default function DealOrNoDealPage({
           </p>
 
           <p className="mt-3">
-            Join at Level 1, choose one of nine
-            cases and confirm your stake.
-            Winning cases are revealed together
-            after each betting window.
+            Join at Level 1, choose one of nine cases and confirm
+            your stake. Winning cases are revealed together after
+            each betting window.
           </p>
 
           <p className="mt-3">
-            After a win, collect or select a
-            case for the next level and confirm
-            CONTINUE. Continuing does not
-            deduct another stake. A losing case
-            ends your entry without a return.
+            After a win, collect or select a case for the next
+            level and confirm CONTINUE. Continuing does not deduct
+            another stake. A losing case ends your entry without
+            a return.
           </p>
 
           <p className="mt-3">
-            Returns include the original stake
-            and are calculated from that
-            original stake. They are not added
-            together. For example, 100 coins
-            at Level 2 returns 200 coins.
+            Returns include the original stake and are calculated
+            from that original stake. They are not added together.
+            For example, a ₹100 demo stake at Level 2 returns ₹200
+            in demo balance.
           </p>
 
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-left">
               <thead className="text-amber-200">
                 <tr>
-                  <th className="p-2">
-                    Level
-                  </th>
-
-                  <th className="p-2">
-                    Winning cases
-                  </th>
-
-                  <th className="p-2">
-                    Total return
-                  </th>
+                  <th className="p-2">Level</th>
+                  <th className="p-2">Winning cases</th>
+                  <th className="p-2">Total return</th>
                 </tr>
               </thead>
 
               <tbody>
                 {payoutLevels.map(
-                  ([
-                    number,
-                    winners,
-                    multiplier,
-                  ]) => (
+                  ([number, winners, multiplier]) => (
                     <tr
                       key={number}
                       className="border-t border-white/10"
                     >
-                      <td className="p-2">
-                        {number}
-                      </td>
-
-                      <td className="p-2">
-                        {winners} of 9
-                      </td>
-
-                      <td className="p-2">
-                        {multiplier}×
-                      </td>
+                      <td className="p-2">{number}</td>
+                      <td className="p-2">{winners} of 9</td>
+                      <td className="p-2">{multiplier}×</td>
                     </tr>
-                  ),
+                  )
                 )}
               </tbody>
             </table>
           </div>
 
           <p className="mt-4">
-            Banker offers appear after Levels
-            3 and 6. DEAL collects the offered
-            amount. NO DEAL leaves the offer;
-            you must still select a case and
-            confirm CONTINUE. Offers expire
-            when ten seconds remain in the
-            next betting window.
+            Banker offers appear after Levels 3 and 6. DEAL
+            collects the offered amount. NO DEAL leaves the offer;
+            you must still select a case and confirm CONTINUE.
+            Offers expire when ten seconds remain in the next
+            betting window.
           </p>
 
           <p className="mt-3">
-            If you win and do not confirm a
-            next-level case before its betting
-            closes, the server automatically
-            collects your current return.
+            If you win and do not confirm a next-level case before
+            its betting closes, the server automatically collects
+            your current return.
           </p>
 
           <p className="mt-3 font-bold text-amber-200">
-            800× is awarded only after winning
-            all nine levels. Waiting through
-            nine rounds does not guarantee
-            800×. A Level 9 win automatically
-            collects 800× the original stake.
+            800× is awarded only after winning all nine levels.
+            Waiting through nine rounds does not guarantee 800×.
+            A Level 9 win automatically collects 800× the original
+            stake.
           </p>
 
           <p className="mt-3">
-            Each level has{" "}
-            {bettingMs / 1000}{" "}
-            seconds for selection and{" "}
-            {revealMs / 1000}{" "}
-            seconds for the reveal.
-            Initial bets can be cancelled
-            before Level 1 betting closes.
-            A new session starts automatically
-            after the previous session
-            finishes.
+            Each level has {bettingMs / 1000} seconds for selection
+            and {revealMs / 1000} seconds for the reveal. Initial
+            bets can be cancelled before Level 1 betting closes.
+            A new session starts automatically after the previous
+            session finishes.
           </p>
 
           <p className="mt-3 font-bold">
-            Demo coins only.
+            Demo coins only. ₹ is the display symbol for virtual
+            demo balance.
           </p>
         </details>
 
-        <SessionRecord
-          session={session}
-        />
+        <SessionRecord session={session} />
 
         {!!recentSessions.length && (
           <details className="rounded-xl border border-white/10 p-4 text-xs text-slate-300">
@@ -1511,7 +1265,7 @@ export default function DealOrNoDealPage({
             </summary>
 
             <div className="mt-3 space-y-3">
-              {recentSessions.map(item => (
+              {recentSessions.map((item) => (
                 <SessionRecord
                   key={item.id}
                   session={item}
