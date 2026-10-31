@@ -1,4 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, {
+  useEffect,
+  useState,
+} from "react";
 
 import Header from "./components/Header";
 import HeroBanner from "./components/HeroBanner";
@@ -27,8 +30,11 @@ import TwistXPage from "./components/TwistXPage";
 import DreamWheelPage from "./components/DreamWheelPage";
 import DreamWheelControlPage from "./components/DreamWheelControlPage";
 
-const AUTH_KEY = "telugu_sports_auth_user";
-const ADMIN_AUTH_KEY = "telugu_sports_demo_admin";
+const AUTH_KEY =
+  "telugu_sports_auth_user";
+
+const ADMIN_AUTH_KEY =
+  "telugu_sports_demo_admin";
 
 const CUSTOMER_GAMES = {
   "/games/tsb-flight": {
@@ -42,9 +48,8 @@ const CUSTOMER_GAMES = {
   },
 
   "/games/super-over": {
-    title: "SUPER OVER",
-    Page: CardGamesPage,
-    game: "super-over",
+    title: "INSTANT SUPER OVER",
+    Page: AnimatedSuperOverPage,
   },
 
   "/games/color-prediction": {
@@ -73,6 +78,7 @@ const CUSTOMER_GAMES = {
   "/games/deal-or-no-deal": {
     title: "DEAL OR NO DEAL",
     Page: DealOrNoDealPage,
+
     description:
       "Random demo results are locked before betting opens.",
   },
@@ -81,6 +87,7 @@ const CUSTOMER_GAMES = {
     title: "MINI ROULETTE",
     Page: InstantGamesPage,
     game: "mini-roulette",
+
     description:
       "Single-player random demo. Demo coins only.",
   },
@@ -89,6 +96,7 @@ const CUSTOMER_GAMES = {
     title: "KENO 80",
     Page: InstantGamesPage,
     game: "keno-80",
+
     description:
       "Pick up to 10 numbers. Twenty numbers are drawn randomly. Demo coins only.",
   },
@@ -97,6 +105,7 @@ const CUSTOMER_GAMES = {
     title: "LANKESH",
     Page: DiceGamesPage,
     game: "lankesh",
+
     description:
       "Shared random demo rounds. Choose F1-F10. Demo coins only.",
   },
@@ -105,6 +114,7 @@ const CUSTOMER_GAMES = {
     title: "JHANDI MUNDA",
     Page: DiceGamesPage,
     game: "jhandi-munda",
+
     description:
       "Six dice, six symbols and shared random demo rounds. Demo coins only.",
   },
@@ -112,6 +122,7 @@ const CUSTOMER_GAMES = {
   "/games/twist-x": {
     title: "TWIST X",
     Page: TwistXPage,
+
     description:
       "Random single-player demo with three progress rings. Each spin uses demo coins.",
   },
@@ -119,6 +130,7 @@ const CUSTOMER_GAMES = {
   "/games/extra-sic-bo": {
     title: "EXTRA SIC BO",
     Page: SicBoPage,
+
     description:
       "Three dice, shared random rounds and demo ExtraPay. Demo coins only.",
   },
@@ -126,6 +138,7 @@ const CUSTOMER_GAMES = {
   "/games/dream-wheel": {
     title: "DREAM WHEEL",
     Page: DreamWheelPage,
+
     description:
       "Controller-planned demo. The full spin plan is locked before betting opens. The robot is animated.",
   },
@@ -133,13 +146,13 @@ const CUSTOMER_GAMES = {
   "/games/chicken-road-cross": {
     title: "CHICKEN ROAD CROSS",
     Page: ChickenRoadPage,
+
     description:
       "Manual jumps with server-generated random outcomes. Waiting does not change the odds. Demo coins only.",
   },
 
-  // Preserve the existing animated Super Over URL.
   "/games/animated-super-over": {
-    title: "ANIMATED SUPER OVER",
+    title: "INSTANT SUPER OVER",
     Page: AnimatedSuperOverPage,
   },
 };
@@ -147,10 +160,13 @@ const CUSTOMER_GAMES = {
 function restoredSession(key) {
   try {
     const saved = JSON.parse(
-      localStorage.getItem(key) || "null",
+      localStorage.getItem(key) ||
+        "null",
     );
 
-    return saved?.isAuthenticated ? saved : null;
+    return saved?.isAuthenticated
+      ? saved
+      : null;
   } catch (error) {
     console.error(
       "Unable to restore session:",
@@ -162,24 +178,35 @@ function restoredSession(key) {
 }
 
 export default function App() {
-  const [view, setView] = useState("home");
-  const [authMode, setAuthMode] = useState(null);
+  const [view, setView] =
+    useState("home");
 
-  const [selectedBonus, setSelectedBonus] =
+  const [authMode, setAuthMode] =
     useState(null);
+
+  const [
+    selectedBonus,
+    setSelectedBonus,
+  ] = useState(null);
 
   const [
     selectedPublicItem,
     setSelectedPublicItem,
   ] = useState(null);
 
-  const [user, setUser] = useState(() =>
-    restoredSession(AUTH_KEY),
-  );
+  const [user, setUser] =
+    useState(() =>
+      restoredSession(
+        AUTH_KEY,
+      ),
+    );
 
-  const [admin, setAdmin] = useState(() =>
-    restoredSession(ADMIN_AUTH_KEY),
-  );
+  const [admin, setAdmin] =
+    useState(() =>
+      restoredSession(
+        ADMIN_AUTH_KEY,
+      ),
+    );
 
   const cleanPath =
     window.location.pathname
@@ -196,67 +223,98 @@ export default function App() {
     cleanPath === "/game-control";
 
   const isRouletteControl =
-    cleanPath === "/game-control/roulette";
+    cleanPath ===
+    "/game-control/roulette";
 
   const isDealOrNoDealControl =
-    cleanPath === "/game-control/deal-or-no-deal";
+    cleanPath ===
+    "/game-control/deal-or-no-deal";
 
   const isDreamWheelControl =
-    cleanPath === "/game-control/dream-wheel";
+    cleanPath ===
+    "/game-control/dream-wheel";
 
-  const selectedGame = Object.hasOwn(
-    CUSTOMER_GAMES,
-    cleanPath,
-  )
-    ? CUSTOMER_GAMES[cleanPath]
-    : null;
+  const selectedGame =
+    Object.hasOwn(
+      CUSTOMER_GAMES,
+      cleanPath,
+    )
+      ? CUSTOMER_GAMES[
+          cleanPath
+        ]
+      : null;
 
   const isCustomerGame =
     Boolean(selectedGame);
 
   const unknownGame =
-    cleanPath.startsWith("/games/") &&
+    cleanPath.startsWith(
+      "/games/",
+    ) &&
     !isCustomerGame;
 
-  const [adminChecking, setAdminChecking] =
-    useState(isAdminMode);
+  const [
+    adminChecking,
+    setAdminChecking,
+  ] = useState(isAdminMode);
 
   useEffect(() => {
-    if (!unknownGame) return undefined;
+    if (!unknownGame) {
+      return undefined;
+    }
 
     const timer = setTimeout(
-      () => window.location.replace("/"),
+      () =>
+        window.location.replace(
+          "/",
+        ),
       650,
     );
 
-    return () => clearTimeout(timer);
+    return () =>
+      clearTimeout(timer);
   }, [unknownGame]);
 
   useEffect(() => {
-    if (!isAdminMode) return undefined;
+    if (!isAdminMode) {
+      return undefined;
+    }
 
     let active = true;
 
     const controller =
       new AbortController();
 
-    fetch("/api/auth/admin-session", {
-      credentials: "same-origin",
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then(async response => {
-        const data = await response.json();
+    fetch(
+      "/api/auth/admin-session",
+      {
+        credentials:
+          "same-origin",
 
-        if (active) {
-          setAdmin(
-            response.ok &&
-              data.admin?.historyOnly !== true
-              ? data.admin
-              : null,
-          );
-        }
-      })
+        cache:
+          "no-store",
+
+        signal:
+          controller.signal,
+      },
+    )
+      .then(
+        async response => {
+          const data =
+            await response.json();
+
+          if (active) {
+            setAdmin(
+              response.ok &&
+                data.admin
+                  ?.historyOnly !==
+                  true
+                ? data.admin
+                : null,
+            );
+          }
+        },
+      )
       .catch(() => {
         if (active) {
           setAdmin(null);
@@ -264,7 +322,9 @@ export default function App() {
       })
       .finally(() => {
         if (active) {
-          setAdminChecking(false);
+          setAdminChecking(
+            false,
+          );
         }
       });
 
@@ -274,181 +334,256 @@ export default function App() {
     };
   }, [isAdminMode]);
 
-  const saveCustomerSession = customer => {
-    try {
-      localStorage.setItem(
-        AUTH_KEY,
-        JSON.stringify(customer),
-      );
-    } catch (error) {
-      console.error(
-        "Unable to save customer session:",
-        error,
-      );
-    }
-  };
+  const saveCustomerSession =
+    customer => {
+      try {
+        localStorage.setItem(
+          AUTH_KEY,
+          JSON.stringify(
+            customer,
+          ),
+        );
+      } catch (error) {
+        console.error(
+          "Unable to save customer session:",
+          error,
+        );
+      }
+    };
 
   const handleOpenBonus = (
     bonusType = null,
   ) => {
     setSelectedBonus(
-      typeof bonusType === "string"
+      typeof bonusType ===
+        "string"
         ? bonusType
         : null,
     );
 
     setView("bonus");
+
     window.scrollTo(0, 0);
   };
 
-  const handleCloseBonus = () => {
-    setView("home");
-    setSelectedBonus(null);
-    window.scrollTo(0, 0);
-  };
+  const handleCloseBonus =
+    () => {
+      setView("home");
+      setSelectedBonus(null);
+
+      window.scrollTo(0, 0);
+    };
 
   const handlePublicItemClick = (
     mode = "login",
     item = null,
   ) => {
-    setSelectedPublicItem(item);
+    setSelectedPublicItem(
+      item,
+    );
 
     setAuthMode(
-      mode === "signup" ? "signup" : "login",
+      mode === "signup"
+        ? "signup"
+        : "login",
     );
   };
 
-  const handleLoginSuccess = loggedInUser => {
-    const normalizedUser = {
-      ...loggedInUser,
-      isAuthenticated: true,
+  const handleLoginSuccess =
+    loggedInUser => {
+      const normalizedUser = {
+        ...loggedInUser,
 
-      loginId:
-        loggedInUser?.loginId ||
-        loggedInUser?.identifier ||
-        "",
+        isAuthenticated:
+          true,
 
-      identifier:
-        loggedInUser?.identifier ||
-        loggedInUser?.loginId ||
-        "",
+        loginId:
+          loggedInUser
+            ?.loginId ||
+          loggedInUser
+            ?.identifier ||
+          "",
+
+        identifier:
+          loggedInUser
+            ?.identifier ||
+          loggedInUser
+            ?.loginId ||
+          "",
+      };
+
+      saveCustomerSession(
+        normalizedUser,
+      );
+
+      setUser(
+        normalizedUser,
+      );
+
+      setAuthMode(null);
+      setView("home");
+      setSelectedBonus(null);
+
+      if (
+        selectedPublicItem
+      ) {
+        try {
+          sessionStorage.setItem(
+            "telugu_sports_selected_demo_item",
+
+            JSON.stringify(
+              selectedPublicItem,
+            ),
+          );
+        } catch (error) {
+          console.error(
+            "Unable to save selected demo item:",
+            error,
+          );
+        }
+      }
+
+      setSelectedPublicItem(
+        null,
+      );
     };
 
-    saveCustomerSession(normalizedUser);
-    setUser(normalizedUser);
-    setAuthMode(null);
-    setView("home");
-    setSelectedBonus(null);
+  const handleSecurityComplete =
+    updatedUser => {
+      const completedUser = {
+        ...user,
+        ...updatedUser,
 
-    if (selectedPublicItem) {
+        isAuthenticated:
+          true,
+
+        mustChangePassword:
+          false,
+
+        mustChangeWithdrawalPassword:
+          false,
+
+        withdrawalPasswordConfigured:
+          true,
+      };
+
+      saveCustomerSession(
+        completedUser,
+      );
+
+      setUser(
+        completedUser,
+      );
+
+      setView("home");
+      setSelectedBonus(null);
+    };
+
+  const handleLogout =
+    () => {
       try {
-        sessionStorage.setItem(
+        localStorage.removeItem(
+          AUTH_KEY,
+        );
+
+        sessionStorage.removeItem(
           "telugu_sports_selected_demo_item",
-          JSON.stringify(selectedPublicItem),
         );
       } catch (error) {
         console.error(
-          "Unable to save selected demo item:",
+          "Unable to logout:",
           error,
         );
       }
-    }
 
-    setSelectedPublicItem(null);
-  };
-
-  const handleSecurityComplete = updatedUser => {
-    const completedUser = {
-      ...user,
-      ...updatedUser,
-      isAuthenticated: true,
-      mustChangePassword: false,
-      mustChangeWithdrawalPassword: false,
-      withdrawalPasswordConfigured: true,
+      setUser(null);
+      setAuthMode(null);
+      setSelectedPublicItem(null);
+      setSelectedBonus(null);
+      setView("home");
     };
 
-    saveCustomerSession(completedUser);
-    setUser(completedUser);
-    setView("home");
-    setSelectedBonus(null);
-  };
+  const handleAdminLogout =
+    async () => {
+      try {
+        await fetch(
+          "/api/auth/admin-logout",
+          {
+            method: "POST",
 
-  const handleLogout = () => {
-    try {
-      localStorage.removeItem(AUTH_KEY);
+            credentials:
+              "same-origin",
+          },
+        );
+      } catch (error) {
+        console.error(
+          "Server logout failed:",
+          error,
+        );
+      }
 
-      sessionStorage.removeItem(
-        "telugu_sports_selected_demo_item",
-      );
-    } catch (error) {
-      console.error(
-        "Unable to logout:",
-        error,
-      );
-    }
+      try {
+        localStorage.removeItem(
+          ADMIN_AUTH_KEY,
+        );
+      } catch (error) {
+        console.error(
+          "Unable to logout admin:",
+          error,
+        );
+      }
 
-    setUser(null);
-    setAuthMode(null);
-    setSelectedPublicItem(null);
-    setSelectedBonus(null);
-    setView("home");
-  };
-
-  const handleAdminLogout = async () => {
-    try {
-      await fetch("/api/auth/admin-logout", {
-        method: "POST",
-        credentials: "same-origin",
-      });
-    } catch (error) {
-      console.error(
-        "Server logout failed:",
-        error,
-      );
-    }
-
-    try {
-      localStorage.removeItem(
-        ADMIN_AUTH_KEY,
-      );
-    } catch (error) {
-      console.error(
-        "Unable to logout admin:",
-        error,
-      );
-    }
-
-    setAdmin(null);
-  };
+      setAdmin(null);
+    };
 
   if (isNewAdminMode) {
-    return <NewAdminPortal />;
+    return (
+      <NewAdminPortal />
+    );
   }
 
-  if (isDreamWheelControl) {
+  if (
+    isDreamWheelControl
+  ) {
     return (
       <DreamWheelControlPage
         onBack={() =>
-          window.location.assign("/")
+          window.location.assign(
+            "/",
+          )
         }
       />
     );
   }
 
-  if (isDealOrNoDealControl) {
-    return <DealOrNoDealControlPage />;
+  if (
+    isDealOrNoDealControl
+  ) {
+    return (
+      <DealOrNoDealControlPage />
+    );
   }
 
-  if (isRouletteControl) {
-    return <RoulettePage controller />;
+  if (
+    isRouletteControl
+  ) {
+    return (
+      <RoulettePage
+        controller
+      />
+    );
   }
 
   if (isGameControl) {
-    return <GameControlPage />;
+    return (
+      <GameControlPage />
+    );
   }
 
   if (isAdminMode) {
-    if (adminChecking) {
+    if (
+      adminChecking
+    ) {
       return (
         <div className="flex min-h-screen items-center justify-center bg-[#061c1a] text-sm text-amber-200">
           Checking Admin session…
@@ -456,35 +591,53 @@ export default function App() {
       );
     }
 
-    return admin?.isAuthenticated ? (
+    return admin
+      ?.isAuthenticated ? (
       <AdminManagementShell
         admin={admin}
-        onLogout={handleAdminLogout}
+
+        onLogout={
+          handleAdminLogout
+        }
       />
     ) : (
       <AdminLoginPage
         onLogin={setAdmin}
+
         onBack={() =>
-          window.location.assign("/")
+          window.location.assign(
+            "/",
+          )
         }
       />
     );
   }
 
-  const requiresSecuritySetup = Boolean(
-    user?.isAuthenticated &&
-      (
-        user.mustChangePassword === true ||
-        user.mustChangeWithdrawalPassword === true
-      ),
-  );
+  const requiresSecuritySetup =
+    Boolean(
+      user?.isAuthenticated &&
+        (
+          user.mustChangePassword ===
+            true ||
+          user.mustChangeWithdrawalPassword ===
+            true
+        ),
+    );
 
-  if (requiresSecuritySetup) {
+  if (
+    requiresSecuritySetup
+  ) {
     return (
       <ChangePasswordPage
         user={user}
-        onComplete={handleSecurityComplete}
-        onLogout={handleLogout}
+
+        onComplete={
+          handleSecurityComplete
+        }
+
+        onLogout={
+          handleLogout
+        }
       />
     );
   }
@@ -495,18 +648,32 @@ export default function App() {
     );
   }
 
-  if (isCustomerGame) {
-    if (user?.isAuthenticated) {
-      const GamePage = selectedGame.Page;
+  if (
+    isCustomerGame
+  ) {
+    if (
+      user?.isAuthenticated
+    ) {
+      const GamePage =
+        selectedGame.Page;
 
       return (
         <GamePage
-          game={selectedGame.game}
-          user={user}
-          onBack={() =>
-            window.location.assign("/")
+          game={
+            selectedGame.game
           }
-          onLogout={handleLogout}
+
+          user={user}
+
+          onBack={() =>
+            window.location.assign(
+              "/",
+            )
+          }
+
+          onLogout={
+            handleLogout
+          }
         />
       );
     }
@@ -514,25 +681,34 @@ export default function App() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#080d16] p-5 text-center text-white">
         <h1 className="text-3xl font-black text-cyan-300">
-          {selectedGame.title}
+          {
+            selectedGame.title
+          }
         </h1>
 
         <p className="mt-4 max-w-md text-sm leading-6 text-slate-300">
-          Login with your customer ID to access this
-          demo game. Demo coins only.
+          Login with your customer ID to
+          access this demo game. Demo
+          coins only.
         </p>
 
         {selectedGame.description && (
           <p className="mt-3 max-w-md text-xs leading-5 text-amber-200">
-            {selectedGame.description}
+            {
+              selectedGame.description
+            }
           </p>
         )}
 
         <button
           type="button"
+
           onClick={() =>
-            setAuthMode("login")
+            setAuthMode(
+              "login",
+            )
           }
+
           className="mt-6 rounded-xl bg-cyan-400 px-8 py-3 font-black text-black"
         >
           CUSTOMER LOGIN
@@ -546,22 +722,41 @@ export default function App() {
         </a>
 
         <AuthModal
-          isOpen={Boolean(authMode)}
-          initialMode={authMode || "login"}
-          onClose={() =>
-            setAuthMode(null)
+          isOpen={
+            Boolean(
+              authMode,
+            )
           }
-          onLoginSuccess={handleLoginSuccess}
+
+          initialMode={
+            authMode ||
+            "login"
+          }
+
+          onClose={() =>
+            setAuthMode(
+              null,
+            )
+          }
+
+          onLoginSuccess={
+            handleLoginSuccess
+          }
         />
       </div>
     );
   }
 
-  if (user?.isAuthenticated) {
+  if (
+    user?.isAuthenticated
+  ) {
     return (
       <DemoDashboard
         user={user}
-        onLogout={handleLogout}
+
+        onLogout={
+          handleLogout
+        }
       />
     );
   }
@@ -569,21 +764,34 @@ export default function App() {
   return (
     <div className="flex min-h-screen flex-col bg-[#080d16] font-sans text-white">
       <Header
-        onOpenAuth={setAuthMode}
+        onOpenAuth={
+          setAuthMode
+        }
+
         user={user}
-        isAuthenticated={Boolean(user)}
-        onLogout={handleLogout}
+
+        isAuthenticated={
+          Boolean(user)
+        }
+
+        onLogout={
+          handleLogout
+        }
       />
 
       {view === "home" ? (
         <main className="flex-1 pb-16">
           <HeroBanner
-            onRequireAuth={handlePublicItemClick}
+            onRequireAuth={
+              handlePublicItemClick
+            }
           />
 
           <div className="mx-auto my-4 max-w-xl px-4">
             <HeroBonusCard
-              onOpenBonus={handleOpenBonus}
+              onOpenBonus={
+                handleOpenBonus
+              }
             />
           </div>
 
@@ -591,19 +799,41 @@ export default function App() {
         </main>
       ) : (
         <BonusPage
-          bonusType={selectedBonus}
-          onBack={handleCloseBonus}
+          bonusType={
+            selectedBonus
+          }
+
+          onBack={
+            handleCloseBonus
+          }
         />
       )}
 
       <AuthModal
-        isOpen={Boolean(authMode)}
-        initialMode={authMode || "login"}
+        isOpen={
+          Boolean(
+            authMode,
+          )
+        }
+
+        initialMode={
+          authMode ||
+          "login"
+        }
+
         onClose={() => {
-          setAuthMode(null);
-          setSelectedPublicItem(null);
+          setAuthMode(
+            null,
+          );
+
+          setSelectedPublicItem(
+            null,
+          );
         }}
-        onLoginSuccess={handleLoginSuccess}
+
+        onLoginSuccess={
+          handleLoginSuccess
+        }
       />
     </div>
   );
