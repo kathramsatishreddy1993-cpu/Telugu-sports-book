@@ -56,12 +56,10 @@ async function api(path, body) {
         ...(body
           ? {
               method: "POST",
-
               headers: {
                 "Content-Type":
                   "application/json",
               },
-
               body:
                 JSON.stringify(body),
             }
@@ -126,10 +124,7 @@ const store = {
 };
 
 function keyFor(id) {
-  return (
-    "tsb_card_so_pending_v1:" +
-    id
-  );
+  return `tsb_card_so_pending_v1:${id}`;
 }
 
 function newKey() {
@@ -149,25 +144,160 @@ function newKey() {
   ).join("");
 }
 
-function Host({ celebrate }) {
+function Host({
+  phase,
+  celebrate,
+}) {
+  const videoRef =
+    useRef(null);
+
+  const [ready, setReady] =
+    useState(false);
+
   const [failed, setFailed] =
     useState(false);
 
-  const source = celebrate
-    ? "/games/superover-clap.mp4"
-    : "/games/superover-idle.mp4";
+  const [blocked, setBlocked] =
+    useState(false);
+
+  const mode = celebrate
+    ? "clap"
+    : phase === "TRANSFER"
+      ? "transfer"
+      : phase === "DEALING"
+        ? "deal"
+        : "idle";
+
+  useEffect(() => {
+    const video =
+      videoRef.current;
+
+    if (
+      !video ||
+      !ready ||
+      failed
+    ) {
+      return;
+    }
+
+    // All sections use the same uploaded video.
+    const ranges = {
+      idle: [0.1, 1.6],
+      transfer: [2, 3.8],
+      deal: [6, 7.8],
+      clap: [8.8, 9.8],
+    };
+
+    const duration =
+      Number.isFinite(
+        video.duration,
+      )
+        ? video.duration
+        : 10;
+
+    const selectedRange =
+      duration >=
+      ranges[mode][1]
+        ? ranges[mode]
+        : [
+            0,
+            Math.max(
+              0.1,
+              duration - 0.1,
+            ),
+          ];
+
+    const [
+      start,
+      end,
+    ] = selectedRange;
+
+    let frame;
+    let alive = true;
+
+    setBlocked(false);
+
+    try {
+      video.currentTime =
+        start;
+    } catch {}
+
+    video.play()?.catch(
+      error => {
+        if (
+          alive &&
+          error.name ===
+            "NotAllowedError"
+        ) {
+          setBlocked(true);
+        }
+      },
+    );
+
+    const check = () => {
+      if (!alive) {
+        return;
+      }
+
+      if (
+        !video.seeking &&
+        (
+          video.currentTime >=
+            end - 0.025 ||
+          video.currentTime <
+            start - 0.08
+        )
+      ) {
+        try {
+          video.currentTime =
+            start;
+        } catch {}
+      }
+
+      if (video.ended) {
+        video
+          .play()
+          ?.catch(() => {});
+      }
+
+      frame =
+        requestAnimationFrame(
+          check,
+        );
+    };
+
+    frame =
+      requestAnimationFrame(
+        check,
+      );
+
+    return () => {
+      alive = false;
+
+      cancelAnimationFrame(
+        frame,
+      );
+
+      video.pause();
+    };
+  }, [
+    mode,
+    ready,
+    failed,
+  ]);
 
   return (
     <div className="cs-host">
       {!failed ? (
         <video
-          key={source}
-          src={source}
-          autoPlay
+          ref={videoRef}
+          src="/games/superover-idle.mp4"
           muted
-          loop
           playsInline
           preload="auto"
+          onLoadedMetadata={() =>
+            setReady(true)
+          }
           onError={() =>
             setFailed(true)
           }
@@ -176,6 +306,29 @@ function Host({ celebrate }) {
         <div className="cs-no-video">
           Host video unavailable
         </div>
+      )}
+
+      {blocked && !failed && (
+        <button
+          type="button"
+          className="cs-quick"
+          style={{
+            position: "absolute",
+            bottom: 8,
+            left: 8,
+            zIndex: 5,
+          }}
+          onClick={() => {
+            videoRef.current
+              ?.play()
+              ?.then(() =>
+                setBlocked(false),
+              )
+              .catch(() => {});
+          }}
+        >
+          PLAY VIDEO
+        </button>
       )}
 
       <small className="cs-ai">
@@ -214,6 +367,7 @@ function CardTable({
   return (
     <div className="cs-scene">
       <Host
+        phase={match.phase}
         celebrate={
           match.phase === "RESULT" &&
           match.result?.winner !==
@@ -227,10 +381,7 @@ function CardTable({
         aria-label="Opaque card machine beside the left edge of the table"
       >
         <div className="cs-machine-top" />
-
-        <span>
-          SHUFFLER
-        </span>
+        <span>SHUFFLER</span>
       </div>
 
       <div className="cs-table">
@@ -344,17 +495,9 @@ function CardTable({
                             }`
                           }
                         >
-                          <b>
-                            {card.rank}
-                          </b>
-
-                          <span>
-                            ♠
-                          </span>
-
-                          <b>
-                            {card.rank}
-                          </b>
+                          <b>{card.rank}</b>
+                          <span>♠</span>
+                          <b>{card.rank}</b>
                         </div>
                       )}
                     </div>
@@ -771,11 +914,8 @@ export default function AnimatedSuperOverPage({
           Number(amount),
 
         points: 98,
-
         quoteVersion: 1,
-
         windowId: "PRE",
-
         requestKey,
       },
     };
@@ -818,7 +958,6 @@ export default function AnimatedSuperOverPage({
         .cs-page {
           --green: #08b7bc;
           --wine: #791b3e;
-
           min-height: 100vh;
           background: #151b20;
           color: #fff;
@@ -961,7 +1100,6 @@ export default function AnimatedSuperOverPage({
           position: relative;
           background: #100f12;
           overflow: hidden;
-          padding-top: 0;
           border-top: 3px solid white;
           border-bottom: 3px solid white;
         }
@@ -1057,12 +1195,10 @@ export default function AnimatedSuperOverPage({
           color: #131313;
           border-radius: 3px;
           box-shadow: 0 2px 3px #0005;
-
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: space-between;
-
           padding: 3px;
           font-size: clamp(10px, 2.5vw, 21px);
           line-height: 1;
@@ -1098,7 +1234,6 @@ export default function AnimatedSuperOverPage({
                 var(--from-y)
               )
               rotate(-12deg);
-
             opacity: .5;
           }
 
@@ -1106,7 +1241,6 @@ export default function AnimatedSuperOverPage({
             transform:
               translate(0, 0)
               rotate(0);
-
             opacity: 1;
           }
         }
@@ -1127,14 +1261,12 @@ export default function AnimatedSuperOverPage({
           width: 11%;
           height: 22%;
           border: 2px solid #222;
-
           background:
             linear-gradient(
               100deg,
               #111,
               #333
             );
-
           transform: skewY(-3deg);
           box-shadow: 0 6px 5px #0008;
         }
@@ -1170,14 +1302,12 @@ export default function AnimatedSuperOverPage({
         .cs-stack,
         .cs-transfer-stack {
           border: 1px solid #e7d9ce;
-
           background:
             repeating-linear-gradient(
               0deg,
               #f3eee8 0 2px,
               #a6948f 2px 3px
             );
-
           box-shadow: 0 2px 3px #0005;
         }
 
@@ -1227,7 +1357,6 @@ export default function AnimatedSuperOverPage({
           display: grid;
           grid-template-columns:
             minmax(0, 1fr) 90px 90px;
-
           border-bottom: 1px solid #ccc;
           background: #fff;
           color: #27353b;
@@ -1491,9 +1620,7 @@ export default function AnimatedSuperOverPage({
                     className="cs-team-score"
                     key={team}
                   >
-                    <span>
-                      {team}
-                    </span>
+                    <span>{team}</span>
 
                     <strong>
                       {
@@ -1644,7 +1771,6 @@ export default function AnimatedSuperOverPage({
                       setSelection({
                         matchId:
                           match.id,
-
                         team:
                           index,
                       });
@@ -1654,7 +1780,6 @@ export default function AnimatedSuperOverPage({
                     }}
                   >
                     1.98
-
                     <small>
                       TOTAL RETURN
                     </small>
@@ -1813,9 +1938,7 @@ export default function AnimatedSuperOverPage({
               </strong>
 
               {!data.bets?.length ? (
-                <p>
-                  No bets yet.
-                </p>
+                <p>No bets yet.</p>
               ) : (
                 data.bets
                   .slice(0, 20)
