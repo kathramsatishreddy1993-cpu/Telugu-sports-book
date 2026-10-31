@@ -1,5 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
-import CricketScene from "./CricketStadium3D";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 export {
   default as AnimatedSuperOverLobby,
@@ -7,1008 +10,1950 @@ export {
 
 const API = "/api/animated-cricket";
 
-const money = (value) => {
-  if (
-    value === null ||
-    value === undefined ||
-    !Number.isFinite(Number(value))
-  ) {
-    return "—";
-  }
+const money = value =>
+  Number.isFinite(Number(value)) &&
+  value !== null
+    ? `₹${Number(value).toLocaleString(
+        "en-IN",
+        {
+          maximumFractionDigits: 2,
+        },
+      )}`
+    : "—";
 
-  return `₹${Number(value).toLocaleString("en-IN", {
-    maximumFractionDigits: 2,
-  })}`;
-};
-
-const ist = (value) => {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return "—";
-
-  return new Intl.DateTimeFormat("en-IN", {
-    timeZone: "Asia/Kolkata",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).format(date);
-};
-
-const remaining = (milliseconds) => {
-  const seconds = Number.isFinite(milliseconds)
-    ? Math.max(0, Math.ceil(milliseconds / 1000))
-    : 0;
-
-  return (
-    `${String(Math.floor(seconds / 60)).padStart(2, "0")}:` +
-    String(seconds % 60).padStart(2, "0")
+const seconds = milliseconds =>
+  Math.max(
+    0,
+    Math.ceil(milliseconds / 1000),
   );
+
+const stamp = value =>
+  new Date(value).toLocaleString(
+    "en-IN",
+    {
+      timeZone: "Asia/Kolkata",
+      hour12: false,
+    },
+  );
+
+async function api(path, body) {
+  const controller =
+    new AbortController();
+
+  const timer = setTimeout(
+    () => controller.abort(),
+    8000,
+  );
+
+  try {
+    const response = await fetch(
+      API + path,
+      {
+        credentials: "same-origin",
+        cache: "no-store",
+        signal: controller.signal,
+
+        ...(body
+          ? {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify(body),
+            }
+          : {}),
+      },
+    );
+
+    const data =
+      await response.json();
+
+    if (
+      !response.ok ||
+      data.success === false
+    ) {
+      throw Object.assign(
+        new Error(
+          data.error ||
+            "Request failed",
+        ),
+        {
+          status: response.status,
+        },
+      );
+    }
+
+    return data;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const store = {
+  get(key) {
+    try {
+      return JSON.parse(
+        sessionStorage.getItem(key) ||
+          "null",
+      );
+    } catch {
+      return null;
+    }
+  },
+
+  set(key, value) {
+    try {
+      sessionStorage.setItem(
+        key,
+        JSON.stringify(value),
+      );
+
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  remove(key) {
+    try {
+      sessionStorage.removeItem(key);
+    } catch {}
+  },
 };
 
-function AmountBox({ label, value }) {
+function keyFor(id) {
   return (
-    <div className="so-money-box">
-      {label && <span className="so-money-label">{label}</span>}
-      <strong>{money(value)}</strong>
+    "tsb_card_so_pending_v1:" +
+    id
+  );
+}
+
+function newKey() {
+  const bytes =
+    new Uint8Array(24);
+
+  globalThis.crypto.getRandomValues(
+    bytes,
+  );
+
+  return Array.from(
+    bytes,
+    byte =>
+      byte
+        .toString(16)
+        .padStart(2, "0"),
+  ).join("");
+}
+
+function Host({ celebrate }) {
+  const [failed, setFailed] =
+    useState(false);
+
+  const source = celebrate
+    ? "/games/superover-clap.mp4"
+    : "/games/superover-idle.mp4";
+
+  return (
+    <div className="cs-host">
+      {!failed ? (
+        <video
+          key={source}
+          src={source}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          onError={() =>
+            setFailed(true)
+          }
+        />
+      ) : (
+        <div className="cs-no-video">
+          Host video unavailable
+        </div>
+      )}
+
+      <small className="cs-ai">
+        AI-GENERATED DEMO
+      </small>
     </div>
   );
 }
 
-async function api(path, body) {
-  const response = await fetch(API + path, {
-    credentials: "same-origin",
-    cache: "no-store",
-    ...(body
-      ? {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(body),
+function CardTable({
+  match,
+  now,
+}) {
+  const transfer =
+    match.phase === "TRANSFER";
+
+  const events =
+    match.events || [];
+
+  const latest =
+    events.at(-1);
+
+  const age = latest
+    ? now -
+      new Date(
+        match.roundStartAt,
+      ).getTime() -
+      latest.at
+    : Infinity;
+
+  const moving =
+    latest &&
+    age >= 0 &&
+    age < 650;
+
+  return (
+    <div className="cs-scene">
+      <Host
+        celebrate={
+          match.phase === "RESULT" &&
+          match.result?.winner !==
+            "TIE" &&
+          age < 2000
         }
-      : {}),
-  });
+      />
 
-  const data = await response.json();
+      <div
+        className="cs-machine"
+        aria-label="Opaque card machine beside the left edge of the table"
+      >
+        <div className="cs-machine-top" />
 
-  if (!response.ok) {
-    throw Object.assign(
-      new Error(data.error || "Unable to connect."),
-      { status: response.status }
-    );
-  }
+        <span>
+          SHUFFLER
+        </span>
+      </div>
 
-  return data;
+      <div className="cs-table">
+        <div className="cs-table-title">
+          Super Over
+        </div>
+
+        <div
+          className="cs-shoe"
+          aria-label={
+            transfer
+              ? "Transparent tray receiving a small card stack"
+              : "Transparent card tray"
+          }
+        >
+          {!transfer && (
+            <div className="cs-stack" />
+          )}
+        </div>
+
+        {transfer && (
+          <div
+            key={match.id}
+            className="cs-transfer-stack"
+            aria-hidden="true"
+          />
+        )}
+
+        <div
+          className="cs-slots"
+          aria-label="Two rows with six card positions each"
+        >
+          {[0, 1].map(team => (
+            <div
+              key={team}
+              className="cs-card-row"
+              aria-label={
+                `${match.teams[team]} ` +
+                "six card positions"
+              }
+            >
+              {Array.from(
+                { length: 6 },
+                (_, index) => {
+                  const card =
+                    events.find(
+                      event =>
+                        event.team ===
+                          team &&
+                        event.ball ===
+                          index + 1,
+                    );
+
+                  const arriving =
+                    moving &&
+                    card?.index ===
+                      latest.index;
+
+                  return (
+                    <div
+                      key={index}
+                      className="cs-slot"
+                    >
+                      {card && (
+                        <div
+                          key={
+                            `${match.id}:` +
+                            card.index
+                          }
+                          className={
+                            "cs-playing-card " +
+                            (
+                              arriving
+                                ? "cs-arriving "
+                                : ""
+                            ) +
+                            (
+                              card.rank === "K"
+                                ? "cs-wicket-card"
+                                : ""
+                            )
+                          }
+                          style={
+                            arriving
+                              ? {
+                                  "--from-x":
+                                    `${
+                                      (5 - index) *
+                                        115 +
+                                      110
+                                    }%`,
+
+                                  "--from-y":
+                                    team === 0
+                                      ? "-170%"
+                                      : "-300%",
+                                }
+                              : undefined
+                          }
+                          aria-label={
+                            `${
+                              match.teams[team]
+                            } ball ${
+                              index + 1
+                            }: ${
+                              card.rank
+                            }, ${
+                              card.value === "W"
+                                ? "wicket"
+                                : `${card.value} runs`
+                            }`
+                          }
+                        >
+                          <b>
+                            {card.rank}
+                          </b>
+
+                          <span>
+                            ♠
+                          </span>
+
+                          <b>
+                            {card.rank}
+                          </b>
+                        </div>
+                      )}
+                    </div>
+                  );
+                },
+              )}
+            </div>
+          ))}
+        </div>
+
+        <span className="cs-table-foot">
+          INDIA · AUSTRALIA
+        </span>
+      </div>
+    </div>
+  );
 }
 
 export default function AnimatedSuperOverPage({
-  onBack = () => window.location.assign("/"),
+  onBack = () =>
+    window.location.assign("/"),
 }) {
-  const [data, setData] = useState(null);
-  const [now, setNow] = useState(Date.now());
-  const [error, setError] = useState("");
+  const [data, setData] =
+    useState(null);
 
-  const [amount, setAmount] = useState(100);
-  const [selection, setSelection] = useState(null);
-  const [busy, setBusy] = useState(false);
+  const [now, setNow] =
+    useState(Date.now());
 
-  const [pending, setPending] = useState(null);
-  const [message, setMessage] = useState("");
-  const [betError, setBetError] = useState("");
+  const [error, setError] =
+    useState("");
+
+  const [betError, setBetError] =
+    useState("");
+
+  const [amount, setAmount] =
+    useState("100");
+
+  const [selection, setSelection] =
+    useState(null);
+
+  const [busy, setBusy] =
+    useState(false);
+
+  const [pending, setPending] =
+    useState(null);
+
+  const [message, setMessage] =
+    useState("");
+
+  const mounted =
+    useRef(false);
+
+  const inFlight =
+    useRef(false);
+
+  const refresh =
+    useRef(() => {});
 
   const anchor = useRef({
     server: Date.now(),
     local: performance.now(),
   });
 
-  const received = useRef(0);
-  const refresh = useRef(() => {});
-  const lastBalance = useRef(null);
-  const inFlight = useRef(false);
-  const mounted = useRef(false);
+  const received =
+    useRef(0);
+
+  const account =
+    useRef(null);
+
+  const dataRef =
+    useRef(null);
+
+  const lastBalance =
+    useRef(null);
 
   useEffect(() => {
-    let alive = true;
-    let loading = false;
     mounted.current = true;
 
+    let alive = true;
+    let loading = false;
+
     async function load() {
-      if (loading) return;
+      if (loading) {
+        return;
+      }
+
       loading = true;
 
       try {
-        const selectedStart = new URLSearchParams(
-          window.location.search
-        ).get("start");
+        const value =
+          await api("/state");
 
-        const value = await api(
-          selectedStart === null
-            ? "/state"
-            : `/state?start=${encodeURIComponent(selectedStart)}`
+        if (!alive) {
+          return;
+        }
+
+        if (
+          account.current !==
+          value.customerId
+        ) {
+          account.current =
+            value.customerId;
+
+          setSelection(null);
+          setMessage("");
+          setBetError("");
+
+          const saved =
+            store.get(
+              keyFor(
+                value.customerId,
+              ),
+            );
+
+          setPending(
+            saved?.customerId ===
+              value.customerId &&
+              typeof saved.body
+                ?.requestKey ===
+                "string"
+              ? saved
+              : null,
+          );
+
+          lastBalance.current =
+            null;
+        }
+
+        if (
+          lastBalance.current !==
+            null &&
+          lastBalance.current !==
+            value.balance
+        ) {
+          window.dispatchEvent(
+            new Event(
+              "demo-balance-updated",
+            ),
+          );
+        }
+
+        lastBalance.current =
+          value.balance;
+
+        anchor.current = {
+          server:
+            new Date(
+              value.serverTime,
+            ).getTime(),
+
+          local:
+            performance.now(),
+        };
+
+        received.current =
+          performance.now();
+
+        dataRef.current =
+          value;
+
+        setData(value);
+
+        setNow(
+          anchor.current.server,
         );
 
-        if (alive) {
-          anchor.current = {
-            server: new Date(value.serverTime).getTime(),
-            local: performance.now(),
-          };
-
-          received.current = performance.now();
-          setData(value);
-          setError("");
-        }
+        setError("");
       } catch (failure) {
-        if (alive) setError(failure.message);
+        if (alive) {
+          setError(
+            failure.name ===
+              "AbortError"
+              ? "Connection timed out. Retrying…"
+              : failure.message,
+          );
+
+          if (
+            failure.status ===
+              401 ||
+            failure.status ===
+              403
+          ) {
+            dataRef.current =
+              null;
+
+            setData(null);
+
+            account.current =
+              null;
+
+            setPending(null);
+            setSelection(null);
+          }
+        }
       } finally {
         loading = false;
       }
     }
 
-    refresh.current = load;
+    refresh.current =
+      load;
+
     void load();
 
-    const poll = setInterval(load, 750);
+    const poll = setInterval(
+      load,
+      500,
+    );
 
     const timer = setInterval(
       () =>
         setNow(
           anchor.current.server +
             performance.now() -
-            anchor.current.local
+            anchor.current.local,
         ),
-      100
+      100,
     );
 
     return () => {
       alive = false;
-      mounted.current = false;
+
+      mounted.current =
+        false;
+
       clearInterval(poll);
       clearInterval(timer);
     };
   }, []);
 
-  const match = data?.match;
+  const match =
+    data?.match;
 
   const fresh = Boolean(
     data &&
-      received.current > 0 &&
-      performance.now() - received.current < 2500 &&
-      !error
+      !error &&
+      performance.now() -
+        received.current <
+        2500,
   );
 
   const open = Boolean(
-    match?.phase === "BETTING" &&
-      now < new Date(match.closesAt).getTime() &&
-      fresh
-  );
-
-  const canConfirm = Boolean(
-    open &&
-      selection &&
-      selection.matchId === match.id &&
-      selection.windowId === match.windowId &&
-      selection.quoteVersion === match.quoteVersion &&
-      selection.points ===
-        match.rates?.[selection.team]?.[
-          selection.direction.toLowerCase()
-        ]
+    fresh &&
+      match?.phase ===
+        "BETTING" &&
+      now >=
+        new Date(
+          match.opensAt,
+        ).getTime() &&
+      now <
+        new Date(
+          match.closesAt,
+        ).getTime(),
   );
 
   const validAmount =
-    Number.isSafeInteger(amount) &&
-    amount >= 100 &&
-    amount <= 25000;
+    Number.isSafeInteger(
+      Number(amount),
+    ) &&
+    Number(amount) >= 100 &&
+    Number(amount) <= 25000;
 
-  const balanceAvailable =
-    data?.balance !== null &&
-    data?.balance !== undefined &&
-    Number.isFinite(Number(data.balance));
+  const selected =
+    selection?.matchId ===
+    match?.id;
 
-  const bets = Array.isArray(data?.bets) ? data.bets : [];
-
-  useEffect(() => {
+  async function send(saved) {
     if (
-      data?.balance === null ||
-      data?.balance === undefined ||
-      !Number.isFinite(Number(data.balance))
+      inFlight.current ||
+      !saved ||
+      account.current !==
+        saved.customerId
     ) {
       return;
     }
 
-    const balance = Number(data.balance);
-    const previous = lastBalance.current;
-    lastBalance.current = balance;
+    inFlight.current =
+      true;
 
-    if (previous !== null && previous !== balance) {
-      window.dispatchEvent(new Event("demo-balance-updated"));
-    }
-  }, [data?.balance]);
-
-  async function send(payload) {
-    if (inFlight.current || !payload) return;
-
-    inFlight.current = true;
     setBusy(true);
     setBetError("");
     setMessage("");
 
     try {
-      await api("/bets", payload);
+      const result =
+        await api(
+          "/bets",
+          saved.body,
+        );
 
-      window.dispatchEvent(new Event("demo-balance-updated"));
+      store.remove(
+        keyFor(
+          saved.customerId,
+        ),
+      );
 
-      if (mounted.current) {
+      window.dispatchEvent(
+        new Event(
+          "demo-balance-updated",
+        ),
+      );
+
+      if (
+        mounted.current &&
+        account.current ===
+          saved.customerId
+      ) {
         setPending(null);
         setSelection(null);
-        setMessage("Demo bet accepted.");
+
+        setMessage(
+          result.duplicate
+            ? "Previously accepted bet recovered."
+            : "Demo bet accepted.",
+        );
+
         void refresh.current();
       }
     } catch (failure) {
-      if (mounted.current) {
-        setBetError(failure.message);
+      if (
+        mounted.current &&
+        account.current ===
+          saved.customerId
+      ) {
+        const definite = [
+          400,
+          401,
+          403,
+          404,
+          409,
+          422,
+        ].includes(
+          failure.status,
+        );
 
-        if (!failure.status || failure.status >= 500) {
-          setPending(payload);
-        } else {
+        if (definite) {
+          store.remove(
+            keyFor(
+              saved.customerId,
+            ),
+          );
+
           setPending(null);
         }
+
+        setBetError(
+          definite
+            ? failure.message
+            : "Connection interrupted. Use CHECK SAME BET to recover acceptance.",
+        );
       }
     } finally {
-      inFlight.current = false;
-      if (mounted.current) setBusy(false);
+      inFlight.current =
+        false;
+
+      if (mounted.current) {
+        setBusy(false);
+      }
     }
   }
 
   function confirm() {
     if (
-      !canConfirm ||
+      !open ||
+      !selected ||
+      !validAmount ||
       busy ||
       pending ||
-      !validAmount
+      inFlight.current ||
+      !dataRef.current
     ) {
       return;
     }
 
-    void send({
-      ...selection,
-      amount,
-      requestKey:
-        globalThis.crypto?.randomUUID?.() ||
-        `${Date.now()}_${Math.random().toString(36).slice(2)}`,
-    });
+    if (
+      Number(amount) >
+      Number(data.balance)
+    ) {
+      setBetError(
+        "Insufficient demo coins.",
+      );
+
+      return;
+    }
+
+    let requestKey;
+
+    try {
+      requestKey =
+        newKey();
+    } catch {
+      setBetError(
+        "A secure browser connection is required.",
+      );
+
+      return;
+    }
+
+    const saved = {
+      customerId:
+        data.customerId,
+
+      body: {
+        matchId:
+          match.id,
+
+        team:
+          selection.team,
+
+        direction:
+          "BACK",
+
+        amount:
+          Number(amount),
+
+        points: 98,
+
+        quoteVersion: 1,
+
+        windowId: "PRE",
+
+        requestKey,
+      },
+    };
+
+    if (
+      !store.set(
+        keyFor(
+          data.customerId,
+        ),
+        saved,
+      )
+    ) {
+      setBetError(
+        "Enable browser session storage to recover interrupted bets.",
+      );
+
+      return;
+    }
+
+    setPending(saved);
+
+    void send(saved);
   }
 
+  const firstDone =
+    match &&
+    (
+      match.scores[0]
+        .balls.length === 6 ||
+      match.scores[0]
+        .wickets === 2
+    );
+
+  const chase =
+    match?.scores[1];
+
   return (
-    <main className="so-page">
+    <main className="cs-page">
       <style>{`
-        .so-page {
-          --so-green:#166534;
-          --so-wine:#722f37;
-          --so-white:#ffffff;
-          min-height:100vh;
-          background:#080d16;
-          color:#fff;
-          font-family:Inter,Arial,sans-serif;
-          padding-bottom:30px;
+        .cs-page {
+          --green: #08b7bc;
+          --wine: #791b3e;
+
+          min-height: 100vh;
+          background: #151b20;
+          color: #fff;
+          font-family: Arial, sans-serif;
+          padding-bottom: 24px;
         }
 
-        .so-page * { box-sizing:border-box; }
-        .so-wrap { max-width:880px; margin:auto; }
-        .so-page button,.so-page input { font:inherit; }
-        .so-page button { cursor:pointer; }
-        .so-page button:disabled {
-          cursor:not-allowed;
-          opacity:.5;
-        }
-        .so-page :focus-visible {
-          outline:3px solid var(--so-wine);
-          outline-offset:3px;
+        .cs-page * {
+          box-sizing: border-box;
         }
 
-        .so-header {
-          display:flex;
-          flex-wrap:wrap;
-          align-items:center;
-          justify-content:space-between;
-          gap:12px;
-          padding:16px;
-          background:var(--so-green);
-          border-bottom:3px solid var(--so-wine);
-        }
-        .so-brand {
-          flex:1;
-          min-width:0;
-          text-align:center;
-          font-size:14px;
-          font-weight:900;
-          color:var(--so-white);
-        }
-        .so-brand small {
-          display:block;
-          margin-top:5px;
-          font-size:10px;
+        .cs-page button,
+        .cs-page input {
+          font: inherit;
         }
 
-        .so-wallet {
-          max-width:100%;
-          border:2px solid var(--so-green);
-          border-radius:12px;
-          padding:10px 12px;
-          background:var(--so-white);
-          color:var(--so-green);
-          text-align:center;
-        }
-        .so-wallet-title {
-          display:block;
-          font-size:9px;
-          font-weight:900;
-          letter-spacing:.5px;
-        }
-        .so-wallet-value {
-          display:flex;
-          align-items:center;
-          justify-content:center;
-          gap:8px;
-          margin-top:6px;
-        }
-        .so-wallet-symbol {
-          display:grid;
-          place-items:center;
-          flex-shrink:0;
-          width:32px;
-          height:32px;
-          background:var(--so-green);
-          color:var(--so-white);
-          border-radius:8px;
-          font-size:23px;
-          font-weight:900;
-        }
-        .so-wallet-number {
-          font-size:20px;
-          font-weight:900;
-          overflow-wrap:anywhere;
-          font-variant-numeric:tabular-nums;
-        }
-        .so-wallet small {
-          display:block;
-          margin-top:5px;
-          color:var(--so-wine);
-          font-size:9px;
-          font-weight:bold;
+        .cs-page button {
+          cursor: pointer;
         }
 
-        .so-money-grid {
-          display:grid;
-          grid-template-columns:repeat(2,minmax(0,1fr));
-          gap:10px;
-          margin-top:12px;
-        }
-        .so-money-box {
-          display:inline-flex;
-          flex-direction:column;
-          align-items:center;
-          justify-content:center;
-          gap:5px;
-          max-width:100%;
-          background:var(--so-white);
-          color:var(--so-green);
-          border:1px solid var(--so-green);
-          border-radius:10px;
-          padding:10px 12px;
-          font-variant-numeric:tabular-nums;
-        }
-        .so-money-label {
-          color:var(--so-wine);
-          font-size:10px;
-          font-weight:bold;
-          text-align:center;
-        }
-        .so-money-box strong {
-          color:var(--so-green);
-          font-size:18px;
-          overflow-wrap:anywhere;
+        .cs-page button:disabled {
+          cursor: default;
+          opacity: .48;
         }
 
-        .so-page .so-row {
-          display:grid;
-          grid-template-columns:minmax(0,1fr) 88px 88px;
-          border-bottom:1px solid var(--so-green);
-        }
-        .so-cell {
-          padding:14px 10px;
-          background:var(--so-white);
-          color:var(--so-green);
-          font-size:14px;
-          font-weight:800;
-        }
-        .so-back {
-          background:var(--so-green);
-          color:var(--so-white);
-        }
-        .so-lay {
-          background:var(--so-wine);
-          color:var(--so-white);
-        }
-        .so-market {
-          border:0;
-          border-left:1px solid var(--so-white);
-          font-weight:900;
-          font-size:22px;
-        }
-        .so-strip {
-          padding:12px 16px;
-          background:var(--so-green);
-          color:var(--so-white);
-          font-weight:900;
-        }
-        .so-pill {
-          display:inline-flex;
-          align-items:center;
-          justify-content:center;
-          min-width:30px;
-          height:30px;
-          background:var(--so-green);
-          color:var(--so-white);
-          border-radius:50%;
-          margin:4px;
-          font-weight:bold;
-        }
-        .so-panel {
-          padding:16px;
-          background:var(--so-white);
-          color:var(--so-green);
-          border-bottom:1px solid var(--so-green);
-        }
-        .so-panel p { line-height:1.7; }
-        .so-button {
-          padding:12px 20px;
-          border:0;
-          background:var(--so-green);
-          color:var(--so-white);
-          border-radius:8px;
-          font-weight:900;
-        }
-        .so-button-wine {
-          background:var(--so-wine);
-          color:var(--so-white);
-        }
-        .so-stake-box {
-          display:flex;
-          align-items:center;
-          max-width:300px;
-          overflow:hidden;
-          border:2px solid var(--so-green);
-          border-radius:10px;
-          background:var(--so-white);
-        }
-        .so-stake-symbol {
-          display:grid;
-          place-items:center;
-          align-self:stretch;
-          padding:0 14px;
-          font-size:24px;
-          font-weight:900;
-          background:var(--so-green);
-          color:var(--so-white);
-        }
-        .so-page .so-stake-input {
-          min-width:0;
-          width:100%;
-          max-width:100%;
-          padding:12px;
-          border:0;
-          border-radius:0;
-          background:var(--so-white);
-          color:var(--so-green);
-          font-size:20px;
-          font-weight:900;
-        }
-        .so-bet-record {
-          border:1px solid var(--so-green);
-          border-radius:12px;
-          padding:12px;
-          margin-top:12px;
-          font-size:12px;
-          line-height:1.7;
-        }
-        .so-bet-status {
-          display:inline-block;
-          margin-top:8px;
-          border:1px solid var(--so-wine);
-          border-radius:6px;
-          padding:4px 8px;
-          color:var(--so-wine);
-          font-size:10px;
-          font-weight:900;
+        .cs-page :focus-visible {
+          outline: 3px solid #ffc96a;
+          outline-offset: 2px;
         }
 
-        .so-ball { animation:soBall 10s linear both; }
-        .so-ball.so-four { animation-name:soFour; }
-        .so-ball.so-six { animation-name:soSix; }
-        .so-bat {
-          transform-origin:10px 6px;
-          animation:soBat 10s ease both;
+        .cs-wrap {
+          max-width: 880px;
+          margin: auto;
         }
-        .so-bowler { animation:soBowler 10s ease both; }
 
-        @keyframes soBall {
-          0% { transform:translate(0,0); }
-          12% { transform:translate(22px,-75px); }
-          22%,100% {
-            transform:translate(30px,-80px);
-            opacity:0;
+        .cs-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          padding: 18px 14px;
+          background: var(--green);
+          color: white;
+        }
+
+        .cs-brand {
+          font-size: clamp(14px, 3vw, 21px);
+          font-weight: 900;
+          text-align: left;
+        }
+
+        .cs-balance {
+          font-size: 18px;
+          font-weight: 800;
+          white-space: nowrap;
+          font-variant-numeric: tabular-nums;
+        }
+
+        .cs-toolbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          padding: 10px 12px;
+          background: #283640;
+        }
+
+        .cs-toolbar h1 {
+          font-size: 17px;
+          margin: 0;
+        }
+
+        .cs-plain {
+          border: 0;
+          background: transparent;
+          color: inherit;
+          padding: 7px;
+          font-weight: bold;
+        }
+
+        .cs-score {
+          background:
+            linear-gradient(
+              110deg,
+              #143b35,
+              #182920
+            );
+          padding: 12px 14px;
+        }
+
+        .cs-team-score {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 8px;
+          margin-bottom: 8px;
+          font-size: 14px;
+        }
+
+        .cs-team-score strong {
+          font-variant-numeric: tabular-nums;
+        }
+
+        .cs-balls {
+          display: flex;
+          gap: 5px;
+          grid-column: 1 / -1;
+          min-height: 24px;
+        }
+
+        .cs-ball {
+          display: grid;
+          place-items: center;
+          width: 25px;
+          height: 25px;
+          border-radius: 50%;
+          background: var(--green);
+          font-size: 12px;
+          font-weight: bold;
+        }
+
+        .cs-ball.w {
+          background: var(--wine);
+        }
+
+        .cs-target {
+          font-size: 12px;
+          color: #ffde9e;
+          margin: 4px 0;
+        }
+
+        .cs-bet-clock {
+          padding: 9px 14px;
+          background: var(--wine);
+          font-weight: bold;
+          text-align: center;
+          font-variant-numeric: tabular-nums;
+        }
+
+        .cs-scene {
+          position: relative;
+          background: #100f12;
+          overflow: hidden;
+          padding-top: 0;
+          border-top: 3px solid white;
+          border-bottom: 3px solid white;
+        }
+
+        .cs-host {
+          position: relative;
+          aspect-ratio: 16 / 5.1;
+          overflow: hidden;
+          background: #141313;
+        }
+
+        .cs-host video {
+          position: absolute;
+          left: 0;
+          top: 0;
+          display: block;
+          width: 100%;
+          height: auto;
+        }
+
+        .cs-no-video {
+          padding: 35px;
+          text-align: center;
+          font-size: 12px;
+          color: #ccc;
+        }
+
+        .cs-ai {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          font-size: 8px;
+          background: #0008;
+          padding: 3px;
+          color: #ddd;
+        }
+
+        .cs-table {
+          position: relative;
+          margin: -1px 7% 12px 12%;
+          padding: 28px 12% 22px 8%;
+
+          background:
+            radial-gradient(
+              ellipse at top,
+              #8d254b,
+              #48172a
+            );
+
+          border: 8px solid #29242a;
+          border-top: 5px solid #4b4246;
+
+          border-radius:
+            12px 12px 42% 42% /
+            12px 12px 16% 16%;
+
+          box-shadow: 0 4px 12px #000;
+          z-index: 2;
+        }
+
+        .cs-table-title {
+          text-align: center;
+          font-size: clamp(13px, 2.8vw, 25px);
+          font-weight: bold;
+          color: #dda453;
+          margin-bottom: 12px;
+        }
+
+        .cs-slots {
+          display: grid;
+          gap: 10px;
+        }
+
+        .cs-card-row {
+          display: grid;
+          grid-template-columns:
+            repeat(6, minmax(0, 1fr));
+          gap: 7px;
+        }
+
+        .cs-slot {
+          aspect-ratio: .69;
+          border: 1px solid #d1a6b377;
+          border-radius: 3px;
+          position: relative;
+          min-width: 0;
+        }
+
+        .cs-playing-card {
+          position: absolute;
+          inset: 0;
+          background: #fffbee;
+          color: #131313;
+          border-radius: 3px;
+          box-shadow: 0 2px 3px #0005;
+
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: space-between;
+
+          padding: 3px;
+          font-size: clamp(10px, 2.5vw, 21px);
+          line-height: 1;
+        }
+
+        .cs-playing-card b:first-child {
+          align-self: flex-start;
+        }
+
+        .cs-playing-card b:last-child {
+          align-self: flex-end;
+          transform: rotate(180deg);
+        }
+
+        .cs-playing-card span {
+          font-size: clamp(11px, 2.8vw, 27px);
+        }
+
+        .cs-wicket-card {
+          color: var(--wine);
+        }
+
+        .cs-arriving {
+          animation: csDeal .65s ease-out both;
+          z-index: 8;
+        }
+
+        @keyframes csDeal {
+          from {
+            transform:
+              translate(
+                var(--from-x),
+                var(--from-y)
+              )
+              rotate(-12deg);
+
+            opacity: .5;
+          }
+
+          to {
+            transform:
+              translate(0, 0)
+              rotate(0);
+
+            opacity: 1;
           }
         }
-        @keyframes soFour {
-          0% { transform:translate(0,0); }
-          12% { transform:translate(22px,-75px); }
-          40%,100% {
-            transform:translate(330px,-50px);
-            opacity:0;
-          }
-        }
-        @keyframes soSix {
-          0% { transform:translate(0,0); }
-          12% { transform:translate(22px,-75px); }
-          30% { transform:translate(130px,-260px); }
-          45%,100% {
-            transform:translate(290px,-180px);
-            opacity:0;
-          }
-        }
-        @keyframes soBat {
-          0%,10% { transform:rotate(0); }
-          18% { transform:rotate(-110deg); }
-          30%,100% { transform:rotate(0); }
-        }
-        @keyframes soBowler {
-          0% { transform:translateY(18px); }
-          12%,100% { transform:translateY(0); }
+
+        .cs-table-foot {
+          display: block;
+          text-align: center;
+          color: #b27d8e;
+          font-size: 8px;
+          margin-top: 12px;
         }
 
-        @media(max-width:430px) {
-          .so-page .so-row {
-            grid-template-columns:minmax(0,1fr) 76px 76px;
+        .cs-machine {
+          position: absolute;
+          z-index: 3;
+          left: 1%;
+          top: 48%;
+          width: 11%;
+          height: 22%;
+          border: 2px solid #222;
+
+          background:
+            linear-gradient(
+              100deg,
+              #111,
+              #333
+            );
+
+          transform: skewY(-3deg);
+          box-shadow: 0 6px 5px #0008;
+        }
+
+        .cs-machine span {
+          font-size: clamp(4px, 1vw, 8px);
+          display: block;
+          text-align: center;
+          color: #aaa;
+          margin-top: 12%;
+        }
+
+        .cs-machine-top {
+          height: 20%;
+          margin: 8%;
+          background: #070707;
+          border: 1px solid #555;
+        }
+
+        .cs-shoe {
+          position: absolute;
+          right: -1%;
+          top: 9%;
+          width: 15%;
+          height: 26%;
+          border: 2px solid #ffffff80;
+          background: #ffffff15;
+          transform: skewY(-12deg);
+          box-shadow:
+            inset 2px 2px 5px #fff3;
+        }
+
+        .cs-stack,
+        .cs-transfer-stack {
+          border: 1px solid #e7d9ce;
+
+          background:
+            repeating-linear-gradient(
+              0deg,
+              #f3eee8 0 2px,
+              #a6948f 2px 3px
+            );
+
+          box-shadow: 0 2px 3px #0005;
+        }
+
+        .cs-stack {
+          position: absolute;
+          left: 12%;
+          right: 12%;
+          bottom: 15%;
+          height: 45%;
+        }
+
+        .cs-transfer-stack {
+          position: absolute;
+          width: 11%;
+          height: 11%;
+          top: 14%;
+          left: -10%;
+          animation:
+            csTransfer 4s ease-in-out forwards;
+          z-index: 9;
+        }
+
+        @keyframes csTransfer {
+          0%, 12% {
+            left: -10%;
+            opacity: 0;
           }
-          .so-cell { font-size:12px; padding:12px 8px; }
-          .so-header { padding:12px; gap:8px; }
-          .so-brand { font-size:12px; }
-          .so-wallet { padding:8px; }
-          .so-wallet-number { font-size:17px; }
+
+          20% {
+            opacity: 1;
+          }
+
+          80%, 100% {
+            left: 87%;
+            opacity: 1;
+          }
+        }
+
+        .cs-section {
+          background: #43515b;
+          padding: 10px 12px;
+          font-weight: 800;
+          font-size: 15px;
+        }
+
+        .cs-market-row {
+          display: grid;
+          grid-template-columns:
+            minmax(0, 1fr) 90px 90px;
+
+          border-bottom: 1px solid #ccc;
+          background: #fff;
+          color: #27353b;
+        }
+
+        .cs-cell {
+          padding: 13px 12px;
+          font-size: 14px;
+          display: flex;
+          align-items: center;
+        }
+
+        .cs-back {
+          background: var(--green);
+          color: #fff;
+        }
+
+        .cs-lay {
+          background: var(--wine);
+          color: #fff;
+        }
+
+        .cs-price {
+          border: 0;
+          border-left: 1px solid #fff5;
+          display: block;
+          text-align: center;
+          font-size: 23px;
+          font-weight: 900;
+          padding: 12px 3px;
+        }
+
+        .cs-price small {
+          display: block;
+          font-size: 9px;
+          margin-top: 4px;
+        }
+
+        .cs-price[aria-pressed=true] {
+          box-shadow:
+            inset 0 0 0 3px #ffd36d;
+        }
+
+        .cs-lay.cs-cell {
+          justify-content: center;
+        }
+
+        .cs-panel {
+          padding: 14px;
+          background: #fff;
+          color: #253238;
+          border-bottom: 1px solid #ddd;
+        }
+
+        .cs-panel p {
+          font-size: 12px;
+          line-height: 1.7;
+        }
+
+        .cs-stake {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+          margin: 10px 0;
+        }
+
+        .cs-stake input {
+          width: 130px;
+          min-width: 0;
+          border: 1px solid #a8b4b7;
+          padding: 10px;
+          color: #17272c;
+          background: #fff;
+          border-radius: 4px;
+        }
+
+        .cs-quick {
+          padding: 7px 9px;
+          border: 1px solid #ccd3d5;
+          border-radius: 4px;
+          background: #f4f8f8;
+          color: #233;
+        }
+
+        .cs-confirm {
+          padding: 12px 18px;
+          background: var(--green);
+          color: white;
+          font-weight: 800;
+          border: 0;
+          border-radius: 5px;
+        }
+
+        .cs-alert {
+          padding: 12px;
+          background: #fff1d0;
+          color: #6b3f13;
+          font-size: 12px;
+          line-height: 1.6;
+        }
+
+        .cs-result {
+          text-align: center;
+          background: var(--wine);
+          padding: 13px;
+          font-weight: 900;
+          font-size: 18px;
+        }
+
+        .cs-record {
+          padding: 12px 0;
+          border-bottom: 1px solid #ddd;
+          font-size: 12px;
+          line-height: 1.8;
+        }
+
+        .cs-record small {
+          display: block;
+          color: #66747a;
+        }
+
+        .cs-footer {
+          padding: 14px;
+          font-size: 10px;
+          color: #bbc4c6;
+          line-height: 1.7;
+        }
+
+        .cs-proof {
+          font-size: 10px;
+          overflow-wrap: anywhere;
+          white-space: pre-wrap;
+        }
+
+        @media(max-width: 430px) {
+          .cs-market-row {
+            grid-template-columns:
+              minmax(0, 1fr) 76px 76px;
+          }
+
+          .cs-table {
+            padding-top: 15px;
+            border-width: 5px;
+            padding-bottom: 12px;
+          }
+
+          .cs-table-title {
+            margin-bottom: 8px;
+          }
+
+          .cs-slots {
+            gap: 7px;
+          }
+
+          .cs-card-row {
+            gap: 4px;
+          }
+
+          .cs-playing-card {
+            padding: 2px;
+          }
+
+          .cs-header {
+            padding: 14px 10px;
+          }
+
+          .cs-balance {
+            font-size: 15px;
+          }
+
+          .cs-host {
+            aspect-ratio: 16 / 5.4;
+          }
+
+          .cs-table-foot {
+            font-size: 6px;
+            margin-top: 7px;
+          }
+        }
+
+        @media(
+          prefers-reduced-motion: reduce
+        ) {
+          .cs-arriving,
+          .cs-transfer-stack {
+            animation: none;
+          }
+
+          .cs-transfer-stack {
+            left: 87%;
+          }
         }
       `}</style>
 
-      <div className="so-wrap">
-        <header className="so-header">
-          <button
-            type="button"
-            className="so-button so-button-wine"
-            onClick={onBack}
-          >
-            ← HOME
-          </button>
-
-          <div className="so-brand">
+      <div className="cs-wrap">
+        <header className="cs-header">
+          <div className="cs-brand">
             TELUGU SPORTS BOOK
-            <small>VIRTUAL SUPER OVER</small>
           </div>
 
           <div
-            className="so-wallet"
-            aria-live="polite"
-            aria-label="Demo wallet balance"
+            className="cs-balance"
+            aria-label="Demo balance"
           >
-            <span className="so-wallet-title">WALLET BALANCE</span>
-
-            <div className="so-wallet-value">
-              <span className="so-wallet-symbol" aria-hidden="true">
-                ₹
-              </span>
-
-              <strong className="so-wallet-number">
-                {balanceAvailable
-                  ? Number(data.balance).toLocaleString("en-IN", {
-                      maximumFractionDigits: 2,
-                    })
-                  : data || error
-                    ? "—"
-                    : "Loading…"}
-              </strong>
-            </div>
-
-            <small>DEMO COINS</small>
-
-            {balanceAvailable && !fresh && (
-              <small>LAST RECEIVED BALANCE</small>
-            )}
+            {data
+              ? money(data.balance)
+              : "…"}
           </div>
         </header>
 
-        <div
-          className="so-panel"
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            fontSize: 12,
-            gap: 8,
-          }}
-        >
-          <span>{ist(now)} IST</span>
-          <span>VIRTUAL DEMO COINS ONLY</span>
+        <div className="cs-toolbar">
+          <button
+            type="button"
+            className="cs-plain"
+            onClick={onBack}
+            aria-label="Customer home"
+          >
+            ←
+          </button>
+
+          <h1>
+            INSTANT SUPER OVER
+          </h1>
+
+          <a
+            href="#so-rules"
+            style={{
+              color: "inherit",
+              fontSize: 12,
+            }}
+          >
+            Rules
+          </a>
         </div>
 
+        {error && (
+          <div
+            className="cs-alert"
+            role="alert"
+          >
+            {error}
+          </div>
+        )}
+
         {!match ? (
-          <div className="so-panel">
-            {error || data?.message || "Connecting to match server…"}
+          <div className="cs-panel">
+            {error
+              ? "Waiting for a valid customer session and match server."
+              : "Connecting to match server…"}
           </div>
         ) : (
           <>
-            <div className="so-strip">
-              {match.teams.join(" vs ")}
-
-              <div style={{ fontSize: 11, marginTop: 6 }}>
-                START: {ist(match.startAt)} IST ·
-                Admin-controlled virtual demo
-              </div>
-            </div>
-
-            <CricketScene match={match} now={now} />
-
             <section
-              className="so-panel"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 12,
-              }}
+              className="cs-score"
+              aria-label="Match scoreboard"
             >
-              {match.teams.map((team, index) => (
-                <div key={team}>
-                  <strong
-                    style={{
-                      color: index === 0 ? "#166534" : "#722f37",
-                    }}
-                  >
-                    {team}
-                  </strong>
-
+              {match.teams.map(
+                (team, index) => (
                   <div
-                    style={{
-                      fontSize: 24,
-                      fontWeight: 900,
-                      margin: "6px 0",
-                    }}
+                    className="cs-team-score"
+                    key={team}
                   >
-                    {match.scores[index].runs}/
-                    {match.scores[index].wickets}{" "}
-                    <small style={{ fontSize: 13 }}>
-                      ({match.scores[index].overs})
-                    </small>
-                  </div>
+                    <span>
+                      {team}
+                    </span>
 
-                  <div>
-                    {match.scores[index].balls.map((ball, ballIndex) => (
-                      <span
-                        key={ballIndex}
-                        className="so-pill"
-                        style={{
-                          background:
-                            ball === "W" ? "#722f37" : "#166534",
-                        }}
-                      >
-                        {ball}
-                      </span>
-                    ))}
+                    <strong>
+                      {
+                        match.scores[index]
+                          .runs
+                      }
+                      /
+                      {
+                        match.scores[index]
+                          .wickets
+                      }{" "}
+
+                      <small>
+                        (
+                        {
+                          match.scores[index]
+                            .overs
+                        }
+                        )
+                      </small>
+                    </strong>
+
+                    <div className="cs-balls">
+                      {match.scores[
+                        index
+                      ].balls.map(
+                        (
+                          value,
+                          ballIndex,
+                        ) => (
+                          <span
+                            key={ballIndex}
+                            className={
+                              "cs-ball " +
+                              (
+                                value === "W"
+                                  ? "w"
+                                  : ""
+                              )
+                            }
+                          >
+                            {value}
+                          </span>
+                        ),
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ),
+              )}
+
+              {firstDone &&
+                match.phase !==
+                  "RESULT" && (
+                  <p className="cs-target">
+                    AUSTRALIA needs{" "}
+                    {Math.max(
+                      0,
+                      match.scores[0]
+                        .runs +
+                        1 -
+                        chase.runs,
+                    )}{" "}
+                    runs from{" "}
+                    {6 -
+                      chase.balls.length}
+                    {" "}balls · Target{" "}
+                    {match.scores[0]
+                      .runs + 1}
+                  </p>
+                )}
             </section>
 
-            <div
-              className="so-panel"
-              style={{
-                textAlign: "center",
-                color: open ? "#166534" : "#722f37",
-                fontWeight: 900,
-              }}
-            >
-              {match.phase === "RESULT"
-                ? match.result.winner === "TIE"
-                  ? "TIE · ALL RESERVED COINS REFUNDED"
-                  : `${match.teams[match.result.winner]} WON`
-                : open
-                  ? `BETTING OPEN · ${remaining(
-                      new Date(match.closesAt).getTime() - now
-                    )}`
-                  : match.phase === "WAITING"
-                    ? `NEXT START · ${remaining(
-                        new Date(match.startAt).getTime() - now
-                      )}`
-                    : match.phase === "SUSPENDED"
-                      ? "MARKET CLOSED · 0 / 0"
-                      : "BETTING LOCKED · BALL IN PLAY"}
-
-              {match.lockReason && match.phase !== "RESULT" && (
-                <div style={{ marginTop: 8, fontSize: 12 }}>
-                  {match.lockReason}
-                </div>
-              )}
-
-              {!fresh && (
-                <div style={{ marginTop: 8, fontSize: 12 }}>
-                  Connection unavailable. Betting actions paused.
-                </div>
-              )}
-
-              {match.phase === "RESULT" && (
-                <div style={{ marginTop: 8, fontSize: 12 }}>
-                  NEXT MATCH: {ist(match.nextAt)} IST ·{" "}
-                  {remaining(new Date(match.nextAt).getTime() - now)}
-                </div>
-              )}
-            </div>
-
-            <div className="so-strip">
-              MATCH WINNER · DEMO COINS ONLY
-            </div>
-
-            <div className="so-row">
-              <div className="so-cell">
-                Min: ₹100 · Max: ₹25,000
+            {open && (
+              <div className="cs-bet-clock">
+                BETTING ·{" "}
+                {seconds(
+                  new Date(
+                    match.closesAt,
+                  ).getTime() - now,
+                )}
+                s
               </div>
-              <div className="so-cell so-back">BACK</div>
-              <div className="so-cell so-lay">LAY</div>
+            )}
+
+            <CardTable
+              match={match}
+              now={now}
+            />
+
+            {match.result && (
+              <div
+                className="cs-result"
+                role="status"
+              >
+                {match.result.winner ===
+                "TIE"
+                  ? "TIE · STAKES REFUNDED"
+                  : `${
+                      match.teams[
+                        match.result.winner
+                      ]
+                    } WON`}
+              </div>
+            )}
+
+            <div className="cs-section">
+              Bookmaker
             </div>
 
-            {match.teams.map((team, index) => (
-              <div className="so-row" key={team}>
-                <div className="so-cell">{team}</div>
+            <div className="cs-market-row">
+              <div className="cs-cell">
+                Min: 100 · Max: 25,000
+              </div>
 
-                {["BACK", "LAY"].map((direction) => (
+              <div className="cs-cell cs-back">
+                Back
+              </div>
+
+              <div className="cs-cell cs-lay">
+                Lay
+              </div>
+            </div>
+
+            {match.teams.map(
+              (team, index) => (
+                <div
+                  key={team}
+                  className="cs-market-row"
+                >
+                  <div className="cs-cell">
+                    {team}
+                  </div>
+
                   <button
-                    key={direction}
                     type="button"
-                    className={`so-market ${
-                      direction === "BACK" ? "so-back" : "so-lay"
-                    }`}
-                    disabled={!open || busy || Boolean(pending)}
+                    className="cs-price cs-back"
+                    disabled={
+                      !open ||
+                      busy ||
+                      Boolean(pending)
+                    }
+                    aria-pressed={
+                      selected &&
+                      selection.team ===
+                        index
+                    }
                     onClick={() => {
                       setSelection({
-                        matchId: match.id,
-                        windowId: match.windowId,
-                        quoteVersion: match.quoteVersion,
-                        team: index,
-                        direction,
-                        points:
-                          match.rates[index][direction.toLowerCase()],
+                        matchId:
+                          match.id,
+
+                        team:
+                          index,
                       });
 
                       setMessage("");
                       setBetError("");
                     }}
                   >
-                    {match.rates[index][direction.toLowerCase()]}
+                    1.98
 
-                    <small style={{ display: "block", fontSize: 10 }}>
-                      POINTS
+                    <small>
+                      TOTAL RETURN
                     </small>
+                  </button>
+
+                  <div className="cs-cell cs-lay">
+                    —
+                  </div>
+                </div>
+              ),
+            )}
+
+            <section className="cs-panel">
+              <label htmlFor="cs-stake">
+                Stake
+              </label>
+
+              <div className="cs-stake">
+                <input
+                  id="cs-stake"
+                  inputMode="numeric"
+                  type="number"
+                  step="1"
+                  min="100"
+                  max="25000"
+                  value={amount}
+                  disabled={
+                    busy ||
+                    Boolean(pending)
+                  }
+                  onChange={event =>
+                    setAmount(
+                      event.target.value,
+                    )
+                  }
+                />
+
+                {[
+                  100,
+                  200,
+                  500,
+                  1000,
+                  2000,
+                  5000,
+                  10000,
+                  25000,
+                ].map(value => (
+                  <button
+                    type="button"
+                    className="cs-quick"
+                    key={value}
+                    disabled={
+                      busy ||
+                      Boolean(pending)
+                    }
+                    onClick={() =>
+                      setAmount(
+                        String(value),
+                      )
+                    }
+                  >
+                    {value.toLocaleString(
+                      "en-IN",
+                    )}
                   </button>
                 ))}
               </div>
-            ))}
 
-            <section className="so-panel">
-              <label
-                htmlFor="so-stake"
-                style={{
-                  display: "block",
-                  fontSize: 12,
-                  fontWeight: 900,
-                  marginBottom: 8,
-                }}
-              >
-                STAKE · WHOLE DEMO UNITS
-              </label>
-
-              <div className="so-stake-box">
-                <span className="so-stake-symbol" aria-hidden="true">
-                  ₹
-                </span>
-
-                <input
-                  id="so-stake"
-                  className="so-stake-input"
-                  type="number"
-                  inputMode="numeric"
-                  min="100"
-                  max="25000"
-                  step="1"
-                  value={amount}
-                  disabled={busy || Boolean(pending)}
-                  onChange={(event) =>
-                    setAmount(Number(event.target.value))
-                  }
-                />
-              </div>
-
-              {selection && (
+              {selected && (
                 <p>
-                  {match.teams[selection.team]} ·{" "}
-                  {selection.direction} · {selection.points} points
-                  <br />
-                  <small>
-                    {canConfirm
-                      ? "Review and confirm your demo bet."
-                      : "Window or rate changed. Select the current rate again."}
-                  </small>
+                  {
+                    match.teams[
+                      selection.team
+                    ]
+                  }
+                  {" "}· BACK 1.98 · Stake{" "}
+                  {money(
+                    Number(amount),
+                  )}
                 </p>
               )}
 
-              <div style={{ marginTop: 12 }}>
-                <button
-                  type="button"
-                  className="so-button"
-                  disabled={
-                    !canConfirm ||
-                    busy ||
-                    Boolean(pending) ||
-                    !validAmount
-                  }
-                  onClick={confirm}
-                >
-                  {busy ? "SENDING…" : "CONFIRM DEMO BET"}
-                </button>
-              </div>
+              <button
+                type="button"
+                className="cs-confirm"
+                disabled={
+                  !open ||
+                  !selected ||
+                  !validAmount ||
+                  busy ||
+                  Boolean(pending)
+                }
+                onClick={confirm}
+              >
+                {busy
+                  ? "CHECKING…"
+                  : "CONFIRM DEMO BET"}
+              </button>
 
               {pending && (
-                <div style={{ color: "#722f37", marginTop: 12 }}>
-                  <p>
-                    Connection interrupted. Retry the same request
-                    to check acceptance.
-                  </p>
+                <p>
+                  Acceptance needs checking.
+                  {" "}
 
                   <button
                     type="button"
-                    className="so-button so-button-wine"
+                    className="cs-quick"
                     disabled={busy}
-                    onClick={() => void send(pending)}
+                    onClick={() =>
+                      void send(pending)
+                    }
                   >
-                    CHECK / RETRY SAME BET
+                    CHECK SAME BET
                   </button>
-                </div>
+                </p>
               )}
 
               {message && (
-                <p role="status" style={{ color: "#166534" }}>
+                <p role="status">
                   {message}
                 </p>
               )}
 
-              <p style={{ fontSize: 11, color: "#722f37" }}>
-                ₹ is the display symbol for virtual demo balance.
+              {betError && (
+                <p
+                  role="alert"
+                  style={{
+                    color: "#791b3e",
+                  }}
+                >
+                  {betError}
+                </p>
+              )}
+
+              {!fresh && (
+                <p>
+                  Connection unavailable.
+                  Betting is paused.
+                </p>
+              )}
+
+              <p>
+                Next round in{" "}
+                {seconds(
+                  new Date(
+                    match.nextAt,
+                  ).getTime() - now,
+                )}
+                s · {stamp(now)} IST
               </p>
             </section>
 
-            <section className="so-panel">
-              <strong>MY DEMO BETS</strong>
+            <section className="cs-panel">
+              <strong>
+                MY BETS
+              </strong>
 
-              {bets.length === 0 ? (
-                <p>No bets yet.</p>
+              {!data.bets?.length ? (
+                <p>
+                  No bets yet.
+                </p>
               ) : (
-                bets.slice(0, 20).map((bet) => (
-                  <div key={bet.id} className="so-bet-record">
-                    <div>
-                      Match #{bet.match_id} · Team{" "}
-                      {Number(bet.team) + 1} · {bet.direction} ·{" "}
-                      {bet.points} points
-                    </div>
+                data.bets
+                  .slice(0, 20)
+                  .map(bet => (
+                    <div
+                      className="cs-record"
+                      key={bet.id}
+                    >
+                      <strong>
+                        {bet.match_id}
+                        {" "}·{" "}
 
-                    <span className="so-bet-status">
-                      {bet.status}
-                    </span>
+                        {bet.match_id
+                          .startsWith("C")
+                          ? [
+                              "INDIA",
+                              "AUSTRALIA",
+                            ][bet.team]
+                          : `Team ${
+                              Number(
+                                bet.team,
+                              ) + 1
+                            }`}
 
-                    <div className="so-money-grid">
-                      <AmountBox label="STAKE" value={bet.amount} />
-                      <AmountBox label="RESERVED" value={bet.hold} />
-                    </div>
+                        {" "}·{" "}
+                        {bet.direction}
+                      </strong>
 
-                    {bet.status === "SETTLED" && (
-                      <div style={{ marginTop: 10 }}>
-                        <AmountBox label="RETURNED" value={bet.payout} />
+                      <div>
+                        Stake{" "}
+                        {money(
+                          bet.amount,
+                        )}
+                        {" "}·{" "}
+                        {bet.status}
+
+                        {bet.status ===
+                        "SETTLED"
+                          ? (
+                              " · Returned " +
+                              money(
+                                bet.payout,
+                              )
+                            )
+                          : ""}
                       </div>
-                    )}
-                  </div>
-                ))
+
+                      <small>
+                        {stamp(
+                          bet.created_at,
+                        )}
+                        {" "}IST
+                      </small>
+                    </div>
+                  ))
               )}
             </section>
 
-            <details className="so-panel">
-              <summary>RULES &amp; RESULT VERIFICATION</summary>
+            <details
+              className="cs-panel"
+              id="so-rules"
+            >
+              <summary>
+                RULES &amp; VERIFICATION
+              </summary>
 
               <p>
-                Admin-controlled virtual demo. The Admin prepares
-                ball outcomes and manually changes match rates.
-                Results are not random in this mode. A ball result
-                freezes when its betting window opens; an unopened
-                future ball may be changed by Admin. Previously
-                accepted bets retain their accepted rate.
+                Demo coins only. This is an
+                AI host with a programmed card
+                table. The server shuffles
+                35 cards: five each of A, 2,
+                3, 4, 6, 10 and K. Cards are
+                drawn without replacement.
+                A = 1 run, 10 = 0 runs,
+                K = wicket. Other ranks give
+                their printed runs.
               </p>
 
               <p>
-                Two innings, at most six balls and two wickets each.
-                A successful chase stops the match. A tie refunds
-                reserved coins. Maximum match time is two minutes.
-                Each ball has eight seconds of betting and two
-                seconds locked for the result animation. A prepared
-                match releases five minutes before its quarter-hour
-                start. Unprepared matches do not open for betting.
+                Each innings has at most six
+                cards. Two wickets immediately
+                end that innings, including two
+                opening Kings for 0/2.
+                Australia stops as soon as it
+                passes India&apos;s score.
+                Equal runs are a tie regardless
+                of wickets, and stakes are
+                returned.
               </p>
 
               <p>
-                Initial Back points are 95 on each team; initial Lay
-                points are 105. Admin may change both quotes.
-                Rates are profit points per 100 stake. Back reserves
-                stake and returns stake plus profit on a win; Lay
-                reserves rounded-up liability and returns that
-                liability plus stake on a win. No cancellation
-                after confirmation.
+                Each round lasts 41 seconds:
+                4 seconds for setup, 15 seconds
+                for betting, up to 12 seconds
+                to reveal cards, then at least
+                10 seconds for the result.
+                Early finishes leave the result
+                visible until the next round.
+                Betting does not reopen between
+                cards. Back odds are 1.98 total
+                return, including stake;
+                fractional demo units are
+                rounded down. Lay is
+                unavailable. Maximum stake is
+                25,000 and maximum reserved
+                per customer per round is
+                100,000.
               </p>
 
               <p>
-                If a team can no longer win, including level scores
-                during the chase where only a chasing-team win or
-                tie remains, all new betting closes automatically
-                at 0 / 0. This does not decide the final ball; the
-                actual win or tie still settles from the played results.
+                Deck and seed are committed
+                before betting. The deck and
+                seed are disclosed only after
+                the result for hash
+                verification. A commitment
+                verifies that a published deck
+                stayed unchanged; it is not an
+                independent audit of
+                randomness. Old accepted bets
+                settle using their original
+                saved rules.
               </p>
 
-              <p>
-                Each committed ball has a SHA-256 hash.
-                Its value and seed are revealed only when the result
-                is due. Verify canonicalOutcome(
-                {"{matchId, seq, team, teamBall, value}"})
-                + &apos;:&apos; + seed, sorting object keys
-                recursively. Admin changes are recorded in the audit log.
-              </p>
-
-              <pre
-                style={{
-                  whiteSpace: "pre-wrap",
-                  overflowWrap: "anywhere",
-                  fontSize: 11,
-                }}
-              >
-                {JSON.stringify(match.verification)}
+              <pre className="cs-proof">
+                {JSON.stringify(
+                  match.verification,
+                  null,
+                  2,
+                )}
               </pre>
             </details>
           </>
         )}
 
-        {(error || betError) && (
-          <div
-            role="alert"
-            className="so-panel"
-            style={{ color: "#722f37" }}
-          >
-            {error || betError}
-          </div>
-        )}
-
-        <footer
-          style={{
-            padding: 16,
-            fontSize: 11,
-            lineHeight: 1.7,
-            color: "#ffffff",
-          }}
-        >
-          Unofficial virtual demo using IPL team abbreviations.
-          No real-money play. Admin-controlled 3D virtual cricket.
+        <footer className="cs-footer">
+          Demo coins only · No real-money
+          play · AI-generated host
+          presentation
         </footer>
       </div>
     </main>
