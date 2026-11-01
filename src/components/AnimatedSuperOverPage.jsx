@@ -1,4 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 export {
   default as AnimatedSuperOverLobby,
@@ -6,15 +10,20 @@ export {
 
 const API = "/api/animated-cricket";
 
-const money = n =>
-  Number.isFinite(Number(n)) && n !== null
-    ? `₹${Number(n).toLocaleString("en-IN", {
+const money = value =>
+  value !== null &&
+  value !== undefined &&
+  Number.isFinite(Number(value))
+    ? `₹${Number(value).toLocaleString("en-IN", {
         maximumFractionDigits: 2,
       })}`
     : "—";
 
-const seconds = ms =>
-  Math.max(0, Math.ceil(ms / 1000));
+const seconds = milliseconds =>
+  Math.max(
+    0,
+    Math.ceil(milliseconds / 1000),
+  );
 
 const stamp = value =>
   new Date(value).toLocaleString("en-IN", {
@@ -49,10 +58,17 @@ async function api(path, body) {
 
     const data = await response.json();
 
-    if (!response.ok || data.success === false) {
+    if (
+      !response.ok ||
+      data.success === false
+    ) {
       throw Object.assign(
-        new Error(data.error || "Request failed"),
-        { status: response.status },
+        new Error(
+          data.error || "Request failed.",
+        ),
+        {
+          status: response.status,
+        },
       );
     }
 
@@ -104,7 +120,8 @@ function newKey() {
 
   return Array.from(
     bytes,
-    b => b.toString(16).padStart(2, "0"),
+    byte =>
+      byte.toString(16).padStart(2, "0"),
   ).join("");
 }
 
@@ -120,7 +137,9 @@ function Host({ celebrate }) {
   useEffect(() => {
     const video = videoRef.current;
 
-    if (!video || !ready || failed) return;
+    if (!video || !ready || failed) {
+      return;
+    }
 
     const ranges = {
       idle: [0.1, 1.6],
@@ -134,7 +153,10 @@ function Host({ celebrate }) {
     const selectedRange =
       duration >= ranges[mode][1]
         ? ranges[mode]
-        : [0, Math.max(0.1, duration - 0.1)];
+        : [
+            0,
+            Math.max(0.1, duration - 0.1),
+          ];
 
     const [start, end] = selectedRange;
 
@@ -182,6 +204,7 @@ function Host({ celebrate }) {
 
     return () => {
       alive = false;
+
       cancelAnimationFrame(frame);
       video.pause();
     };
@@ -196,8 +219,12 @@ function Host({ celebrate }) {
           muted
           playsInline
           preload="auto"
-          onLoadedMetadata={() => setReady(true)}
-          onError={() => setFailed(true)}
+          onLoadedMetadata={() =>
+            setReady(true)
+          }
+          onError={() =>
+            setFailed(true)
+          }
         />
       ) : (
         <div className="cs-no-video">
@@ -208,17 +235,13 @@ function Host({ celebrate }) {
       {blocked && !failed && (
         <button
           type="button"
-          className="cs-quick"
-          style={{
-            position: "absolute",
-            bottom: 8,
-            left: 8,
-            zIndex: 5,
-          }}
+          className="cs-video-play"
           onClick={() => {
             videoRef.current
               ?.play()
-              ?.then(() => setBlocked(false))
+              ?.then(() =>
+                setBlocked(false),
+              )
               .catch(() => {});
           }}
         >
@@ -234,8 +257,11 @@ function Host({ celebrate }) {
 }
 
 export function cardPose(match, card, now) {
-  const x = 191 + (card.ball - 1) * 102;
-  const y = card.team === 0 ? 420 : 558;
+  const targetX =
+    191 + (card.ball - 1) * 102;
+
+  const targetY =
+    card.team === 0 ? 420 : 558;
 
   const age =
     now -
@@ -251,28 +277,36 @@ export function cardPose(match, card, now) {
     1 - Math.pow(1 - progress, 3);
 
   return {
-    x: 590 + (x - 590) * eased,
-    y: 294 + (y - 294) * eased,
-    angle: -12 * (1 - eased),
+    x:
+      590 +
+      (targetX - 590) * eased,
+
+    y:
+      294 +
+      (targetY - 294) * eased,
+
+    angle:
+      -12 * (1 - eased),
+
     progress,
     age,
   };
 }
 
 export function CardTable({ match, now }) {
+  const roundStart = new Date(
+    match.roundStartAt,
+  ).getTime();
+
   const events = (match.events || []).filter(
     card =>
-      now >=
-      new Date(match.roundStartAt).getTime() +
-        card.at,
+      now >= roundStart + card.at,
   );
 
   const latest = events.at(-1);
 
   const latestAge = latest
-    ? now -
-      new Date(match.roundStartAt).getTime() -
-      latest.at
+    ? now - roundStart - latest.at
     : Infinity;
 
   return (
@@ -287,265 +321,292 @@ export function CardTable({ match, now }) {
 
       <svg
         className="cs-stage"
-        viewBox="0 0 1000 730"
+        viewBox="0 0 1000 802"
         role="img"
-        aria-label="Server cards dealt in order: India top row, Australia bottom row"
+        aria-label="India cards in the top row and Australia cards in the bottom row"
       >
-        <rect
-          x="0"
-          y="310"
-          width="1000"
-          height="420"
-          fill="#651d3a"
-        />
-
-        <text
-          x="500"
-          y="353"
-          textAnchor="middle"
-          fill="#f2ca79"
-          fontSize="27"
-          fontWeight="bold"
-        >
-          SUPER OVER
-        </text>
-
-        <text
-          x="175"
-          y="400"
-          fill="#fff"
-          fontSize="18"
-        >
-          INDIA
-        </text>
-
-        <text
-          x="175"
-          y="548"
-          fill="#fff"
-          fontSize="18"
-        >
-          AUSTRALIA
-        </text>
-
-        <g aria-label="Card shuffler">
+        <g transform="translate(0 72)">
           <rect
-            x="18"
-            y="405"
-            width="125"
-            height="170"
-            rx="5"
-            fill="#171719"
-          />
-
-          <rect
-            x="29"
-            y="422"
-            width="103"
-            height="34"
-            fill="#060607"
-            stroke="#666"
+            x="0"
+            y="310"
+            width="1000"
+            height="420"
+            fill="#651d3a"
           />
 
           <text
-            x="80"
-            y="481"
-            fill="#aaa"
+            x="500"
+            y="353"
             textAnchor="middle"
-            fontSize="12"
+            fill="#f2ca79"
+            fontSize="27"
+            fontWeight="bold"
           >
-            SHUFFLER
+            SUPER OVER
           </text>
-        </g>
 
-        <g aria-label="Face-down card shoe">
-          <path
-            d="M839 405 L966 380 L966 490 L839 515 Z"
-            fill="#ffffff12"
-            stroke="#ffffff88"
-            strokeWidth="3"
-          />
+          <text
+            x="175"
+            y="400"
+            fill="#ffffff"
+            fontSize="18"
+          >
+            INDIA
+          </text>
 
-          {Array.from(
-            { length: 8 },
-            (_, i) => (
-              <path
-                key={i}
-                d={
-                  `M852 ${478 - i * 4} ` +
-                  `L951 ${457 - i * 4}`
-                }
-                stroke="#eee4d9"
-                strokeWidth="3"
-              />
+          <text
+            x="175"
+            y="548"
+            fill="#ffffff"
+            fontSize="18"
+          >
+            AUSTRALIA
+          </text>
+
+          <g aria-label="Card shuffler">
+            <rect
+              x="18"
+              y="405"
+              width="125"
+              height="170"
+              rx="5"
+              fill="#171719"
+            />
+
+            <rect
+              x="29"
+              y="422"
+              width="103"
+              height="34"
+              fill="#060607"
+              stroke="#666666"
+            />
+
+            <text
+              x="80"
+              y="481"
+              fill="#aaaaaa"
+              textAnchor="middle"
+              fontSize="12"
+            >
+              SHUFFLER
+            </text>
+          </g>
+
+          <g aria-label="Face-down card shoe">
+            <path
+              d="M839 405 L966 380 L966 490 L839 515 Z"
+              fill="#ffffff12"
+              stroke="#ffffff88"
+              strokeWidth="3"
+            />
+
+            {Array.from(
+              { length: 8 },
+              (_, index) => (
+                <path
+                  key={index}
+                  d={
+                    `M852 ${478 - index * 4} ` +
+                    `L951 ${457 - index * 4}`
+                  }
+                  stroke="#eee4d9"
+                  strokeWidth="3"
+                />
+              ),
+            )}
+          </g>
+
+          {[0, 1].map(team =>
+            Array.from(
+              { length: 6 },
+              (_, index) => (
+                <g
+                  key={`${team}:${index}`}
+                >
+                  <rect
+                    x={191 + index * 102}
+                    y={
+                      team === 0
+                        ? 420
+                        : 558
+                    }
+                    width="82"
+                    height="110"
+                    rx="5"
+                    fill="none"
+                    stroke="#ffffff40"
+                  />
+
+                  <text
+                    x={232 + index * 102}
+                    y={
+                      team === 0
+                        ? 483
+                        : 621
+                    }
+                    textAnchor="middle"
+                    fill="#ffffff45"
+                    fontSize="18"
+                  >
+                    {index + 1}
+                  </text>
+                </g>
+              ),
             ),
           )}
-        </g>
 
-        {[0, 1].map(team =>
-          Array.from(
-            { length: 6 },
-            (_, i) => (
-              <g key={`${team}:${i}`}>
+          {events.map(card => {
+            const pose = cardPose(
+              match,
+              card,
+              now,
+            );
+
+            const holding =
+              card.index === latest?.index &&
+              pose.progress < 0.45;
+
+            const color =
+              card.rank === "K"
+                ? "#791b3e"
+                : "#161616";
+
+            return (
+              <g
+                key={`${match.id}:${card.index}`}
+                data-card-index={card.index}
+                data-team={card.team}
+                data-ball={card.ball}
+                data-rank={card.rank}
+                transform={
+                  `translate(${pose.x} ${pose.y}) ` +
+                  `rotate(${pose.angle} 41 55)`
+                }
+              >
+                <title>
+                  {`${match.teams[card.team]} ball ${
+                    card.ball
+                  }: ${card.rank}, ${
+                    card.value === "W"
+                      ? "wicket"
+                      : `${card.value} runs`
+                  }`}
+                </title>
+
                 <rect
-                  x={191 + i * 102}
-                  y={team === 0 ? 420 : 558}
                   width="82"
                   height="110"
                   rx="5"
-                  fill="none"
-                  stroke="#ffffff40"
+                  fill="#fffbee"
+                  stroke="#c6bdaa"
                 />
 
                 <text
-                  x={232 + i * 102}
-                  y={team === 0 ? 483 : 621}
-                  textAnchor="middle"
-                  fill="#ffffff45"
-                  fontSize="18"
+                  x="8"
+                  y="25"
+                  fill={color}
+                  fontSize="23"
+                  fontWeight="bold"
                 >
-                  {i + 1}
+                  {card.rank}
                 </text>
-              </g>
-            ),
-          ),
-        )}
 
-        {events.map(card => {
-          const pose = cardPose(
-            match,
-            card,
-            now,
-          );
-
-          const holding =
-            card.index === latest?.index &&
-            pose.progress < 0.45;
-
-          const color =
-            card.rank === "K"
-              ? "#791b3e"
-              : "#161616";
-
-          return (
-            <g
-              key={`${match.id}:${card.index}`}
-              data-card-index={card.index}
-              data-team={card.team}
-              data-ball={card.ball}
-              data-rank={card.rank}
-              transform={
-                `translate(${pose.x} ${pose.y}) ` +
-                `rotate(${pose.angle} 41 55)`
-              }
-            >
-              <title>
-                {`${match.teams[card.team]} ball ${
-                  card.ball
-                }: ${card.rank}, ${
-                  card.value === "W"
-                    ? "wicket"
-                    : `${card.value} runs`
-                }`}
-              </title>
-
-              <rect
-                width="82"
-                height="110"
-                rx="5"
-                fill="#fffbee"
-                stroke="#c6bdaa"
-              />
-
-              <text
-                x="8"
-                y="25"
-                fill={color}
-                fontSize="23"
-                fontWeight="bold"
-              >
-                {card.rank}
-              </text>
-
-              <text
-                x="41"
-                y="66"
-                textAnchor="middle"
-                fill={color}
-                fontSize="31"
-              >
-                ♠
-              </text>
-
-              <text
-                x="8"
-                y="25"
-                transform="rotate(180 41 55)"
-                fill={color}
-                fontSize="23"
-                fontWeight="bold"
-              >
-                {card.rank}
-              </text>
-
-              {holding && (
-                <g
-                  aria-label="Animated hand holding this card"
-                  data-holding-rank={card.rank}
+                <text
+                  x="41"
+                  y="66"
+                  textAnchor="middle"
+                  fill={color}
+                  fontSize="31"
                 >
-                  <path
-                    d={
-                      "M36 -82 L65 -82 L68 -29 " +
-                      "Q81 -18 80 -5 L75 28 " +
-                      "Q73 35 68 30 L66 11 L63 35 " +
-                      "Q60 42 55 36 L53 11 L49 34 " +
-                      "Q46 40 42 34 L42 6 L32 18 " +
-                      "Q25 23 23 16 L34 -8 Z"
-                    }
-                    fill="#c78e73"
-                    stroke="#97654e"
-                    strokeWidth="2"
-                  />
+                  ♠
+                </text>
 
-                  <path
-                    d="M34 -82 L68 -82 L68 -60 L34 -60 Z"
-                    fill="#6b2546"
-                  />
-                </g>
-              )}
-            </g>
-          );
-        })}
+                <text
+                  x="8"
+                  y="25"
+                  transform="rotate(180 41 55)"
+                  fill={color}
+                  fontSize="23"
+                  fontWeight="bold"
+                >
+                  {card.rank}
+                </text>
 
-        <text
-          x="500"
-          y="708"
-          textAnchor="middle"
-          fill="#d9adb9"
-          fontSize="14"
-        >
-          INDIA · AUSTRALIA
-        </text>
+                {holding && (
+                  <g
+                    aria-label="Animated hand holding this card"
+                    data-holding-rank={card.rank}
+                  >
+                    <path
+                      d={
+                        "M36 -35 L65 -35 L68 -29 " +
+                        "Q81 -18 80 -5 L75 28 " +
+                        "Q73 35 68 30 L66 11 L63 35 " +
+                        "Q60 42 55 36 L53 11 L49 34 " +
+                        "Q46 40 42 34 L42 6 L32 18 " +
+                        "Q25 23 23 16 L34 -8 Z"
+                      }
+                      fill="#c78e73"
+                      stroke="#97654e"
+                      strokeWidth="2"
+                    />
+
+                    <path
+                      d="M34 -35 L68 -35 L68 -20 L34 -20 Z"
+                      fill="#6b2546"
+                    />
+                  </g>
+                )}
+              </g>
+            );
+          })}
+
+          <text
+            x="500"
+            y="708"
+            textAnchor="middle"
+            fill="#d9adb9"
+            fontSize="14"
+          >
+            INDIA · AUSTRALIA
+          </text>
+        </g>
       </svg>
     </div>
   );
 }
 
 export default function AnimatedSuperOverPage({
-  onBack = () => window.location.assign("/"),
+  onBack = () =>
+    window.location.assign("/"),
 }) {
-  const [data, setData] = useState(null);
-  const [now, setNow] = useState(Date.now());
+  const [data, setData] =
+    useState(null);
 
-  const [error, setError] = useState("");
-  const [betError, setBetError] = useState("");
+  const [now, setNow] =
+    useState(Date.now());
 
-  const [amount, setAmount] = useState("100");
-  const [selection, setSelection] = useState(null);
+  const [error, setError] =
+    useState("");
 
-  const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState(null);
-  const [message, setMessage] = useState("");
+  const [betError, setBetError] =
+    useState("");
+
+  const [amount, setAmount] =
+    useState("100");
+
+  const [selection, setSelection] =
+    useState(null);
+
+  const [busy, setBusy] =
+    useState(false);
+
+  const [pending, setPending] =
+    useState(null);
+
+  const [message, setMessage] =
+    useState("");
 
   const mounted = useRef(false);
   const inFlight = useRef(false);
@@ -573,14 +634,17 @@ export default function AnimatedSuperOverPage({
       loading = true;
 
       try {
-        const value = await api("/state");
+        const value =
+          await api("/state");
 
         if (!alive) return;
 
         if (
-          account.current !== value.customerId
+          account.current !==
+          value.customerId
         ) {
-          account.current = value.customerId;
+          account.current =
+            value.customerId;
 
           setSelection(null);
           setMessage("");
@@ -607,36 +671,42 @@ export default function AnimatedSuperOverPage({
           lastBalance.current !== value.balance
         ) {
           window.dispatchEvent(
-            new Event("demo-balance-updated"),
+            new Event(
+              "demo-balance-updated",
+            ),
           );
         }
 
-        lastBalance.current = value.balance;
+        lastBalance.current =
+          value.balance;
 
         anchor.current = {
           server: new Date(
             value.serverTime,
           ).getTime(),
+
           local: performance.now(),
         };
 
-        received.current = performance.now();
+        received.current =
+          performance.now();
+
         dataRef.current = value;
 
         setData(value);
         setNow(anchor.current.server);
         setError("");
-      } catch (e) {
+      } catch (failure) {
         if (alive) {
           setError(
-            e.name === "AbortError"
+            failure.name === "AbortError"
               ? "Connection timed out. Retrying…"
-              : e.message,
+              : failure.message,
           );
 
           if (
-            e.status === 401 ||
-            e.status === 403
+            failure.status === 401 ||
+            failure.status === 403
           ) {
             dataRef.current = null;
             account.current = null;
@@ -652,9 +722,13 @@ export default function AnimatedSuperOverPage({
     }
 
     refresh.current = load;
+
     void load();
 
-    const poll = setInterval(load, 500);
+    const poll = setInterval(
+      load,
+      500,
+    );
 
     const timer = setInterval(
       () =>
@@ -689,24 +763,32 @@ export default function AnimatedSuperOverPage({
     fresh &&
       match?.phase === "BETTING" &&
       now >=
-        new Date(match.opensAt).getTime() &&
+        new Date(
+          match.opensAt,
+        ).getTime() &&
       now <
-        new Date(match.closesAt).getTime(),
+        new Date(
+          match.closesAt,
+        ).getTime(),
   );
 
   const validAmount =
-    Number.isSafeInteger(Number(amount)) &&
+    Number.isSafeInteger(
+      Number(amount),
+    ) &&
     Number(amount) >= 100 &&
     Number(amount) <= 25000;
 
   const selected =
-    selection?.matchId === match?.id;
+    selection?.matchId ===
+    match?.id;
 
   async function send(saved) {
     if (
       inFlight.current ||
       !saved ||
-      account.current !== saved.customerId
+      account.current !==
+        saved.customerId
     ) {
       return;
     }
@@ -728,12 +810,15 @@ export default function AnimatedSuperOverPage({
       );
 
       window.dispatchEvent(
-        new Event("demo-balance-updated"),
+        new Event(
+          "demo-balance-updated",
+        ),
       );
 
       if (
         mounted.current &&
-        account.current === saved.customerId
+        account.current ===
+          saved.customerId
       ) {
         setPending(null);
         setSelection(null);
@@ -746,10 +831,11 @@ export default function AnimatedSuperOverPage({
 
         void refresh.current();
       }
-    } catch (e) {
+    } catch (failure) {
       if (
         mounted.current &&
-        account.current === saved.customerId
+        account.current ===
+          saved.customerId
       ) {
         const definite = [
           400,
@@ -758,7 +844,9 @@ export default function AnimatedSuperOverPage({
           404,
           409,
           422,
-        ].includes(e.status);
+        ].includes(
+          failure.status,
+        );
 
         if (definite) {
           store.remove(
@@ -770,7 +858,7 @@ export default function AnimatedSuperOverPage({
 
         setBetError(
           definite
-            ? e.message
+            ? failure.message
             : "Connection interrupted. Use CHECK SAME BET to recover acceptance.",
         );
       }
@@ -820,7 +908,8 @@ export default function AnimatedSuperOverPage({
     }
 
     const saved = {
-      customerId: data.customerId,
+      customerId:
+        data.customerId,
 
       body: {
         matchId: match.id,
@@ -848,6 +937,7 @@ export default function AnimatedSuperOverPage({
     }
 
     setPending(saved);
+
     void send(saved);
   }
 
@@ -858,7 +948,8 @@ export default function AnimatedSuperOverPage({
       match.scores[0].wickets === 2
     );
 
-  const chase = match?.scores[1];
+  const chase =
+    match?.scores[1];
 
   return (
     <main className="cs-page">
@@ -868,7 +959,7 @@ export default function AnimatedSuperOverPage({
           --wine:#791b3e;
           min-height:100vh;
           background:#151b20;
-          color:#fff;
+          color:#ffffff;
           font-family:Arial,sans-serif;
           padding-bottom:24px;
         }
@@ -908,7 +999,7 @@ export default function AnimatedSuperOverPage({
           gap:12px;
           padding:18px 14px;
           background:var(--green);
-          color:white;
+          color:#ffffff;
         }
 
         .cs-brand {
@@ -1006,17 +1097,17 @@ export default function AnimatedSuperOverPage({
         .cs-scene {
           position:relative;
           width:100%;
-          aspect-ratio:1000/730;
+          aspect-ratio:1000/802;
           background:#141313;
           overflow:hidden;
-          border-top:3px solid white;
-          border-bottom:3px solid white;
+          border-top:3px solid #ffffff;
+          border-bottom:3px solid #ffffff;
         }
 
         .cs-host {
           position:absolute;
           inset:0 0 auto;
-          height:42.466%;
+          height:47.631%;
           overflow:hidden;
           background:#141313;
         }
@@ -1043,7 +1134,7 @@ export default function AnimatedSuperOverPage({
           padding:35px;
           text-align:center;
           font-size:12px;
-          color:#ccc;
+          color:#cccccc;
         }
 
         .cs-ai {
@@ -1051,9 +1142,22 @@ export default function AnimatedSuperOverPage({
           top:8px;
           right:8px;
           font-size:8px;
-          background:#0008;
+          background:#00000088;
           padding:3px;
-          color:#ddd;
+          color:#dddddd;
+        }
+
+        .cs-video-play {
+          position:absolute;
+          bottom:8px;
+          left:8px;
+          z-index:5;
+          padding:8px 12px;
+          border:1px solid #ffffff;
+          border-radius:4px;
+          background:#ffffff;
+          color:#253238;
+          font-weight:bold;
         }
 
         .cs-section {
@@ -1067,8 +1171,8 @@ export default function AnimatedSuperOverPage({
           display:grid;
           grid-template-columns:
             minmax(0,1fr) 90px 90px;
-          border-bottom:1px solid #ccc;
-          background:#fff;
+          border-bottom:1px solid #cccccc;
+          background:#ffffff;
           color:#27353b;
         }
 
@@ -1081,17 +1185,17 @@ export default function AnimatedSuperOverPage({
 
         .cs-back {
           background:var(--green);
-          color:#fff;
+          color:#ffffff;
         }
 
         .cs-lay {
           background:var(--wine);
-          color:#fff;
+          color:#ffffff;
         }
 
         .cs-price {
           border:0;
-          border-left:1px solid #fff5;
+          border-left:1px solid #ffffff55;
           display:block;
           text-align:center;
           font-size:23px;
@@ -1116,9 +1220,9 @@ export default function AnimatedSuperOverPage({
 
         .cs-panel {
           padding:14px;
-          background:#fff;
+          background:#ffffff;
           color:#253238;
-          border-bottom:1px solid #ddd;
+          border-bottom:1px solid #dddddd;
         }
 
         .cs-panel p {
@@ -1140,7 +1244,7 @@ export default function AnimatedSuperOverPage({
           border:1px solid #a8b4b7;
           padding:10px;
           color:#17272c;
-          background:#fff;
+          background:#ffffff;
           border-radius:4px;
         }
 
@@ -1149,13 +1253,13 @@ export default function AnimatedSuperOverPage({
           border:1px solid #ccd3d5;
           border-radius:4px;
           background:#f4f8f8;
-          color:#233;
+          color:#223333;
         }
 
         .cs-confirm {
           padding:12px 18px;
           background:var(--green);
-          color:white;
+          color:#ffffff;
           font-weight:800;
           border:0;
           border-radius:5px;
@@ -1179,7 +1283,7 @@ export default function AnimatedSuperOverPage({
 
         .cs-record {
           padding:12px 0;
-          border-bottom:1px solid #ddd;
+          border-bottom:1px solid #dddddd;
           font-size:12px;
           line-height:1.8;
         }
@@ -1228,12 +1332,15 @@ export default function AnimatedSuperOverPage({
             className="cs-balance"
             aria-label="Demo balance"
           >
-            {data ? money(data.balance) : "…"}
+            {data
+              ? money(data.balance)
+              : "…"}
           </div>
         </header>
 
         <div className="cs-toolbar">
           <button
+            type="button"
             className="cs-plain"
             onClick={onBack}
             aria-label="Customer home"
@@ -1241,13 +1348,15 @@ export default function AnimatedSuperOverPage({
             ←
           </button>
 
-          <h1>INSTANT SUPER OVER</h1>
+          <h1>
+            INSTANT SUPER OVER
+          </h1>
 
           <a
             href="#so-rules"
             style={{
-              color: "inherit",
-              fontSize: 12,
+              color:"inherit",
+              fontSize:12,
             }}
           >
             Rules
@@ -1276,35 +1385,41 @@ export default function AnimatedSuperOverPage({
               aria-label="Match scoreboard"
             >
               {match.teams.map(
-                (team, i) => (
+                (team, index) => (
                   <div
                     className="cs-team-score"
                     key={team}
                   >
-                    <span>{team}</span>
+                    <span>
+                      {team}
+                    </span>
 
                     <strong>
-                      {match.scores[i].runs}/
-                      {match.scores[i].wickets}{" "}
+                      {match.scores[index].runs}/
+                      {match.scores[index].wickets}
+                      {" "}
+
                       <small>
-                        ({match.scores[i].overs})
+                        (
+                        {match.scores[index].overs}
+                        )
                       </small>
                     </strong>
 
                     <div className="cs-balls">
-                      {match.scores[i].balls.map(
-                        (v, index) => (
+                      {match.scores[index].balls.map(
+                        (value, ballIndex) => (
                           <span
-                            key={index}
+                            key={ballIndex}
                             className={
                               `cs-ball ${
-                                v === "W"
+                                value === "W"
                                   ? "w"
                                   : ""
                               }`
                             }
                           >
-                            {v}
+                            {value}
                           </span>
                         ),
                       )}
@@ -1317,14 +1432,17 @@ export default function AnimatedSuperOverPage({
                 match.phase !== "RESULT" && (
                   <p className="cs-target">
                     AUSTRALIA needs{" "}
+
                     {Math.max(
                       0,
                       match.scores[0].runs +
                         1 -
                         chase.runs,
-                    )}{" "}
-                    runs from{" "}
+                    )}
+
+                    {" "}runs from{" "}
                     {6 - chase.balls.length}
+
                     {" "}balls · Target{" "}
                     {match.scores[0].runs + 1}
                   </p>
@@ -1334,11 +1452,13 @@ export default function AnimatedSuperOverPage({
             {open && (
               <div className="cs-bet-clock">
                 BETTING ·{" "}
+
                 {seconds(
                   new Date(
                     match.closesAt,
                   ).getTime() - now,
                 )}
+
                 s
               </div>
             )}
@@ -1382,7 +1502,7 @@ export default function AnimatedSuperOverPage({
             </div>
 
             {match.teams.map(
-              (team, i) => (
+              (team, index) => (
                 <div
                   key={team}
                   className="cs-market-row"
@@ -1401,12 +1521,12 @@ export default function AnimatedSuperOverPage({
                     }
                     aria-pressed={
                       selected &&
-                      selection.team === i
+                      selection.team === index
                     }
                     onClick={() => {
                       setSelection({
-                        matchId: match.id,
-                        team: i,
+                        matchId:match.id,
+                        team:index,
                       });
 
                       setMessage("");
@@ -1414,6 +1534,7 @@ export default function AnimatedSuperOverPage({
                     }}
                   >
                     1.98
+
                     <small>
                       TOTAL RETURN
                     </small>
@@ -1444,8 +1565,10 @@ export default function AnimatedSuperOverPage({
                     busy ||
                     Boolean(pending)
                   }
-                  onChange={e =>
-                    setAmount(e.target.value)
+                  onChange={event =>
+                    setAmount(
+                      event.target.value,
+                    )
                   }
                 />
 
@@ -1458,20 +1581,24 @@ export default function AnimatedSuperOverPage({
                   5000,
                   10000,
                   25000,
-                ].map(n => (
+                ].map(value => (
                   <button
                     type="button"
                     className="cs-quick"
-                    key={n}
+                    key={value}
                     disabled={
                       busy ||
                       Boolean(pending)
                     }
                     onClick={() =>
-                      setAmount(String(n))
+                      setAmount(
+                        String(value),
+                      )
                     }
                   >
-                    {n.toLocaleString("en-IN")}
+                    {value.toLocaleString(
+                      "en-IN",
+                    )}
                   </button>
                 ))}
               </div>
@@ -1483,9 +1610,13 @@ export default function AnimatedSuperOverPage({
                       selection.team
                     ]
                   }
+
                   {" · "}BACK 1.98
                   {" · "}Stake{" "}
-                  {money(Number(amount))}
+
+                  {money(
+                    Number(amount),
+                  )}
                 </p>
               )}
 
@@ -1508,7 +1639,9 @@ export default function AnimatedSuperOverPage({
 
               {pending && (
                 <p>
-                  Acceptance needs checking.{" "}
+                  Acceptance needs checking.
+                  {" "}
+
                   <button
                     type="button"
                     className="cs-quick"
@@ -1532,7 +1665,7 @@ export default function AnimatedSuperOverPage({
                 <p
                   role="alert"
                   style={{
-                    color: "#791b3e",
+                    color:"#791b3e",
                   }}
                 >
                   {betError}
@@ -1548,60 +1681,72 @@ export default function AnimatedSuperOverPage({
 
               <p>
                 Next round in{" "}
+
                 {seconds(
                   new Date(
                     match.nextAt,
                   ).getTime() - now,
                 )}
+
                 s · {stamp(now)} IST
               </p>
             </section>
 
             <section className="cs-panel">
-              <strong>MY BETS</strong>
+              <strong>
+                MY BETS
+              </strong>
 
               {!data.bets?.length ? (
-                <p>No bets yet.</p>
+                <p>
+                  No bets yet.
+                </p>
               ) : (
-                data.bets.slice(0, 20).map(
-                  b => (
+                data.bets
+                  .slice(0,20)
+                  .map(bet => (
                     <div
                       className="cs-record"
-                      key={b.id}
+                      key={bet.id}
                     >
                       <strong>
-                        {b.match_id}
+                        {bet.match_id}
+
                         {" · "}
-                        {b.match_id.startsWith("C")
+
+                        {bet.match_id.startsWith("C")
                           ? [
                               "INDIA",
                               "AUSTRALIA",
-                            ][b.team]
+                            ][bet.team]
                           : `Team ${
-                              Number(b.team) + 1
+                              Number(bet.team) + 1
                             }`}
+
                         {" · "}
-                        {b.direction}
+                        {bet.direction}
                       </strong>
 
                       <div>
-                        Stake {money(b.amount)}
-                        {" · "}
-                        {b.status}
+                        Stake{" "}
+                        {money(bet.amount)}
 
-                        {b.status === "SETTLED"
+                        {" · "}
+                        {bet.status}
+
+                        {bet.status === "SETTLED"
                           ? ` · Returned ${
-                              money(b.payout)
+                              money(bet.payout)
                             }`
                           : ""}
                       </div>
 
                       <small>
-                        {stamp(b.created_at)} IST
+                        {stamp(bet.created_at)}
+                        {" "}IST
                       </small>
                     </div>
-                  ),
-                )
+                  ))
               )}
             </section>
 
