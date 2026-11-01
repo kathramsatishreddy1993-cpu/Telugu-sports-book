@@ -1,8 +1,4 @@
-import React, {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 export {
   default as AnimatedSuperOverLobby,
@@ -19,11 +15,8 @@ const money = value =>
       })}`
     : "—";
 
-const seconds = milliseconds =>
-  Math.max(
-    0,
-    Math.ceil(milliseconds / 1000),
-  );
+const seconds = ms =>
+  Math.max(0, Math.ceil(ms / 1000));
 
 const stamp = value =>
   new Date(value).toLocaleString("en-IN", {
@@ -44,7 +37,6 @@ async function api(path, body) {
       credentials: "same-origin",
       cache: "no-store",
       signal: controller.signal,
-
       ...(body
         ? {
             method: "POST",
@@ -58,17 +50,10 @@ async function api(path, body) {
 
     const data = await response.json();
 
-    if (
-      !response.ok ||
-      data.success === false
-    ) {
+    if (!response.ok || data.success === false) {
       throw Object.assign(
-        new Error(
-          data.error || "Request failed.",
-        ),
-        {
-          status: response.status,
-        },
+        new Error(data.error || "Request failed."),
+        { status: response.status },
       );
     }
 
@@ -95,7 +80,6 @@ const store = {
         key,
         JSON.stringify(value),
       );
-
       return true;
     } catch {
       return false;
@@ -115,50 +99,34 @@ function keyFor(id) {
 
 function newKey() {
   const bytes = new Uint8Array(24);
-
   globalThis.crypto.getRandomValues(bytes);
 
   return Array.from(
     bytes,
-    byte =>
-      byte.toString(16).padStart(2, "0"),
+    byte => byte.toString(16).padStart(2, "0"),
   ).join("");
 }
 
-function Host({ celebrate }) {
+function Host() {
   const videoRef = useRef(null);
-
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [blocked, setBlocked] = useState(false);
 
-  const mode = celebrate ? "clap" : "idle";
-
   useEffect(() => {
     const video = videoRef.current;
 
-    if (!video || !ready || failed) {
-      return;
-    }
+    if (!video || !ready || failed) return;
 
-    const ranges = {
-      idle: [0.1, 1.6],
-      clap: [8.8, 9.8],
-    };
-
+    // Use the empty-table portion only.
     const duration = Number.isFinite(video.duration)
       ? video.duration
       : 10;
 
-    const selectedRange =
-      duration >= ranges[mode][1]
-        ? ranges[mode]
-        : [
-            0,
-            Math.max(0.1, duration - 0.1),
-          ];
-
-    const [start, end] = selectedRange;
+    const start = duration >= 1.6 ? 0.1 : 0;
+    const end = duration >= 1.6
+      ? 1.6
+      : Math.max(0.1, duration - 0.1);
 
     let frame;
     let alive = true;
@@ -170,10 +138,7 @@ function Host({ celebrate }) {
     } catch {}
 
     video.play()?.catch(error => {
-      if (
-        alive &&
-        error.name === "NotAllowedError"
-      ) {
+      if (alive && error.name === "NotAllowedError") {
         setBlocked(true);
       }
     });
@@ -204,11 +169,10 @@ function Host({ celebrate }) {
 
     return () => {
       alive = false;
-
       cancelAnimationFrame(frame);
       video.pause();
     };
-  }, [mode, ready, failed]);
+  }, [ready, failed]);
 
   return (
     <div className="cs-host">
@@ -219,12 +183,8 @@ function Host({ celebrate }) {
           muted
           playsInline
           preload="auto"
-          onLoadedMetadata={() =>
-            setReady(true)
-          }
-          onError={() =>
-            setFailed(true)
-          }
+          onLoadedMetadata={() => setReady(true)}
+          onError={() => setFailed(true)}
         />
       ) : (
         <div className="cs-no-video">
@@ -239,9 +199,7 @@ function Host({ celebrate }) {
           onClick={() => {
             videoRef.current
               ?.play()
-              ?.then(() =>
-                setBlocked(false),
-              )
+              ?.then(() => setBlocked(false))
               .catch(() => {});
           }}
         >
@@ -256,357 +214,95 @@ function Host({ celebrate }) {
   );
 }
 
-export function cardPose(match, card, now) {
-  const targetX =
-    191 + (card.ball - 1) * 102;
-
-  const targetY =
-    card.team === 0 ? 420 : 558;
-
-  const age =
-    now -
-    new Date(match.roundStartAt).getTime() -
-    card.at;
-
-  const progress = Math.min(
-    1,
-    Math.max(0, age / 850),
-  );
-
-  const eased =
-    1 - Math.pow(1 - progress, 3);
-
+export function scoreValue(card) {
   return {
-    x:
-      590 +
-      (targetX - 590) * eased,
-
-    y:
-      294 +
-      (targetY - 294) * eased,
-
-    angle:
-      -12 * (1 - eased),
-
-    progress,
-    age,
-  };
+    A: 1,
+    2: 2,
+    3: 3,
+    4: 4,
+    6: 6,
+    10: 0,
+    K: "W",
+  }[card.rank];
 }
 
 export function CardTable({ match, now }) {
-  const roundStart = new Date(
+  const start = new Date(
     match.roundStartAt,
   ).getTime();
 
-  const events = (match.events || []).filter(
-    card =>
-      now >= roundStart + card.at,
-  );
+  const events = (match.events || [])
+    .filter(card => now >= start + card.at)
+    .sort((a, b) => a.index - b.index);
 
-  const latest = events.at(-1);
+  const team = events.at(-1)?.team ?? 0;
 
-  const latestAge = latest
-    ? now - roundStart - latest.at
-    : Infinity;
+  const innings = events
+    .filter(card => card.team === team)
+    .slice(0, 6);
 
   return (
-    <div className="cs-scene">
-      <Host
-        celebrate={
-          match.phase === "RESULT" &&
-          match.result?.winner !== "TIE" &&
-          latestAge < 2000
-        }
-      />
+    <section
+      className="cs-scene"
+      aria-label="Host video and current innings scores"
+    >
+      <Host />
 
-      <svg
-        className="cs-stage"
-        viewBox="0 0 1000 802"
-        role="img"
-        aria-label="India cards in the top row and Australia cards in the bottom row"
-      >
-        <g transform="translate(0 72)">
-          <rect
-            x="0"
-            y="310"
-            width="1000"
-            height="420"
-            fill="#651d3a"
-          />
-
-          <text
-            x="500"
-            y="353"
-            textAnchor="middle"
-            fill="#f2ca79"
-            fontSize="27"
-            fontWeight="bold"
-          >
-            SUPER OVER
-          </text>
-
-          <text
-            x="175"
-            y="400"
-            fill="#ffffff"
-            fontSize="18"
-          >
-            INDIA
-          </text>
-
-          <text
-            x="175"
-            y="548"
-            fill="#ffffff"
-            fontSize="18"
-          >
-            AUSTRALIA
-          </text>
-
-          <g aria-label="Card shuffler">
-            <rect
-              x="18"
-              y="405"
-              width="125"
-              height="170"
-              rx="5"
-              fill="#171719"
-            />
-
-            <rect
-              x="29"
-              y="422"
-              width="103"
-              height="34"
-              fill="#060607"
-              stroke="#666666"
-            />
-
-            <text
-              x="80"
-              y="481"
-              fill="#aaaaaa"
-              textAnchor="middle"
-              fontSize="12"
-            >
-              SHUFFLER
-            </text>
-          </g>
-
-          <g aria-label="Face-down card shoe">
-            <path
-              d="M839 405 L966 380 L966 490 L839 515 Z"
-              fill="#ffffff12"
-              stroke="#ffffff88"
-              strokeWidth="3"
-            />
-
-            {Array.from(
-              { length: 8 },
-              (_, index) => (
-                <path
-                  key={index}
-                  d={
-                    `M852 ${478 - index * 4} ` +
-                    `L951 ${457 - index * 4}`
-                  }
-                  stroke="#eee4d9"
-                  strokeWidth="3"
-                />
-              ),
-            )}
-          </g>
-
-          {[0, 1].map(team =>
-            Array.from(
-              { length: 6 },
-              (_, index) => (
-                <g
-                  key={`${team}:${index}`}
-                >
-                  <rect
-                    x={191 + index * 102}
-                    y={
-                      team === 0
-                        ? 420
-                        : 558
-                    }
-                    width="82"
-                    height="110"
-                    rx="5"
-                    fill="none"
-                    stroke="#ffffff40"
-                  />
-
-                  <text
-                    x={232 + index * 102}
-                    y={
-                      team === 0
-                        ? 483
-                        : 621
-                    }
-                    textAnchor="middle"
-                    fill="#ffffff45"
-                    fontSize="18"
-                  >
-                    {index + 1}
-                  </text>
-                </g>
-              ),
-            ),
-          )}
-
-          {events.map(card => {
-            const pose = cardPose(
-              match,
-              card,
-              now,
-            );
-
-            const holding =
-              card.index === latest?.index &&
-              pose.progress < 0.45;
-
-            const color =
-              card.rank === "K"
-                ? "#791b3e"
-                : "#161616";
+      {innings.length > 0 && (
+        <div
+          className="cs-side-scores"
+          aria-label={`${match.teams[team]} ball scores`}
+        >
+          {innings.map(card => {
+            const value = scoreValue(card);
 
             return (
-              <g
+              <span
                 key={`${match.id}:${card.index}`}
-                data-card-index={card.index}
-                data-team={card.team}
+                className={
+                  `cs-side-ball ${
+                    value === "W"
+                      ? "cs-side-wicket"
+                      : ""
+                  }`
+                }
+                data-team={team}
                 data-ball={card.ball}
-                data-rank={card.rank}
-                transform={
-                  `translate(${pose.x} ${pose.y}) ` +
-                  `rotate(${pose.angle} 41 55)`
+                data-score={value}
+                aria-label={
+                  `${match.teams[team]} ball ${card.ball}: ` +
+                  (
+                    value === "W"
+                      ? "wicket"
+                      : `${value} runs`
+                  )
                 }
               >
-                <title>
-                  {`${match.teams[card.team]} ball ${
-                    card.ball
-                  }: ${card.rank}, ${
-                    card.value === "W"
-                      ? "wicket"
-                      : `${card.value} runs`
-                  }`}
-                </title>
-
-                <rect
-                  width="82"
-                  height="110"
-                  rx="5"
-                  fill="#fffbee"
-                  stroke="#c6bdaa"
-                />
-
-                <text
-                  x="8"
-                  y="25"
-                  fill={color}
-                  fontSize="23"
-                  fontWeight="bold"
-                >
-                  {card.rank}
-                </text>
-
-                <text
-                  x="41"
-                  y="66"
-                  textAnchor="middle"
-                  fill={color}
-                  fontSize="31"
-                >
-                  ♠
-                </text>
-
-                <text
-                  x="8"
-                  y="25"
-                  transform="rotate(180 41 55)"
-                  fill={color}
-                  fontSize="23"
-                  fontWeight="bold"
-                >
-                  {card.rank}
-                </text>
-
-                {holding && (
-                  <g
-                    aria-label="Animated hand holding this card"
-                    data-holding-rank={card.rank}
-                  >
-                    <path
-                      d={
-                        "M36 -35 L65 -35 L68 -29 " +
-                        "Q81 -18 80 -5 L75 28 " +
-                        "Q73 35 68 30 L66 11 L63 35 " +
-                        "Q60 42 55 36 L53 11 L49 34 " +
-                        "Q46 40 42 34 L42 6 L32 18 " +
-                        "Q25 23 23 16 L34 -8 Z"
-                      }
-                      fill="#c78e73"
-                      stroke="#97654e"
-                      strokeWidth="2"
-                    />
-
-                    <path
-                      d="M34 -35 L68 -35 L68 -20 L34 -20 Z"
-                      fill="#6b2546"
-                    />
-                  </g>
-                )}
-              </g>
+                {value}
+              </span>
             );
           })}
-
-          <text
-            x="500"
-            y="708"
-            textAnchor="middle"
-            fill="#d9adb9"
-            fontSize="14"
-          >
-            INDIA · AUSTRALIA
-          </text>
-        </g>
-      </svg>
-    </div>
+        </div>
+      )}
+    </section>
   );
 }
 
 export default function AnimatedSuperOverPage({
-  onBack = () =>
-    window.location.assign("/"),
+  onBack = () => window.location.assign("/"),
 }) {
-  const [data, setData] =
-    useState(null);
+  const [data, setData] = useState(null);
+  const [now, setNow] = useState(Date.now());
 
-  const [now, setNow] =
-    useState(Date.now());
+  const [error, setError] = useState("");
+  const [betError, setBetError] = useState("");
 
-  const [error, setError] =
-    useState("");
+  const [amount, setAmount] = useState("100");
+  const [selection, setSelection] = useState(null);
 
-  const [betError, setBetError] =
-    useState("");
-
-  const [amount, setAmount] =
-    useState("100");
-
-  const [selection, setSelection] =
-    useState(null);
-
-  const [busy, setBusy] =
-    useState(false);
-
-  const [pending, setPending] =
-    useState(null);
-
-  const [message, setMessage] =
-    useState("");
+  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState(null);
+  const [message, setMessage] = useState("");
 
   const mounted = useRef(false);
   const inFlight = useRef(false);
@@ -634,17 +330,12 @@ export default function AnimatedSuperOverPage({
       loading = true;
 
       try {
-        const value =
-          await api("/state");
+        const value = await api("/state");
 
         if (!alive) return;
 
-        if (
-          account.current !==
-          value.customerId
-        ) {
-          account.current =
-            value.customerId;
+        if (account.current !== value.customerId) {
+          account.current = value.customerId;
 
           setSelection(null);
           setMessage("");
@@ -655,10 +346,8 @@ export default function AnimatedSuperOverPage({
           );
 
           setPending(
-            saved?.customerId ===
-              value.customerId &&
-              typeof saved.body?.requestKey ===
-                "string"
+            saved?.customerId === value.customerId &&
+              typeof saved.body?.requestKey === "string"
               ? saved
               : null,
           );
@@ -671,26 +360,18 @@ export default function AnimatedSuperOverPage({
           lastBalance.current !== value.balance
         ) {
           window.dispatchEvent(
-            new Event(
-              "demo-balance-updated",
-            ),
+            new Event("demo-balance-updated"),
           );
         }
 
-        lastBalance.current =
-          value.balance;
+        lastBalance.current = value.balance;
 
         anchor.current = {
-          server: new Date(
-            value.serverTime,
-          ).getTime(),
-
+          server: new Date(value.serverTime).getTime(),
           local: performance.now(),
         };
 
-        received.current =
-          performance.now();
-
+        received.current = performance.now();
         dataRef.current = value;
 
         setData(value);
@@ -722,13 +403,9 @@ export default function AnimatedSuperOverPage({
     }
 
     refresh.current = load;
-
     void load();
 
-    const poll = setInterval(
-      load,
-      500,
-    );
+    const poll = setInterval(load, 500);
 
     const timer = setInterval(
       () =>
@@ -754,41 +431,29 @@ export default function AnimatedSuperOverPage({
   const fresh = Boolean(
     data &&
       !error &&
-      performance.now() -
-        received.current <
-        2500,
+      performance.now() - received.current < 2500,
   );
 
   const open = Boolean(
     fresh &&
       match?.phase === "BETTING" &&
-      now >=
-        new Date(
-          match.opensAt,
-        ).getTime() &&
-      now <
-        new Date(
-          match.closesAt,
-        ).getTime(),
+      now >= new Date(match.opensAt).getTime() &&
+      now < new Date(match.closesAt).getTime(),
   );
 
   const validAmount =
-    Number.isSafeInteger(
-      Number(amount),
-    ) &&
+    Number.isSafeInteger(Number(amount)) &&
     Number(amount) >= 100 &&
     Number(amount) <= 25000;
 
   const selected =
-    selection?.matchId ===
-    match?.id;
+    selection?.matchId === match?.id;
 
   async function send(saved) {
     if (
       inFlight.current ||
       !saved ||
-      account.current !==
-        saved.customerId
+      account.current !== saved.customerId
     ) {
       return;
     }
@@ -800,25 +465,17 @@ export default function AnimatedSuperOverPage({
     setMessage("");
 
     try {
-      const result = await api(
-        "/bets",
-        saved.body,
-      );
+      const result = await api("/bets", saved.body);
 
-      store.remove(
-        keyFor(saved.customerId),
-      );
+      store.remove(keyFor(saved.customerId));
 
       window.dispatchEvent(
-        new Event(
-          "demo-balance-updated",
-        ),
+        new Event("demo-balance-updated"),
       );
 
       if (
         mounted.current &&
-        account.current ===
-          saved.customerId
+        account.current === saved.customerId
       ) {
         setPending(null);
         setSelection(null);
@@ -834,25 +491,14 @@ export default function AnimatedSuperOverPage({
     } catch (failure) {
       if (
         mounted.current &&
-        account.current ===
-          saved.customerId
+        account.current === saved.customerId
       ) {
         const definite = [
-          400,
-          401,
-          403,
-          404,
-          409,
-          422,
-        ].includes(
-          failure.status,
-        );
+          400, 401, 403, 404, 409, 422,
+        ].includes(failure.status);
 
         if (definite) {
-          store.remove(
-            keyFor(saved.customerId),
-          );
-
+          store.remove(keyFor(saved.customerId));
           setPending(null);
         }
 
@@ -884,14 +530,8 @@ export default function AnimatedSuperOverPage({
       return;
     }
 
-    if (
-      Number(amount) >
-      Number(data.balance)
-    ) {
-      setBetError(
-        "Insufficient demo coins.",
-      );
-
+    if (Number(amount) > Number(data.balance)) {
+      setBetError("Insufficient demo coins.");
       return;
     }
 
@@ -903,14 +543,11 @@ export default function AnimatedSuperOverPage({
       setBetError(
         "A secure browser connection is required.",
       );
-
       return;
     }
 
     const saved = {
-      customerId:
-        data.customerId,
-
+      customerId: data.customerId,
       body: {
         matchId: match.id,
         team: selection.team,
@@ -923,21 +560,14 @@ export default function AnimatedSuperOverPage({
       },
     };
 
-    if (
-      !store.set(
-        keyFor(data.customerId),
-        saved,
-      )
-    ) {
+    if (!store.set(keyFor(data.customerId), saved)) {
       setBetError(
         "Enable browser session storage to recover interrupted bets.",
       );
-
       return;
     }
 
     setPending(saved);
-
     void send(saved);
   }
 
@@ -948,8 +578,7 @@ export default function AnimatedSuperOverPage({
       match.scores[0].wickets === 2
     );
 
-  const chase =
-    match?.scores[1];
+  const chase = match?.scores[1];
 
   return (
     <main className="cs-page">
@@ -959,23 +588,17 @@ export default function AnimatedSuperOverPage({
           --wine:#791b3e;
           min-height:100vh;
           background:#151b20;
-          color:#ffffff;
+          color:#fff;
           font-family:Arial,sans-serif;
           padding-bottom:24px;
         }
 
-        .cs-page * {
-          box-sizing:border-box;
-        }
+        .cs-page * { box-sizing:border-box; }
 
         .cs-page button,
-        .cs-page input {
-          font:inherit;
-        }
+        .cs-page input { font:inherit; }
 
-        .cs-page button {
-          cursor:pointer;
-        }
+        .cs-page button { cursor:pointer; }
 
         .cs-page button:disabled {
           cursor:default;
@@ -999,7 +622,7 @@ export default function AnimatedSuperOverPage({
           gap:12px;
           padding:18px 14px;
           background:var(--green);
-          color:#ffffff;
+          color:#fff;
         }
 
         .cs-brand {
@@ -1039,9 +662,7 @@ export default function AnimatedSuperOverPage({
 
         .cs-score {
           background:linear-gradient(
-            110deg,
-            #143b35,
-            #182920
+            110deg,#143b35,#182920
           );
           padding:12px 14px;
         }
@@ -1096,45 +717,30 @@ export default function AnimatedSuperOverPage({
 
         .cs-scene {
           position:relative;
-          width:100%;
-          aspect-ratio:1000/802;
           background:#141313;
-          overflow:hidden;
-          border-top:3px solid #ffffff;
-          border-bottom:3px solid #ffffff;
+          border-top:1px solid #ffffff33;
+          border-bottom:1px solid #ffffff33;
         }
 
         .cs-host {
-          position:absolute;
-          inset:0 0 auto;
-          height:47.631%;
-          overflow:hidden;
+          position:relative;
+          width:100%;
+          aspect-ratio:16/9;
           background:#141313;
         }
 
         .cs-host video {
-          position:absolute;
-          left:0;
-          top:0;
-          display:block;
-          width:100%;
-          height:auto;
-        }
-
-        .cs-stage {
-          position:absolute;
-          inset:0;
           display:block;
           width:100%;
           height:100%;
-          pointer-events:none;
+          object-fit:contain;
         }
 
         .cs-no-video {
           padding:35px;
           text-align:center;
           font-size:12px;
-          color:#cccccc;
+          color:#ccc;
         }
 
         .cs-ai {
@@ -1142,9 +748,9 @@ export default function AnimatedSuperOverPage({
           top:8px;
           right:8px;
           font-size:8px;
-          background:#00000088;
+          background:#0008;
           padding:3px;
-          color:#dddddd;
+          color:#ddd;
         }
 
         .cs-video-play {
@@ -1153,11 +759,48 @@ export default function AnimatedSuperOverPage({
           left:8px;
           z-index:5;
           padding:8px 12px;
-          border:1px solid #ffffff;
+          border:1px solid #fff;
           border-radius:4px;
-          background:#ffffff;
+          background:#fff;
           color:#253238;
           font-weight:bold;
+        }
+
+        .cs-side-scores {
+          position:absolute;
+          left:6px;
+          top:6px;
+          display:flex;
+          flex-direction:column;
+          gap:3px;
+          pointer-events:none;
+        }
+
+        .cs-side-ball {
+          display:grid;
+          place-items:center;
+          width:clamp(20px,4.5vw,32px);
+          height:clamp(20px,4.5vw,32px);
+          border:1px solid #f1b0bd;
+          border-radius:50%;
+          background:radial-gradient(
+            circle at 35% 25%,
+            #bd496c,
+            #791b3e 70%
+          );
+          box-shadow:0 2px 2px #0008;
+          color:#fff;
+          font-size:clamp(11px,2.6vw,18px);
+          font-weight:900;
+          line-height:1;
+        }
+
+        .cs-side-wicket {
+          background:radial-gradient(
+            circle at 35% 25%,
+            #ed6f76,
+            #a41e2d 70%
+          );
         }
 
         .cs-section {
@@ -1171,8 +814,8 @@ export default function AnimatedSuperOverPage({
           display:grid;
           grid-template-columns:
             minmax(0,1fr) 90px 90px;
-          border-bottom:1px solid #cccccc;
-          background:#ffffff;
+          border-bottom:1px solid #ccc;
+          background:#fff;
           color:#27353b;
         }
 
@@ -1185,12 +828,12 @@ export default function AnimatedSuperOverPage({
 
         .cs-back {
           background:var(--green);
-          color:#ffffff;
+          color:#fff;
         }
 
         .cs-lay {
           background:var(--wine);
-          color:#ffffff;
+          color:#fff;
         }
 
         .cs-price {
@@ -1210,8 +853,7 @@ export default function AnimatedSuperOverPage({
         }
 
         .cs-price[aria-pressed=true] {
-          box-shadow:
-            inset 0 0 0 3px #ffd36d;
+          box-shadow:inset 0 0 0 3px #ffd36d;
         }
 
         .cs-lay.cs-cell {
@@ -1220,9 +862,9 @@ export default function AnimatedSuperOverPage({
 
         .cs-panel {
           padding:14px;
-          background:#ffffff;
+          background:#fff;
           color:#253238;
-          border-bottom:1px solid #dddddd;
+          border-bottom:1px solid #ddd;
         }
 
         .cs-panel p {
@@ -1244,7 +886,7 @@ export default function AnimatedSuperOverPage({
           border:1px solid #a8b4b7;
           padding:10px;
           color:#17272c;
-          background:#ffffff;
+          background:#fff;
           border-radius:4px;
         }
 
@@ -1253,13 +895,13 @@ export default function AnimatedSuperOverPage({
           border:1px solid #ccd3d5;
           border-radius:4px;
           background:#f4f8f8;
-          color:#223333;
+          color:#233;
         }
 
         .cs-confirm {
           padding:12px 18px;
           background:var(--green);
-          color:#ffffff;
+          color:#fff;
           font-weight:800;
           border:0;
           border-radius:5px;
@@ -1283,7 +925,7 @@ export default function AnimatedSuperOverPage({
 
         .cs-record {
           padding:12px 0;
-          border-bottom:1px solid #dddddd;
+          border-bottom:1px solid #ddd;
           font-size:12px;
           line-height:1.8;
         }
@@ -1332,9 +974,7 @@ export default function AnimatedSuperOverPage({
             className="cs-balance"
             aria-label="Demo balance"
           >
-            {data
-              ? money(data.balance)
-              : "…"}
+            {data ? money(data.balance) : "…"}
           </div>
         </header>
 
@@ -1348,15 +988,13 @@ export default function AnimatedSuperOverPage({
             ←
           </button>
 
-          <h1>
-            INSTANT SUPER OVER
-          </h1>
+          <h1>INSTANT SUPER OVER</h1>
 
           <a
             href="#so-rules"
             style={{
-              color:"inherit",
-              fontSize:12,
+              color: "inherit",
+              fontSize: 12,
             }}
           >
             Rules
@@ -1364,10 +1002,7 @@ export default function AnimatedSuperOverPage({
         </div>
 
         {error && (
-          <div
-            className="cs-alert"
-            role="alert"
-          >
+          <div className="cs-alert" role="alert">
             {error}
           </div>
         )}
@@ -1384,66 +1019,53 @@ export default function AnimatedSuperOverPage({
               className="cs-score"
               aria-label="Match scoreboard"
             >
-              {match.teams.map(
-                (team, index) => (
-                  <div
-                    className="cs-team-score"
-                    key={team}
-                  >
-                    <span>
-                      {team}
-                    </span>
+              {match.teams.map((team, index) => (
+                <div
+                  className="cs-team-score"
+                  key={team}
+                >
+                  <span>{team}</span>
 
-                    <strong>
-                      {match.scores[index].runs}/
-                      {match.scores[index].wickets}
-                      {" "}
+                  <strong>
+                    {match.scores[index].runs}/
+                    {match.scores[index].wickets}{" "}
+                    <small>
+                      ({match.scores[index].overs})
+                    </small>
+                  </strong>
 
-                      <small>
-                        (
-                        {match.scores[index].overs}
-                        )
-                      </small>
-                    </strong>
-
-                    <div className="cs-balls">
-                      {match.scores[index].balls.map(
-                        (value, ballIndex) => (
-                          <span
-                            key={ballIndex}
-                            className={
-                              `cs-ball ${
-                                value === "W"
-                                  ? "w"
-                                  : ""
-                              }`
-                            }
-                          >
-                            {value}
-                          </span>
-                        ),
-                      )}
-                    </div>
+                  <div className="cs-balls">
+                    {match.scores[index].balls.map(
+                      (value, ballIndex) => (
+                        <span
+                          key={ballIndex}
+                          className={
+                            `cs-ball ${
+                              value === "W" ? "w" : ""
+                            }`
+                          }
+                        >
+                          {value}
+                        </span>
+                      ),
+                    )}
                   </div>
-                ),
-              )}
+                </div>
+              ))}
 
               {firstDone &&
                 match.phase !== "RESULT" && (
                   <p className="cs-target">
                     AUSTRALIA needs{" "}
-
                     {Math.max(
                       0,
                       match.scores[0].runs +
                         1 -
                         chase.runs,
-                    )}
-
-                    {" "}runs from{" "}
-                    {6 - chase.balls.length}
-
-                    {" "}balls · Target{" "}
+                    )}{" "}
+                    runs from{" "}
+                    {6 - chase.balls.length} balls
+                    {" · "}Target{" "}
                     {match.scores[0].runs + 1}
                   </p>
                 )}
@@ -1452,34 +1074,21 @@ export default function AnimatedSuperOverPage({
             {open && (
               <div className="cs-bet-clock">
                 BETTING ·{" "}
-
                 {seconds(
-                  new Date(
-                    match.closesAt,
-                  ).getTime() - now,
+                  new Date(match.closesAt).getTime() -
+                    now,
                 )}
-
                 s
               </div>
             )}
 
-            <CardTable
-              match={match}
-              now={now}
-            />
+            <CardTable match={match} now={now} />
 
             {match.result && (
-              <div
-                className="cs-result"
-                role="status"
-              >
+              <div className="cs-result" role="status">
                 {match.result.winner === "TIE"
                   ? "TIE · STAKES REFUNDED"
-                  : `${
-                      match.teams[
-                        match.result.winner
-                      ]
-                    } WON`}
+                  : `${match.teams[match.result.winner]} WON`}
               </div>
             )}
 
@@ -1491,61 +1100,54 @@ export default function AnimatedSuperOverPage({
               <div className="cs-cell">
                 Min: 100 · Max: 25,000
               </div>
-
               <div className="cs-cell cs-back">
                 Back
               </div>
-
               <div className="cs-cell cs-lay">
                 Lay
               </div>
             </div>
 
-            {match.teams.map(
-              (team, index) => (
-                <div
-                  key={team}
-                  className="cs-market-row"
-                >
-                  <div className="cs-cell">
-                    {team}
-                  </div>
-
-                  <button
-                    type="button"
-                    className="cs-price cs-back"
-                    disabled={
-                      !open ||
-                      busy ||
-                      Boolean(pending)
-                    }
-                    aria-pressed={
-                      selected &&
-                      selection.team === index
-                    }
-                    onClick={() => {
-                      setSelection({
-                        matchId:match.id,
-                        team:index,
-                      });
-
-                      setMessage("");
-                      setBetError("");
-                    }}
-                  >
-                    1.98
-
-                    <small>
-                      TOTAL RETURN
-                    </small>
-                  </button>
-
-                  <div className="cs-cell cs-lay">
-                    —
-                  </div>
+            {match.teams.map((team, index) => (
+              <div
+                key={team}
+                className="cs-market-row"
+              >
+                <div className="cs-cell">
+                  {team}
                 </div>
-              ),
-            )}
+
+                <button
+                  type="button"
+                  className="cs-price cs-back"
+                  disabled={
+                    !open ||
+                    busy ||
+                    Boolean(pending)
+                  }
+                  aria-pressed={
+                    selected &&
+                    selection.team === index
+                  }
+                  onClick={() => {
+                    setSelection({
+                      matchId: match.id,
+                      team: index,
+                    });
+
+                    setMessage("");
+                    setBetError("");
+                  }}
+                >
+                  1.98
+                  <small>TOTAL RETURN</small>
+                </button>
+
+                <div className="cs-cell cs-lay">
+                  —
+                </div>
+              </div>
+            ))}
 
             <section className="cs-panel">
               <label htmlFor="cs-stake">
@@ -1561,14 +1163,9 @@ export default function AnimatedSuperOverPage({
                   min="100"
                   max="25000"
                   value={amount}
-                  disabled={
-                    busy ||
-                    Boolean(pending)
-                  }
+                  disabled={busy || Boolean(pending)}
                   onChange={event =>
-                    setAmount(
-                      event.target.value,
-                    )
+                    setAmount(event.target.value)
                   }
                 />
 
@@ -1587,36 +1184,23 @@ export default function AnimatedSuperOverPage({
                     className="cs-quick"
                     key={value}
                     disabled={
-                      busy ||
-                      Boolean(pending)
+                      busy || Boolean(pending)
                     }
                     onClick={() =>
-                      setAmount(
-                        String(value),
-                      )
+                      setAmount(String(value))
                     }
                   >
-                    {value.toLocaleString(
-                      "en-IN",
-                    )}
+                    {value.toLocaleString("en-IN")}
                   </button>
                 ))}
               </div>
 
               {selected && (
                 <p>
-                  {
-                    match.teams[
-                      selection.team
-                    ]
-                  }
-
+                  {match.teams[selection.team]}
                   {" · "}BACK 1.98
                   {" · "}Stake{" "}
-
-                  {money(
-                    Number(amount),
-                  )}
+                  {money(Number(amount))}
                 </p>
               )}
 
@@ -1639,16 +1223,12 @@ export default function AnimatedSuperOverPage({
 
               {pending && (
                 <p>
-                  Acceptance needs checking.
-                  {" "}
-
+                  Acceptance needs checking.{" "}
                   <button
                     type="button"
                     className="cs-quick"
                     disabled={busy}
-                    onClick={() =>
-                      void send(pending)
-                    }
+                    onClick={() => void send(pending)}
                   >
                     CHECK SAME BET
                   </button>
@@ -1656,17 +1236,13 @@ export default function AnimatedSuperOverPage({
               )}
 
               {message && (
-                <p role="status">
-                  {message}
-                </p>
+                <p role="status">{message}</p>
               )}
 
               {betError && (
                 <p
                   role="alert"
-                  style={{
-                    color:"#791b3e",
-                  }}
+                  style={{ color: "#791b3e" }}
                 >
                   {betError}
                 </p>
@@ -1681,72 +1257,49 @@ export default function AnimatedSuperOverPage({
 
               <p>
                 Next round in{" "}
-
                 {seconds(
-                  new Date(
-                    match.nextAt,
-                  ).getTime() - now,
+                  new Date(match.nextAt).getTime() -
+                    now,
                 )}
-
                 s · {stamp(now)} IST
               </p>
             </section>
 
             <section className="cs-panel">
-              <strong>
-                MY BETS
-              </strong>
+              <strong>MY BETS</strong>
 
               {!data.bets?.length ? (
-                <p>
-                  No bets yet.
-                </p>
+                <p>No bets yet.</p>
               ) : (
-                data.bets
-                  .slice(0,20)
-                  .map(bet => (
-                    <div
-                      className="cs-record"
-                      key={bet.id}
-                    >
-                      <strong>
-                        {bet.match_id}
+                data.bets.slice(0, 20).map(bet => (
+                  <div
+                    className="cs-record"
+                    key={bet.id}
+                  >
+                    <strong>
+                      {bet.match_id}
+                      {" · "}
+                      {bet.match_id.startsWith("C")
+                        ? ["INDIA", "AUSTRALIA"][bet.team]
+                        : `Team ${Number(bet.team) + 1}`}
+                      {" · "}
+                      {bet.direction}
+                    </strong>
 
-                        {" · "}
-
-                        {bet.match_id.startsWith("C")
-                          ? [
-                              "INDIA",
-                              "AUSTRALIA",
-                            ][bet.team]
-                          : `Team ${
-                              Number(bet.team) + 1
-                            }`}
-
-                        {" · "}
-                        {bet.direction}
-                      </strong>
-
-                      <div>
-                        Stake{" "}
-                        {money(bet.amount)}
-
-                        {" · "}
-                        {bet.status}
-
-                        {bet.status === "SETTLED"
-                          ? ` · Returned ${
-                              money(bet.payout)
-                            }`
-                          : ""}
-                      </div>
-
-                      <small>
-                        {stamp(bet.created_at)}
-                        {" "}IST
-                      </small>
+                    <div>
+                      Stake {money(bet.amount)}
+                      {" · "}
+                      {bet.status}
+                      {bet.status === "SETTLED"
+                        ? ` · Returned ${money(bet.payout)}`
+                        : ""}
                     </div>
-                  ))
+
+                    <small>
+                      {stamp(bet.created_at)} IST
+                    </small>
+                  </div>
+                ))
               )}
             </section>
 
@@ -1759,17 +1312,21 @@ export default function AnimatedSuperOverPage({
               </summary>
 
               <p>
-                Demo coins only. This is an AI
-                host video with a programmed hand
-                and card animation. The card shown
-                in the animated hand and its table
-                slot use the same server event.
+                Demo coins only. The host video is
+                a presentation only. The vertical
+                circles on the left show the current
+                innings scores from server cards:
+                A = 1, 2 = 2, 3 = 3, 4 = 4,
+                6 = 6, 10 = 0, K = W.
+                Recorded hand movements do not
+                determine the result.
+              </p>
+
+              <p>
                 The server shuffles 35 cards:
                 five each of A, 2, 3, 4, 6, 10
                 and K. Cards are drawn without
-                replacement. A = 1 run,
-                10 = 0 runs, K = wicket.
-                Other ranks give their printed runs.
+                replacement.
               </p>
 
               <p>
