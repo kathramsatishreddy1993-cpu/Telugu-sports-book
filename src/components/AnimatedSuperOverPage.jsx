@@ -37,6 +37,7 @@ async function api(path, body) {
       credentials: "same-origin",
       cache: "no-store",
       signal: controller.signal,
+
       ...(body
         ? {
             method: "POST",
@@ -80,6 +81,7 @@ const store = {
         key,
         JSON.stringify(value),
       );
+
       return true;
     } catch {
       return false;
@@ -99,6 +101,7 @@ function keyFor(id) {
 
 function newKey() {
   const bytes = new Uint8Array(24);
+
   globalThis.crypto.getRandomValues(bytes);
 
   return Array.from(
@@ -109,6 +112,7 @@ function newKey() {
 
 function Host() {
   const videoRef = useRef(null);
+
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [blocked, setBlocked] = useState(false);
@@ -118,15 +122,17 @@ function Host() {
 
     if (!video || !ready || failed) return;
 
-    // Use the empty-table portion only.
+    // Only use the original empty-table portion.
     const duration = Number.isFinite(video.duration)
       ? video.duration
       : 10;
 
     const start = duration >= 1.6 ? 0.1 : 0;
-    const end = duration >= 1.6
-      ? 1.6
-      : Math.max(0.1, duration - 0.1);
+
+    const end =
+      duration >= 1.6
+        ? 1.6
+        : Math.max(0.1, duration - 0.1);
 
     let frame;
     let alive = true;
@@ -138,7 +144,10 @@ function Host() {
     } catch {}
 
     video.play()?.catch(error => {
-      if (alive && error.name === "NotAllowedError") {
+      if (
+        alive &&
+        error.name === "NotAllowedError"
+      ) {
         setBlocked(true);
       }
     });
@@ -226,6 +235,39 @@ export function scoreValue(card) {
   }[card.rank];
 }
 
+export function tableCardPose(card, age) {
+  const first = card.team === 0;
+
+  const targetX = first
+    ? 440 + (card.ball - 1) * 73
+    : 402 + (card.ball - 1) * 84;
+
+  const targetY = first ? 488 : 568;
+
+  const progress = Math.min(
+    1,
+    Math.max(0, age / 700),
+  );
+
+  const eased =
+    1 - Math.pow(1 - progress, 3);
+
+  return {
+    x:
+      925 +
+      (targetX - 925) * eased,
+
+    y:
+      435 +
+      (targetY - 435) * eased -
+      Math.sin(progress * Math.PI) * 28,
+
+    skew: first ? -0.23 : -0.30,
+    scaleY: first ? 0.40 : 0.54,
+    width: first ? 58 : 70,
+  };
+}
+
 export function CardTable({ match, now }) {
   const start = new Date(
     match.roundStartAt,
@@ -247,6 +289,90 @@ export function CardTable({ match, now }) {
       aria-label="Host video and current innings scores"
     >
       <Host />
+
+      <svg
+        className="cs-table-cards"
+        viewBox="0 0 1280 720"
+        role="img"
+        aria-label="Server cards on the original video table"
+      >
+        {events.map(card => {
+          const pose = tableCardPose(
+            card,
+            now - start - card.at,
+          );
+
+          const color =
+            card.rank === "K"
+              ? "#791b3e"
+              : "#151515";
+
+          return (
+            <g
+              key={`${match.id}:${card.index}`}
+              data-table-team={card.team}
+              data-table-ball={card.ball}
+              data-table-rank={card.rank}
+              transform={
+                `matrix(1 0 ${pose.skew} ` +
+                `${pose.scaleY} ${pose.x} ${pose.y})`
+              }
+            >
+              <title>
+                {`${match.teams[card.team]} ball ${
+                  card.ball
+                }: ${card.rank}, ${
+                  scoreValue(card) === "W"
+                    ? "wicket"
+                    : `${scoreValue(card)} runs`
+                }`}
+              </title>
+
+              <rect
+                width={pose.width}
+                height="84"
+                rx="3"
+                fill="#fffbee"
+                stroke="#b5aa94"
+                strokeWidth="1.5"
+              />
+
+              <text
+                x="5"
+                y="23"
+                fill={color}
+                fontSize="21"
+                fontWeight="bold"
+              >
+                {card.rank}
+              </text>
+
+              <text
+                x={pose.width / 2}
+                y="56"
+                fill={color}
+                fontSize="24"
+                textAnchor="middle"
+              >
+                ♠
+              </text>
+
+              <text
+                x="5"
+                y="23"
+                transform={
+                  `rotate(180 ${pose.width / 2} 42)`
+                }
+                fill={color}
+                fontSize="21"
+                fontWeight="bold"
+              >
+                {card.rank}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
 
       {innings.length > 0 && (
         <div
@@ -548,6 +674,7 @@ export default function AnimatedSuperOverPage({
 
     const saved = {
       customerId: data.customerId,
+
       body: {
         matchId: match.id,
         team: selection.team,
@@ -764,6 +891,15 @@ export default function AnimatedSuperOverPage({
           background:#fff;
           color:#253238;
           font-weight:bold;
+        }
+
+        .cs-table-cards {
+          position:absolute;
+          inset:0;
+          display:block;
+          width:100%;
+          height:100%;
+          pointer-events:none;
         }
 
         .cs-side-scores {
@@ -1100,9 +1236,11 @@ export default function AnimatedSuperOverPage({
               <div className="cs-cell">
                 Min: 100 · Max: 25,000
               </div>
+
               <div className="cs-cell cs-back">
                 Back
               </div>
+
               <div className="cs-cell cs-lay">
                 Lay
               </div>
@@ -1313,9 +1451,9 @@ export default function AnimatedSuperOverPage({
 
               <p>
                 Demo coins only. The host video is
-                a presentation only. The vertical
-                circles on the left show the current
-                innings scores from server cards:
+                a presentation only. Cards placed on
+                the table and the vertical score circles
+                use the same server events.
                 A = 1, 2 = 2, 3 = 3, 4 = 4,
                 6 = 6, 10 = 0, K = W.
                 Recorded hand movements do not
