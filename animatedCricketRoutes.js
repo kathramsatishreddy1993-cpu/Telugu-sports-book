@@ -38,18 +38,20 @@ const hash = value =>
     .update(value)
     .digest("hex");
 
+// Super Over mode is independent of the sports feed.
 const isDemo = () =>
   String(
-    process.env.SPORTS_API_MODE ||
+    process.env.SUPER_OVER_MODE ||
       "demo",
   )
     .trim()
     .toLowerCase() === "demo";
 
 const clock = async c => {
-  const result = await c.query(
-    "SELECT clock_timestamp() AS now",
-  );
+  const result =
+    await c.query(
+      "SELECT clock_timestamp() AS now",
+    );
 
   return new Date(
     result.rows[0].now,
@@ -60,15 +62,16 @@ const legacyBalls = async (
   c,
   id,
 ) => {
-  const result = await c.query(
-    `
-      SELECT *
-      FROM tsb_so_manual_balls
-      WHERE match_id=$1
-      ORDER BY seq
-    `,
-    [id],
-  );
+  const result =
+    await c.query(
+      `
+        SELECT *
+        FROM tsb_so_manual_balls
+        WHERE match_id=$1
+        ORDER BY seq
+      `,
+      [id],
+    );
 
   return result.rows;
 };
@@ -154,8 +157,12 @@ export async function initializeAnimatedCricket(
   `);
 }
 
-async function tx(pool, fn) {
-  const c = await pool.connect();
+async function tx(
+  pool,
+  fn,
+) {
+  const c =
+    await pool.connect();
 
   try {
     await c.query("BEGIN");
@@ -195,7 +202,7 @@ async function credit(
         SET
           demo_coin_balance =
             demo_coin_balance + $1,
-          updated_at = NOW()
+          updated_at=NOW()
         WHERE id=$2
       `,
       [
@@ -212,7 +219,9 @@ async function credit(
           transaction_type,
           note
         )
-        VALUES($1,$2,'SO_RETURN',$3)
+        VALUES(
+          $1,$2,'SO_RETURN',$3
+        )
       `,
       [
         bet.customer_id,
@@ -229,10 +238,11 @@ async function tableExists(
   c,
   name,
 ) {
-  const result = await c.query(
-    "SELECT to_regclass($1) AS name",
-    [`public.${name}`],
-  );
+  const result =
+    await c.query(
+      "SELECT to_regclass($1) AS name",
+      [`public.${name}`],
+    );
 
   return Boolean(
     result.rows[0]?.name,
@@ -249,18 +259,19 @@ async function settleOld(
       "tsb_so_matches",
     )
   ) {
-    const result = await c.query(
-      `
-        SELECT *
-        FROM tsb_so_matches
-        WHERE
-          settled=FALSE
-          AND start_ms<=$1
-        ORDER BY start_ms
-        FOR UPDATE
-      `,
-      [now],
-    );
+    const result =
+      await c.query(
+        `
+          SELECT *
+          FROM tsb_so_matches
+          WHERE
+            settled=FALSE
+            AND start_ms<=$1
+          ORDER BY start_ms
+          FOR UPDATE
+        `,
+        [now],
+      );
 
     for (
       const row of result.rows
@@ -336,19 +347,20 @@ async function settleOld(
     return;
   }
 
-  const result = await c.query(
-    `
-      SELECT *
-      FROM tsb_so_manual_matches
-      WHERE
-        ready=TRUE
-        AND settled=FALSE
-        AND start_ms<=$1
-      ORDER BY start_ms
-      FOR UPDATE
-    `,
-    [now + PREBET_MS],
-  );
+  const result =
+    await c.query(
+      `
+        SELECT *
+        FROM tsb_so_manual_matches
+        WHERE
+          ready=TRUE
+          AND settled=FALSE
+          AND start_ms<=$1
+        ORDER BY start_ms
+        FOR UPDATE
+      `,
+      [now + PREBET_MS],
+    );
 
   for (
     const row of result.rows
@@ -531,45 +543,48 @@ async function ensureRound(
   c,
   start,
 ) {
-  const found = await c.query(
-    `
-      SELECT *
-      FROM tsb_so_card_rounds
-      WHERE start_ms=$1
-    `,
-    [start],
-  );
+  const found =
+    await c.query(
+      `
+        SELECT *
+        FROM tsb_so_card_rounds
+        WHERE start_ms=$1
+      `,
+      [start],
+    );
 
-  if (found.rows[0]) {
+  if (
+    found.rows[0]
+  ) {
     return found.rows[0];
   }
 
   const plan =
     newCardRound(start);
 
-  const result = await c.query(
-    `
-      INSERT INTO tsb_so_card_rounds(
-        start_ms,
-        deck,
-        seed,
-        commitment
-      )
-      VALUES($1,$2,$3,$4)
-      RETURNING *
-    `,
-    [
-      start,
+  const result =
+    await c.query(
+      `
+        INSERT INTO tsb_so_card_rounds(
+          start_ms,
+          deck,
+          seed,
+          commitment
+        )
+        VALUES($1,$2,$3,$4)
+        RETURNING *
+      `,
+      [
+        start,
 
-      JSON.stringify(
-        plan.deck,
-      ),
+        JSON.stringify(
+          plan.deck,
+        ),
 
-      plan.seed,
-
-      plan.commitment,
-    ],
-  );
+        plan.seed,
+        plan.commitment,
+      ],
+    );
 
   return result.rows[0];
 }
@@ -578,22 +593,23 @@ async function settleCards(
   c,
   now,
 ) {
-  const result = await c.query(
-    `
-      SELECT *
-      FROM tsb_so_card_rounds
-      WHERE
-        settled=FALSE
-        AND start_ms<=$1
-      ORDER BY start_ms
-      FOR UPDATE
-    `,
-    [
-      now -
-        CARD_TRANSFER_MS -
-        CARD_BET_MS,
-    ],
-  );
+  const result =
+    await c.query(
+      `
+        SELECT *
+        FROM tsb_so_card_rounds
+        WHERE
+          settled=FALSE
+          AND start_ms<=$1
+        ORDER BY start_ms
+        FOR UPDATE
+      `,
+      [
+        now -
+          CARD_TRANSFER_MS -
+          CARD_BET_MS,
+      ],
+    );
 
   for (
     const row of result.rows
@@ -665,6 +681,7 @@ async function advanceAll(
   now,
 ) {
   await settleOld(c, now);
+
   await settleCards(c, now);
 }
 
@@ -685,14 +702,15 @@ const balanceOf = async (
   c,
   id,
 ) => {
-  const result = await c.query(
-    `
-      SELECT demo_coin_balance
-      FROM customers
-      WHERE id=$1
-    `,
-    [id],
-  );
+  const result =
+    await c.query(
+      `
+        SELECT demo_coin_balance
+        FROM customers
+        WHERE id=$1
+      `,
+      [id],
+    );
 
   return Number(
     result.rows[0]
@@ -704,16 +722,17 @@ async function history(
   c,
   id,
 ) {
-  const result = await c.query(
-    `
-      SELECT *
-      FROM tsb_so_card_bets
-      WHERE customer_id=$1
-      ORDER BY id DESC
-      LIMIT 100
-    `,
-    [id],
-  );
+  const result =
+    await c.query(
+      `
+        SELECT *
+        FROM tsb_so_card_bets
+        WHERE customer_id=$1
+        ORDER BY id DESC
+        LIMIT 100
+      `,
+      [id],
+    );
 
   const rows =
     result.rows.map(
@@ -727,16 +746,17 @@ async function history(
       "tsb_so_manual_bets",
     )
   ) {
-    const old = await c.query(
-      `
-        SELECT *
-        FROM tsb_so_manual_bets
-        WHERE customer_id=$1
-        ORDER BY id DESC
-        LIMIT 100
-      `,
-      [id],
-    );
+    const old =
+      await c.query(
+        `
+          SELECT *
+          FROM tsb_so_manual_bets
+          WHERE customer_id=$1
+          ORDER BY id DESC
+          LIMIT 100
+        `,
+        [id],
+      );
 
     rows.push(
       ...old.rows.map(
@@ -755,16 +775,17 @@ async function history(
       "tsb_so_bets",
     )
   ) {
-    const old = await c.query(
-      `
-        SELECT *
-        FROM tsb_so_bets
-        WHERE customer_id=$1
-        ORDER BY id DESC
-        LIMIT 100
-      `,
-      [id],
-    );
+    const old =
+      await c.query(
+        `
+          SELECT *
+          FROM tsb_so_bets
+          WHERE customer_id=$1
+          ORDER BY id DESC
+          LIMIT 100
+        `,
+        [id],
+      );
 
     rows.push(
       ...old.rows.map(
@@ -812,7 +833,7 @@ export function registerAnimatedCricketRoutes(
         .status(409)
         .json({
           error:
-            "Demo mode only.",
+            "Super Over is disabled. Set SUPER_OVER_MODE to demo to enable this virtual-coin game.",
         });
     }
 
@@ -853,6 +874,7 @@ export function registerAnimatedCricketRoutes(
   app.use(
     "/api/admin/so-control",
     guard,
+
     (req, res) =>
       res.status(410).json({
         error:
@@ -1416,7 +1438,6 @@ export function registerAnimatedCricketRoutes(
                 `,
                 [
                   req.customerId,
-
                   -b.amount,
 
                   `Instant SO ${b.matchId}; BACK ${
