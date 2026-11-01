@@ -108,20 +108,14 @@ function newKey() {
   ).join("");
 }
 
-function Host({ phase, celebrate }) {
+function Host({ celebrate }) {
   const videoRef = useRef(null);
 
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [blocked, setBlocked] = useState(false);
 
-  const mode = celebrate
-    ? "clap"
-    : phase === "TRANSFER"
-      ? "transfer"
-      : phase === "DEALING"
-        ? "deal"
-        : "idle";
+  const mode = celebrate ? "clap" : "idle";
 
   useEffect(() => {
     const video = videoRef.current;
@@ -130,8 +124,6 @@ function Host({ phase, celebrate }) {
 
     const ranges = {
       idle: [0.1, 1.6],
-      transfer: [2, 3.8],
-      deal: [6, 7.8],
       clap: [8.8, 9.8],
     };
 
@@ -241,143 +233,300 @@ function Host({ phase, celebrate }) {
   );
 }
 
-function CardTable({ match, now }) {
-  const transfer = match.phase === "TRANSFER";
+export function cardPose(match, card, now) {
+  const x = 191 + (card.ball - 1) * 102;
+  const y = card.team === 0 ? 420 : 558;
 
-  const events = match.events || [];
+  const age =
+    now -
+    new Date(match.roundStartAt).getTime() -
+    card.at;
+
+  const progress = Math.min(
+    1,
+    Math.max(0, age / 850),
+  );
+
+  const eased =
+    1 - Math.pow(1 - progress, 3);
+
+  return {
+    x: 590 + (x - 590) * eased,
+    y: 294 + (y - 294) * eased,
+    angle: -12 * (1 - eased),
+    progress,
+    age,
+  };
+}
+
+export function CardTable({ match, now }) {
+  const events = (match.events || []).filter(
+    card =>
+      now >=
+      new Date(match.roundStartAt).getTime() +
+        card.at,
+  );
+
   const latest = events.at(-1);
 
-  const age = latest
+  const latestAge = latest
     ? now -
       new Date(match.roundStartAt).getTime() -
       latest.at
     : Infinity;
 
-  const moving =
-    latest && age >= 0 && age < 650;
-
   return (
     <div className="cs-scene">
       <Host
-        phase={match.phase}
         celebrate={
           match.phase === "RESULT" &&
           match.result?.winner !== "TIE" &&
-          age < 2000
+          latestAge < 2000
         }
       />
 
-      <div
-        className="cs-machine"
-        aria-label="Opaque card machine beside the left edge of the table"
+      <svg
+        className="cs-stage"
+        viewBox="0 0 1000 730"
+        role="img"
+        aria-label="Server cards dealt in order: India top row, Australia bottom row"
       >
-        <div className="cs-machine-top" />
-        <span>SHUFFLER</span>
-      </div>
+        <rect
+          x="0"
+          y="310"
+          width="1000"
+          height="420"
+          fill="#651d3a"
+        />
 
-      <div className="cs-table">
-        <div className="cs-table-title">
-          Super Over
-        </div>
-
-        <div
-          className="cs-shoe"
-          aria-label={
-            transfer
-              ? "Transparent tray receiving a small card stack"
-              : "Transparent card tray"
-          }
+        <text
+          x="500"
+          y="353"
+          textAnchor="middle"
+          fill="#f2ca79"
+          fontSize="27"
+          fontWeight="bold"
         >
-          {!transfer && <div className="cs-stack" />}
-        </div>
+          SUPER OVER
+        </text>
 
-        {transfer && (
-          <div
-            key={match.id}
-            className="cs-transfer-stack"
-            aria-hidden="true"
+        <text
+          x="175"
+          y="400"
+          fill="#fff"
+          fontSize="18"
+        >
+          INDIA
+        </text>
+
+        <text
+          x="175"
+          y="548"
+          fill="#fff"
+          fontSize="18"
+        >
+          AUSTRALIA
+        </text>
+
+        <g aria-label="Card shuffler">
+          <rect
+            x="18"
+            y="405"
+            width="125"
+            height="170"
+            rx="5"
+            fill="#171719"
           />
+
+          <rect
+            x="29"
+            y="422"
+            width="103"
+            height="34"
+            fill="#060607"
+            stroke="#666"
+          />
+
+          <text
+            x="80"
+            y="481"
+            fill="#aaa"
+            textAnchor="middle"
+            fontSize="12"
+          >
+            SHUFFLER
+          </text>
+        </g>
+
+        <g aria-label="Face-down card shoe">
+          <path
+            d="M839 405 L966 380 L966 490 L839 515 Z"
+            fill="#ffffff12"
+            stroke="#ffffff88"
+            strokeWidth="3"
+          />
+
+          {Array.from(
+            { length: 8 },
+            (_, i) => (
+              <path
+                key={i}
+                d={
+                  `M852 ${478 - i * 4} ` +
+                  `L951 ${457 - i * 4}`
+                }
+                stroke="#eee4d9"
+                strokeWidth="3"
+              />
+            ),
+          )}
+        </g>
+
+        {[0, 1].map(team =>
+          Array.from(
+            { length: 6 },
+            (_, i) => (
+              <g key={`${team}:${i}`}>
+                <rect
+                  x={191 + i * 102}
+                  y={team === 0 ? 420 : 558}
+                  width="82"
+                  height="110"
+                  rx="5"
+                  fill="none"
+                  stroke="#ffffff40"
+                />
+
+                <text
+                  x={232 + i * 102}
+                  y={team === 0 ? 483 : 621}
+                  textAnchor="middle"
+                  fill="#ffffff45"
+                  fontSize="18"
+                >
+                  {i + 1}
+                </text>
+              </g>
+            ),
+          ),
         )}
 
-        <div
-          className="cs-slots"
-          aria-label="Two rows with six card positions each"
-        >
-          {[0, 1].map(team => (
-            <div
-              key={team}
-              className="cs-card-row"
-              aria-label={`${match.teams[team]} six card positions`}
+        {events.map(card => {
+          const pose = cardPose(
+            match,
+            card,
+            now,
+          );
+
+          const holding =
+            card.index === latest?.index &&
+            pose.progress < 0.45;
+
+          const color =
+            card.rank === "K"
+              ? "#791b3e"
+              : "#161616";
+
+          return (
+            <g
+              key={`${match.id}:${card.index}`}
+              data-card-index={card.index}
+              data-team={card.team}
+              data-ball={card.ball}
+              data-rank={card.rank}
+              transform={
+                `translate(${pose.x} ${pose.y}) ` +
+                `rotate(${pose.angle} 41 55)`
+              }
             >
-              {Array.from(
-                { length: 6 },
-                (_, i) => {
-                  const card = events.find(
-                    e =>
-                      e.team === team &&
-                      e.ball === i + 1,
-                  );
+              <title>
+                {`${match.teams[card.team]} ball ${
+                  card.ball
+                }: ${card.rank}, ${
+                  card.value === "W"
+                    ? "wicket"
+                    : `${card.value} runs`
+                }`}
+              </title>
 
-                  const arriving =
-                    moving &&
-                    card?.index === latest.index;
+              <rect
+                width="82"
+                height="110"
+                rx="5"
+                fill="#fffbee"
+                stroke="#c6bdaa"
+              />
 
-                  return (
-                    <div
-                      key={i}
-                      className="cs-slot"
-                    >
-                      {card && (
-                        <div
-                          key={`${match.id}:${card.index}`}
-                          className={[
-                            "cs-playing-card",
-                            arriving
-                              ? "cs-arriving"
-                              : "",
-                            card.rank === "K"
-                              ? "cs-wicket-card"
-                              : "",
-                          ].join(" ")}
-                          style={
-                            arriving
-                              ? {
-                                  "--from-x":
-                                    `${(5 - i) * 115 + 110}%`,
-                                  "--from-y":
-                                    team === 0
-                                      ? "-170%"
-                                      : "-300%",
-                                }
-                              : undefined
-                          }
-                          aria-label={
-                            `${match.teams[team]} ball ${i + 1}: ` +
-                            `${card.rank}, ` +
-                            (
-                              card.value === "W"
-                                ? "wicket"
-                                : `${card.value} runs`
-                            )
-                          }
-                        >
-                          <b>{card.rank}</b>
-                          <span>♠</span>
-                          <b>{card.rank}</b>
-                        </div>
-                      )}
-                    </div>
-                  );
-                },
+              <text
+                x="8"
+                y="25"
+                fill={color}
+                fontSize="23"
+                fontWeight="bold"
+              >
+                {card.rank}
+              </text>
+
+              <text
+                x="41"
+                y="66"
+                textAnchor="middle"
+                fill={color}
+                fontSize="31"
+              >
+                ♠
+              </text>
+
+              <text
+                x="8"
+                y="25"
+                transform="rotate(180 41 55)"
+                fill={color}
+                fontSize="23"
+                fontWeight="bold"
+              >
+                {card.rank}
+              </text>
+
+              {holding && (
+                <g
+                  aria-label="Animated hand holding this card"
+                  data-holding-rank={card.rank}
+                >
+                  <path
+                    d={
+                      "M36 -82 L65 -82 L68 -29 " +
+                      "Q81 -18 80 -5 L75 28 " +
+                      "Q73 35 68 30 L66 11 L63 35 " +
+                      "Q60 42 55 36 L53 11 L49 34 " +
+                      "Q46 40 42 34 L42 6 L32 18 " +
+                      "Q25 23 23 16 L34 -8 Z"
+                    }
+                    fill="#c78e73"
+                    stroke="#97654e"
+                    strokeWidth="2"
+                  />
+
+                  <path
+                    d="M34 -82 L68 -82 L68 -60 L34 -60 Z"
+                    fill="#6b2546"
+                  />
+                </g>
               )}
-            </div>
-          ))}
-        </div>
+            </g>
+          );
+        })}
 
-        <span className="cs-table-foot">
+        <text
+          x="500"
+          y="708"
+          textAnchor="middle"
+          fill="#d9adb9"
+          fontSize="14"
+        >
           INDIA · AUSTRALIA
-        </span>
-      </div>
+        </text>
+      </svg>
     </div>
   );
 }
@@ -428,7 +577,9 @@ export default function AnimatedSuperOverPage({
 
         if (!alive) return;
 
-        if (account.current !== value.customerId) {
+        if (
+          account.current !== value.customerId
+        ) {
           account.current = value.customerId;
 
           setSelection(null);
@@ -440,8 +591,10 @@ export default function AnimatedSuperOverPage({
           );
 
           setPending(
-            saved?.customerId === value.customerId &&
-              typeof saved.body?.requestKey === "string"
+            saved?.customerId ===
+              value.customerId &&
+              typeof saved.body?.requestKey ===
+                "string"
               ? saved
               : null,
           );
@@ -461,12 +614,13 @@ export default function AnimatedSuperOverPage({
         lastBalance.current = value.balance;
 
         anchor.current = {
-          server: new Date(value.serverTime).getTime(),
+          server: new Date(
+            value.serverTime,
+          ).getTime(),
           local: performance.now(),
         };
 
         received.current = performance.now();
-
         dataRef.current = value;
 
         setData(value);
@@ -480,7 +634,10 @@ export default function AnimatedSuperOverPage({
               : e.message,
           );
 
-          if (e.status === 401 || e.status === 403) {
+          if (
+            e.status === 401 ||
+            e.status === 403
+          ) {
             dataRef.current = null;
             account.current = null;
 
@@ -495,7 +652,6 @@ export default function AnimatedSuperOverPage({
     }
 
     refresh.current = load;
-
     void load();
 
     const poll = setInterval(load, 500);
@@ -524,14 +680,18 @@ export default function AnimatedSuperOverPage({
   const fresh = Boolean(
     data &&
       !error &&
-      performance.now() - received.current < 2500,
+      performance.now() -
+        received.current <
+        2500,
   );
 
   const open = Boolean(
     fresh &&
       match?.phase === "BETTING" &&
-      now >= new Date(match.opensAt).getTime() &&
-      now < new Date(match.closesAt).getTime(),
+      now >=
+        new Date(match.opensAt).getTime() &&
+      now <
+        new Date(match.closesAt).getTime(),
   );
 
   const validAmount =
@@ -558,9 +718,14 @@ export default function AnimatedSuperOverPage({
     setMessage("");
 
     try {
-      const result = await api("/bets", saved.body);
+      const result = await api(
+        "/bets",
+        saved.body,
+      );
 
-      store.remove(keyFor(saved.customerId));
+      store.remove(
+        keyFor(saved.customerId),
+      );
 
       window.dispatchEvent(
         new Event("demo-balance-updated"),
@@ -587,11 +752,19 @@ export default function AnimatedSuperOverPage({
         account.current === saved.customerId
       ) {
         const definite = [
-          400, 401, 403, 404, 409, 422,
+          400,
+          401,
+          403,
+          404,
+          409,
+          422,
         ].includes(e.status);
 
         if (definite) {
-          store.remove(keyFor(saved.customerId));
+          store.remove(
+            keyFor(saved.customerId),
+          );
+
           setPending(null);
         }
 
@@ -623,8 +796,14 @@ export default function AnimatedSuperOverPage({
       return;
     }
 
-    if (Number(amount) > Number(data.balance)) {
-      setBetError("Insufficient demo coins.");
+    if (
+      Number(amount) >
+      Number(data.balance)
+    ) {
+      setBetError(
+        "Insufficient demo coins.",
+      );
+
       return;
     }
 
@@ -655,7 +834,12 @@ export default function AnimatedSuperOverPage({
       },
     };
 
-    if (!store.set(keyFor(data.customerId), saved)) {
+    if (
+      !store.set(
+        keyFor(data.customerId),
+        saved,
+      )
+    ) {
       setBetError(
         "Enable browser session storage to recover interrupted bets.",
       );
@@ -664,7 +848,6 @@ export default function AnimatedSuperOverPage({
     }
 
     setPending(saved);
-
     void send(saved);
   }
 
@@ -822,16 +1005,18 @@ export default function AnimatedSuperOverPage({
 
         .cs-scene {
           position:relative;
-          background:#100f12;
+          width:100%;
+          aspect-ratio:1000/730;
+          background:#141313;
           overflow:hidden;
-          padding-top:0;
           border-top:3px solid white;
           border-bottom:3px solid white;
         }
 
         .cs-host {
-          position:relative;
-          aspect-ratio:16/7.6;
+          position:absolute;
+          inset:0 0 auto;
+          height:42.466%;
           overflow:hidden;
           background:#141313;
         }
@@ -843,6 +1028,15 @@ export default function AnimatedSuperOverPage({
           display:block;
           width:100%;
           height:auto;
+        }
+
+        .cs-stage {
+          position:absolute;
+          inset:0;
+          display:block;
+          width:100%;
+          height:100%;
+          pointer-events:none;
         }
 
         .cs-no-video {
@@ -860,206 +1054,6 @@ export default function AnimatedSuperOverPage({
           background:#0008;
           padding:3px;
           color:#ddd;
-        }
-
-        .cs-table {
-          position:relative;
-          margin:0 5% 14px 12%;
-          padding:12px 12% 12px 6%;
-          background:radial-gradient(
-            ellipse at top,
-            #8d254b,
-            #48172a
-          );
-          border:0;
-          border-radius:0;
-          box-shadow:none;
-          z-index:2;
-        }
-
-        .cs-table-title {
-          text-align:center;
-          font-size:clamp(11px,2.2vw,18px);
-          font-weight:bold;
-          color:#dda453;
-          margin-bottom:7px;
-        }
-
-        .cs-slots {
-          display:grid;
-          gap:6px;
-        }
-
-        .cs-card-row {
-          display:grid;
-          grid-template-columns:repeat(
-            6,
-            minmax(0,1fr)
-          );
-          gap:7px;
-        }
-
-        .cs-slot {
-          aspect-ratio:.84;
-          border:1px solid #d1a6b377;
-          border-radius:3px;
-          position:relative;
-          min-width:0;
-        }
-
-        .cs-playing-card {
-          position:absolute;
-          inset:0;
-          background:#fffbee;
-          color:#131313;
-          border-radius:3px;
-          box-shadow:0 2px 3px #0005;
-          display:flex;
-          flex-direction:column;
-          align-items:center;
-          justify-content:space-between;
-          padding:3px;
-          font-size:clamp(10px,2.5vw,21px);
-          line-height:1;
-        }
-
-        .cs-playing-card b:first-child {
-          align-self:flex-start;
-        }
-
-        .cs-playing-card b:last-child {
-          align-self:flex-end;
-          transform:rotate(180deg);
-        }
-
-        .cs-playing-card span {
-          font-size:clamp(11px,2.8vw,27px);
-        }
-
-        .cs-wicket-card {
-          color:var(--wine);
-        }
-
-        .cs-arriving {
-          animation:csDeal .65s ease-out both;
-          z-index:8;
-        }
-
-        @keyframes csDeal {
-          from {
-            transform:
-              translate(
-                var(--from-x),
-                var(--from-y)
-              )
-              rotate(-12deg);
-            opacity:.5;
-          }
-
-          to {
-            transform:
-              translate(0,0)
-              rotate(0);
-            opacity:1;
-          }
-        }
-
-        .cs-table-foot {
-          display:block;
-          text-align:center;
-          color:#b27d8e;
-          font-size:8px;
-          margin-top:7px;
-        }
-
-        .cs-machine {
-          position:absolute;
-          z-index:3;
-          left:1%;
-          top:auto;
-          bottom:15%;
-          width:11%;
-          height:17%;
-          border:2px solid #222;
-          background:linear-gradient(
-            100deg,
-            #111,
-            #333
-          );
-          transform:skewY(-3deg);
-          box-shadow:0 6px 5px #0008;
-        }
-
-        .cs-machine span {
-          font-size:clamp(4px,1vw,8px);
-          display:block;
-          text-align:center;
-          color:#aaa;
-          margin-top:12%;
-        }
-
-        .cs-machine-top {
-          height:20%;
-          margin:8%;
-          background:#070707;
-          border:1px solid #555;
-        }
-
-        .cs-shoe {
-          position:absolute;
-          right:-1%;
-          top:9%;
-          width:15%;
-          height:26%;
-          border:2px solid #ffffff80;
-          background:#ffffff15;
-          transform:skewY(-12deg);
-          box-shadow:inset 2px 2px 5px #fff3;
-        }
-
-        .cs-stack,
-        .cs-transfer-stack {
-          border:1px solid #e7d9ce;
-          background:repeating-linear-gradient(
-            0deg,
-            #f3eee8 0 2px,
-            #a6948f 2px 3px
-          );
-          box-shadow:0 2px 3px #0005;
-        }
-
-        .cs-stack {
-          position:absolute;
-          left:12%;
-          right:12%;
-          bottom:15%;
-          height:45%;
-        }
-
-        .cs-transfer-stack {
-          position:absolute;
-          width:11%;
-          height:11%;
-          top:14%;
-          left:-10%;
-          animation:csTransfer 4s ease-in-out forwards;
-          z-index:9;
-        }
-
-        @keyframes csTransfer {
-          0%,12% {
-            left:-10%;
-            opacity:0;
-          }
-
-          20% {
-            opacity:1;
-          }
-
-          80%,100% {
-            left:87%;
-            opacity:1;
-          }
         }
 
         .cs-section {
@@ -1112,7 +1106,8 @@ export default function AnimatedSuperOverPage({
         }
 
         .cs-price[aria-pressed=true] {
-          box-shadow:inset 0 0 0 3px #ffd36d;
+          box-shadow:
+            inset 0 0 0 3px #ffd36d;
         }
 
         .cs-lay.cs-cell {
@@ -1213,56 +1208,12 @@ export default function AnimatedSuperOverPage({
               minmax(0,1fr) 76px 76px;
           }
 
-          .cs-table {
-            padding-top:9px;
-            padding-bottom:9px;
-            border:0;
-            border-radius:0;
-            box-shadow:none;
-          }
-
-          .cs-table-title {
-            margin-bottom:6px;
-          }
-
-          .cs-slots {
-            gap:5px;
-          }
-
-          .cs-card-row {
-            gap:4px;
-          }
-
-          .cs-playing-card {
-            padding:2px;
-          }
-
           .cs-header {
             padding:14px 10px;
           }
 
           .cs-balance {
             font-size:15px;
-          }
-
-          .cs-host {
-            aspect-ratio:16/7.6;
-          }
-
-          .cs-table-foot {
-            font-size:6px;
-            margin-top:7px;
-          }
-        }
-
-        @media(prefers-reduced-motion:reduce) {
-          .cs-arriving,
-          .cs-transfer-stack {
-            animation:none;
-          }
-
-          .cs-transfer-stack {
-            left:87%;
           }
         }
       `}</style>
@@ -1304,7 +1255,10 @@ export default function AnimatedSuperOverPage({
         </div>
 
         {error && (
-          <div className="cs-alert" role="alert">
+          <div
+            className="cs-alert"
+            role="alert"
+          >
             {error}
           </div>
         )}
@@ -1321,39 +1275,43 @@ export default function AnimatedSuperOverPage({
               className="cs-score"
               aria-label="Match scoreboard"
             >
-              {match.teams.map((team, i) => (
-                <div
-                  className="cs-team-score"
-                  key={team}
-                >
-                  <span>{team}</span>
+              {match.teams.map(
+                (team, i) => (
+                  <div
+                    className="cs-team-score"
+                    key={team}
+                  >
+                    <span>{team}</span>
 
-                  <strong>
-                    {match.scores[i].runs}/
-                    {match.scores[i].wickets}{" "}
-                    <small>
-                      ({match.scores[i].overs})
-                    </small>
-                  </strong>
+                    <strong>
+                      {match.scores[i].runs}/
+                      {match.scores[i].wickets}{" "}
+                      <small>
+                        ({match.scores[i].overs})
+                      </small>
+                    </strong>
 
-                  <div className="cs-balls">
-                    {match.scores[i].balls.map(
-                      (v, index) => (
-                        <span
-                          key={index}
-                          className={
-                            `cs-ball ${
-                              v === "W" ? "w" : ""
-                            }`
-                          }
-                        >
-                          {v}
-                        </span>
-                      ),
-                    )}
+                    <div className="cs-balls">
+                      {match.scores[i].balls.map(
+                        (v, index) => (
+                          <span
+                            key={index}
+                            className={
+                              `cs-ball ${
+                                v === "W"
+                                  ? "w"
+                                  : ""
+                              }`
+                            }
+                          >
+                            {v}
+                          </span>
+                        ),
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ),
+              )}
 
               {firstDone &&
                 match.phase !== "RESULT" && (
@@ -1366,8 +1324,8 @@ export default function AnimatedSuperOverPage({
                         chase.runs,
                     )}{" "}
                     runs from{" "}
-                    {6 - chase.balls.length} balls
-                    {" · "}Target{" "}
+                    {6 - chase.balls.length}
+                    {" "}balls · Target{" "}
                     {match.scores[0].runs + 1}
                   </p>
                 )}
@@ -1377,14 +1335,18 @@ export default function AnimatedSuperOverPage({
               <div className="cs-bet-clock">
                 BETTING ·{" "}
                 {seconds(
-                  new Date(match.closesAt).getTime() -
-                    now,
+                  new Date(
+                    match.closesAt,
+                  ).getTime() - now,
                 )}
                 s
               </div>
             )}
 
-            <CardTable match={match} now={now} />
+            <CardTable
+              match={match}
+              now={now}
+            />
 
             {match.result && (
               <div
@@ -1393,7 +1355,11 @@ export default function AnimatedSuperOverPage({
               >
                 {match.result.winner === "TIE"
                   ? "TIE · STAKES REFUNDED"
-                  : `${match.teams[match.result.winner]} WON`}
+                  : `${
+                      match.teams[
+                        match.result.winner
+                      ]
+                    } WON`}
               </div>
             )}
 
@@ -1415,45 +1381,50 @@ export default function AnimatedSuperOverPage({
               </div>
             </div>
 
-            {match.teams.map((team, i) => (
-              <div
-                key={team}
-                className="cs-market-row"
-              >
-                <div className="cs-cell">
-                  {team}
-                </div>
-
-                <button
-                  type="button"
-                  className="cs-price cs-back"
-                  disabled={
-                    !open ||
-                    busy ||
-                    Boolean(pending)
-                  }
-                  aria-pressed={
-                    selected && selection.team === i
-                  }
-                  onClick={() => {
-                    setSelection({
-                      matchId: match.id,
-                      team: i,
-                    });
-
-                    setMessage("");
-                    setBetError("");
-                  }}
+            {match.teams.map(
+              (team, i) => (
+                <div
+                  key={team}
+                  className="cs-market-row"
                 >
-                  1.98
-                  <small>TOTAL RETURN</small>
-                </button>
+                  <div className="cs-cell">
+                    {team}
+                  </div>
 
-                <div className="cs-cell cs-lay">
-                  —
+                  <button
+                    type="button"
+                    className="cs-price cs-back"
+                    disabled={
+                      !open ||
+                      busy ||
+                      Boolean(pending)
+                    }
+                    aria-pressed={
+                      selected &&
+                      selection.team === i
+                    }
+                    onClick={() => {
+                      setSelection({
+                        matchId: match.id,
+                        team: i,
+                      });
+
+                      setMessage("");
+                      setBetError("");
+                    }}
+                  >
+                    1.98
+                    <small>
+                      TOTAL RETURN
+                    </small>
+                  </button>
+
+                  <div className="cs-cell cs-lay">
+                    —
+                  </div>
                 </div>
-              </div>
-            ))}
+              ),
+            )}
 
             <section className="cs-panel">
               <label htmlFor="cs-stake">
@@ -1470,7 +1441,8 @@ export default function AnimatedSuperOverPage({
                   max="25000"
                   value={amount}
                   disabled={
-                    busy || Boolean(pending)
+                    busy ||
+                    Boolean(pending)
                   }
                   onChange={e =>
                     setAmount(e.target.value)
@@ -1492,7 +1464,8 @@ export default function AnimatedSuperOverPage({
                     className="cs-quick"
                     key={n}
                     disabled={
-                      busy || Boolean(pending)
+                      busy ||
+                      Boolean(pending)
                     }
                     onClick={() =>
                       setAmount(String(n))
@@ -1505,7 +1478,11 @@ export default function AnimatedSuperOverPage({
 
               {selected && (
                 <p>
-                  {match.teams[selection.team]}
+                  {
+                    match.teams[
+                      selection.team
+                    ]
+                  }
                   {" · "}BACK 1.98
                   {" · "}Stake{" "}
                   {money(Number(amount))}
@@ -1554,7 +1531,9 @@ export default function AnimatedSuperOverPage({
               {betError && (
                 <p
                   role="alert"
-                  style={{ color: "#791b3e" }}
+                  style={{
+                    color: "#791b3e",
+                  }}
                 >
                   {betError}
                 </p>
@@ -1570,8 +1549,9 @@ export default function AnimatedSuperOverPage({
               <p>
                 Next round in{" "}
                 {seconds(
-                  new Date(match.nextAt).getTime() -
-                    now,
+                  new Date(
+                    match.nextAt,
+                  ).getTime() - now,
                 )}
                 s · {stamp(now)} IST
               </p>
@@ -1583,36 +1563,45 @@ export default function AnimatedSuperOverPage({
               {!data.bets?.length ? (
                 <p>No bets yet.</p>
               ) : (
-                data.bets.slice(0, 20).map(b => (
-                  <div
-                    className="cs-record"
-                    key={b.id}
-                  >
-                    <strong>
-                      {b.match_id}
-                      {" · "}
-                      {b.match_id.startsWith("C")
-                        ? ["INDIA", "AUSTRALIA"][b.team]
-                        : `Team ${Number(b.team) + 1}`}
-                      {" · "}
-                      {b.direction}
-                    </strong>
+                data.bets.slice(0, 20).map(
+                  b => (
+                    <div
+                      className="cs-record"
+                      key={b.id}
+                    >
+                      <strong>
+                        {b.match_id}
+                        {" · "}
+                        {b.match_id.startsWith("C")
+                          ? [
+                              "INDIA",
+                              "AUSTRALIA",
+                            ][b.team]
+                          : `Team ${
+                              Number(b.team) + 1
+                            }`}
+                        {" · "}
+                        {b.direction}
+                      </strong>
 
-                    <div>
-                      Stake {money(b.amount)}
-                      {" · "}
-                      {b.status}
+                      <div>
+                        Stake {money(b.amount)}
+                        {" · "}
+                        {b.status}
 
-                      {b.status === "SETTLED"
-                        ? ` · Returned ${money(b.payout)}`
-                        : ""}
+                        {b.status === "SETTLED"
+                          ? ` · Returned ${
+                              money(b.payout)
+                            }`
+                          : ""}
+                      </div>
+
+                      <small>
+                        {stamp(b.created_at)} IST
+                      </small>
                     </div>
-
-                    <small>
-                      {stamp(b.created_at)} IST
-                    </small>
-                  </div>
-                ))
+                  ),
+                )
               )}
             </section>
 
@@ -1625,12 +1614,16 @@ export default function AnimatedSuperOverPage({
               </summary>
 
               <p>
-                Demo coins only. This is an AI host
-                with a programmed card table.
+                Demo coins only. This is an AI
+                host video with a programmed hand
+                and card animation. The card shown
+                in the animated hand and its table
+                slot use the same server event.
                 The server shuffles 35 cards:
-                five each of A, 2, 3, 4, 6, 10 and K.
-                Cards are drawn without replacement.
-                A = 1 run, 10 = 0 runs, K = wicket.
+                five each of A, 2, 3, 4, 6, 10
+                and K. Cards are drawn without
+                replacement. A = 1 run,
+                10 = 0 runs, K = wicket.
                 Other ranks give their printed runs.
               </p>
 
@@ -1638,37 +1631,39 @@ export default function AnimatedSuperOverPage({
                 Each innings has at most six cards.
                 Two wickets immediately end that
                 innings, including two opening Kings
-                for 0/2. Australia stops as soon as it
-                passes India's score. Equal runs are
-                a tie regardless of wickets, and
-                stakes are returned.
+                for 0/2. Australia stops as soon as
+                it passes India's score. Equal runs
+                are a tie regardless of wickets,
+                and stakes are returned.
               </p>
 
               <p>
                 Each round lasts 41 seconds:
-                4 seconds for setup, 15 seconds for
-                betting, up to 12 seconds to reveal
-                cards, then at least 10 seconds for
-                the result. Early finishes leave the
-                result visible until the next round.
-                Betting does not reopen between cards.
-                Back odds are 1.98 total return,
-                including stake; fractional demo units
-                are rounded down. Lay is unavailable.
-                Maximum stake is 25,000 and maximum
-                reserved per customer per round
-                is 100,000.
+                4 seconds for setup, 15 seconds
+                for betting, up to 12 seconds to
+                reveal cards, then at least
+                10 seconds for the result.
+                Early finishes leave the result
+                visible until the next round.
+                Betting does not reopen between
+                cards. Back odds are 1.98 total
+                return, including stake; fractional
+                demo units are rounded down.
+                Lay is unavailable. Maximum stake
+                is 25,000 and maximum reserved
+                per customer per round is 100,000.
               </p>
 
               <p>
                 Deck and seed are committed before
                 betting. The deck and seed are
-                disclosed only after the result for
-                hash verification. A commitment verifies
-                that a published deck stayed unchanged;
-                it is not an independent audit of
-                randomness. Old accepted bets settle
-                using their original saved rules.
+                disclosed only after the result
+                for hash verification. A commitment
+                verifies that a published deck
+                stayed unchanged; it is not an
+                independent audit of randomness.
+                Old accepted bets settle using
+                their original saved rules.
               </p>
 
               <pre className="cs-proof">
