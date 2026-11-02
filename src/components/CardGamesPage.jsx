@@ -370,6 +370,12 @@ export default function CardGamesPage({
       item => item.id === game,
     )?.name || "TSB GAME";
 
+  const balanceAvailable =
+    !unauthorized &&
+    data?.balance !== null &&
+    data?.balance !== undefined &&
+    Number.isFinite(Number(data.balance));
+
   useEffect(() => {
     setSelection(null);
     setMessage("");
@@ -520,7 +526,33 @@ export default function CardGamesPage({
   };
 
   return (
-    <main className="min-h-screen bg-[#080d16] p-3 text-white">
+    <main className="tsb-card-page min-h-screen bg-[#080d16] p-3 text-white">
+      <style>{`
+        .tsb-card-page .tsb-card-wallet {
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          flex-shrink:0;
+          gap:4px;
+          margin:0;
+          padding:6px 10px;
+          border:1px solid rgba(103,232,249,.2);
+          border-radius:999px;
+          background:rgba(40,78,87,.85);
+          box-shadow:none;
+          color:#ffffff;
+          font-size:13px;
+          font-weight:700;
+          line-height:1.3;
+          font-variant-numeric:tabular-nums;
+          white-space:nowrap;
+        }
+
+        .tsb-card-page .tsb-card-wallet-currency {
+          font-size:11px;
+        }
+      `}</style>
+
       <div className="mx-auto max-w-3xl space-y-4">
         <header className="flex items-center justify-between gap-2 rounded-2xl border border-teal-400/20 bg-[#0b3935] p-4">
           <button
@@ -535,13 +567,38 @@ export default function CardGamesPage({
             {title}
           </h1>
 
-          <div className="shrink-0 rounded-xl border border-amber-400/30 bg-[#03121d]/90 px-3 py-2 text-right">
-            <p className="whitespace-nowrap text-sm font-black tabular-nums text-amber-300">
-              {data
-                ? `₹${coins(data.balance)}`
-                : "Loading..."}
-            </p>
-          </div>
+          <p
+            className="tsb-card-wallet"
+            aria-live="polite"
+            aria-label="Demo wallet balance"
+            title={
+              balanceAvailable && !fresh
+                ? "Last received balance"
+                : "Demo wallet balance"
+            }
+          >
+            {balanceAvailable ? (
+              <>
+                <span className="tsb-card-wallet-currency">
+                  ₹
+                </span>
+
+                <span>
+                  {Number(data.balance).toLocaleString(
+                    "en-IN",
+                    {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    },
+                  )}
+                </span>
+              </>
+            ) : data || error || unauthorized ? (
+              "—"
+            ) : (
+              "Loading…"
+            )}
+          </p>
         </header>
 
         {unauthorized && (
@@ -894,7 +951,7 @@ export default function CardGamesPage({
 
         <details className="rounded-xl border border-white/10 p-4 text-xs leading-6 text-slate-400">
           <summary className="font-bold text-slate-200">
-            Rules & payouts
+            Rules &amp; payouts
           </summary>
 
           <p className="mt-3">
