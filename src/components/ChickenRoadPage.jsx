@@ -39,7 +39,12 @@ function trafficVelocity(levelSpeed, step) {
 function AmountBox({ label, value, signed = false }) {
   return (
     <div className="cr-money-box">
-      {label && <span className="cr-money-label">{label}</span>}
+      {label && (
+        <span className="cr-money-label">
+          {label}
+        </span>
+      )}
+
       <strong>
         {signed && Number(value) > 0 ? "+" : ""}
         {MONEY(value)}
@@ -71,10 +76,41 @@ function RoadCar({ lane = 1, down = false }) {
         opacity=".35"
       />
 
-      <rect x="2" y="16" width="6" height="16" rx="2" fill="#101717" />
-      <rect x="36" y="16" width="6" height="16" rx="2" fill="#101717" />
-      <rect x="2" y="57" width="6" height="16" rx="2" fill="#101717" />
-      <rect x="36" y="57" width="6" height="16" rx="2" fill="#101717" />
+      <rect
+        x="2"
+        y="16"
+        width="6"
+        height="16"
+        rx="2"
+        fill="#101717"
+      />
+
+      <rect
+        x="36"
+        y="16"
+        width="6"
+        height="16"
+        rx="2"
+        fill="#101717"
+      />
+
+      <rect
+        x="2"
+        y="57"
+        width="6"
+        height="16"
+        rx="2"
+        fill="#101717"
+      />
+
+      <rect
+        x="36"
+        y="57"
+        width="6"
+        height="16"
+        rx="2"
+        fill="#101717"
+      />
 
       <rect
         x="7"
@@ -112,28 +148,67 @@ function RoadCar({ lane = 1, down = false }) {
         strokeWidth="2"
       />
 
-      <rect x="10" y="9" width="7" height="4" rx="1" fill="#fff2b8" />
-      <rect x="27" y="9" width="7" height="4" rx="1" fill="#fff2b8" />
-      <rect x="10" y="75" width="6" height="3" rx="1" fill="#aa202d" />
-      <rect x="28" y="75" width="6" height="3" rx="1" fill="#aa202d" />
+      <rect
+        x="10"
+        y="9"
+        width="7"
+        height="4"
+        rx="1"
+        fill="#fff2b8"
+      />
+
+      <rect
+        x="27"
+        y="9"
+        width="7"
+        height="4"
+        rx="1"
+        fill="#fff2b8"
+      />
+
+      <rect
+        x="10"
+        y="75"
+        width="6"
+        height="3"
+        rx="1"
+        fill="#aa202d"
+      />
+
+      <rect
+        x="28"
+        y="75"
+        width="6"
+        height="3"
+        rx="1"
+        fill="#aa202d"
+      />
     </svg>
   );
 }
 
-function RoadTraffic({ lanes, clearedStep, speed, collision }) {
+function RoadTraffic({
+  lanes,
+  clearedStep,
+  speed,
+  collision,
+}) {
   const nodes = useRef([]);
   const velocity = useRef(speed);
+
   velocity.current = speed;
 
   useEffect(() => {
     const media = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)"
+      "(prefers-reduced-motion: reduce)",
     );
 
     const distance = 545;
+
     const positions = Array.from(
       { length: lanes },
-      (_, index) => ((index * 0.273 + 0.18) % 1) * distance
+      (_, index) =>
+        ((index * 0.273 + 0.18) % 1) * distance,
     );
 
     let frame;
@@ -144,11 +219,13 @@ function RoadTraffic({ lanes, clearedStep, speed, collision }) {
         if (!node) return;
 
         const down = index % 2 === 0;
+
         const y = down
           ? positions[index] - 100
           : 445 - positions[index];
 
-        node.style.transform = `translate3d(0,${y}px,0)`;
+        node.style.transform =
+          `translate3d(0,${y}px,0)`;
       });
     };
 
@@ -156,19 +233,25 @@ function RoadTraffic({ lanes, clearedStep, speed, collision }) {
       const elapsed =
         previous === null
           ? 0
-          : Math.min(50, Math.max(0, time - previous));
+          : Math.min(
+              50,
+              Math.max(0, time - previous),
+            );
 
       previous = time;
 
       for (let index = 0; index < lanes; index++) {
         positions[index] =
-          (positions[index] +
-            (velocity.current * elapsed) / 1000) %
-          distance;
+          (
+            positions[index] +
+            (velocity.current * elapsed) / 1000
+          ) % distance;
       }
 
       paint();
-      frame = window.requestAnimationFrame(animate);
+
+      frame =
+        window.requestAnimationFrame(animate);
     };
 
     const changed = () => {
@@ -180,11 +263,13 @@ function RoadTraffic({ lanes, clearedStep, speed, collision }) {
       previous = null;
 
       if (!media?.matches) {
-        frame = window.requestAnimationFrame(animate);
+        frame =
+          window.requestAnimationFrame(animate);
       } else {
         nodes.current.forEach((node) => {
           if (node) {
-            node.style.transform = "translate3d(0,25px,0)";
+            node.style.transform =
+              "translate3d(0,25px,0)";
           }
         });
       }
@@ -192,32 +277,51 @@ function RoadTraffic({ lanes, clearedStep, speed, collision }) {
 
     paint();
     changed();
-    media?.addEventListener?.("change", changed);
+
+    media?.addEventListener?.(
+      "change",
+      changed,
+    );
 
     return () => {
       if (frame !== undefined) {
         window.cancelAnimationFrame(frame);
       }
-      media?.removeEventListener?.("change", changed);
+
+      media?.removeEventListener?.(
+        "change",
+        changed,
+      );
     };
   }, [lanes]);
 
   return (
     <div className="cr-traffic" aria-hidden="true">
-      {Array.from({ length: lanes }, (_, index) => (
-        <div
-          key={index}
-          ref={(node) => {
-            nodes.current[index] = node;
-          }}
-          className="cr-car"
-          data-lane={index + 1}
-          hidden={index + 1 <= clearedStep || collision}
-          style={{ left: 86 + index * 106 + 29 }}
-        >
-          <RoadCar lane={index + 1} down={index % 2 === 0} />
-        </div>
-      ))}
+      {Array.from(
+        { length: lanes },
+        (_, index) => (
+          <div
+            key={index}
+            ref={(node) => {
+              nodes.current[index] = node;
+            }}
+            className="cr-car"
+            data-lane={index + 1}
+            hidden={
+              index + 1 <= clearedStep ||
+              collision
+            }
+            style={{
+              left: 86 + index * 106 + 29,
+            }}
+          >
+            <RoadCar
+              lane={index + 1}
+              down={index % 2 === 0}
+            />
+          </div>
+        ),
+      )}
     </div>
   );
 }
@@ -225,11 +329,15 @@ function RoadTraffic({ lanes, clearedStep, speed, collision }) {
 function readPending(key) {
   try {
     const saved = JSON.parse(
-      sessionStorage.getItem(key) || "null"
+      sessionStorage.getItem(key) || "null",
     );
 
-    return ["play", "jump", "cashout"].includes(saved?.action) &&
+    return (
+      ["play", "jump", "cashout"].includes(
+        saved?.action,
+      ) &&
       typeof saved.body?.requestKey === "string"
+    )
       ? saved
       : null;
   } catch {
@@ -239,7 +347,11 @@ function readPending(key) {
 
 function writePending(key, value) {
   try {
-    sessionStorage.setItem(key, JSON.stringify(value));
+    sessionStorage.setItem(
+      key,
+      JSON.stringify(value),
+    );
+
     return true;
   } catch {
     return false;
@@ -256,32 +368,40 @@ function removePending(key) {
 
 function uniqueKey() {
   const bytes = new Uint8Array(20);
+
   window.crypto.getRandomValues(bytes);
 
   return Array.from(
     bytes,
-    (value) => value.toString(16).padStart(2, "0")
+    (value) => value.toString(16).padStart(2, "0"),
   ).join("");
 }
 
 async function api(path, options = {}) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+
+  const timeout = setTimeout(
+    () => controller.abort(),
+    15000,
+  );
 
   try {
-    const response = await fetch(`/api/chicken-road/${path}`, {
-      ...options,
-      credentials: "same-origin",
-      cache: "no-store",
-      signal: controller.signal,
-    });
+    const response = await fetch(
+      `/api/chicken-road/${path}`,
+      {
+        ...options,
+        credentials: "same-origin",
+        cache: "no-store",
+        signal: controller.signal,
+      },
+    );
 
     const data = await response.json();
 
     if (!response.ok || data.success === false) {
       throw Object.assign(
         new Error(data.error || "Request failed."),
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -299,12 +419,12 @@ export default function ChickenRoadPage({
   const customerId =
     user?.id ?? user?.customerId ?? user?.customer_id;
 
-  const storageKey = `tsb_chicken_pending_v1:${customerId}`;
+  const storageKey =
+    `tsb_chicken_pending_v1:${customerId}`;
 
   return customerId ? (
     <ChickenGame
       key={storageKey}
-      user={user}
       onBack={onBack}
       onLogout={onLogout}
       storageKey={storageKey}
@@ -312,6 +432,7 @@ export default function ChickenRoadPage({
   ) : (
     <main className="min-h-screen bg-slate-950 p-6 text-white">
       Customer login required.
+
       <button
         type="button"
         onClick={onBack}
@@ -323,7 +444,11 @@ export default function ChickenRoadPage({
   );
 }
 
-function ChickenGame({ user, onBack, onLogout, storageKey }) {
+function ChickenGame({
+  onBack,
+  onLogout,
+  storageKey,
+}) {
   const [rules, setRules] = useState(null);
   const [data, setData] = useState(null);
   const [amount, setAmount] = useState("10");
@@ -332,7 +457,7 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
   const [history, setHistory] = useState([]);
 
   const [pending, setPending] = useState(
-    () => readPending(storageKey)
+    () => readPending(storageKey),
   );
 
   const [busy, setBusy] = useState(false);
@@ -358,15 +483,18 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
     ? session.difficulty
     : difficulty;
 
-  const level = rules?.levels?.[selectedDifficulty];
+  const level =
+    rules?.levels?.[selectedDifficulty];
+
   const lanes = level?.lanes || 30;
 
   const trafficSpeed = trafficVelocity(
     level?.speed || 1,
-    visualStep
+    visualStep,
   );
 
-  const locked = busy || Boolean(pending) || loading;
+  const locked =
+    busy || Boolean(pending) || loading;
 
   const balanceAvailable =
     data?.balance !== null &&
@@ -378,7 +506,8 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
 
     try {
       const AudioContext =
-        window.AudioContext || window.webkitAudioContext;
+        window.AudioContext ||
+        window.webkitAudioContext;
 
       if (!audio.current && AudioContext) {
         audio.current = new AudioContext();
@@ -398,23 +527,27 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
       const oscillator = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      oscillator.type = collision ? "triangle" : "sine";
+      oscillator.type =
+        collision ? "triangle" : "sine";
 
       oscillator.frequency.setValueAtTime(
         collision ? 180 : 700,
-        ctx.currentTime
+        ctx.currentTime,
       );
 
       oscillator.frequency.exponentialRampToValueAtTime(
         collision ? 45 : 1100,
-        ctx.currentTime + 0.16
+        ctx.currentTime + 0.16,
       );
 
-      gain.gain.setValueAtTime(0.055, ctx.currentTime);
+      gain.gain.setValueAtTime(
+        0.055,
+        ctx.currentTime,
+      );
 
       gain.gain.exponentialRampToValueAtTime(
         0.0001,
-        ctx.currentTime + 0.22
+        ctx.currentTime + 0.22,
       );
 
       oscillator.connect(gain);
@@ -473,18 +606,28 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
   const loadRules = async () => {
     try {
       const value = await api("rules");
-      if (alive.current) setRules(value);
+
+      if (alive.current) {
+        setRules(value);
+      }
     } catch (err) {
-      if (alive.current) setError(err.message);
+      if (alive.current) {
+        setError(err.message);
+      }
     }
   };
 
   const loadHistory = async () => {
     try {
       const value = await api("history");
-      if (alive.current) setHistory(value.sessions || []);
+
+      if (alive.current) {
+        setHistory(value.sessions || []);
+      }
     } catch (err) {
-      if (alive.current) setError(err.message);
+      if (alive.current) {
+        setError(err.message);
+      }
     }
   };
 
@@ -498,7 +641,9 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
     void loadRef.current();
 
     const focus = () => {
-      if (!running.current) void loadRef.current();
+      if (!running.current) {
+        void loadRef.current();
+      }
     };
 
     window.addEventListener("focus", focus);
@@ -510,7 +655,11 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
         clearTimeout(timer.current);
       }
 
-      window.removeEventListener("focus", focus);
+      window.removeEventListener(
+        "focus",
+        focus,
+      );
+
       audio.current?.close()?.catch(() => {});
     };
   }, []);
@@ -520,13 +669,15 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
     if (!element) return;
 
     const reduced = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)"
+      "(prefers-reduced-motion: reduce)",
     )?.matches;
 
     element.scrollTo({
       left: Math.max(
         0,
-        visualStep * 106 - element.clientWidth / 2 + 85
+        visualStep * 106 -
+          element.clientWidth / 2 +
+          85,
       ),
       behavior: reduced ? "auto" : "smooth",
     });
@@ -540,6 +691,7 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
     setMotion("");
     setBusy(false);
     setLoading(false);
+
     running.current = false;
 
     setNotice(
@@ -551,10 +703,13 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
             ? "Cash out completed."
             : value.event === "SAFE"
               ? "Safe crossing. Jump again or cash out whenever you choose."
-              : "Game started. Press JUMP to move."
+              : "Game started. Press JUMP to move.",
     );
 
-    window.dispatchEvent(new Event("demo-balance-updated"));
+    window.dispatchEvent(
+      new Event("demo-balance-updated"),
+    );
+
     void loadRef.current();
   };
 
@@ -565,12 +720,15 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
 
     if (!job) {
       if (!rules || loading || !data) {
-        setError("Wait for rules and balance to load.");
+        setError(
+          "Wait for rules and balance to load.",
+        );
         return;
       }
 
       if (requestedAction === "play") {
         const stake = Number(amount);
+
         if (activeGame) return;
 
         if (
@@ -578,12 +736,16 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           stake < rules.minStake ||
           stake > rules.maxStake
         ) {
-          setError("Stake must be ₹10–₹25,000 in whole demo units.");
+          setError(
+            "Stake must be ₹10–₹25,000 in whole demo units.",
+          );
           return;
         }
 
         if (!balanceAvailable) {
-          setError("Wallet balance is unavailable. Please refresh.");
+          setError(
+            "Wallet balance is unavailable. Please refresh.",
+          );
           return;
         }
 
@@ -592,39 +754,50 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           return;
         }
 
-        if (!Object.hasOwn(rules.levels, difficulty)) {
+        if (
+          !Object.hasOwn(rules.levels, difficulty)
+        ) {
           setError("Select a valid difficulty.");
           return;
         }
 
         job = {
           action: "play",
-          body: { difficulty, amount: stake },
+          body: {
+            difficulty,
+            amount: stake,
+          },
         };
       } else {
         if (
           !activeGame ||
-          !["jump", "cashout"].includes(requestedAction)
+          !["jump", "cashout"].includes(
+            requestedAction,
+          )
         ) {
           return;
         }
 
         job = {
           action: requestedAction,
-          body: { sessionId: String(session.id) },
+          body: {
+            sessionId: String(session.id),
+          },
         };
       }
 
       try {
         job.body.requestKey = uniqueKey();
       } catch {
-        setError("A secure HTTPS browser connection is required.");
+        setError(
+          "A secure HTTPS browser connection is required.",
+        );
         return;
       }
 
       if (!writePending(storageKey, job)) {
         setError(
-          "Enable browser session storage to recover interrupted actions."
+          "Enable browser session storage to recover interrupted actions.",
         );
         return;
       }
@@ -635,15 +808,19 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
 
     running.current = true;
     version.current += 1;
+
     setBusy(true);
     setError("");
     setNotice("");
+
     prepareAudio();
 
     try {
       const value = await api(job.action, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(job.body),
       });
 
@@ -655,16 +832,24 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
       setPending(null);
 
       const reduced = window.matchMedia?.(
-        "(prefers-reduced-motion: reduce)"
+        "(prefers-reduced-motion: reduce)",
       )?.matches;
 
-      if (job.action === "jump" && !value.replayed && !reduced) {
-        const collision = value.event === "COLLISION";
+      if (
+        job.action === "jump" &&
+        !value.replayed &&
+        !reduced
+      ) {
+        const collision =
+          value.event === "COLLISION";
 
-        setMotion(collision ? "collision" : "jump");
+        setMotion(
+          collision ? "collision" : "jump",
+        );
 
         setVisualStep(
-          value.session.step + (collision ? 1 : 0)
+          value.session.step +
+            (collision ? 1 : 0),
         );
 
         tone(collision);
@@ -680,7 +865,11 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
     } catch (err) {
       if (!alive.current) return;
 
-      if ([400, 401, 403, 404, 409, 422].includes(err.status)) {
+      if (
+        [400, 401, 403, 404, 409, 422].includes(
+          err.status,
+        )
+      ) {
         removePending(storageKey);
         recovery.current = null;
         setPending(null);
@@ -689,12 +878,13 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
       setError(
         err.status
           ? err.message
-          : "Connection interrupted. Press RETRY SAME ACTION to recover the original request."
+          : "Connection interrupted. Press RETRY SAME ACTION to recover the original request.",
       );
 
       running.current = false;
       setBusy(false);
       setLoading(false);
+
       void loadRef.current();
     }
   };
@@ -714,10 +904,25 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           font-family:Arial,sans-serif;
           padding-bottom:24px;
         }
-        .cr-page * { box-sizing:border-box; }
-        .cr-page button,.cr-page input,.cr-page select { font:inherit; }
-        .cr-page button { cursor:pointer; }
-        .cr-page button:disabled { opacity:.45; cursor:default; }
+
+        .cr-page * {
+          box-sizing:border-box;
+        }
+
+        .cr-page button,
+        .cr-page input,
+        .cr-page select {
+          font:inherit;
+        }
+
+        .cr-page button {
+          cursor:pointer;
+        }
+
+        .cr-page button:disabled {
+          opacity:.45;
+          cursor:default;
+        }
 
         .cr-header {
           display:flex;
@@ -728,55 +933,41 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           background:#121c19;
           border-bottom:1px solid #ffffff20;
         }
-        .cr-header h1 { margin:0; font-size:17px; color:#f9d875; }
-        .cr-header small {
-          display:block;
-          font-size:10px;
-          color:#cad6cc;
-          margin-top:5px;
+
+        .cr-header h1 {
+          margin:0;
+          font-size:17px;
+          color:#f9d875;
         }
+
         .cr-wallet {
-          margin-left:auto;
-          max-width:100%;
-          text-align:center;
-          border:2px solid #166534;
-          border-radius:12px;
-          background:#fff;
-          color:#166534;
-          padding:10px 12px;
-        }
-        .cr-wallet-title {
-          display:block;
-          font-size:9px;
-          font-weight:900;
-          letter-spacing:.5px;
-        }
-        .cr-wallet-value {
-          display:flex;
+          display:inline-flex;
           align-items:center;
           justify-content:center;
-          gap:8px;
-          margin-top:6px;
-        }
-        .cr-wallet-symbol {
-          display:grid;
-          place-items:center;
           flex-shrink:0;
-          width:32px;
-          height:32px;
-          border-radius:8px;
-          background:#166534;
-          color:#fff;
-          font-size:23px;
-          font-weight:900;
-        }
-        .cr-wallet-number {
-          font-size:20px;
-          font-weight:900;
-          overflow-wrap:anywhere;
+          gap:4px;
+          margin:0 0 0 auto;
+          padding:6px 10px;
+          border:1px solid rgba(103,232,249,.2);
+          border-radius:999px;
+          background:rgba(40,78,87,.85);
+          box-shadow:none;
+          color:#ffffff;
+          font-size:13px;
+          font-weight:700;
+          line-height:1.3;
           font-variant-numeric:tabular-nums;
+          white-space:nowrap;
         }
-        .cr-wallet small { color:#722f37; font-weight:bold; }
+
+        .cr-wallet-symbol {
+          font-size:11px;
+        }
+
+        .cr-wallet-number {
+          font-size:13px;
+          font-weight:700;
+        }
 
         .cr-money-grid {
           display:grid;
@@ -784,6 +975,7 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           gap:10px;
           margin-top:12px;
         }
+
         .cr-money-box {
           display:inline-flex;
           flex-direction:column;
@@ -798,26 +990,39 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           color:#166534;
           font-variant-numeric:tabular-nums;
         }
+
         .cr-money-box strong {
           font-size:18px;
           color:#166534;
           overflow-wrap:anywhere;
         }
+
         .cr-money-label {
           font-size:10px;
           font-weight:bold;
           color:#722f37;
           text-align:center;
         }
-        .cr-wrap { max-width:900px; margin:auto; padding:12px; }
-        .cr-tabs,.cr-row {
+
+        .cr-wrap {
+          max-width:900px;
+          margin:auto;
+          padding:12px;
+        }
+
+        .cr-tabs,
+        .cr-row {
           display:flex;
           gap:8px;
           flex-wrap:wrap;
           align-items:center;
           margin-bottom:12px;
         }
-        .cr-row { margin-top:12px; }
+
+        .cr-row {
+          margin-top:12px;
+        }
+
         .cr-btn {
           padding:10px 12px;
           border:1px solid #ffffff30;
@@ -825,11 +1030,13 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           background:#ffffff10;
           color:inherit;
         }
+
         .cr-tabs [aria-pressed=true] {
           background:#166534;
           border-color:#166534;
           color:#fff;
         }
+
         .cr-alert {
           border:1px solid #722f37;
           background:#fff;
@@ -840,13 +1047,19 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           line-height:1.7;
           margin:12px 0;
         }
+
         .cr-alert button {
           margin:5px;
           background:#722f37;
           border-color:#722f37;
           color:#fff;
         }
-        .cr-hint { font-size:12px; line-height:1.7; color:#d0dad4; }
+
+        .cr-hint {
+          font-size:12px;
+          line-height:1.7;
+          color:#d0dad4;
+        }
 
         .cr-road-window {
           position:relative;
@@ -857,6 +1070,7 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           scrollbar-color:#d9c17e #4e5550;
           touch-action:pan-x pan-y;
         }
+
         .cr-road {
           position:relative;
           display:flex;
@@ -864,6 +1078,7 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           min-width:100%;
           isolation:isolate;
         }
+
         .cr-sidewalk {
           width:86px;
           flex-shrink:0;
@@ -873,6 +1088,7 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           border-right:5px solid #cad0bb;
           position:relative;
         }
+
         .cr-sidewalk::before {
           content:'🌳';
           position:absolute;
@@ -880,6 +1096,7 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           font-size:70px;
           left:-20px;
         }
+
         .cr-lane {
           width:106px;
           flex-shrink:0;
@@ -887,7 +1104,11 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           border-right:3px dashed #d2d0bc;
           background:#73716a;
         }
-        .cr-lane.is-safe { background:#617866; }
+
+        .cr-lane.is-safe {
+          background:#617866;
+        }
+
         .cr-multiplier {
           position:absolute;
           left:10px;
@@ -909,7 +1130,12 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           text-shadow:0 2px 1px #333;
           font-size:18px;
         }
-        .cr-multiplier small { font-size:9px; color:#d9dfd1; }
+
+        .cr-multiplier small {
+          font-size:9px;
+          color:#d9dfd1;
+        }
+
         .cr-traffic {
           position:absolute;
           inset:0;
@@ -917,6 +1143,7 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           pointer-events:none;
           overflow:hidden;
         }
+
         .cr-car {
           position:absolute;
           top:0;
@@ -925,9 +1152,21 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           will-change:transform;
           pointer-events:none;
         }
-        .cr-car[hidden] { display:none; }
-        .cr-car-body { display:block; width:44px; height:86px; }
-        .cr-facing-down { transform:rotate(180deg); }
+
+        .cr-car[hidden] {
+          display:none;
+        }
+
+        .cr-car-body {
+          display:block;
+          width:44px;
+          height:86px;
+        }
+
+        .cr-facing-down {
+          transform:rotate(180deg);
+        }
+
         .cr-player {
           position:absolute;
           z-index:4;
@@ -938,8 +1177,15 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           transition:left .55s ease;
           filter:drop-shadow(1px 5px 2px #0006);
         }
-        .cr-player.cr-jump { animation:crHop .55s ease; }
-        .cr-player.cr-collision { animation:crHit .8s ease forwards; }
+
+        .cr-player.cr-jump {
+          animation:crHop .55s ease;
+        }
+
+        .cr-player.cr-collision {
+          animation:crHit .8s ease forwards;
+        }
+
         .cr-crash-car {
           position:absolute;
           z-index:5;
@@ -950,13 +1196,15 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           pointer-events:none;
         }
 
-        .cr-controls,.cr-card {
+        .cr-controls,
+        .cr-card {
           border:1px solid #ffffff25;
           border-radius:14px;
           padding:15px;
           background:#101a1680;
           margin-top:14px;
         }
+
         .cr-select {
           padding:12px;
           border:1px solid #ffffff40;
@@ -965,6 +1213,7 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           color:white;
           width:100%;
         }
+
         .cr-input-box {
           display:flex;
           align-items:center;
@@ -977,6 +1226,7 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           background:#fff;
           color:#166534;
         }
+
         .cr-input-prefix {
           align-self:stretch;
           display:grid;
@@ -987,6 +1237,7 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           font-size:22px;
           font-weight:900;
         }
+
         .cr-input {
           width:100%;
           min-width:0;
@@ -996,6 +1247,7 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           color:#166534;
           font-weight:900;
         }
+
         .cr-quick {
           padding:10px 12px;
           border:1px solid #166534;
@@ -1004,7 +1256,10 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           color:#166534;
           font-weight:bold;
         }
-        .cr-play,.cr-jump-btn,.cr-cashout {
+
+        .cr-play,
+        .cr-jump-btn,
+        .cr-cashout {
           border:0;
           border-radius:11px;
           padding:16px;
@@ -1013,14 +1268,24 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           min-height:57px;
           background:#166534;
         }
-        .cr-play { width:100%; margin-top:15px; }
+
+        .cr-play {
+          width:100%;
+          margin-top:15px;
+        }
+
         .cr-actions {
           display:grid;
           grid-template-columns:1fr 1fr;
           gap:12px;
           margin-top:14px;
         }
-        .cr-cashout { background:#722f37; color:#fff; }
+
+        .cr-cashout {
+          background:#722f37;
+          color:#fff;
+        }
+
         .cr-cashout-amount {
           display:block;
           margin-top:8px;
@@ -1032,6 +1297,7 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           overflow-wrap:anywhere;
           font-variant-numeric:tabular-nums;
         }
+
         .cr-result {
           margin-top:14px;
           border:1px solid #166534;
@@ -1040,57 +1306,103 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
           padding:15px;
           line-height:1.8;
         }
-        .cr-result-title { font-size:22px; color:#f9dc89; }
-        .cr-multiplier-list { display:flex; gap:7px; flex-wrap:wrap; }
+
+        .cr-result-title {
+          font-size:22px;
+          color:#f9dc89;
+        }
+
+        .cr-multiplier-list {
+          display:flex;
+          gap:7px;
+          flex-wrap:wrap;
+        }
+
         .cr-multiplier-list span {
           border:1px solid #ffffff20;
           padding:7px;
           border-radius:7px;
           font-size:11px;
         }
+
         .cr-table {
           width:100%;
           min-width:580px;
           font-size:12px;
           border-collapse:collapse;
         }
-        .cr-table th,.cr-table td {
+
+        .cr-table th,
+        .cr-table td {
           text-align:left;
           padding:10px 5px;
           border-bottom:1px solid #ffffff20;
         }
-        .cr-table th { color:#e7d092; }
-        .cr-overflow { overflow:auto; }
+
+        .cr-table th {
+          color:#e7d092;
+        }
+
+        .cr-overflow {
+          overflow:auto;
+        }
+
         .cr-page :focus-visible {
           outline:3px solid #fff;
           outline-offset:3px;
         }
 
         @keyframes crHop {
-          0%,100% { transform:translateY(0); }
-          50% { transform:translateY(-35px); }
+          0%,100% {
+            transform:translateY(0);
+          }
+          50% {
+            transform:translateY(-35px);
+          }
         }
+
         @keyframes crHit {
-          0% { transform:rotate(0); }
+          0% {
+            transform:rotate(0);
+          }
           60%,100% {
             transform:rotate(100deg) scale(.65);
             opacity:.3;
           }
         }
+
         @keyframes crCrash {
-          from { transform:translateY(-100px); }
-          to { transform:translateY(420px); }
+          from {
+            transform:translateY(-100px);
+          }
+          to {
+            transform:translateY(420px);
+          }
         }
+
         @media(max-width:360px) {
-          .cr-wrap { padding:8px; }
-          .cr-header { padding:12px 8px; gap:8px; }
-          .cr-header h1 { font-size:14px; }
-          .cr-wallet { padding:8px; }
-          .cr-wallet-number { font-size:17px; }
+          .cr-wrap {
+            padding:8px;
+          }
+
+          .cr-header {
+            padding:12px 8px;
+            gap:8px;
+          }
+
+          .cr-header h1 {
+            font-size:14px;
+          }
         }
+
         @media(prefers-reduced-motion:reduce) {
-          .cr-player { transition:none; }
-          .cr-player.cr-jump,.cr-player.cr-collision,.cr-crash-car {
+          .cr-player {
+            transition:none;
+          }
+
+          .cr-player.cr-jump,
+          .cr-player.cr-collision,
+          .cr-crash-car {
             animation:none;
           }
         }
@@ -1108,51 +1420,62 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
 
         <div>
           <h1>CHICKEN ROAD CROSS</h1>
-          <small>INDIVIDUAL DEMO · DEMO COINS ONLY</small>
         </div>
 
-        <div
+        <p
           className="cr-wallet"
           aria-live="polite"
           aria-label="Demo wallet balance"
         >
-          <span className="cr-wallet-title">WALLET BALANCE</span>
+          {balanceAvailable ? (
+            <>
+              <span className="cr-wallet-symbol">
+                ₹
+              </span>
 
-          <div className="cr-wallet-value">
-            <span className="cr-wallet-symbol" aria-hidden="true">₹</span>
-            <strong className="cr-wallet-number">
-              {balanceAvailable
-                ? COINS(data.balance)
-                : data || error
-                  ? "—"
-                  : "Loading…"}
-            </strong>
-          </div>
-
-          <small>DEMO COINS</small>
-          <small>
-            {user?.name || user?.loginId || "Customer"}
-          </small>
-        </div>
+              <span className="cr-wallet-number">
+                {Number(data.balance).toLocaleString(
+                  "en-IN",
+                  {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  },
+                )}
+              </span>
+            </>
+          ) : data || error ? (
+            "—"
+          ) : (
+            "Loading…"
+          )}
+        </p>
       </header>
 
       <main className="cr-wrap">
-        <nav className="cr-tabs" aria-label="Game sections">
-          {["game", "rules", "history"].map((value) => (
-            <button
-              key={value}
-              type="button"
-              className="cr-btn"
-              aria-pressed={tab === value}
-              disabled={busy}
-              onClick={() => {
-                setTab(value);
-                if (value === "history") void loadHistory();
-              }}
-            >
-              {value.toUpperCase()}
-            </button>
-          ))}
+        <nav
+          className="cr-tabs"
+          aria-label="Game sections"
+        >
+          {["game", "rules", "history"].map(
+            (value) => (
+              <button
+                key={value}
+                type="button"
+                className="cr-btn"
+                aria-pressed={tab === value}
+                disabled={busy}
+                onClick={() => {
+                  setTab(value);
+
+                  if (value === "history") {
+                    void loadHistory();
+                  }
+                }}
+              >
+                {value.toUpperCase()}
+              </button>
+            ),
+          )}
 
           <button
             type="button"
@@ -1160,8 +1483,11 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
             aria-pressed={sound}
             onClick={() => {
               if (sound) {
-                audio.current?.suspend()?.catch(() => {});
+                audio.current
+                  ?.suspend()
+                  ?.catch(() => {});
               }
+
               setSound((value) => !value);
             }}
           >
@@ -1172,6 +1498,7 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
         {error && (
           <div className="cr-alert" role="alert">
             {error}
+
             <button
               type="button"
               className="cr-btn"
@@ -1188,18 +1515,23 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
         )}
 
         {notice && (
-          <p role="status" className="cr-hint">{notice}</p>
+          <p role="status" className="cr-hint">
+            {notice}
+          </p>
         )}
 
         {pending && (
           <div className="cr-alert" role="status">
             An interrupted {pending.action} needs recovery.
             Retry uses the same request.
+
             <button
               type="button"
               className="cr-btn"
               disabled={busy}
-              onClick={() => void perform(pending.action)}
+              onClick={() =>
+                void perform(pending.action)
+              }
             >
               {busy ? "CHECKING…" : "RETRY SAME ACTION"}
             </button>
@@ -1217,22 +1549,29 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
             >
               <div
                 className="cr-road"
-                style={{ width: 86 + lanes * 106 + 70 }}
+                style={{
+                  width: 86 + lanes * 106 + 70,
+                }}
               >
                 <div className="cr-sidewalk" />
 
                 {Array.from(
                   { length: lanes },
-                  (_, index) => index + 1
+                  (_, index) => index + 1,
                 ).map((step) => (
                   <div
                     key={step}
                     className={`cr-lane ${
-                      session && step <= session.step ? "is-safe" : ""
+                      session && step <= session.step
+                        ? "is-safe"
+                        : ""
                     }`}
                   >
                     <div className="cr-multiplier">
-                      {level?.multipliers?.[step - 1]?.toFixed(2) || "—"}x
+                      {level?.multipliers?.[
+                        step - 1
+                      ]?.toFixed(2) || "—"}x
+
                       <small>LANE {step}</small>
                     </div>
                   </div>
@@ -1249,7 +1588,9 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
                   className={`cr-player ${
                     motion ? `cr-${motion}` : ""
                   }`}
-                  style={{ left: chickenLeft }}
+                  style={{
+                    left: chickenLeft,
+                  }}
                   role="img"
                   aria-label={`Chicken at lane ${visualStep}`}
                 >
@@ -1260,7 +1601,9 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
                   <span
                     className="cr-crash-car"
                     aria-hidden="true"
-                    style={{ left: chickenLeft + 5 }}
+                    style={{
+                      left: chickenLeft + 5,
+                    }}
                   >
                     <RoadCar down />
                   </span>
@@ -1268,7 +1611,10 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
               </div>
             </div>
 
-            <section className="cr-controls" aria-label="Game controls">
+            <section
+              className="cr-controls"
+              aria-label="Game controls"
+            >
               {activeGame ? (
                 <>
                   <p className="cr-hint">
@@ -1278,7 +1624,11 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
                   </p>
 
                   <div className="cr-money-grid">
-                    <AmountBox label="YOUR STAKE" value={session.stake} />
+                    <AmountBox
+                      label="YOUR STAKE"
+                      value={session.stake}
+                    />
+
                     <AmountBox
                       label="CASH OUT VALUE"
                       value={session.cashoutValue}
@@ -1295,7 +1645,9 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
                       type="button"
                       className="cr-jump-btn"
                       disabled={locked}
-                      onClick={() => void perform("jump")}
+                      onClick={() =>
+                        void perform("jump")
+                      }
                     >
                       JUMP →
                     </button>
@@ -1304,9 +1656,12 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
                       type="button"
                       className="cr-cashout"
                       disabled={locked}
-                      onClick={() => void perform("cashout")}
+                      onClick={() =>
+                        void perform("cashout")
+                      }
                     >
                       CASH OUT
+
                       <span className="cr-cashout-amount">
                         {MONEY(session.cashoutValue)}
                       </span>
@@ -1315,7 +1670,10 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
                 </>
               ) : (
                 <>
-                  <label className="cr-hint" htmlFor="cr-stake">
+                  <label
+                    className="cr-hint"
+                    htmlFor="cr-stake"
+                  >
                     Demo stake
                   </label>
 
@@ -1330,9 +1688,13 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
                     </button>
 
                     <div className="cr-input-box">
-                      <span className="cr-input-prefix" aria-hidden="true">
+                      <span
+                        className="cr-input-prefix"
+                        aria-hidden="true"
+                      >
                         ₹
                       </span>
+
                       <input
                         id="cr-stake"
                         type="number"
@@ -1353,27 +1715,36 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
                       type="button"
                       className="cr-btn"
                       disabled={locked}
-                      onClick={() => setAmount("25000")}
+                      onClick={() =>
+                        setAmount("25000")
+                      }
                     >
                       MAX
                     </button>
                   </div>
 
                   <div className="cr-row">
-                    {[10, 20, 100, 200, 500, 1000].map((value) => (
-                      <button
-                        key={value}
-                        type="button"
-                        className="cr-quick"
-                        disabled={locked}
-                        onClick={() => setAmount(String(value))}
-                      >
-                        {MONEY(value)}
-                      </button>
-                    ))}
+                    {[10, 20, 100, 200, 500, 1000].map(
+                      (value) => (
+                        <button
+                          key={value}
+                          type="button"
+                          className="cr-quick"
+                          disabled={locked}
+                          onClick={() =>
+                            setAmount(String(value))
+                          }
+                        >
+                          {MONEY(value)}
+                        </button>
+                      ),
+                    )}
                   </div>
 
-                  <label htmlFor="cr-difficulty" className="cr-hint">
+                  <label
+                    htmlFor="cr-difficulty"
+                    className="cr-hint"
+                  >
                     Difficulty
                   </label>
 
@@ -1386,20 +1757,27 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
                       setDifficulty(event.target.value)
                     }
                   >
-                    {Object.entries(FALLBACK_NAMES).map(([id, name]) => (
-                      <option key={id} value={id}>
-                        {name} · {rules?.levels?.[id]?.lanes || "—"}
-                        {" lanes · starts "}
-                        {rules?.levels?.[id]?.first?.toFixed(2) || "—"}x
-                      </option>
-                    ))}
+                    {Object.entries(FALLBACK_NAMES).map(
+                      ([id, name]) => (
+                        <option key={id} value={id}>
+                          {name} ·{" "}
+                          {rules?.levels?.[id]?.lanes || "—"}
+                          {" lanes · starts "}
+                          {rules?.levels?.[
+                            id
+                          ]?.first?.toFixed(2) || "—"}x
+                        </option>
+                      ),
+                    )}
                   </select>
 
                   <button
                     type="button"
                     className="cr-play"
                     disabled={locked || !rules || !data}
-                    onClick={() => void perform("play")}
+                    onClick={() =>
+                      void perform("play")
+                    }
                   >
                     {busy ? "STARTING…" : "PLAY"}
                   </button>
@@ -1408,7 +1786,9 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
 
               <p className="cr-hint">
                 Traffic speed{" "}
-                {(trafficSpeed / TRAFFIC_BASE_SPEED).toFixed(2)}x
+                {(
+                  trafficSpeed / TRAFFIC_BASE_SPEED
+                ).toFixed(2)}x
                 {" · "}increases as you cross more lanes.
               </p>
 
@@ -1425,7 +1805,10 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
             </section>
 
             {session && session.status !== "ACTIVE" && (
-              <section className="cr-result" role="status">
+              <section
+                className="cr-result"
+                role="status"
+              >
                 <strong className="cr-result-title">
                   {session.status === "LOST"
                     ? "COLLISION"
@@ -1435,14 +1818,23 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
                 <div>Lane {session.step}</div>
 
                 <div className="cr-money-grid">
-                  <AmountBox label="YOUR STAKE" value={session.stake} />
-                  <AmountBox label="TOTAL RETURN" value={session.payout} />
+                  <AmountBox
+                    label="YOUR STAKE"
+                    value={session.stake}
+                  />
+
+                  <AmountBox
+                    label="TOTAL RETURN"
+                    value={session.payout}
+                  />
                 </div>
 
                 <div style={{ marginTop: 10 }}>
                   <AmountBox
                     label="NET RESULT"
-                    value={session.payout - session.stake}
+                    value={
+                      session.payout - session.stake
+                    }
                     signed
                   />
                 </div>
@@ -1484,16 +1876,22 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
               Virtual demo coins only. ₹ is used for display.
             </p>
 
-            {Object.entries(rules?.levels || {}).map(([id, item]) => (
+            {Object.entries(
+              rules?.levels || {},
+            ).map(([id, item]) => (
               <div key={id}>
-                <h3>{item.name} · {item.lanes} lanes</h3>
+                <h3>
+                  {item.name} · {item.lanes} lanes
+                </h3>
 
                 <div className="cr-multiplier-list">
-                  {item.multipliers.map((value, index) => (
-                    <span key={index}>
-                      {index + 1}: {value.toFixed(2)}x
-                    </span>
-                  ))}
+                  {item.multipliers.map(
+                    (value, index) => (
+                      <span key={index}>
+                        {index + 1}: {value.toFixed(2)}x
+                      </span>
+                    ),
+                  )}
                 </div>
               </div>
             ))}
@@ -1530,10 +1928,12 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
                         <td>
                           #{item.id}
                           <br />
-                          {new Date(item.updatedAt).toLocaleString(
-                            "en-IN",
-                            { timeZone: "Asia/Kolkata" }
-                          )}
+
+                          {new Date(
+                            item.updatedAt,
+                          ).toLocaleString("en-IN", {
+                            timeZone: "Asia/Kolkata",
+                          })}
                         </td>
 
                         <td>
@@ -1555,7 +1955,9 @@ function ChickenGame({ user, onBack, onLogout, storageKey }) {
                 </table>
               </div>
             ) : (
-              <p className="cr-hint">No completed games available.</p>
+              <p className="cr-hint">
+                No completed games available.
+              </p>
             )}
           </section>
         )}
