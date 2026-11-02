@@ -354,104 +354,29 @@ function MatchOdds({ match, stopped }) {
 export default function CricketMatchList({
   onOpenMatch,
 }) {
-  const [virtual, setVirtual] = useState([]);
   const [real, setReal] = useState([]);
-  const [error, setError] = useState('');
-  const [sportsError, setSportsError] =
-    useState('');
-  const [loaded, setLoaded] = useState(false);
+
+  const [
+    sportsError,
+    setSportsError,
+  ] = useState('');
+
+  const [loaded, setLoaded] =
+    useState(false);
+
   const [feedDemo, setFeedDemo] =
     useState(false);
-  const [meta, setMeta] = useState(null);
+
+  const [meta, setMeta] =
+    useState(null);
+
   const [receivedAt, setReceivedAt] =
     useState(0);
 
-  const [anchor, setAnchor] = useState({
-    server: Date.now(),
-    local: performance.now(),
-  });
-
-  const [now, setNow] = useState(Date.now());
   const [clock, setClock] =
     useState(Date.now());
 
-  /* ANIMATED SUPER OVER SCHEDULE */
-
-  useEffect(() => {
-    let alive = true;
-    let loading = false;
-
-    const load = async () => {
-      if (loading) return;
-
-      loading = true;
-
-      try {
-        const data = await getJSON(
-          '/api/animated-cricket/schedule',
-        );
-
-        if (alive) {
-          const server = Date.parse(
-            data.serverTime,
-          );
-
-          if (Number.isFinite(server)) {
-            setAnchor({
-              server,
-              local: performance.now(),
-            });
-          }
-
-          setVirtual(
-            (data.matches || [])
-              .slice(0, 3)
-              .map(match => ({
-                key: `so-${match.startAt}`,
-                type: 'SO',
-                start: Date.parse(
-                  match.startAt,
-                ),
-                end:
-                  Date.parse(
-                    match.endsAt || '',
-                  ) ||
-                  Date.parse(
-                    match.startAt,
-                  ) +
-                    120000,
-                teams: match.teams.join(
-                  ' vs ',
-                ),
-                phase: match.phase,
-              }))
-              .filter(match =>
-                Number.isFinite(match.start),
-              ),
-          );
-
-          setError('');
-        }
-      } catch (failure) {
-        if (alive) {
-          setError(failure.message);
-        }
-      } finally {
-        loading = false;
-      }
-    };
-
-    void load();
-
-    const timer = setInterval(load, 5000);
-
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, []);
-
-  /* SHARED CRICKET FEED */
+  /* SHARED CRICKET FEED ONLY */
 
   useEffect(() => {
     let alive = true;
@@ -473,10 +398,14 @@ export default function CricketMatchList({
       const matches = eventRows(data)
         .filter(
           item =>
-            !item.sport ||
-            String(
-              item.sport,
-            ).toLowerCase() === 'cricket',
+            item &&
+            typeof item === 'object' &&
+            (
+              !item.sport ||
+              String(
+                item.sport,
+              ).toLowerCase() === 'cricket'
+            ),
         )
         .map(item =>
           normalizeApiMatch(item, feed),
@@ -527,7 +456,9 @@ export default function CricketMatchList({
           alive &&
           current === sequence
         ) {
-          setSportsError(failure.message);
+          setSportsError(
+            failure.message,
+          );
           setReceivedAt(0);
           setLoaded(true);
         }
@@ -551,7 +482,9 @@ export default function CricketMatchList({
             message.data,
           );
 
-          if (Array.isArray(data.events)) {
+          if (
+            Array.isArray(data.events)
+          ) {
             apply(data);
           }
         } catch {
@@ -564,7 +497,10 @@ export default function CricketMatchList({
       };
     }
 
-    const timer = setInterval(load, 5000);
+    const timer = setInterval(
+      load,
+      5000,
+    );
 
     const focus = () => {
       void load();
@@ -587,27 +523,17 @@ export default function CricketMatchList({
     };
   }, []);
 
-  /* SERVER-ALIGNED DISPLAY CLOCK */
+  /* FEED FRESHNESS CLOCK */
 
   useEffect(() => {
-    const update = () => {
-      setNow(
-        anchor.server +
-          performance.now() -
-          anchor.local,
-      );
-
+    const timer = setInterval(() => {
       setClock(Date.now());
-    };
-
-    update();
-
-    const timer = setInterval(update, 1000);
+    }, 1000);
 
     return () => {
       clearInterval(timer);
     };
-  }, [anchor]);
+  }, []);
 
   const fresh =
     receivedAt > 0 &&
@@ -619,13 +545,10 @@ export default function CricketMatchList({
     meta?.stale ||
     !fresh;
 
-  const fixtures = [
-    ...virtual.filter(
-      match => match.end > now,
-    ),
-    ...real,
-  ].sort(
+  const fixtures = [...real].sort(
     (a, b) =>
+      Number(Boolean(b.live)) -
+        Number(Boolean(a.live)) ||
       (a.start ?? Infinity) -
         (b.start ?? Infinity) ||
       a.key.localeCompare(b.key),
@@ -655,18 +578,13 @@ export default function CricketMatchList({
         </p>
       )}
 
-      {(error || sportsError) && (
+      {sportsError && (
         <p
           role="alert"
           className="my-3 text-xs text-amber-800"
         >
-          {sportsError
-            ? `Sports feed: ${sportsError}. Showing saved matches.`
-            : ''}
-
-          {error
-            ? ` Super Over: ${error}`
-            : ''}
+          Sports feed: {sportsError}.
+          {' '}Showing saved matches.
         </p>
       )}
 
@@ -681,39 +599,27 @@ export default function CricketMatchList({
               ? 'Sports matches could not be loaded. Retrying automatically.'
               : feedDemo
                 ? 'The demo feed currently has no cricket fixtures.'
-                : 'The sports server returned no cricket fixtures. Prepared Super Over matches appear five minutes before start.'}
+                : 'The sports server returned no cricket fixtures.'}
         </div>
       )}
 
       {fixtures.map(match => {
-        const live =
-          match.type === 'SO'
-            ? now >= match.start &&
-              now < match.end
-            : match.live;
+        const live = match.live;
 
-        const stopped =
-          match.type === 'API' &&
-          Boolean(
-            paused ||
-              match.paused ||
-              match.stale,
-          );
+        const stopped = Boolean(
+          paused ||
+            match.paused ||
+            match.stale,
+        );
 
         const open = () => {
-          if (match.type === 'SO') {
-            window.location.assign(
-              `/games/animated-super-over?start=${match.start}`,
-            );
-          } else {
-            onOpenMatch?.({
-              ...match,
+          onOpenMatch?.({
+            ...match,
 
-              bettingAllowed:
-                !stopped &&
-                match.bettingAllowed === true,
-            });
-          }
+            bettingAllowed:
+              !stopped &&
+              match.bettingAllowed === true,
+          });
         };
 
         return (
@@ -762,13 +668,11 @@ export default function CricketMatchList({
 
                   {stopped
                     ? 'FEED PAUSED · SAVED MATCH'
-                    : match.type === 'SO'
-                      ? 'SUPER OVER'
-                      : match.demo
-                        ? 'DEMO FEED'
-                        : live
-                          ? 'LIVE'
-                          : 'UPCOMING'}
+                    : match.demo
+                      ? 'DEMO FEED'
+                      : live
+                        ? 'LIVE'
+                        : 'UPCOMING'}
                 </div>
 
                 <h3 className="block w-full text-left text-[13px] font-black leading-5 text-slate-900">
@@ -781,25 +685,23 @@ export default function CricketMatchList({
                     : `${ist(match.start)} IST`}
                 </p>
 
-                {match.type === 'API' &&
-                  match.score && (
-                    <p className="mt-2 text-xs text-slate-600">
-                      {match.score}
-                    </p>
-                  )}
+                {match.score && (
+                  <p className="mt-2 text-xs text-slate-600">
+                    {match.score}
+                  </p>
+                )}
 
-                {match.type === 'API' &&
-                  (
-                    stopped ||
-                    !match.bettingAllowed
-                  ) && (
-                    <p className="mt-2 text-[10px] font-bold text-amber-800">
-                      {stopped
-                        ? 'New bets paused'
-                        : match.bettingReason ||
-                          'Betting Paused'}
-                    </p>
-                  )}
+                {(
+                  stopped ||
+                  !match.bettingAllowed
+                ) && (
+                  <p className="mt-2 text-[10px] font-bold text-amber-800">
+                    {stopped
+                      ? 'New bets paused'
+                      : match.bettingReason ||
+                        'Betting Paused'}
+                  </p>
+                )}
               </div>
 
               <span
