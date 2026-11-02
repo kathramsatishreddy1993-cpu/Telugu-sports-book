@@ -253,9 +253,7 @@ export function tableCardPose(card, age) {
     1 - Math.pow(1 - progress, 3);
 
   return {
-    x:
-      925 +
-      (targetX - 925) * eased,
+    x: 925 + (targetX - 925) * eased,
 
     y:
       435 +
@@ -575,6 +573,11 @@ export default function AnimatedSuperOverPage({
   const selected =
     selection?.matchId === match?.id;
 
+  const balanceAvailable =
+    data?.balance !== null &&
+    data?.balance !== undefined &&
+    Number.isFinite(Number(data.balance));
+
   async function send(saved) {
     if (
       inFlight.current ||
@@ -759,10 +762,27 @@ export default function AnimatedSuperOverPage({
         }
 
         .cs-balance {
-          font-size:18px;
-          font-weight:800;
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          flex-shrink:0;
+          gap:4px;
+          margin:0;
+          padding:6px 10px;
+          border:1px solid rgba(103,232,249,.2);
+          border-radius:999px;
+          background:rgba(40,78,87,.85);
+          box-shadow:none;
+          color:#ffffff;
+          font-size:13px;
+          font-weight:700;
+          line-height:1.3;
           white-space:nowrap;
           font-variant-numeric:tabular-nums;
+        }
+
+        .cs-balance-currency {
+          font-size:11px;
         }
 
         .cs-toolbar {
@@ -1093,10 +1113,6 @@ export default function AnimatedSuperOverPage({
           .cs-header {
             padding:14px 10px;
           }
-
-          .cs-balance {
-            font-size:15px;
-          }
         }
       `}</style>
 
@@ -1106,12 +1122,38 @@ export default function AnimatedSuperOverPage({
             TELUGU SPORTS BOOK
           </div>
 
-          <div
+          <p
             className="cs-balance"
-            aria-label="Demo balance"
+            aria-live="polite"
+            aria-label="Demo wallet balance"
+            title={
+              balanceAvailable && !fresh
+                ? "Last received balance"
+                : "Demo wallet balance"
+            }
           >
-            {data ? money(data.balance) : "…"}
-          </div>
+            {balanceAvailable ? (
+              <>
+                <span className="cs-balance-currency">
+                  ₹
+                </span>
+
+                <span>
+                  {Number(data.balance).toLocaleString(
+                    "en-IN",
+                    {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    },
+                  )}
+                </span>
+              </>
+            ) : data || error ? (
+              "—"
+            ) : (
+              "Loading…"
+            )}
+          </p>
         </header>
 
         <div className="cs-toolbar">
