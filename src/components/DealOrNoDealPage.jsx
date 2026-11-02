@@ -47,6 +47,7 @@ const money = (value) => {
 
 const timeValue = (value) => {
   if (!value) return 0;
+
   const parsed = new Date(value).getTime();
   return Number.isFinite(parsed) ? parsed : 0;
 };
@@ -97,7 +98,9 @@ function SessionRecord({
       )}
 
       {session.seed && (
-        <p className="mt-3 break-all">Seed: {session.seed}</p>
+        <p className="mt-3 break-all">
+          Seed: {session.seed}
+        </p>
       )}
 
       {session.plan && (
@@ -145,7 +148,11 @@ export default function DealOrNoDealPage({
 
   useEffect(() => {
     mounted.current = true;
-    const timer = setInterval(() => setClock(Date.now()), 250);
+
+    const timer = setInterval(
+      () => setClock(Date.now()),
+      250,
+    );
 
     return () => {
       mounted.current = false;
@@ -170,7 +177,7 @@ export default function DealOrNoDealPage({
       serverTime &&
       !error &&
       !unauthorized &&
-      age < 3500
+      age < 3500,
   );
 
   const entries = Array.isArray(data?.entries)
@@ -180,14 +187,14 @@ export default function DealOrNoDealPage({
   const entry = entries.find(
     (item) =>
       String(item.sessionId) === String(session?.id) &&
-      item.status !== "CANCELLED"
+      item.status !== "CANCELLED",
   );
 
   const previousEntry = !entry
     ? entries.find(
         (item) =>
           String(item.sessionId) !== String(session?.id) &&
-          ["COLLECTED", "LOST"].includes(item.status)
+          ["COLLECTED", "LOST"].includes(item.status),
       )
     : null;
 
@@ -197,15 +204,23 @@ export default function DealOrNoDealPage({
     session?.resultMode || data?.resultMode || "AUTO_RANDOM";
 
   const legacySession = Boolean(
-    session && resultMode === "ADMIN_SELECTED"
+    session && resultMode === "ADMIN_SELECTED",
   );
 
   const resultLabel = legacySession
     ? "PREVIOUS ADMIN-SELECTED SESSION"
     : "AUTOMATIC RANDOM · DEMO COINS";
 
-  const bettingMs = positiveNumber(data?.timing?.bettingMs, 30000);
-  const revealMs = positiveNumber(data?.timing?.revealMs, 5000);
+  const bettingMs = positiveNumber(
+    data?.timing?.bettingMs,
+    30000,
+  );
+
+  const revealMs = positiveNumber(
+    data?.timing?.revealMs,
+    5000,
+  );
+
   const sessionOpensAt = timeValue(session?.opensAt);
 
   const deadline =
@@ -220,17 +235,19 @@ export default function DealOrNoDealPage({
   const remaining = secondsUntil(deadline, now);
 
   const bettingOpen = Boolean(
-    fresh && session?.phase === "BETTING" && remaining > 0
+    fresh &&
+      session?.phase === "BETTING" &&
+      remaining > 0,
   );
 
   const canJoin = Boolean(
-    bettingOpen && level === 1 && !entry
+    bettingOpen && level === 1 && !entry,
   );
 
   const canContinue = Boolean(
     bettingOpen &&
       entry?.status === "WON" &&
-      level === Number(entry.completedLevel) + 1
+      level === Number(entry.completedLevel) + 1,
   );
 
   const continuationDeadline =
@@ -244,7 +261,7 @@ export default function DealOrNoDealPage({
 
   const continuationSeconds = secondsUntil(
     continuationDeadline,
-    now
+    now,
   );
 
   const canCollect = Boolean(
@@ -252,7 +269,7 @@ export default function DealOrNoDealPage({
       entry?.status === "WON" &&
       continuationSeconds > 0 &&
       !busy &&
-      !pending
+      !pending,
   );
 
   const canCancel = Boolean(
@@ -261,12 +278,12 @@ export default function DealOrNoDealPage({
       entry?.status === "PLAYING" &&
       Number(entry.completedLevel) === 0 &&
       !busy &&
-      !pending
+      !pending,
   );
 
   const offerSeconds = secondsUntil(
     timeValue(entry?.offer?.deadline),
-    now
+    now,
   );
 
   const offerKey = entry
@@ -277,7 +294,7 @@ export default function DealOrNoDealPage({
     canCollect &&
       entry?.offer &&
       offerSeconds > 0 &&
-      declinedOffer !== offerKey
+      declinedOffer !== offerKey,
   );
 
   const revealed = Array.isArray(session?.revealed)
@@ -285,7 +302,7 @@ export default function DealOrNoDealPage({
     : [];
 
   const sameLevelResult = revealed.find(
-    (item) => Number(item.level) === level
+    (item) => Number(item.level) === level,
   );
 
   const lastResult = revealed.length
@@ -300,7 +317,7 @@ export default function DealOrNoDealPage({
 
   const recentSessions = Array.isArray(data?.recentSessions)
     ? data.recentSessions.filter(
-        (item) => String(item.id) !== String(session?.id)
+        (item) => String(item.id) !== String(session?.id),
       )
     : [];
 
@@ -343,10 +360,10 @@ export default function DealOrNoDealPage({
 
   const finalResult =
     recentFinalSession?.revealed?.find(
-      (item) => Number(item.level) === 9
+      (item) => Number(item.level) === 9,
     ) ||
     recentFinalSession?.plan?.find(
-      (item) => Number(item.level) === 9
+      (item) => Number(item.level) === 9,
     ) ||
     null;
 
@@ -366,12 +383,12 @@ export default function DealOrNoDealPage({
     ? entries.find(
         (item) =>
           String(item.sessionId) === String(resultSessionId) &&
-          item.status !== "CANCELLED"
+          item.status !== "CANCELLED",
       )
     : entry;
 
   const choice = displayedEntry?.choices?.find(
-    (item) => Number(item.level) === displayLevel
+    (item) => Number(item.level) === displayLevel,
   );
 
   const canSelect =
@@ -438,7 +455,7 @@ export default function DealOrNoDealPage({
               ? "Case confirmed for the next level."
               : request.kind === "CANCEL"
                 ? "Bet cancelled. Stake returned."
-                : "Demo balance collected."
+                : "Demo balance collected.",
         );
 
         if (
@@ -454,7 +471,7 @@ export default function DealOrNoDealPage({
       if (mounted.current) {
         setMessage(
           requestError.message ||
-            "Unable to confirm the request. Retry the same request."
+            "Unable to confirm the request. Retry the same request.",
         );
 
         if (
@@ -472,12 +489,15 @@ export default function DealOrNoDealPage({
           setMessage(
             (current) =>
               current ||
-              "Unable to refresh game state. Waiting for the server connection."
+              "Unable to refresh game state. Waiting for the server connection.",
           );
         }
       } finally {
         inFlight.current = false;
-        if (mounted.current) setBusy(false);
+
+        if (mounted.current) {
+          setBusy(false);
+        }
       }
     }
   };
@@ -542,7 +562,15 @@ export default function DealOrNoDealPage({
   };
 
   const act = (action) => {
-    if (!entry || inFlight.current || pending || !fresh) return;
+    if (
+      !entry ||
+      inFlight.current ||
+      pending ||
+      !fresh
+    ) {
+      return;
+    }
+
     if (action === "CANCEL" && !canCancel) return;
     if (action === "COLLECT" && !canCollect) return;
     if (action === "DEAL" && !canDeal) return;
@@ -584,7 +612,7 @@ export default function DealOrNoDealPage({
     setDeclinedOffer(offerKey);
 
     setMessage(
-      "NO DEAL selected. Choose a case and confirm CONTINUE before the betting window closes."
+      "NO DEAL selected. Choose a case and confirm CONTINUE before the betting window closes.",
     );
 
     sound.cue("select");
@@ -612,7 +640,33 @@ export default function DealOrNoDealPage({
                 : `LEVEL ${level} · REVEAL IN ${remaining}s`;
 
   return (
-    <main className="min-h-screen bg-black p-3 text-white">
+    <main className="tsb-deal-page min-h-screen bg-black p-3 text-white">
+      <style>{`
+        .tsb-deal-page .tsb-deal-wallet {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          gap: 4px;
+          margin: 0;
+          padding: 6px 10px;
+          border: 1px solid rgba(103, 232, 249, .2);
+          border-radius: 999px;
+          background: rgba(40, 78, 87, .85);
+          box-shadow: none;
+          color: #ffffff;
+          font-size: 13px;
+          font-weight: 700;
+          line-height: 1.3;
+          font-variant-numeric: tabular-nums;
+          white-space: nowrap;
+        }
+
+        .tsb-deal-page .tsb-deal-wallet-currency {
+          font-size: 11px;
+        }
+      `}</style>
+
       <div className="mx-auto max-w-3xl space-y-4">
         <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/25 bg-[#171108] p-4">
           <button
@@ -628,44 +682,37 @@ export default function DealOrNoDealPage({
             DEAL OR NO DEAL
           </h1>
 
-          <div
-            className="max-w-full rounded-xl border-2 border-[#166534] bg-white px-3 py-2"
+          <p
+            className="tsb-deal-wallet"
             aria-live="polite"
             aria-label="Demo wallet balance"
+            title={
+              balanceAvailable && !unauthorized && !fresh
+                ? "Last received balance"
+                : "Demo wallet balance"
+            }
           >
-            <p className="text-center text-[9px] font-black tracking-wide text-[#166534]">
-              WALLET BALANCE
-            </p>
+            {unauthorized ? (
+              "—"
+            ) : balanceAvailable ? (
+              <>
+                <span className="tsb-deal-wallet-currency">
+                  ₹
+                </span>
 
-            <div className="mt-1 flex items-center justify-center gap-2">
-              <span
-                aria-hidden="true"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#166534] text-xl font-black text-white"
-              >
-                ₹
-              </span>
-
-              <strong className="break-all text-lg font-black tabular-nums text-[#166534]">
-                {unauthorized
-                  ? "—"
-                  : balanceAvailable
-                    ? coins(data.balance)
-                    : data || error
-                      ? "—"
-                      : "Loading…"}
-              </strong>
-            </div>
-
-            <p className="mt-1 text-center text-[9px] font-bold text-[#722f37]">
-              DEMO COINS
-            </p>
-
-            {balanceAvailable && !fresh && (
-              <p className="mt-1 text-center text-[9px] font-bold text-[#722f37]">
-                LAST RECEIVED BALANCE
-              </p>
+                <span>
+                  {Number(data.balance).toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              </>
+            ) : data || error ? (
+              "—"
+            ) : (
+              "Loading…"
             )}
-          </div>
+          </p>
         </header>
 
         <SoundControls sound={sound} />
@@ -750,6 +797,7 @@ export default function DealOrNoDealPage({
                 <p className="mb-2 font-black text-emerald-300">
                   COLLECTED · DEMO BALANCE
                 </p>
+
                 <AmountBox value={previousEntry.payout} />
               </div>
             ) : (
@@ -765,100 +813,101 @@ export default function DealOrNoDealPage({
           aria-label="Choose a case"
           className="grid scroll-mt-4 grid-cols-3 gap-x-3 gap-y-6 rounded-2xl border border-amber-300/10 bg-[radial-gradient(ellipse_at_center,_#51340a_0%,_#080705_70%)] px-3 py-6"
         >
-          {Array.from({ length: 9 }, (_, index) => index + 1).map(
-            (number) => {
-              const won = displayResult
-                ? displayResult.winners.includes(number)
-                : null;
+          {Array.from(
+            { length: 9 },
+            (_, index) => index + 1,
+          ).map((number) => {
+            const won = displayResult
+              ? displayResult.winners.includes(number)
+              : null;
 
-              const selected =
-                !displayResult && selectedNumber === number;
+            const selected =
+              !displayResult && selectedNumber === number;
 
-              const confirmed =
-                Number(choice?.caseNumber) === number;
+            const confirmed =
+              Number(choice?.caseNumber) === number;
 
-              return (
-                <button
-                  key={number}
-                  type="button"
-                  disabled={!canSelect}
-                  aria-label={`Case ${number}`}
-                  aria-pressed={selected}
-                  data-result={
-                    won === null ? "CLOSED" : won ? "WIN" : "LOSS"
-                  }
-                  data-result-level={displayLevel}
-                  onClick={() => chooseCase(number)}
-                  className="relative pt-3 disabled:cursor-default"
+            return (
+              <button
+                key={number}
+                type="button"
+                disabled={!canSelect}
+                aria-label={`Case ${number}`}
+                aria-pressed={selected}
+                data-result={
+                  won === null ? "CLOSED" : won ? "WIN" : "LOSS"
+                }
+                data-result-level={displayLevel}
+                onClick={() => chooseCase(number)}
+                className="relative pt-3 disabled:cursor-default"
+              >
+                <span className="absolute left-1/2 top-0 h-5 w-8 -translate-x-1/2 rounded-t-lg border-2 border-slate-300" />
+
+                <span
+                  className={`relative flex aspect-[4/3] flex-col items-center justify-center rounded-lg border-[3px] shadow-lg ${
+                    won === true
+                      ? "border-[#475c9b] bg-[#101d3d] text-green-500 shadow-blue-900/50"
+                      : won === false
+                        ? "border-red-500 bg-[#351111] text-red-500 shadow-red-700/50"
+                        : selected || confirmed
+                          ? "border-amber-300 bg-amber-100 text-black"
+                          : "border-slate-400 bg-gradient-to-b from-white via-slate-200 to-slate-400 text-black"
+                  }`}
                 >
-                  <span className="absolute left-1/2 top-0 h-5 w-8 -translate-x-1/2 rounded-t-lg border-2 border-slate-300" />
+                  {won === null && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-x-0 top-2 h-1 border-y border-slate-400/70"
+                    />
+                  )}
 
-                  <span
-                    className={`relative flex aspect-[4/3] flex-col items-center justify-center rounded-lg border-[3px] shadow-lg ${
-                      won === true
-                        ? "border-[#475c9b] bg-[#101d3d] text-green-500 shadow-blue-900/50"
-                        : won === false
-                          ? "border-red-500 bg-[#351111] text-red-500 shadow-red-700/50"
-                          : selected || confirmed
-                            ? "border-amber-300 bg-amber-100 text-black"
-                            : "border-slate-400 bg-gradient-to-b from-white via-slate-200 to-slate-400 text-black"
-                    }`}
+                  <strong
+                    className={
+                      won === null
+                        ? "text-3xl font-black sm:text-5xl"
+                        : "text-5xl font-black leading-none sm:text-6xl"
+                    }
                   >
-                    {won === null && (
-                      <span
-                        aria-hidden="true"
-                        className="absolute inset-x-0 top-2 h-1 border-y border-slate-400/70"
-                      />
-                    )}
+                    {won === true
+                      ? "✓"
+                      : won === false
+                        ? "✕"
+                        : String(number).padStart(2, "0")}
+                  </strong>
 
-                    <strong
-                      className={
-                        won === null
-                          ? "text-3xl font-black sm:text-5xl"
-                          : "text-5xl font-black leading-none sm:text-6xl"
-                      }
+                  {won !== null && (
+                    <span
+                      className={`mt-1 text-sm font-black sm:text-lg ${
+                        won ? "text-white" : "text-red-400"
+                      }`}
                     >
-                      {won === true
-                        ? "✓"
-                        : won === false
-                          ? "✕"
-                          : String(number).padStart(2, "0")}
-                    </strong>
+                      {won ? "WIN" : "LOSS"}
+                    </span>
+                  )}
 
-                    {won !== null && (
-                      <span
-                        className={`mt-1 text-sm font-black sm:text-lg ${
-                          won ? "text-white" : "text-red-400"
-                        }`}
-                      >
-                        {won ? "WIN" : "LOSS"}
-                      </span>
-                    )}
+                  {won === null && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-x-0 bottom-2 h-2 border-y-2 border-slate-400/70"
+                    />
+                  )}
 
-                    {won === null && (
-                      <span
-                        aria-hidden="true"
-                        className="absolute inset-x-0 bottom-2 h-2 border-y-2 border-slate-400/70"
-                      />
-                    )}
+                  {won !== null && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute -bottom-2 left-1/2 h-3 w-[110%] -translate-x-1/2 rounded-b-lg border-2 border-slate-400 bg-gradient-to-b from-slate-200 via-slate-500 to-slate-900"
+                    />
+                  )}
+                </span>
 
-                    {won !== null && (
-                      <span
-                        aria-hidden="true"
-                        className="absolute -bottom-2 left-1/2 h-3 w-[110%] -translate-x-1/2 rounded-b-lg border-2 border-slate-400 bg-gradient-to-b from-slate-200 via-slate-500 to-slate-900"
-                      />
-                    )}
-                  </span>
-
-                  <span className="relative mx-auto mt-2 block w-fit rounded-full bg-amber-300 px-2 py-1 text-[9px] font-black text-black">
-                    CASE {String(number).padStart(2, "0")}
-                    {confirmed ? " · YOUR PICK" : ""}
-                    {selected ? " · SELECTED" : ""}
-                  </span>
-                </button>
-              );
-            }
-          )}
+                <span className="relative mx-auto mt-2 block w-fit rounded-full bg-amber-300 px-2 py-1 text-[9px] font-black text-black">
+                  CASE {String(number).padStart(2, "0")}
+                  {confirmed ? " · YOUR PICK" : ""}
+                  {selected ? " · SELECTED" : ""}
+                </span>
+              </button>
+            );
+          })}
         </section>
 
         {summaryResult && (
@@ -878,6 +927,7 @@ export default function DealOrNoDealPage({
 
               <div className="text-right">
                 <p>Status</p>
+
                 <strong className="mt-1 block text-sm text-amber-200">
                   {entry.status}
                 </strong>
@@ -974,6 +1024,7 @@ export default function DealOrNoDealPage({
                 <p className="mb-2 font-black text-emerald-300">
                   COLLECTED · DEMO BALANCE
                 </p>
+
                 <AmountBox value={entry.payout} large />
               </div>
             )}
@@ -1027,7 +1078,9 @@ export default function DealOrNoDealPage({
                   step="1"
                   value={amount}
                   disabled={busy || Boolean(pending)}
-                  onChange={(event) => setAmount(event.target.value)}
+                  onChange={(event) =>
+                    setAmount(event.target.value)
+                  }
                   className="min-w-0 flex-1 bg-white p-3 text-center text-2xl font-black text-[#166534] outline-none disabled:opacity-50"
                 />
               </div>
@@ -1100,7 +1153,9 @@ export default function DealOrNoDealPage({
           <button
             type="button"
             aria-expanded={showHistory}
-            onClick={() => setShowHistory((current) => !current)}
+            onClick={() =>
+              setShowHistory((current) => !current)
+            }
             className="flex w-full items-center justify-between text-sm font-black text-amber-200"
           >
             <span>MY GAME HISTORY</span>
@@ -1121,18 +1176,27 @@ export default function DealOrNoDealPage({
                   className="rounded-lg bg-white/5 p-3 text-xs"
                 >
                   <div className="flex justify-between gap-3">
-                    <strong>Session #{item.sessionId}</strong>
+                    <strong>
+                      Session #{item.sessionId}
+                    </strong>
+
                     <span>{item.status}</span>
                   </div>
 
                   <div className="mt-3 grid grid-cols-2 gap-3">
                     <div>
-                      <p className="mb-1 text-slate-400">Stake</p>
+                      <p className="mb-1 text-slate-400">
+                        Stake
+                      </p>
+
                       <AmountBox value={item.stake} />
                     </div>
 
                     <div>
-                      <p className="mb-1 text-slate-400">Returned</p>
+                      <p className="mb-1 text-slate-400">
+                        Returned
+                      </p>
+
                       <AmountBox value={item.payout} />
                     </div>
                   </div>
@@ -1152,7 +1216,7 @@ export default function DealOrNoDealPage({
                                 : pick.won === false
                                   ? "✕"
                                   : "pending"
-                            }`
+                            }`,
                         )
                         .join(" · ")}
                     </p>
@@ -1215,7 +1279,7 @@ export default function DealOrNoDealPage({
                       <td className="p-2">{winners} of 9</td>
                       <td className="p-2">{multiplier}×</td>
                     </tr>
-                  )
+                  ),
                 )}
               </tbody>
             </table>
