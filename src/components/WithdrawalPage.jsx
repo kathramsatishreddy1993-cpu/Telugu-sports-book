@@ -1,4 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 const AUTH_KEY = "telugu_sports_auth_user";
 const MIN_WITHDRAWAL = 100;
@@ -16,21 +20,38 @@ const EMPTY_FORM = {
 function money(value) {
   const number = Number(value);
 
-  return `₹${(Number.isFinite(number) ? number : 0).toLocaleString(
-    "en-IN",
-    { maximumFractionDigits: 2 }
-  )}`;
+  return `₹${(
+    Number.isFinite(number) ? number : 0
+  ).toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function balanceAmount(value) {
+  const number = Number(value);
+
+  return (
+    Number.isFinite(number) ? number : 0
+  ).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function maskAccount(value) {
-  return value ? `XXXX XXXX ${String(value).slice(-4)}` : "—";
+  return value
+    ? `XXXX XXXX ${String(value).slice(-4)}`
+    : "—";
 }
 
 function formatDate(value) {
   if (!value) return "—";
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
 
   return `${date.toLocaleString("en-IN", {
     timeZone: "Asia/Kolkata",
@@ -43,42 +64,86 @@ function formatDate(value) {
   })} IST`;
 }
 
-export default function WithdrawalPage({ user, onBack }) {
+export default function WithdrawalPage({
+  user,
+  onBack,
+}) {
   const customer = useMemo(() => {
     let source = user;
 
     if (!source) {
       try {
-        const saved = localStorage.getItem(AUTH_KEY);
-        if (saved) source = JSON.parse(saved);
+        const saved =
+          localStorage.getItem(AUTH_KEY);
+
+        if (saved) {
+          source = JSON.parse(saved);
+        }
       } catch (error) {
-        console.error("Unable to read customer:", error);
+        console.error(
+          "Unable to read customer:",
+          error,
+        );
       }
     }
 
     return {
-      customerId: Number(source?.id || source?.customerId || 0),
+      customerId: Number(
+        source?.id ||
+          source?.customerId ||
+          0,
+      ),
     };
   }, [user]);
 
   const accountKey = customer.customerId
-    ? `tsb_withdrawal_account_${String(customer.customerId)
+    ? `tsb_withdrawal_account_${String(
+        customer.customerId,
+      )
         .trim()
         .toLowerCase()
         .replace(/[^a-z0-9_-]/g, "_")}`
     : "";
 
-  const [showAddAccount, setShowAddAccount] = useState(false);
-  const [account, setAccount] = useState(null);
-  const [transactions, setTransactions] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyError, setHistoryError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [balance, setBalance] = useState(0);
-  const [balanceLoading, setBalanceLoading] = useState(true);
-  const [balanceError, setBalanceError] = useState("");
-  const [form, setForm] = useState({ ...EMPTY_FORM });
-  const [amount, setAmount] = useState("");
+  const [
+    showAddAccount,
+    setShowAddAccount,
+  ] = useState(false);
+
+  const [account, setAccount] =
+    useState(null);
+
+  const [transactions, setTransactions] =
+    useState([]);
+
+  const [
+    historyLoading,
+    setHistoryLoading,
+  ] = useState(false);
+
+  const [historyError, setHistoryError] =
+    useState("");
+
+  const [submitting, setSubmitting] =
+    useState(false);
+
+  const [balance, setBalance] =
+    useState(0);
+
+  const [
+    balanceLoading,
+    setBalanceLoading,
+  ] = useState(true);
+
+  const [balanceError, setBalanceError] =
+    useState("");
+
+  const [form, setForm] = useState({
+    ...EMPTY_FORM,
+  });
+
+  const [amount, setAmount] =
+    useState("");
 
   useEffect(() => {
     setAccount(null);
@@ -89,25 +154,36 @@ export default function WithdrawalPage({ user, onBack }) {
     if (!accountKey) return;
 
     try {
-      const saved = localStorage.getItem(accountKey);
+      const saved =
+        localStorage.getItem(accountKey);
+
       if (!saved) return;
 
       const parsed = JSON.parse(saved);
 
-      if (parsed && typeof parsed === "object") {
+      if (
+        parsed &&
+        typeof parsed === "object"
+      ) {
         setAccount(parsed);
       }
     } catch (error) {
-      console.error("Unable to load bank account:", error);
+      console.error(
+        "Unable to load bank account:",
+        error,
+      );
     }
   }, [accountKey]);
 
   const loadBalance = async () => {
-    const customerId = customer.customerId;
+    const customerId =
+      customer.customerId;
 
     if (!customerId) {
       setBalance(0);
-      setBalanceError("Customer ID not available.");
+      setBalanceError(
+        "Customer ID not available.",
+      );
       setBalanceLoading(false);
       return;
     }
@@ -117,94 +193,132 @@ export default function WithdrawalPage({ user, onBack }) {
 
     try {
       const response = await fetch(
-        `/api/customers/${encodeURIComponent(customerId)}/demo-balance`,
+        `/api/customers/${encodeURIComponent(
+          customerId,
+        )}/demo-balance`,
         {
           method: "GET",
-          headers: { Accept: "application/json" },
+          headers: {
+            Accept: "application/json",
+          },
           cache: "no-store",
-        }
+        },
       );
 
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
-          data?.error || "Unable to load available balance."
+          data?.error ||
+            "Unable to load available balance.",
         );
       }
 
       const nextBalance = Number(
         data?.balance ??
           data?.demo_coin_balance ??
-          data?.customer?.demo_coin_balance ??
-          0
+          data?.customer
+            ?.demo_coin_balance ??
+          0,
       );
 
-      setBalance(Number.isFinite(nextBalance) ? nextBalance : 0);
+      setBalance(
+        Number.isFinite(nextBalance)
+          ? nextBalance
+          : 0,
+      );
     } catch (error) {
-      console.error("Balance Load Error:", error);
+      console.error(
+        "Balance Load Error:",
+        error,
+      );
+
       setBalance(0);
+
       setBalanceError(
-        error?.message || "Unable to load available balance."
+        error?.message ||
+          "Unable to load available balance.",
       );
     } finally {
       setBalanceLoading(false);
     }
   };
 
-  const loadWithdrawalHistory = async () => {
-    const customerId = customer.customerId;
+  const loadWithdrawalHistory =
+    async () => {
+      const customerId =
+        customer.customerId;
 
-    if (!customerId) {
-      setTransactions([]);
-      setHistoryError("Customer ID not available.");
-      setHistoryLoading(false);
-      return;
-    }
-
-    setHistoryLoading(true);
-    setHistoryError("");
-
-    try {
-      const response = await fetch(
-        `/api/customers/${encodeURIComponent(customerId)}/demo-withdrawals`,
-        {
-          method: "GET",
-          headers: { Accept: "application/json" },
-          cache: "no-store",
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data?.error || "Unable to load withdrawal history."
+      if (!customerId) {
+        setTransactions([]);
+        setHistoryError(
+          "Customer ID not available.",
         );
+        setHistoryLoading(false);
+        return;
       }
 
-      setTransactions(
-        Array.isArray(data?.requests) ? data.requests : []
-      );
-    } catch (error) {
-      console.error("Withdrawal History Load Error:", error);
-      setTransactions([]);
-      setHistoryError(
-        error?.message || "Unable to load withdrawal history."
-      );
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
+      setHistoryLoading(true);
+      setHistoryError("");
+
+      try {
+        const response = await fetch(
+          `/api/customers/${encodeURIComponent(
+            customerId,
+          )}/demo-withdrawals`,
+          {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+            },
+            cache: "no-store",
+          },
+        );
+
+        const data =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data?.error ||
+              "Unable to load withdrawal history.",
+          );
+        }
+
+        setTransactions(
+          Array.isArray(data?.requests)
+            ? data.requests
+            : [],
+        );
+      } catch (error) {
+        console.error(
+          "Withdrawal History Load Error:",
+          error,
+        );
+
+        setTransactions([]);
+
+        setHistoryError(
+          error?.message ||
+            "Unable to load withdrawal history.",
+        );
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
 
   useEffect(() => {
     void loadBalance();
     void loadWithdrawalHistory();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer.customerId]);
 
   const updateForm = (field, value) => {
-    setForm((previous) => ({ ...previous, [field]: value }));
+    setForm(previous => ({
+      ...previous,
+      [field]: value,
+    }));
   };
 
   const toggleAccountForm = () => {
@@ -216,17 +330,21 @@ export default function WithdrawalPage({ user, onBack }) {
 
     setForm({
       ...EMPTY_FORM,
-      holderName: account?.holderName || "",
-      bankName: account?.bankName || "",
-      accountNumber: account?.accountNumber || "",
-      confirmAccountNumber: account?.accountNumber || "",
+      holderName:
+        account?.holderName || "",
+      bankName:
+        account?.bankName || "",
+      accountNumber:
+        account?.accountNumber || "",
+      confirmAccountNumber:
+        account?.accountNumber || "",
       ifsc: account?.ifsc || "",
     });
 
     setShowAddAccount(true);
   };
 
-  const saveAccount = (event) => {
+  const saveAccount = event => {
     event.preventDefault();
 
     if (!accountKey) {
@@ -234,11 +352,20 @@ export default function WithdrawalPage({ user, onBack }) {
       return;
     }
 
-    const holderName = form.holderName.trim();
-    const bankName = form.bankName.trim();
-    const accountNumber = form.accountNumber.trim();
-    const confirmAccountNumber = form.confirmAccountNumber.trim();
-    const ifsc = form.ifsc.trim().toUpperCase();
+    const holderName =
+      form.holderName.trim();
+
+    const bankName =
+      form.bankName.trim();
+
+    const accountNumber =
+      form.accountNumber.trim();
+
+    const confirmAccountNumber =
+      form.confirmAccountNumber.trim();
+
+    const ifsc =
+      form.ifsc.trim().toUpperCase();
 
     if (!holderName) {
       alert("Enter account holder name");
@@ -250,26 +377,47 @@ export default function WithdrawalPage({ user, onBack }) {
       return;
     }
 
-    if (!/^[0-9]{9,18}$/.test(accountNumber)) {
-      alert("Enter a valid account number");
+    if (
+      !/^[0-9]{9,18}$/.test(
+        accountNumber,
+      )
+    ) {
+      alert(
+        "Enter a valid account number",
+      );
       return;
     }
 
-    if (accountNumber !== confirmAccountNumber) {
-      alert("Account numbers do not match");
+    if (
+      accountNumber !==
+      confirmAccountNumber
+    ) {
+      alert(
+        "Account numbers do not match",
+      );
       return;
     }
 
-    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
+    if (
+      !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(
+        ifsc,
+      )
+    ) {
       alert("Enter a valid IFSC code");
       return;
     }
 
     // Existing local validation only.
-    // The password is not verified by the server here
-    // and is never saved to localStorage.
-    if (!form.password || form.password.length < 6) {
-      alert("Enter your Withdrawal Password");
+    // The password is not verified by
+    // the server here and is never
+    // saved to localStorage.
+    if (
+      !form.password ||
+      form.password.length < 6
+    ) {
+      alert(
+        "Enter your Withdrawal Password",
+      );
       return;
     }
 
@@ -281,9 +429,16 @@ export default function WithdrawalPage({ user, onBack }) {
     };
 
     try {
-      localStorage.setItem(accountKey, JSON.stringify(newAccount));
+      localStorage.setItem(
+        accountKey,
+        JSON.stringify(newAccount),
+      );
     } catch (error) {
-      console.error("Unable to save account:", error);
+      console.error(
+        "Unable to save account:",
+        error,
+      );
+
       alert("Unable to save account");
       return;
     }
@@ -293,37 +448,56 @@ export default function WithdrawalPage({ user, onBack }) {
     setForm({ ...EMPTY_FORM });
   };
 
-  const handleWithdraw = async (event) => {
+  const handleWithdraw = async event => {
     event.preventDefault();
 
     if (submitting) return;
 
     if (!account) {
-      alert("Please add a bank account first");
+      alert(
+        "Please add a bank account first",
+      );
       return;
     }
 
-    const customerId = customer.customerId;
+    const customerId =
+      customer.customerId;
 
-    if (!Number.isInteger(customerId) || customerId <= 0) {
-      alert("Customer ID not available");
+    if (
+      !Number.isInteger(customerId) ||
+      customerId <= 0
+    ) {
+      alert(
+        "Customer ID not available",
+      );
       return;
     }
 
     const value = Number(amount);
 
-    if (!Number.isInteger(value) || value < MIN_WITHDRAWAL) {
-      alert(`Minimum withdrawal is ${money(MIN_WITHDRAWAL)}`);
+    if (
+      !Number.isInteger(value) ||
+      value < MIN_WITHDRAWAL
+    ) {
+      alert(
+        `Minimum withdrawal is ${money(
+          MIN_WITHDRAWAL,
+        )}`,
+      );
       return;
     }
 
     if (balanceLoading) {
-      alert("Please wait. Available balance is loading.");
+      alert(
+        "Please wait. Available balance is loading.",
+      );
       return;
     }
 
     if (balanceError) {
-      alert("Available balance could not be verified.");
+      alert(
+        "Available balance could not be verified.",
+      );
       return;
     }
 
@@ -335,40 +509,61 @@ export default function WithdrawalPage({ user, onBack }) {
     setSubmitting(true);
 
     try {
-      const response = await fetch("/api/demo-withdrawals", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
+      const response = await fetch(
+        "/api/demo-withdrawals",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            customerId,
+            amount: value,
+            accountHolderName:
+              account.holderName,
+            bankName: account.bankName,
+            accountNumber:
+              account.accountNumber,
+            ifscCode: account.ifsc,
+          }),
         },
-        body: JSON.stringify({
-          customerId,
-          amount: value,
-          accountHolderName: account.holderName,
-          bankName: account.bankName,
-          accountNumber: account.accountNumber,
-          ifscCode: account.ifsc,
-        }),
-      });
+      );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
-          data?.error || "Unable to submit withdrawal request."
+          data?.error ||
+            "Unable to submit withdrawal request.",
         );
       }
 
       setAmount("");
+
       await loadWithdrawalHistory();
       await loadBalance();
 
-      window.dispatchEvent(new Event("demo-balance-updated"));
-      alert("Withdrawal request submitted.");
-    } catch (error) {
-      console.error("Withdrawal Submit Error:", error);
+      window.dispatchEvent(
+        new Event(
+          "demo-balance-updated",
+        ),
+      );
+
       alert(
-        error?.message || "Unable to submit withdrawal request."
+        "Withdrawal request submitted.",
+      );
+    } catch (error) {
+      console.error(
+        "Withdrawal Submit Error:",
+        error,
+      );
+
+      alert(
+        error?.message ||
+          "Unable to submit withdrawal request.",
       );
     } finally {
       setSubmitting(false);
@@ -376,13 +571,29 @@ export default function WithdrawalPage({ user, onBack }) {
   };
 
   const deleteAccount = () => {
-    if (!window.confirm("Remove saved bank account?")) return;
+    if (
+      !window.confirm(
+        "Remove saved bank account?",
+      )
+    ) {
+      return;
+    }
 
     try {
-      if (accountKey) localStorage.removeItem(accountKey);
+      if (accountKey) {
+        localStorage.removeItem(
+          accountKey,
+        );
+      }
     } catch (error) {
-      console.error("Unable to remove account:", error);
-      alert("Unable to remove saved bank account.");
+      console.error(
+        "Unable to remove account:",
+        error,
+      );
+
+      alert(
+        "Unable to remove saved bank account.",
+      );
       return;
     }
 
@@ -393,10 +604,11 @@ export default function WithdrawalPage({ user, onBack }) {
 
   const history = transactions
     .filter(
-      (transaction) =>
+      transaction =>
         Number(
-          transaction?.customerId ?? transaction?.customer_id
-        ) === customer.customerId
+          transaction?.customerId ??
+            transaction?.customer_id,
+        ) === customer.customerId,
     )
     .slice(0, HISTORY_LIMIT);
 
@@ -515,19 +727,26 @@ export default function WithdrawalPage({ user, onBack }) {
         }
 
         .tsb-withdrawal .wd-balance {
-          display:block;
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          gap:4px;
           margin:8px 0 0;
-          padding:0;
-          border:0;
-          border-radius:0;
-          background:transparent;
+          padding:6px 10px;
+          border:1px solid var(--green);
+          border-radius:999px;
+          background:var(--green);
           box-shadow:none;
-          color:var(--green);
-          font-size:28px;
-          font-weight:900;
+          color:var(--white);
+          font-size:13px;
+          font-weight:700;
           line-height:1.3;
-          overflow-wrap:anywhere;
           font-variant-numeric:tabular-nums;
+          white-space:nowrap;
+        }
+
+        .tsb-withdrawal .wd-balance-currency {
+          font-size:11px;
         }
 
         .tsb-withdrawal .wd-note {
@@ -805,7 +1024,10 @@ export default function WithdrawalPage({ user, onBack }) {
 
       <header className="wd-header">
         <div className="wd-header-inner">
-          <p className="wd-brand">TELUGU SPORTS BOOK</p>
+          <p className="wd-brand">
+            TELUGU SPORTS BOOK
+          </p>
+
           <h1>WITHDRAWAL</h1>
         </div>
       </header>
@@ -820,21 +1042,38 @@ export default function WithdrawalPage({ user, onBack }) {
         </button>
 
         <section className="wd-wallet">
-          <p className="wd-caption">AVAILABLE BALANCE</p>
-
-          <p className="wd-balance" aria-live="polite">
-            {balanceLoading
-              ? "Loading..."
-              : balanceError
-                ? "—"
-                : money(balance)}
+          <p className="wd-caption">
+            AVAILABLE BALANCE
           </p>
 
-          <p className="wd-note">DEMO COINS</p>
+          <p
+            className="wd-balance"
+            aria-live="polite"
+            aria-label="Available demo balance"
+          >
+            {balanceLoading ? (
+              "Loading..."
+            ) : balanceError ? (
+              "—"
+            ) : (
+              <>
+                <span className="wd-balance-currency">
+                  ₹
+                </span>
+
+                <span>
+                  {balanceAmount(balance)}
+                </span>
+              </>
+            )}
+          </p>
 
           {balanceError && (
             <div>
-              <p className="wd-error" role="alert">
+              <p
+                className="wd-error"
+                role="alert"
+              >
                 {balanceError}
               </p>
 
@@ -879,39 +1118,55 @@ export default function WithdrawalPage({ user, onBack }) {
               </h2>
 
               <p className="wd-note">
-                Enter your bank details and withdrawal password.
+                Enter your bank details and
+                withdrawal password.
               </p>
             </div>
 
-            <Field label="ACCOUNT HOLDER NAME" id="wd-holder">
+            <Field
+              label="ACCOUNT HOLDER NAME"
+              id="wd-holder"
+            >
               <input
                 id="wd-holder"
                 type="text"
                 placeholder="Enter account holder name"
                 value={form.holderName}
-                onChange={(event) =>
-                  updateForm("holderName", event.target.value)
+                onChange={event =>
+                  updateForm(
+                    "holderName",
+                    event.target.value,
+                  )
                 }
                 className="wd-input"
                 required
               />
             </Field>
 
-            <Field label="BANK NAME" id="wd-bank">
+            <Field
+              label="BANK NAME"
+              id="wd-bank"
+            >
               <input
                 id="wd-bank"
                 type="text"
                 placeholder="Enter bank name"
                 value={form.bankName}
-                onChange={(event) =>
-                  updateForm("bankName", event.target.value)
+                onChange={event =>
+                  updateForm(
+                    "bankName",
+                    event.target.value,
+                  )
                 }
                 className="wd-input"
                 required
               />
             </Field>
 
-            <Field label="ACCOUNT NUMBER" id="wd-account">
+            <Field
+              label="ACCOUNT NUMBER"
+              id="wd-account"
+            >
               <input
                 id="wd-account"
                 type="text"
@@ -919,10 +1174,13 @@ export default function WithdrawalPage({ user, onBack }) {
                 maxLength={18}
                 placeholder="Enter bank account number"
                 value={form.accountNumber}
-                onChange={(event) =>
+                onChange={event =>
                   updateForm(
                     "accountNumber",
-                    event.target.value.replace(/\D/g, "")
+                    event.target.value.replace(
+                      /\D/g,
+                      "",
+                    ),
                   )
                 }
                 className="wd-input"
@@ -940,11 +1198,16 @@ export default function WithdrawalPage({ user, onBack }) {
                 inputMode="numeric"
                 maxLength={18}
                 placeholder="Confirm bank account number"
-                value={form.confirmAccountNumber}
-                onChange={(event) =>
+                value={
+                  form.confirmAccountNumber
+                }
+                onChange={event =>
                   updateForm(
                     "confirmAccountNumber",
-                    event.target.value.replace(/\D/g, "")
+                    event.target.value.replace(
+                      /\D/g,
+                      "",
+                    ),
                   )
                 }
                 className="wd-input"
@@ -952,22 +1215,31 @@ export default function WithdrawalPage({ user, onBack }) {
               />
             </Field>
 
-            <Field label="IFSC CODE" id="wd-ifsc">
+            <Field
+              label="IFSC CODE"
+              id="wd-ifsc"
+            >
               <input
                 id="wd-ifsc"
                 type="text"
                 maxLength={11}
                 placeholder="Enter IFSC code"
                 value={form.ifsc}
-                onChange={(event) =>
-                  updateForm("ifsc", event.target.value.toUpperCase())
+                onChange={event =>
+                  updateForm(
+                    "ifsc",
+                    event.target.value.toUpperCase(),
+                  )
                 }
                 className="wd-input"
                 required
               />
             </Field>
 
-            <Field label="WITHDRAWAL PASSWORD" id="wd-password">
+            <Field
+              label="WITHDRAWAL PASSWORD"
+              id="wd-password"
+            >
               <input
                 id="wd-password"
                 type="password"
@@ -975,15 +1247,21 @@ export default function WithdrawalPage({ user, onBack }) {
                 minLength={6}
                 placeholder="Enter withdrawal password"
                 value={form.password}
-                onChange={(event) =>
-                  updateForm("password", event.target.value)
+                onChange={event =>
+                  updateForm(
+                    "password",
+                    event.target.value,
+                  )
                 }
                 className="wd-input"
                 required
               />
             </Field>
 
-            <button type="submit" className="wd-button wd-full">
+            <button
+              type="submit"
+              className="wd-button wd-full"
+            >
               SAVE ACCOUNT
             </button>
           </form>
@@ -992,16 +1270,23 @@ export default function WithdrawalPage({ user, onBack }) {
         <section className="wd-card">
           <ol className="wd-information">
             <li>
-              Demo withdrawal requests use available virtual balance only.
+              Demo withdrawal requests use
+              available virtual balance only.
             </li>
+
             <li>
-              Requests are recorded separately for each customer.
+              Requests are recorded separately
+              for each customer.
             </li>
+
             <li>
-              Minimum request amount: {money(MIN_WITHDRAWAL)}.
+              Minimum request amount:{" "}
+              {money(MIN_WITHDRAWAL)}.
             </li>
+
             <li>
-              Pending requests can be reviewed by the Admin.
+              Pending requests can be reviewed
+              by the Admin.
             </li>
           </ol>
         </section>
@@ -1010,9 +1295,14 @@ export default function WithdrawalPage({ user, onBack }) {
           <section className="wd-card">
             <div className="wd-account-heading">
               <div>
-                <p className="wd-caption">SAVED BANK ACCOUNT</p>
+                <p className="wd-caption">
+                  SAVED BANK ACCOUNT
+                </p>
+
                 <h2 className="wd-holder">
-                  {String(account.holderName || "").toUpperCase()}
+                  {String(
+                    account.holderName || "",
+                  ).toUpperCase()}
                 </h2>
               </div>
 
@@ -1026,21 +1316,37 @@ export default function WithdrawalPage({ user, onBack }) {
             </div>
 
             <div className="wd-account-details">
-              <AccountRow label="Bank" value={account.bankName} />
+              <AccountRow
+                label="Bank"
+                value={account.bankName}
+              />
+
               <AccountRow
                 label="Account No"
-                value={maskAccount(account.accountNumber)}
+                value={maskAccount(
+                  account.accountNumber,
+                )}
               />
-              <AccountRow label="IFSC Code" value={account.ifsc} />
+
+              <AccountRow
+                label="IFSC Code"
+                value={account.ifsc}
+              />
             </div>
 
             <form
               onSubmit={handleWithdraw}
               className="wd-form wd-withdraw-form"
             >
-              <Field label="ENTER AMOUNT" id="wd-amount">
+              <Field
+                label="ENTER AMOUNT"
+                id="wd-amount"
+              >
                 <div className="wd-amount-line">
-                  <span className="wd-amount-prefix" aria-hidden="true">
+                  <span
+                    className="wd-amount-prefix"
+                    aria-hidden="true"
+                  >
                     ₹
                   </span>
 
@@ -1052,7 +1358,11 @@ export default function WithdrawalPage({ user, onBack }) {
                     step="1"
                     placeholder="Enter amount"
                     value={amount}
-                    onChange={(event) => setAmount(event.target.value)}
+                    onChange={event =>
+                      setAmount(
+                        event.target.value,
+                      )
+                    }
                     className="wd-amount-input"
                     required
                   />
@@ -1060,16 +1370,25 @@ export default function WithdrawalPage({ user, onBack }) {
               </Field>
 
               <div className="wd-quick">
-                {[500, 1000, 2000, 5000].map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setAmount(String(value))}
-                    aria-pressed={Number(amount) === value}
-                  >
-                    {money(value)}
-                  </button>
-                ))}
+                {[500, 1000, 2000, 5000].map(
+                  value => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() =>
+                        setAmount(
+                          String(value),
+                        )
+                      }
+                      aria-pressed={
+                        Number(amount) ===
+                        value
+                      }
+                    >
+                      {money(value)}
+                    </button>
+                  ),
+                )}
               </div>
 
               <button
@@ -1081,7 +1400,9 @@ export default function WithdrawalPage({ user, onBack }) {
                 }
                 className="wd-button wd-wine wd-full"
               >
-                {submitting ? "SUBMITTING..." : "WITHDRAW"}
+                {submitting
+                  ? "SUBMITTING..."
+                  : "WITHDRAW"}
               </button>
             </form>
           </section>
@@ -1096,24 +1417,35 @@ export default function WithdrawalPage({ user, onBack }) {
         <section className="wd-card wd-history">
           <div className="wd-history-heading">
             <div>
-              <h2 className="wd-title">WITHDRAWAL HISTORY</h2>
+              <h2 className="wd-title">
+                WITHDRAWAL HISTORY
+              </h2>
+
               <p className="wd-history-caption">
-                Latest {HISTORY_LIMIT} requests · Times in IST
+                Latest {HISTORY_LIMIT} requests
+                {" "}· Times in IST
               </p>
             </div>
 
             <button
               type="button"
-              onClick={loadWithdrawalHistory}
+              onClick={
+                loadWithdrawalHistory
+              }
               disabled={historyLoading}
               className="wd-button"
             >
-              {historyLoading ? "LOADING..." : "REFRESH"}
+              {historyLoading
+                ? "LOADING..."
+                : "REFRESH"}
             </button>
           </div>
 
           {historyError && (
-            <p className="wd-error wd-history-error" role="alert">
+            <p
+              className="wd-error wd-history-error"
+              role="alert"
+            >
               {historyError}
             </p>
           )}
@@ -1122,17 +1454,31 @@ export default function WithdrawalPage({ user, onBack }) {
             <table>
               <thead>
                 <tr>
-                  <th scope="col">AMOUNT</th>
-                  <th scope="col">STATUS</th>
-                  <th scope="col">ACCOUNT</th>
-                  <th scope="col">DATE</th>
+                  <th scope="col">
+                    AMOUNT
+                  </th>
+
+                  <th scope="col">
+                    STATUS
+                  </th>
+
+                  <th scope="col">
+                    ACCOUNT
+                  </th>
+
+                  <th scope="col">
+                    DATE
+                  </th>
                 </tr>
               </thead>
 
               <tbody>
                 {history.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="wd-table-empty">
+                    <td
+                      colSpan={4}
+                      className="wd-table-empty"
+                    >
                       {historyLoading
                         ? "Loading withdrawal history..."
                         : historyError
@@ -1141,51 +1487,73 @@ export default function WithdrawalPage({ user, onBack }) {
                     </td>
                   </tr>
                 ) : (
-                  history.map((transaction) => {
-                    const status = String(
-                      transaction.status || "PENDING"
-                    ).toUpperCase();
+                  history.map(
+                    transaction => {
+                      const status = String(
+                        transaction.status ||
+                          "PENDING",
+                      ).toUpperCase();
 
-                    const success = ["APPROVED", "SUCCESS"].includes(status);
-                    const rejected = ["REJECTED", "REJECT"].includes(status);
+                      const success = [
+                        "APPROVED",
+                        "SUCCESS",
+                      ].includes(status);
 
-                    const last4 = String(
-                      transaction.accountNumber ??
-                        transaction.account_number ??
-                        ""
-                    ).slice(-4);
+                      const rejected = [
+                        "REJECTED",
+                        "REJECT",
+                      ].includes(status);
 
-                    return (
-                      <tr key={transaction.id}>
-                        <td>
-                          <strong>{money(transaction.amount)}</strong>
-                        </td>
+                      const last4 = String(
+                        transaction.accountNumber ??
+                          transaction.account_number ??
+                          "",
+                      ).slice(-4);
 
-                        <td>
-                          <span
-                            className={`wd-status${
-                              success
-                                ? " wd-status-success"
-                                : rejected
-                                  ? " wd-status-rejected"
-                                  : ""
-                            }`}
-                          >
-                            {status}
-                          </span>
-                        </td>
+                      return (
+                        <tr
+                          key={
+                            transaction.id
+                          }
+                        >
+                          <td>
+                            <strong>
+                              {money(
+                                transaction.amount,
+                              )}
+                            </strong>
+                          </td>
 
-                        <td>{last4 ? `XXXX-${last4}` : "—"}</td>
+                          <td>
+                            <span
+                              className={`wd-status${
+                                success
+                                  ? " wd-status-success"
+                                  : rejected
+                                    ? " wd-status-rejected"
+                                    : ""
+                              }`}
+                            >
+                              {status}
+                            </span>
+                          </td>
 
-                        <td>
-                          {formatDate(
-                            transaction.createdAt ??
-                              transaction.created_at
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
+                          <td>
+                            {last4
+                              ? `XXXX-${last4}`
+                              : "—"}
+                          </td>
+
+                          <td>
+                            {formatDate(
+                              transaction.createdAt ??
+                                transaction.created_at,
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    },
+                  )
                 )}
               </tbody>
             </table>
@@ -1196,22 +1564,36 @@ export default function WithdrawalPage({ user, onBack }) {
   );
 }
 
-function Field({ label, id, children }) {
+function Field({
+  label,
+  id,
+  children,
+}) {
   return (
     <div>
-      <label htmlFor={id} className="wd-label">
+      <label
+        htmlFor={id}
+        className="wd-label"
+      >
         {label}
       </label>
+
       {children}
     </div>
   );
 }
 
-function AccountRow({ label, value }) {
+function AccountRow({
+  label,
+  value,
+}) {
   return (
     <div className="wd-account-row">
       <span>{label}</span>
-      <span className="wd-account-value">{value || "—"}</span>
+
+      <span className="wd-account-value">
+        {value || "—"}
+      </span>
     </div>
   );
 }
