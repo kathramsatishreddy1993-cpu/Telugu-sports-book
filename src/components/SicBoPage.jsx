@@ -233,7 +233,6 @@ export default function SicBoPage({
   return customerId ? (
     <SicBoGame
       key={storageKey}
-      user={user}
       onBack={onBack}
       onLogout={onLogout}
       storageKey={storageKey}
@@ -243,6 +242,7 @@ export default function SicBoPage({
       Customer login required.
 
       <button
+        type="button"
         onClick={onBack}
         className="ml-4 underline"
       >
@@ -253,7 +253,6 @@ export default function SicBoPage({
 }
 
 function SicBoGame({
-  user,
   onBack,
   onLogout,
   storageKey,
@@ -319,9 +318,9 @@ function SicBoGame({
 
   const open = Boolean(
     rules &&
-    round?.phase === "BETTING" &&
-    seconds > 0 &&
-    !stale,
+      round?.phase === "BETTING" &&
+      seconds > 0 &&
+      !stale,
   );
 
   const locked =
@@ -343,6 +342,11 @@ function SicBoGame({
     (sum, bet) => sum + Number(bet.payout || 0),
     0,
   );
+
+  const balanceAvailable =
+    state?.balance !== null &&
+    state?.balance !== undefined &&
+    Number.isFinite(Number(state.balance));
 
   const bell = () => {
     if (!soundRef.current || !audio.current) return;
@@ -834,9 +838,35 @@ function SicBoGame({
           border-bottom:1px solid #ffffff20;
         }
 
-        .sb-header h1{font-size:18px;margin:0}
-        .sb-header small{display:block;margin-top:5px;font-size:10px;color:#ead69b}
-        .sb-wallet{margin-left:auto;text-align:right;font-weight:bold}
+        .sb-header h1 {
+          font-size:18px;
+          margin:0;
+        }
+
+        .sb-wallet {
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          flex-shrink:0;
+          gap:4px;
+          margin:0 0 0 auto;
+          padding:6px 10px;
+          border:1px solid rgba(103,232,249,.2);
+          border-radius:999px;
+          background:rgba(40,78,87,.85);
+          box-shadow:none;
+          color:#ffffff;
+          font-size:13px;
+          font-weight:700;
+          line-height:1.3;
+          font-variant-numeric:tabular-nums;
+          white-space:nowrap;
+        }
+
+        .sb-wallet-currency {
+          font-size:11px;
+        }
+
         .sb-wrap{max-width:900px;margin:auto;padding:12px}
 
         .sb-tabs,.sb-row {
@@ -1104,15 +1134,40 @@ function SicBoGame({
 
         <div>
           <h1>EXTRA SIC BO</h1>
-          <small>ANIMATED DEMO · DEMO COINS ONLY</small>
         </div>
 
-        <div className="sb-wallet">
-          {state ? number(state.balance) : "…"}
-          <small>
-            {user?.name || user?.loginId || "Customer"}
-          </small>
-        </div>
+        <p
+          className="sb-wallet"
+          aria-live="polite"
+          aria-label="Demo wallet balance"
+          title={
+            balanceAvailable && stale
+              ? "Last received balance"
+              : "Demo wallet balance"
+          }
+        >
+          {balanceAvailable ? (
+            <>
+              <span className="sb-wallet-currency">
+                ₹
+              </span>
+
+              <span>
+                {Number(state.balance).toLocaleString(
+                  "en-IN",
+                  {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  },
+                )}
+              </span>
+            </>
+          ) : state || error ? (
+            "—"
+          ) : (
+            "Loading…"
+          )}
+        </p>
       </header>
 
       <main className="sb-wrap">
