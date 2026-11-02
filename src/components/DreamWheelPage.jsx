@@ -5,15 +5,7 @@ import React, {
 } from "react";
 
 const CHIPS = [10, 20, 50, 100, 500];
-
-const NUMBERS = [
-  "1",
-  "2",
-  "5",
-  "10",
-  "20",
-  "40",
-];
+const NUMBERS = ["1", "2", "5", "10", "20", "40"];
 
 const COLORS = {
   "1": "#37b8d5",
@@ -26,8 +18,7 @@ const COLORS = {
   "7x": "#b994ed",
 };
 
-const VIDEO =
-  "/games/dream-wheel-host.mp4";
+const VIDEO = "/games/dream-wheel-host.mp4";
 
 /*
  * Coordinates for the supplied, trimmed
@@ -55,24 +46,19 @@ function money(value) {
     return "—";
   }
 
-  return `₹${Number(value).toLocaleString(
-    "en-IN",
-    {
-      maximumFractionDigits: 2,
-    },
-  )}`;
+  return `₹${Number(value).toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 function readPending(key) {
   try {
     const value = JSON.parse(
-      sessionStorage.getItem(key) ||
-        "null",
+      sessionStorage.getItem(key) || "null",
     );
 
     return value?.game === "dream-wheel" &&
-      typeof value.body?.requestKey ===
-        "string"
+      typeof value.body?.requestKey === "string"
       ? value.body
       : null;
   } catch {
@@ -89,21 +75,16 @@ function clearPending(key) {
 }
 
 async function api(path, body, signal) {
-  const controller =
-    new AbortController();
+  const controller = new AbortController();
 
   const timeout = setTimeout(
     () => controller.abort(),
     15000,
   );
 
-  const abort = () =>
-    controller.abort();
+  const abort = () => controller.abort();
 
-  signal?.addEventListener(
-    "abort",
-    abort,
-  );
+  signal?.addEventListener("abort", abort);
 
   try {
     const response = await fetch(
@@ -112,13 +93,11 @@ async function api(path, body, signal) {
         credentials: "same-origin",
         cache: "no-store",
         signal: controller.signal,
-
         ...(body
           ? {
               method: "POST",
               headers: {
-                "Content-Type":
-                  "application/json",
+                "Content-Type": "application/json",
               },
               body: JSON.stringify(body),
             }
@@ -127,7 +106,6 @@ async function api(path, body, signal) {
     );
 
     const text = await response.text();
-
     let data;
 
     try {
@@ -138,49 +116,33 @@ async function api(path, body, signal) {
       );
     }
 
-    if (
-      !response.ok ||
-      data.success === false
-    ) {
+    if (!response.ok || data.success === false) {
       throw Object.assign(
         new Error(
           data.error ||
             data.message ||
             "Request failed.",
         ),
-        {
-          status: response.status,
-        },
+        { status: response.status },
       );
     }
 
     return data;
   } finally {
     clearTimeout(timeout);
-
-    signal?.removeEventListener(
-      "abort",
-      abort,
-    );
+    signal?.removeEventListener("abort", abort);
   }
 }
 
-function WheelFace({
-  segments,
-  rotation,
-}) {
-  const width =
-    360 / segments.length;
+function WheelFace({ segments, rotation }) {
+  const width = 360 / segments.length;
 
   const point = angle => {
-    const radians =
-      angle * Math.PI / 180;
+    const radians = angle * Math.PI / 180;
 
     return [
-      200 +
-        191 * Math.cos(radians),
-      200 +
-        191 * Math.sin(radians),
+      200 + 191 * Math.cos(radians),
+      200 + 191 * Math.sin(radians),
     ].join(",");
   };
 
@@ -190,8 +152,7 @@ function WheelFace({
       className="dw-face"
       style={{
         ...WHEEL_POSITION,
-        transform:
-          `rotate(${rotation}deg)`,
+        transform: `rotate(${rotation}deg)`,
       }}
       role="img"
       aria-label="Server-controlled Dream Wheel"
@@ -205,67 +166,44 @@ function WheelFace({
         strokeWidth="4"
       />
 
-      {segments.map(
-        (value, index) => {
-          const start =
-            index * width - 90;
+      {segments.map((value, index) => {
+        const start = index * width - 90;
+        const end = start + width;
+        const middle =
+          (start + width / 2) * Math.PI / 180;
 
-          const end =
-            start + width;
+        const x = 200 + 157 * Math.cos(middle);
+        const y = 200 + 157 * Math.sin(middle);
 
-          const middle =
-            (
-              start +
-              width / 2
-            ) * Math.PI / 180;
+        return (
+          <g key={index}>
+            <path
+              d={
+                `M200,200 L${point(start)} ` +
+                `A191,191 0 ${width > 180 ? 1 : 0} ` +
+                `1 ${point(end)} Z`
+              }
+              fill={COLORS[value] || "#d3ba76"}
+              stroke="#294551"
+              strokeWidth="1"
+            />
 
-          const x =
-            200 +
-            157 * Math.cos(middle);
-
-          const y =
-            200 +
-            157 * Math.sin(middle);
-
-          return (
-            <g key={index}>
-              <path
-                d={
-                  `M200,200 ` +
-                  `L${point(start)} ` +
-                  `A191,191 0 ` +
-                  `${width > 180 ? 1 : 0} ` +
-                  `1 ${point(end)} Z`
-                }
-                fill={
-                  COLORS[value] ||
-                  "#d3ba76"
-                }
-                stroke="#294551"
-                strokeWidth="1"
-              />
-
-              <text
-                x={x}
-                y={y}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize="11"
-                fontWeight="900"
-                transform={
-                  `rotate(` +
-                  `${
-                    index * width +
-                    width / 2
-                  },${x},${y})`
-                }
-              >
-                {value}
-              </text>
-            </g>
-          );
-        },
-      )}
+            <text
+              x={x}
+              y={y}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontSize="11"
+              fontWeight="900"
+              transform={
+                `rotate(${index * width + width / 2},${x},${y})`
+              }
+            >
+              {value}
+            </text>
+          </g>
+        );
+      })}
 
       <circle
         cx="200"
@@ -331,17 +269,10 @@ function VideoStudio({
   const audio = useRef(null);
   const sector = useRef(null);
 
-  const [rotation, setRotation] =
-    useState(0);
-
-  const [ready, setReady] =
-    useState(false);
-
-  const [failure, setFailure] =
-    useState("");
-
-  const [blocked, setBlocked] =
-    useState(false);
+  const [rotation, setRotation] = useState(0);
+  const [ready, setReady] = useState(false);
+  const [failure, setFailure] = useState("");
+  const [blocked, setBlocked] = useState(false);
 
   latest.current = {
     round,
@@ -356,20 +287,13 @@ function VideoStudio({
 
     try {
       const AudioContext =
-        window.AudioContext ||
-        window.webkitAudioContext;
+        window.AudioContext || window.webkitAudioContext;
 
-      if (
-        AudioContext &&
-        !audio.current
-      ) {
-        audio.current =
-          new AudioContext();
+      if (AudioContext && !audio.current) {
+        audio.current = new AudioContext();
       }
 
-      audio.current
-        ?.resume()
-        .catch(() => {});
+      audio.current?.resume().catch(() => {});
     } catch {
       // Audio is optional.
     }
@@ -382,10 +306,7 @@ function VideoStudio({
     let playRequested = false;
 
     function playOnce(element) {
-      if (
-        playRequested ||
-        !element.paused
-      ) {
+      if (playRequested || !element.paused) {
         return;
       }
 
@@ -393,14 +314,10 @@ function VideoStudio({
 
       element.play()
         .then(() => {
-          if (!disposed) {
-            setBlocked(false);
-          }
+          if (!disposed) setBlocked(false);
         })
         .catch(() => {
-          if (!disposed) {
-            setBlocked(true);
-          }
+          if (!disposed) setBlocked(true);
         })
         .finally(() => {
           playRequested = false;
@@ -408,51 +325,29 @@ function VideoStudio({
     }
 
     function tick(timestamp) {
-      const current =
-        latest.current;
-
-      const spin =
-        current.round?.activeSpin;
-
-      const element =
-        video.current;
-
-      const time =
-        Date.now() +
-        current.offset;
-
-      const index =
-        Number(spin?.segment);
+      const current = latest.current;
+      const spin = current.round?.activeSpin;
+      const element = video.current;
+      const time = Date.now() + current.offset;
+      const index = Number(spin?.segment);
 
       const valid = Boolean(
         spin &&
-        Number.isInteger(index) &&
-        index >= 0 &&
-        index <
-          current.segments.length &&
-        current.segments[index] ===
-          spin.value,
+          Number.isInteger(index) &&
+          index >= 0 &&
+          index < current.segments.length &&
+          current.segments[index] === spin.value,
       );
 
       if (valid) {
         const key =
           `${current.round.id}:` +
-          (
-            spin.key ??
-            `${spin.startsAt}:${index}`
-          );
+          (spin.key ?? `${spin.startsAt}:${index}`);
 
-        if (
-          motion.current?.key !== key
-        ) {
-          const start =
-            Date.parse(spin.startsAt);
-
-          const stop =
-            Date.parse(spin.stopsAt);
-
-          const duration =
-            stop - start;
+        if (motion.current?.key !== key) {
+          const start = Date.parse(spin.startsAt);
+          const stop = Date.parse(spin.stopsAt);
+          const duration = stop - start;
 
           if (
             Number.isFinite(start) &&
@@ -461,41 +356,27 @@ function VideoStudio({
             const desired =
               (
                 360 -
-                (
-                  index + 0.5
-                ) *
-                  360 /
-                  current.segments.length +
+                (index + 0.5) *
+                  360 / current.segments.length +
                 360
               ) % 360;
 
             const currentAngle =
-              (
-                angle.current % 360 +
-                360
-              ) % 360;
+              (angle.current % 360 + 360) % 360;
 
             motion.current = {
               key,
               base: angle.current,
-
               end:
                 angle.current +
                 1800 +
-                (
-                  desired -
-                  currentAngle +
-                  360
-                ) % 360,
-
+                (desired - currentAngle + 360) % 360,
               start,
               stop,
-
               release:
                 start +
                 Math.min(
-                  RELEASE_SECONDS *
-                    1000,
+                  RELEASE_SECONDS * 1000,
                   duration * 0.25,
                 ),
             };
@@ -514,42 +395,23 @@ function VideoStudio({
           }
         }
 
-        const movement =
-          motion.current;
+        const movement = motion.current;
 
         if (movement) {
           const progress = clamp(
-            (
-              time -
-              movement.release
-            ) /
-            (
-              movement.stop -
-              movement.release
-            ),
+            (time - movement.release) /
+              (movement.stop - movement.release),
             0,
             1,
           );
 
           angle.current =
             movement.base +
-            (
-              movement.end -
-              movement.base
-            ) *
-              (
-                1 -
-                Math.pow(
-                  1 - progress,
-                  3,
-                )
-              );
+            (movement.end - movement.base) *
+              (1 - Math.pow(1 - progress, 3));
 
           const elapsed =
-            (
-              time -
-              movement.start
-            ) / 1000;
+            (time - movement.start) / 1000;
 
           const targetTime = clamp(
             elapsed,
@@ -557,22 +419,17 @@ function VideoStudio({
             VIDEO_SECONDS - 0.08,
           );
 
-          if (
-            element &&
-            element.readyState >= 2
-          ) {
+          if (element && element.readyState >= 2) {
             if (document.hidden) {
               element.pause();
             } else {
               if (
                 Math.abs(
-                  element.currentTime -
-                  targetTime,
+                  element.currentTime - targetTime,
                 ) > 0.3
               ) {
                 try {
-                  element.currentTime =
-                    targetTime;
+                  element.currentTime = targetTime;
                 } catch {
                   // Retry after metadata loads.
                 }
@@ -580,8 +437,7 @@ function VideoStudio({
 
               if (
                 elapsed >= 0 &&
-                elapsed <
-                  VIDEO_SECONDS - 0.08
+                elapsed < VIDEO_SECONDS - 0.08
               ) {
                 playOnce(element);
               } else {
@@ -590,84 +446,60 @@ function VideoStudio({
             }
           }
 
-          const nextSector =
-            Math.floor(
-              angle.current /
-              (
-                360 /
-                current.segments.length
-              ),
-            );
+          const nextSector = Math.floor(
+            angle.current /
+              (360 / current.segments.length),
+          );
 
-          const context =
-            audio.current;
+          const context = audio.current;
 
           if (
-            time >=
-              movement.release &&
+            time >= movement.release &&
             time < movement.stop &&
             soundRef.current &&
-            context?.state ===
-              "running" &&
+            context?.state === "running" &&
             !document.hidden &&
-            sector.current !==
-              nextSector
+            sector.current !== nextSector
           ) {
             const oscillator =
               context.createOscillator();
 
-            const gain =
-              context.createGain();
+            const gain = context.createGain();
 
-            oscillator.frequency.value =
-              1500;
+            oscillator.frequency.value = 1500;
 
             gain.gain.setValueAtTime(
               0.04,
               context.currentTime,
             );
 
-            gain.gain
-              .exponentialRampToValueAtTime(
-                0.0001,
-                context.currentTime +
-                  0.02,
-              );
+            gain.gain.exponentialRampToValueAtTime(
+              0.0001,
+              context.currentTime + 0.02,
+            );
 
             oscillator.connect(gain);
-            gain.connect(
-              context.destination,
-            );
+            gain.connect(context.destination);
 
-            oscillator.onended =
-              () => {
-                oscillator.disconnect();
-                gain.disconnect();
-              };
+            oscillator.onended = () => {
+              oscillator.disconnect();
+              gain.disconnect();
+            };
 
             oscillator.start();
-
-            oscillator.stop(
-              context.currentTime +
-                0.025,
-            );
+            oscillator.stop(context.currentTime + 0.025);
           }
 
-          sector.current =
-            nextSector;
+          sector.current = nextSector;
         }
       } else if (element) {
         element.pause();
 
         if (
-          current.round?.phase ===
-            "BETTING" ||
-          current.round?.phase ===
-            "WAITING"
+          current.round?.phase === "BETTING" ||
+          current.round?.phase === "WAITING"
         ) {
-          if (
-            element.currentTime > 0.1
-          ) {
+          if (element.currentTime > 0.1) {
             try {
               element.currentTime = 0;
             } catch {
@@ -677,34 +509,21 @@ function VideoStudio({
         }
       }
 
-      if (
-        timestamp - lastPaint > 30
-      ) {
-        setRotation(
-          angle.current,
-        );
-
+      if (timestamp - lastPaint > 30) {
+        setRotation(angle.current);
         lastPaint = timestamp;
       }
 
-      frame =
-        requestAnimationFrame(tick);
+      frame = requestAnimationFrame(tick);
     }
 
-    frame =
-      requestAnimationFrame(tick);
+    frame = requestAnimationFrame(tick);
 
     return () => {
       disposed = true;
-
       cancelAnimationFrame(frame);
-
       video.current?.pause();
-
-      audio.current
-        ?.close()
-        .catch(() => {});
-
+      audio.current?.close().catch(() => {});
       audio.current = null;
     };
   }, []);
@@ -721,9 +540,7 @@ function VideoStudio({
           muted
           playsInline
           preload="auto"
-          onLoadedData={() =>
-            setReady(true)
-          }
+          onLoadedData={() => setReady(true)}
           onError={() =>
             setFailure(
               "Upload dream-wheel-host.mp4 into public/games.",
@@ -731,27 +548,25 @@ function VideoStudio({
           }
         />
 
-        {ready &&
-          segments.length > 0 && (
-            <>
-              <WheelFace
-                segments={segments}
-                rotation={rotation}
-              />
+        {ready && segments.length > 0 && (
+          <>
+            <WheelFace
+              segments={segments}
+              rotation={rotation}
+            />
 
-              <span
-                className="dw-pointer"
-                aria-hidden="true"
-              >
-                ▼
-              </span>
-            </>
-          )}
+            <span
+              className="dw-pointer"
+              aria-hidden="true"
+            >
+              ▼
+            </span>
+          </>
+        )}
 
         {!ready && (
           <div className="dw-video-message">
-            {failure ||
-              "Loading video studio…"}
+            {failure || "Loading video studio…"}
           </div>
         )}
 
@@ -760,11 +575,8 @@ function VideoStudio({
             type="button"
             className="dw-play"
             onClick={() => {
-              video.current
-                ?.play()
-                .then(() =>
-                  setBlocked(false),
-                )
+              video.current?.play()
+                .then(() => setBlocked(false))
                 .catch(() => {});
             }}
           >
@@ -774,8 +586,7 @@ function VideoStudio({
       </section>
 
       <p className="dw-hint">
-        AI-generated video with a
-        server-controlled wheel ·
+        AI-generated video with a server-controlled wheel ·
         Virtual demo
       </p>
     </>
@@ -784,26 +595,18 @@ function VideoStudio({
 
 export default function DreamWheelPage({
   user,
-
-  onBack = () =>
-    window.location.assign("/"),
-
+  onBack = () => window.location.assign("/"),
   onLogout,
 }) {
   const customerId =
-    user?.id ??
-    user?.customerId ??
-    user?.customer_id;
+    user?.id ?? user?.customerId ?? user?.customer_id;
 
   if (!customerId) {
     return (
       <main className="dw-login-required">
         Customer login required.
 
-        <button
-          type="button"
-          onClick={onBack}
-        >
+        <button type="button" onClick={onBack}>
           Back
         </button>
       </main>
@@ -813,68 +616,36 @@ export default function DreamWheelPage({
   return (
     <DreamGame
       key={String(customerId)}
-      user={user}
       onBack={onBack}
       onLogout={onLogout}
-      storageKey={
-        `tsb_dream_pending_v1:` +
-        customerId
-      }
+      storageKey={`tsb_dream_pending_v1:${customerId}`}
     />
   );
 }
 
 function DreamGame({
-  user,
   onBack,
   onLogout,
   storageKey,
 }) {
-  const [rules, setRules] =
-    useState(null);
+  const [rules, setRules] = useState(null);
+  const [state, setState] = useState(null);
+  const [now, setNow] = useState(Date.now());
+  const [lastSync, setLastSync] = useState(0);
+  const [draft, setDraft] = useState({});
+  const [chip, setChip] = useState(10);
+  const [tab, setTab] = useState("game");
+  const [history, setHistory] = useState([]);
 
-  const [state, setState] =
-    useState(null);
+  const [pending, setPending] = useState(
+    () => readPending(storageKey),
+  );
 
-  const [now, setNow] =
-    useState(Date.now());
-
-  const [lastSync, setLastSync] =
-    useState(0);
-
-  const [draft, setDraft] =
-    useState({});
-
-  const [chip, setChip] =
-    useState(10);
-
-  const [tab, setTab] =
-    useState("game");
-
-  const [history, setHistory] =
-    useState([]);
-
-  const [pending, setPending] =
-    useState(() =>
-      readPending(storageKey),
-    );
-
-  const [busy, setBusy] =
-    useState(false);
-
-  const [sound, setSound] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
-
-  const [notice, setNotice] =
-    useState("");
-
-  const [
-    verification,
-    setVerification,
-  ] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sound, setSound] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [verification, setVerification] = useState("");
 
   const active = useRef(false);
   const posting = useRef(false);
@@ -889,143 +660,103 @@ function DreamGame({
   const round = state?.round;
 
   const stale =
-    !lastSync ||
-    Date.now() - lastSync > 5000;
+    !lastSync || Date.now() - lastSync > 5000;
 
   const endTime = Date.parse(
     round?.phase === "WAITING"
       ? round.opensAt
       : round?.phase === "BETTING"
         ? round.closesAt
-        : round?.phase ===
-            "SPINNING"
+        : round?.phase === "SPINNING"
           ? round.spinEndsAt
           : round?.endsAt,
   );
 
   const seconds = Math.max(
     0,
-    Math.ceil(
-      (endTime - now) / 1000,
-    ) || 0,
+    Math.ceil((endTime - now) / 1000) || 0,
   );
 
   const open = Boolean(
     rules &&
-    round?.phase === "BETTING" &&
-    now <
-      Date.parse(round.closesAt) &&
-    !stale,
+      round?.phase === "BETTING" &&
+      now < Date.parse(round.closesAt) &&
+      !stale,
   );
 
   const locked =
-    !open ||
-    busy ||
-    Boolean(pending);
+    !open || busy || Boolean(pending);
 
-  const bets =
-    state?.bets || [];
+  const bets = state?.bets || [];
 
-  const total = Object.values(
-    draft,
-  ).reduce(
-    (sum, value) =>
-      sum + Number(value),
+  const total = Object.values(draft).reduce(
+    (sum, value) => sum + Number(value),
     0,
   );
 
   const committed = bets.reduce(
-    (sum, bet) =>
-      sum + Number(bet.stake),
+    (sum, bet) => sum + Number(bet.stake),
     0,
   );
 
   const credited = bets.reduce(
-    (sum, bet) =>
-      sum +
-      Number(bet.payout || 0),
+    (sum, bet) => sum + Number(bet.payout || 0),
     0,
   );
 
-  const segments =
-    rules?.segments || [];
-
-  const shownSpin =
-    round?.revealedSpins?.at(-1);
+  const segments = rules?.segments || [];
+  const shownSpin = round?.revealedSpins?.at(-1);
 
   const result =
-    [
-      "RESULT",
-      "FINISHED",
-    ].includes(round?.phase)
+    ["RESULT", "FINISHED"].includes(round?.phase)
       ? round.result
       : null;
 
   const finalLanded = Boolean(
-    result &&
-    shownSpin?.value ===
-      result.winner,
+    result && shownSpin?.value === result.winner,
   );
 
+  const balanceAvailable =
+    state?.balance !== null &&
+    state?.balance !== undefined &&
+    Number.isFinite(Number(state.balance));
+
   async function refresh() {
-    if (
-      polling.current ||
-      posting.current
-    ) {
+    if (polling.current || posting.current) {
       return;
     }
 
     polling.current = true;
 
-    const version =
-      revision.current;
-
+    const version = revision.current;
     const started = Date.now();
 
     try {
-      const data =
-        await api("/state");
+      const data = await api("/state");
 
       if (
         !active.current ||
-        version !==
-          revision.current
+        version !== revision.current
       ) {
         return;
       }
 
       const finished = Date.now();
+      const serverTime = Date.parse(data.serverTime);
 
-      const serverTime =
-        Date.parse(data.serverTime);
-
-      if (
-        !Number.isFinite(
-          serverTime,
-        )
-      ) {
-        throw new Error(
-          "Invalid server time.",
-        );
+      if (!Number.isFinite(serverTime)) {
+        throw new Error("Invalid server time.");
       }
 
       offset.current =
-        serverTime -
-        (
-          started + finished
-        ) / 2;
+        serverTime - (started + finished) / 2;
 
-      setNow(
-        finished +
-        offset.current,
-      );
-
+      setNow(finished + offset.current);
       setLastSync(finished);
 
       if (
         roundId.current !== null &&
-        String(roundId.current) !==
-          String(data.round?.id)
+        String(roundId.current) !== String(data.round?.id)
       ) {
         setDraft({});
         setVerification("");
@@ -1035,35 +766,27 @@ function DreamGame({
         );
       }
 
-      roundId.current =
-        data.round?.id ?? null;
-
+      roundId.current = data.round?.id ?? null;
       setState(data);
 
       if (
-        data.round?.phase ===
-          "RESULT" &&
-        eventRound.current !==
-          String(data.round.id)
+        data.round?.phase === "RESULT" &&
+        eventRound.current !== String(data.round.id)
       ) {
-        eventRound.current =
-          String(data.round.id);
+        eventRound.current = String(data.round.id);
 
         window.dispatchEvent(
-          new Event(
-            "demo-balance-updated",
-          ),
+          new Event("demo-balance-updated"),
         );
       }
     } catch (requestError) {
       if (
         active.current &&
-        version ===
-          revision.current
+        version === revision.current
       ) {
         setError(
           requestError.message ||
-          "Unable to update round.",
+            "Unable to update round.",
         );
       }
     } finally {
@@ -1076,83 +799,54 @@ function DreamGame({
   useEffect(() => {
     active.current = true;
 
-    const controller =
-      new AbortController();
+    const controller = new AbortController();
 
-    api(
-      "/rules",
-      null,
-      controller.signal,
-    )
+    api("/rules", null, controller.signal)
       .then(data => {
-        if (active.current) {
-          setRules(data);
-        }
+        if (active.current) setRules(data);
       })
       .catch(requestError => {
         if (active.current) {
-          setError(
-            requestError.message,
-          );
+          setError(requestError.message);
         }
       });
 
     void refreshRef.current();
 
     const pollTimer = setInterval(
-      () =>
-        void refreshRef.current(),
+      () => void refreshRef.current(),
       1000,
     );
 
-    const clockTimer = setInterval(
-      () => {
-        setNow(
-          Date.now() +
-          offset.current,
-        );
-      },
-      100,
-    );
+    const clockTimer = setInterval(() => {
+      setNow(Date.now() + offset.current);
+    }, 100);
 
     const focused = () =>
       void refreshRef.current();
 
-    window.addEventListener(
-      "focus",
-      focused,
-    );
+    window.addEventListener("focus", focused);
 
     return () => {
       active.current = false;
-
       controller.abort();
-
       clearInterval(pollTimer);
       clearInterval(clockTimer);
 
-      window.removeEventListener(
-        "focus",
-        focused,
-      );
+      window.removeEventListener("focus", focused);
     };
   }, []);
 
   async function loadHistory() {
     try {
-      const data =
-        await api("/history");
+      const data = await api("/history");
 
       if (active.current) {
-        setHistory(
-          data.bets || [],
-        );
+        setHistory(data.bets || []);
       }
     } catch (requestError) {
       if (active.current) {
-        setError(
-          requestError.message,
-        );
+        setError(requestError.message);
       }
     }
   }
@@ -1162,18 +856,12 @@ function DreamGame({
 
     setDraft(current => {
       const nextTotal =
-        Object.values(current)
-          .reduce(
-            (sum, value) =>
-              sum + Number(value),
-            0,
-          ) + chip;
+        Object.values(current).reduce(
+          (sum, value) => sum + Number(value),
+          0,
+        ) + chip;
 
-      if (
-        nextTotal +
-          committed >
-        25000
-      ) {
+      if (nextTotal + committed > 25000) {
         setError(
           "Maximum total stake per round is ₹25,000.",
         );
@@ -1183,11 +871,7 @@ function DreamGame({
 
       return {
         ...current,
-
-        [area]:
-          (
-            current[area] || 0
-          ) + chip,
+        [area]: (current[area] || 0) + chip,
       };
     });
   }
@@ -1195,87 +879,54 @@ function DreamGame({
   async function submit() {
     if (posting.current) return;
 
-    let body =
-      pendingRef.current;
+    let body = pendingRef.current;
 
     if (!body) {
-      if (
-        !open ||
-        total < 10
-      ) {
-        return;
-      }
+      if (!open || total < 10) return;
 
-      if (
-        total + committed >
-        25000
-      ) {
+      if (total + committed > 25000) {
         setError(
           "Maximum total stake per round is ₹25,000.",
         );
-
         return;
       }
 
       if (
         state?.balance == null ||
-        !Number.isFinite(
-          Number(state.balance),
-        )
+        !Number.isFinite(Number(state.balance))
       ) {
-        setError(
-          "Wallet balance unavailable.",
-        );
-
+        setError("Wallet balance unavailable.");
         return;
       }
 
-      if (
-        total >
-        Number(state.balance)
-      ) {
+      if (total > Number(state.balance)) {
         setError("LOW BALANCE");
         return;
       }
 
       try {
-        const bytes =
-          crypto.getRandomValues(
-            new Uint8Array(20),
-          );
+        const bytes = crypto.getRandomValues(
+          new Uint8Array(20),
+        );
 
         body = {
-          requestKey:
-            Array.from(
-              bytes,
-              value =>
-                value
-                  .toString(16)
-                  .padStart(
-                    2,
-                    "0",
-                  ),
-            ).join(""),
+          requestKey: Array.from(
+            bytes,
+            value => value.toString(16).padStart(2, "0"),
+          ).join(""),
 
-          roundId:
-            String(round.id),
+          roundId: String(round.id),
 
-          bets:
-            Object.entries(draft)
-              .map(
-                ([
-                  area,
-                  amount,
-                ]) => ({
-                  area,
-                  amount,
-                }),
-              ),
+          bets: Object.entries(draft).map(
+            ([area, amount]) => ({
+              area,
+              amount,
+            }),
+          ),
         };
 
         sessionStorage.setItem(
           storageKey,
-
           JSON.stringify({
             game: "dream-wheel",
             body,
@@ -1285,13 +936,10 @@ function DreamGame({
         setError(
           "Secure browser storage is required to recover interrupted bets.",
         );
-
         return;
       }
 
-      pendingRef.current =
-        body;
-
+      pendingRef.current = body;
       setPending(body);
     }
 
@@ -1303,13 +951,10 @@ function DreamGame({
     setNotice("");
 
     try {
-      const data =
-        await api("/bets", body);
+      const data = await api("/bets", body);
 
       clearPending(storageKey);
-
-      pendingRef.current =
-        null;
+      pendingRef.current = null;
 
       if (!active.current) return;
 
@@ -1317,41 +962,24 @@ function DreamGame({
       setDraft({});
 
       setState(current => {
-        if (!current) {
-          return current;
-        }
+        if (!current) return current;
 
-        const currentBets =
-          current.bets || [];
+        const currentBets = current.bets || [];
 
         const sameRound =
-          String(
-            current.round?.id,
-          ) ===
-          String(
-            data.bet.roundId,
-          );
+          String(current.round?.id) ===
+          String(data.bet.roundId);
 
-        const exists =
-          currentBets.some(
-            bet =>
-              String(bet.id) ===
-              String(data.bet.id),
-          );
+        const exists = currentBets.some(
+          bet => String(bet.id) === String(data.bet.id),
+        );
 
         return {
           ...current,
-
-          balance:
-            data.balance,
-
+          balance: data.balance,
           bets:
-            sameRound &&
-            !exists
-              ? [
-                  ...currentBets,
-                  data.bet,
-                ]
+            sameRound && !exists
+              ? [...currentBets, data.bet]
               : currentBets,
         };
       });
@@ -1363,43 +991,30 @@ function DreamGame({
       );
 
       window.dispatchEvent(
-        new Event(
-          "demo-balance-updated",
-        ),
+        new Event("demo-balance-updated"),
       );
     } catch (requestError) {
       if (!active.current) return;
 
       if (
-        [
-          400,
-          401,
-          403,
-          404,
-          409,
-          422,
-        ].includes(
+        [400, 401, 403, 404, 409, 422].includes(
           requestError.status,
         )
       ) {
         clearPending(storageKey);
-
-        pendingRef.current =
-          null;
-
+        pendingRef.current = null;
         setPending(null);
       }
 
       setError(
         requestError.message ||
-        "Connection interrupted. Retry the same bet.",
+          "Connection interrupted. Retry the same bet.",
       );
     } finally {
       posting.current = false;
 
       if (active.current) {
         setBusy(false);
-
         void refreshRef.current();
       }
     }
@@ -1408,53 +1023,34 @@ function DreamGame({
   async function verifyPlan() {
     if (!round?.proof) return;
 
-    const proofRoundId =
-      String(round.id);
+    const proofRoundId = String(round.id);
 
     try {
-      const plan =
-        round.proof.plan.map(
-          step => ({
-            value: step.value,
+      const plan = round.proof.plan.map(step => ({
+        value: step.value,
+        segment: Number(step.segment),
+      }));
 
-            segment:
-              Number(
-                step.segment,
-              ),
-          }),
-        );
+      const bytes = new TextEncoder().encode(
+        JSON.stringify(plan) + ":" + round.proof.salt,
+      );
 
-      const bytes =
-        new TextEncoder().encode(
-          JSON.stringify(plan) +
-          ":" +
-          round.proof.salt,
-        );
+      const hash = await crypto.subtle.digest(
+        "SHA-256",
+        bytes,
+      );
 
-      const hash =
-        await crypto.subtle.digest(
-          "SHA-256",
-          bytes,
-        );
-
-      const hex =
-        Array.from(
-          new Uint8Array(hash),
-
-          value =>
-            value
-              .toString(16)
-              .padStart(2, "0"),
-        ).join("");
+      const hex = Array.from(
+        new Uint8Array(hash),
+        value => value.toString(16).padStart(2, "0"),
+      ).join("");
 
       if (
         active.current &&
-        String(roundId.current) ===
-          proofRoundId
+        String(roundId.current) === proofRoundId
       ) {
         setVerification(
-          hex ===
-            round.proof.commitment
+          hex === round.proof.commitment
             ? "Locked plan hash matches."
             : "Plan hash does not match.",
         );
@@ -1462,34 +1058,25 @@ function DreamGame({
     } catch {
       if (
         active.current &&
-        String(roundId.current) ===
-          proofRoundId
+        String(roundId.current) === proofRoundId
       ) {
-        setVerification(
-          "Verification requires HTTPS.",
-        );
+        setVerification("Verification requires HTTPS.");
       }
     }
   }
 
   async function retryRefresh() {
     setError("");
-
     void refreshRef.current();
 
     if (!rules) {
       try {
-        const data =
-          await api("/rules");
+        const data = await api("/rules");
 
-        if (active.current) {
-          setRules(data);
-        }
+        if (active.current) setRules(data);
       } catch (requestError) {
         if (active.current) {
-          setError(
-            requestError.message,
-          );
+          setError(requestError.message);
         }
       }
     }
@@ -1500,93 +1087,55 @@ function DreamGame({
       ? "WAITING FOR A CONTROLLER ROUND"
       : stale
         ? "RECONNECTING…"
-        : round.phase ===
-            "BETTING"
+        : round.phase === "BETTING"
           ? open
             ? "BETTING OPEN"
             : "BETTING CLOSED"
-          : round.phase ===
-              "SPINNING"
-            ? now >=
-              Date.parse(
-                round.activeSpin
-                  ?.stopsAt,
-              )
+          : round.phase === "SPINNING"
+            ? now >= Date.parse(round.activeSpin?.stopsAt)
               ? "WAITING FOR RESULT"
               : "SPINNING · BETTING CLOSED"
-            : round.phase ===
-                "WAITING"
+            : round.phase === "WAITING"
               ? "BETTING STARTS SOON"
               : result
                 ? "ROUND RESULT"
                 : "WAITING FOR NEXT ROUND";
 
   function renderArea(area) {
-    const accepted =
-      bets.reduce(
-        (sum, bet) =>
-          sum +
-          (
-            bet.bets || []
-          )
-            .filter(
-              item =>
-                item.area === area,
-            )
-            .reduce(
-              (subtotal, item) =>
-                subtotal +
-                Number(item.amount),
-              0,
-            ),
-        0,
-      );
+    const accepted = bets.reduce(
+      (sum, bet) =>
+        sum +
+        (bet.bets || [])
+          .filter(item => item.area === area)
+          .reduce(
+            (subtotal, item) =>
+              subtotal + Number(item.amount),
+            0,
+          ),
+      0,
+    );
 
     const win =
-      finalLanded &&
-      result.winner === area;
+      finalLanded && result.winner === area;
 
     return (
       <button
         key={area}
         type="button"
         disabled={locked}
-        className={
-          `dw-area ` +
-          (
-            win
-              ? "dw-win"
-              : ""
-          )
-        }
-        style={{
-          "--color":
-            COLORS[area],
-        }}
-        onClick={() =>
-          add(area)
-        }
+        className={`dw-area ${win ? "dw-win" : ""}`}
+        style={{ "--color": COLORS[area] }}
+        onClick={() => add(area)}
       >
-        <strong>
-          {area}
-        </strong>
-
-        <small>
-          PROFIT 1:{area}
-        </small>
+        <strong>{area}</strong>
+        <small>PROFIT 1:{area}</small>
 
         {draft[area] > 0 && (
-          <span>
-            Draft{" "}
-            {money(draft[area])}
-          </span>
+          <span>Draft {money(draft[area])}</span>
         )}
 
         {accepted > 0 && (
-          <span>
-            Placed{" "}
-            {money(accepted)}
-          </span>
+          <span>Placed {money(accepted)}</span>
         )}
       </button>
     );
@@ -1605,30 +1154,40 @@ function DreamGame({
           ← HOME
         </button>
 
-        <h1>
-          DREAM WHEEL
-        </h1>
+        <h1>DREAM WHEEL</h1>
 
-        <div
+        <p
           className="dw-wallet"
           aria-live="polite"
+          aria-label="Demo wallet balance"
+          title={
+            balanceAvailable && stale
+              ? "Last received balance"
+              : "Demo wallet balance"
+          }
         >
-          <strong>
-            {money(state?.balance)}
-          </strong>
+          {balanceAvailable ? (
+            <>
+              <span className="dw-wallet-currency">
+                ₹
+              </span>
 
-          <small>
-            {user?.name ||
-              user?.loginId ||
-              "Customer"}
-          </small>
-
-          {stale && state && (
-            <small>
-              Last received balance
-            </small>
+              <span>
+                {Number(state.balance).toLocaleString(
+                  "en-IN",
+                  {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  },
+                )}
+              </span>
+            </>
+          ) : state || error ? (
+            "—"
+          ) : (
+            "Loading…"
           )}
-        </div>
+        </p>
       </header>
 
       <main className="dw-wrap">
@@ -1636,25 +1195,16 @@ function DreamGame({
           className="dw-row"
           aria-label="Game sections"
         >
-          {[
-            "game",
-            "rules",
-            "history",
-          ].map(value => (
+          {["game", "rules", "history"].map(value => (
             <button
               key={value}
               type="button"
               className="dw-btn"
-              aria-pressed={
-                tab === value
-              }
+              aria-pressed={tab === value}
               onClick={() => {
                 setTab(value);
 
-                if (
-                  value ===
-                  "history"
-                ) {
+                if (value === "history") {
                   void loadHistory();
                 }
               }}
@@ -1667,30 +1217,20 @@ function DreamGame({
             type="button"
             className="dw-btn"
             aria-pressed={sound}
-            onClick={() =>
-              setSound(
-                value => !value,
-              )
-            }
+            onClick={() => setSound(value => !value)}
           >
-            SOUND{" "}
-            {sound ? "ON" : "OFF"}
+            SOUND {sound ? "ON" : "OFF"}
           </button>
         </nav>
 
         {error && (
-          <div
-            className="dw-alert"
-            role="alert"
-          >
+          <div className="dw-alert" role="alert">
             {error}
 
             <button
               type="button"
               className="dw-btn"
-              onClick={() =>
-                void retryRefresh()
-              }
+              onClick={() => void retryRefresh()}
             >
               Refresh
             </button>
@@ -1698,15 +1238,12 @@ function DreamGame({
         )}
 
         {notice && (
-          <p role="status">
-            {notice}
-          </p>
+          <p role="status">{notice}</p>
         )}
 
         {pending && (
           <div className="dw-alert">
-            Interrupted bet.
-            Retry uses the original
+            Interrupted bet. Retry uses the original
             request and round.
 
             <button
@@ -1720,11 +1257,7 @@ function DreamGame({
           </div>
         )}
 
-        <div
-          hidden={
-            tab !== "game"
-          }
-        >
+        <div hidden={tab !== "game"}>
           <VideoStudio
             round={round}
             segments={segments}
@@ -1735,19 +1268,12 @@ function DreamGame({
           <div className="dw-status">
             <span>
               {displayPhase}
-
               <br />
-
-              Round #
-              {round?.id || "—"}
+              Round #{round?.id || "—"}
             </span>
 
             <strong>
-              {[
-                "WAITING",
-                "BETTING",
-                "SPINNING",
-              ].includes(
+              {["WAITING", "BETTING", "SPINNING"].includes(
                 round?.phase,
               )
                 ? seconds
@@ -1755,29 +1281,19 @@ function DreamGame({
             </strong>
           </div>
 
-          <div
-            className="dw-landing"
-            role="status"
-          >
+          <div className="dw-landing" role="status">
             {result && shownSpin
               ? `LANDED ${shownSpin.value}`
-              : round?.phase ===
-                  "SPINNING"
-                ? now >=
-                  Date.parse(
-                    round.activeSpin
-                      ?.stopsAt,
-                  )
+              : round?.phase === "SPINNING"
+                ? now >= Date.parse(round.activeSpin?.stopsAt)
                   ? "WAITING FOR RESULT…"
                   : "WHEEL SPINNING…"
                 : ""}
           </div>
 
-          {round?.bonusMultiplier >
-            1 && (
+          {round?.bonusMultiplier > 1 && (
             <p>
-              Bonus multiplier{" "}
-              {round.bonusMultiplier}x
+              Bonus multiplier {round.bonusMultiplier}x
             </p>
           )}
 
@@ -1785,15 +1301,12 @@ function DreamGame({
             className="dw-grid"
             aria-label="Betting areas"
           >
-            {NUMBERS.map(
-              renderArea,
-            )}
+            {NUMBERS.map(renderArea)}
           </div>
 
           <section className="dw-card">
             <p>
-              Choose a chip, select
-              numbers, then confirm.
+              Choose a chip, select numbers, then confirm.
             </p>
 
             <div className="dw-row">
@@ -1802,13 +1315,9 @@ function DreamGame({
                   key={value}
                   type="button"
                   disabled={locked}
-                  aria-pressed={
-                    chip === value
-                  }
+                  aria-pressed={chip === value}
                   className="dw-chip"
-                  onClick={() =>
-                    setChip(value)
-                  }
+                  onClick={() => setChip(value)}
                 >
                   {money(value)}
                 </button>
@@ -1817,49 +1326,29 @@ function DreamGame({
               <button
                 type="button"
                 className="dw-btn"
-                disabled={
-                  locked ||
-                  !total
-                }
-                onClick={() =>
-                  setDraft({})
-                }
+                disabled={locked || !total}
+                onClick={() => setDraft({})}
               >
                 Clear draft
               </button>
             </div>
 
             <p>
-              Draft{" "}
-              <strong>
-                {money(total)}
-              </strong>
-
+              Draft <strong>{money(total)}</strong>
               {" · "}
-
               Placed this round{" "}
-              <strong>
-                {money(committed)}
-              </strong>
+              <strong>{money(committed)}</strong>
             </p>
 
             <p className="dw-hint">
-              Maximum total stake
-              ₹25,000 per round.
+              Maximum total stake ₹25,000 per round.
             </p>
 
             <button
               type="button"
               className="dw-submit"
               disabled={
-                busy ||
-                (
-                  !pending &&
-                  (
-                    !open ||
-                    !total
-                  )
-                )
+                busy || (!pending && (!open || !total))
               }
               onClick={submit}
             >
@@ -1871,137 +1360,83 @@ function DreamGame({
             </button>
 
             <p className="dw-hint">
-              Virtual demo balance
-              only. ₹ is a display
-              symbol. No new bets
-              during spinning. The
-              controller locks the
-              plan before betting
-              opens.
+              Virtual demo balance only. ₹ is a display
+              symbol. No new bets during spinning. The
+              controller locks the plan before betting opens.
             </p>
           </section>
 
           {finalLanded && (
-            <section
-              className="dw-card"
-              role="status"
-            >
+            <section className="dw-card" role="status">
               <h2>
-                Winner{" "}
-                {result.winner}
-
+                Winner {result.winner}
                 {" · "}
-
-                Bonus{" "}
-                {result.bonusMultiplier}x
+                Bonus {result.bonusMultiplier}x
               </h2>
 
-              <p>
-                Profit odds{" "}
-                1:{result.profitOdds}
-              </p>
+              <p>Profit odds 1:{result.profitOdds}</p>
 
               <p>
-                Your stake{" "}
-                {money(committed)}
-
+                Your stake {money(committed)}
                 {" · "}
-
-                Total return{" "}
-                {money(credited)}
+                Total return {money(credited)}
               </p>
 
               <p>
                 Net{" "}
-                {credited -
-                  committed >
-                0
-                  ? "+"
-                  : ""}
-
-                {money(
-                  credited -
-                  committed,
-                )}
+                {credited - committed > 0 ? "+" : ""}
+                {money(credited - committed)}
               </p>
             </section>
           )}
 
           {round?.commitment && (
             <details className="dw-proof">
-              <summary>
-                Locked plan check
-              </summary>
+              <summary>Locked plan check</summary>
 
-              <p>
-                {round.commitment}
-              </p>
+              <p>{round.commitment}</p>
 
               {round.proof ? (
                 <>
                   <button
                     type="button"
                     className="dw-btn"
-                    onClick={() =>
-                      void verifyPlan()
-                    }
+                    onClick={() => void verifyPlan()}
                   >
                     VERIFY LOCKED PLAN
                   </button>
 
-                  <p role="status">
-                    {verification}
-                  </p>
+                  <p role="status">{verification}</p>
 
                   <p>
                     Plan:{" "}
                     {round.proof.plan
-                      .map(
-                        step =>
-                          step.value,
-                      )
+                      .map(step => step.value)
                       .join(" → ")}
                   </p>
 
-                  <p>
-                    Salt:{" "}
-                    {round.proof.salt}
-                  </p>
+                  <p>Salt: {round.proof.salt}</p>
                 </>
               ) : (
                 <p>
-                  Plan and salt are
-                  revealed after the
-                  result.
+                  Plan and salt are revealed after the result.
                 </p>
               )}
             </details>
           )}
 
           <p className="dw-hint">
-            Last results · newest
-            first
+            Last results · newest first
           </p>
 
           <div className="dw-row">
-            {(
-              state?.recentResults ||
-              []
-            ).map(item => (
+            {(state?.recentResults || []).map(item => (
               <span key={item.id}>
                 #{item.id}
-
                 {" · "}
-
                 {item.result.winner}
-
                 {" · "}
-
-                Bonus{" "}
-                {
-                  item.result
-                    .bonusMultiplier
-                }x
+                Bonus {item.result.bonusMultiplier}x
               </span>
             ))}
           </div>
@@ -2009,74 +1444,49 @@ function DreamGame({
 
         {tab === "rules" && (
           <section className="dw-card">
-            <h2>
-              Demo rules
-            </h2>
+            <h2>Demo rules</h2>
 
             <p>
-              The studio uses
-              prerecorded AI-generated
-              footage. The wheel
-              overlay follows the
-              server’s controller-planned
-              result. It is not live
-              video.
+              The studio uses prerecorded AI-generated
+              footage. The wheel overlay follows the
+              server’s controller-planned result.
+              It is not live video.
             </p>
 
             <p>
-              Betting lasts 30
-              seconds. During the
-              lock, the host makes one
-              push and releases. The
-              wheel slows to the
-              server-selected segment.
-              Bonus factors multiply
-              profit.
+              Betting lasts 30 seconds. During the lock,
+              the host makes one push and releases. The
+              wheel slows to the server-selected segment.
+              Bonus factors multiply profit.
             </p>
 
             <p>
-              Minimum ₹10 per selected
-              number. Maximum ₹25,000
-              per customer per round.
-              A winning bet returns
-              the stake plus profit.
-              Losing bets return zero.
+              Minimum ₹10 per selected number. Maximum
+              ₹25,000 per customer per round. A winning bet
+              returns the stake plus profit. Losing bets
+              return zero.
             </p>
 
             <p>
-              Example: ₹10 on 5 with
-              bonuses 2x and 7x returns
-              ₹10 + (₹10 × 5 × 2 × 7)
-              = ₹710 virtual balance.
+              Example: ₹10 on 5 with bonuses 2x and 7x returns
+              ₹10 + (₹10 × 5 × 2 × 7) = ₹710 virtual balance.
             </p>
 
             <table>
               <thead>
                 <tr>
-                  <th>
-                    Number
-                  </th>
-
-                  <th>
-                    Profit odds
-                  </th>
+                  <th>Number</th>
+                  <th>Profit odds</th>
                 </tr>
               </thead>
 
               <tbody>
-                {NUMBERS.map(
-                  value => (
-                    <tr key={value}>
-                      <td>
-                        {value}
-                      </td>
-
-                      <td>
-                        1:{value}
-                      </td>
-                    </tr>
-                  ),
-                )}
+                {NUMBERS.map(value => (
+                  <tr key={value}>
+                    <td>{value}</td>
+                    <td>1:{value}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </section>
@@ -2084,16 +1494,12 @@ function DreamGame({
 
         {tab === "history" && (
           <section className="dw-card">
-            <h2>
-              Your settled bets
-            </h2>
+            <h2>Your settled bets</h2>
 
             <button
               type="button"
               className="dw-btn"
-              onClick={() =>
-                void loadHistory()
-              }
+              onClick={() => void loadHistory()}
             >
               Refresh history
             </button>
@@ -2102,99 +1508,51 @@ function DreamGame({
               <table>
                 <thead>
                   <tr>
-                    <th>
-                      Round / IST
-                    </th>
-
-                    <th>
-                      Bets / Result
-                    </th>
-
-                    <th>
-                      Stake
-                    </th>
-
-                    <th>
-                      Return
-                    </th>
+                    <th>Round / IST</th>
+                    <th>Bets / Result</th>
+                    <th>Stake</th>
+                    <th>Return</th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {history.map(
-                    bet => (
-                      <tr key={bet.id}>
-                        <td>
-                          #{bet.roundId}
+                  {history.map(bet => (
+                    <tr key={bet.id}>
+                      <td>
+                        #{bet.roundId}
+                        <br />
 
-                          <br />
+                        {new Date(
+                          bet.createdAt,
+                        ).toLocaleString("en-IN", {
+                          timeZone: "Asia/Kolkata",
+                        })}
+                      </td>
 
-                          {new Date(
-                            bet.createdAt,
-                          ).toLocaleString(
-                            "en-IN",
-                            {
-                              timeZone:
-                                "Asia/Kolkata",
-                            },
-                          )}
-                        </td>
-
-                        <td>
-                          {(
-                            bet.bets ||
-                            []
+                      <td>
+                        {(bet.bets || [])
+                          .map(
+                            item =>
+                              `${item.area}: ${money(item.amount)}`,
                           )
-                            .map(
-                              item =>
-                                `${
-                                  item.area
-                                }: ${
-                                  money(
-                                    item.amount,
-                                  )
-                                }`,
-                            )
-                            .join(", ")}
+                          .join(", ")}
 
-                          <br />
+                        <br />
+                        Winner {bet.result?.winner ?? "—"}
+                        {" · "}
+                        Bonus {bet.result?.bonusMultiplier ?? 1}x
+                      </td>
 
-                          Winner{" "}
-                          {bet.result
-                            ?.winner ??
-                            "—"}
-
-                          {" · "}
-
-                          Bonus{" "}
-                          {bet.result
-                            ?.bonusMultiplier ??
-                            1}x
-                        </td>
-
-                        <td>
-                          {money(
-                            bet.stake,
-                          )}
-                        </td>
-
-                        <td>
-                          {money(
-                            bet.payout,
-                          )}
-                        </td>
-                      </tr>
-                    ),
-                  )}
+                      <td>{money(bet.stake)}</td>
+                      <td>{money(bet.payout)}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
 
             {!history.length && (
-              <p>
-                No settled bets
-                available.
-              </p>
+              <p>No settled bets available.</p>
             )}
           </section>
         )}
@@ -2225,338 +1583,318 @@ function DreamGame({
 
 const CSS = `
   .dw-page {
-    min-height: 100vh;
-    background: #120f20;
-    color: #f7f1e4;
-    font: 14px Arial, sans-serif;
-    padding-bottom: 24px;
+    min-height:100vh;
+    background:#120f20;
+    color:#f7f1e4;
+    font:14px Arial,sans-serif;
+    padding-bottom:24px;
   }
 
   .dw-page * {
-    box-sizing: border-box;
+    box-sizing:border-box;
   }
 
   .dw-page button {
-    font: inherit;
-    cursor: pointer;
+    font:inherit;
+    cursor:pointer;
   }
 
   .dw-page button:disabled {
-    opacity: .45;
-    cursor: default;
+    opacity:.45;
+    cursor:default;
   }
 
   .dw-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 15px;
-    background: #211427;
-    flex-wrap: wrap;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:15px;
+    background:#211427;
+    flex-wrap:wrap;
   }
 
   .dw-header h1 {
-    font-size: 18px;
-    color: #f0d48b;
+    font-size:18px;
+    color:#f0d48b;
   }
 
   .dw-wallet {
-    margin-left: auto;
-    text-align: right;
-    background: none;
-    border: 0;
-    padding: 0;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    gap:4px;
+    margin:0 0 0 auto;
+    padding:6px 10px;
+    border:1px solid rgba(103,232,249,.2);
+    border-radius:999px;
+    background:rgba(40,78,87,.85);
+    box-shadow:none;
+    color:#ffffff;
+    font-size:13px;
+    font-weight:700;
+    line-height:1.3;
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
   }
 
-  .dw-wallet strong {
-    font-size: 25px;
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .dw-wallet small {
-    display: block;
-    font-size: 10px;
-    margin-top: 5px;
-    color: #ddd;
+  .dw-wallet-currency {
+    font-size:11px;
   }
 
   .dw-wrap {
-    max-width: 1100px;
-    margin: auto;
-    padding: 12px;
+    max-width:1100px;
+    margin:auto;
+    padding:12px;
   }
 
   .dw-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin: 14px 0;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin:14px 0;
   }
 
   .dw-btn {
-    padding: 10px 12px;
-    background: #ffffff10;
-    border: 1px solid #ffffff30;
-    border-radius: 8px;
-    color: inherit;
+    padding:10px 12px;
+    background:#ffffff10;
+    border:1px solid #ffffff30;
+    border-radius:8px;
+    color:inherit;
   }
 
   .dw-btn[aria-pressed=true] {
-    background: #791b3e;
+    background:#791b3e;
   }
 
   .dw-studio {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    overflow: hidden;
-    background: #decdb9;
-    border: 1px solid #b99755;
-    border-radius: 12px;
+    position:relative;
+    width:100%;
+    aspect-ratio:16/9;
+    overflow:hidden;
+    background:#decdb9;
+    border:1px solid #b99755;
+    border-radius:12px;
   }
 
   .dw-studio video {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
+    display:block;
+    width:100%;
+    height:100%;
+    object-fit:contain;
   }
 
   .dw-face {
-    position: absolute;
-    transform-origin: center;
-    filter: drop-shadow(
-      0 2px 1px #0003
-    );
-    pointer-events: none;
+    position:absolute;
+    transform-origin:center;
+    filter:drop-shadow(0 2px 1px #0003);
+    pointer-events:none;
   }
 
   .dw-pointer {
-    position: absolute;
-    left: 40.1%;
-    top: 10%;
-    font-size: clamp(
-      12px,
-      3vw,
-      29px
-    );
-    line-height: 1;
-    color: #e4ca86;
-    text-shadow:
-      0 1px 2px #473222;
-    pointer-events: none;
+    position:absolute;
+    left:40.1%;
+    top:10%;
+    font-size:clamp(12px,3vw,29px);
+    line-height:1;
+    color:#e4ca86;
+    text-shadow:0 1px 2px #473222;
+    pointer-events:none;
   }
 
   .dw-video-message {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    color: #342b24;
-    text-align: center;
-    padding: 20px;
+    position:absolute;
+    inset:0;
+    display:grid;
+    place-items:center;
+    color:#342b24;
+    text-align:center;
+    padding:20px;
   }
 
   .dw-play {
-    position: absolute;
-    bottom: 5%;
-    right: 3%;
-    background: #791b3e;
-    color: white;
-    padding: 10px;
-    border: 0;
-    border-radius: 8px;
+    position:absolute;
+    bottom:5%;
+    right:3%;
+    background:#791b3e;
+    color:white;
+    padding:10px;
+    border:0;
+    border-radius:8px;
   }
 
   .dw-hint {
-    color: #d5c9de;
-    font-size: 12px;
-    line-height: 1.7;
+    color:#d5c9de;
+    font-size:12px;
+    line-height:1.7;
   }
 
   .dw-status {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 14px 0;
-    line-height: 1.7;
-    color: #f0d48b;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:14px 0;
+    line-height:1.7;
+    color:#f0d48b;
   }
 
   .dw-status > strong {
-    font-size: 26px;
+    font-size:26px;
   }
 
   .dw-landing {
-    text-align: center;
-    font-size: 22px;
-    color: #ffe7a0;
-    min-height: 35px;
+    text-align:center;
+    font-size:22px;
+    color:#ffe7a0;
+    min-height:35px;
   }
 
   .dw-grid {
-    display: grid;
-    grid-template-columns:
-      repeat(3, minmax(0, 1fr));
-    gap: 10px;
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:10px;
   }
 
   .dw-area {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    align-items: center;
-    justify-content: center;
-    min-height: 115px;
-    border:
-      2px solid var(--color);
-    background: #202033;
-    color: white;
-    border-radius: 10px;
-    padding: 10px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    align-items:center;
+    justify-content:center;
+    min-height:115px;
+    border:2px solid var(--color);
+    background:#202033;
+    color:white;
+    border-radius:10px;
+    padding:10px;
   }
 
   .dw-area strong {
-    font-size: 30px;
-    color: var(--color);
+    font-size:30px;
+    color:var(--color);
   }
 
   .dw-area small,
   .dw-area span {
-    font-size: 11px;
+    font-size:11px;
   }
 
   .dw-area.dw-win {
-    box-shadow:
-      0 0 15px #ffe2a650;
-    border-color: #ffe6a0;
+    box-shadow:0 0 15px #ffe2a650;
+    border-color:#ffe6a0;
   }
 
   .dw-card {
-    padding: 14px;
-    background: #ffffff06;
-    border:
-      1px solid #ffffff25;
-    border-radius: 12px;
-    margin: 14px 0;
-    line-height: 1.7;
+    padding:14px;
+    background:#ffffff06;
+    border:1px solid #ffffff25;
+    border-radius:12px;
+    margin:14px 0;
+    line-height:1.7;
   }
 
   .dw-chip {
-    padding: 10px 5px;
-    min-width: 46px;
-    background: transparent;
-    border: 0;
-    color: white;
-    border-bottom:
-      2px solid transparent;
+    padding:10px 5px;
+    min-width:46px;
+    background:transparent;
+    border:0;
+    color:white;
+    border-bottom:2px solid transparent;
   }
 
   .dw-chip[aria-pressed=true] {
-    color: #08b7bc;
-    border-bottom-color:
-      #08b7bc;
+    color:#08b7bc;
+    border-bottom-color:#08b7bc;
   }
 
   .dw-submit {
-    width: 100%;
-    background: #08b7bc;
-    color: #082329;
-    font-weight: bold !important;
-    border: 0;
-    border-radius: 8px;
-    padding: 15px;
+    width:100%;
+    background:#08b7bc;
+    color:#082329;
+    font-weight:bold!important;
+    border:0;
+    border-radius:8px;
+    padding:15px;
   }
 
   .dw-alert {
-    padding: 12px;
-    background: #791b3e;
-    color: white;
-    line-height: 1.7;
-    border-radius: 8px;
-    margin: 12px 0;
+    padding:12px;
+    background:#791b3e;
+    color:white;
+    line-height:1.7;
+    border-radius:8px;
+    margin:12px 0;
   }
 
   .dw-alert button {
-    margin: 6px;
+    margin:6px;
   }
 
   .dw-proof {
-    overflow-wrap: anywhere;
-    font-size: 11px;
-    line-height: 1.7;
-    margin-top: 15px;
+    overflow-wrap:anywhere;
+    font-size:11px;
+    line-height:1.7;
+    margin-top:15px;
   }
 
   .dw-overflow {
-    overflow: auto;
+    overflow:auto;
   }
 
   .dw-page table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
+    width:100%;
+    border-collapse:collapse;
+    font-size:12px;
   }
 
   .dw-page th,
   .dw-page td {
-    padding: 10px 5px;
-    border-bottom:
-      1px solid #ffffff20;
-    text-align: left;
+    padding:10px 5px;
+    border-bottom:1px solid #ffffff20;
+    text-align:left;
   }
 
   .dw-page :focus-visible {
-    outline:
-      3px solid #08b7bc;
-    outline-offset: 3px;
+    outline:3px solid #08b7bc;
+    outline-offset:3px;
   }
 
   .dw-page [hidden] {
-    display: none !important;
+    display:none!important;
   }
 
   .dw-login-required {
-    min-height: 100vh;
-    background: #120f20;
-    color: white;
-    padding: 24px;
+    min-height:100vh;
+    background:#120f20;
+    color:white;
+    padding:24px;
   }
 
   .dw-login-required button {
-    margin-left: 12px;
+    margin-left:12px;
   }
 
-  @media (max-width: 420px) {
+  @media(max-width:420px) {
     .dw-wrap {
-      padding: 8px;
+      padding:8px;
     }
 
     .dw-header {
-      padding: 10px;
-      gap: 8px;
+      padding:10px;
+      gap:8px;
     }
 
     .dw-header h1 {
-      font-size: 15px;
-    }
-
-    .dw-wallet strong {
-      font-size: 21px;
+      font-size:15px;
     }
 
     .dw-grid {
-      grid-template-columns:
-        repeat(
-          2,
-          minmax(0, 1fr)
-        );
+      grid-template-columns:repeat(2,minmax(0,1fr));
     }
 
     .dw-area {
-      min-height: 100px;
+      min-height:100px;
     }
   }
 `;
