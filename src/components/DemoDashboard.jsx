@@ -322,8 +322,7 @@ function navigationKey(user) {
 }
 
 function restoreNavigation(key) {
-  const initial =
-    defaultNavigation();
+  const initial = defaultNavigation();
 
   if (!key) {
     return initial;
@@ -331,8 +330,7 @@ function restoreNavigation(key) {
 
   try {
     const saved = JSON.parse(
-      sessionStorage.getItem(key) ||
-        "null",
+      sessionStorage.getItem(key) || "null",
     );
 
     if (
@@ -343,12 +341,10 @@ function restoreNavigation(key) {
       return initial;
     }
 
-    const match =
-      saved.selectedMatch;
+    const match = saved.selectedMatch;
 
     const matchId =
-      match?.eventId ??
-      match?.id;
+      match?.eventId ?? match?.id;
 
     const validMatch =
       match &&
@@ -364,8 +360,7 @@ function restoreNavigation(key) {
 
       selectedSport: sports.some(
         sport =>
-          sport.name ===
-          saved.selectedSport,
+          sport.name === saved.selectedSport,
       )
         ? saved.selectedSport
         : initial.selectedSport,
@@ -383,8 +378,7 @@ function restoreNavigation(key) {
         : initial.matchFilter,
 
       selectedMatch:
-        saved.page === "home" &&
-        validMatch
+        saved.page === "home" && validMatch
           ? match
           : null,
     };
@@ -393,10 +387,7 @@ function restoreNavigation(key) {
   }
 }
 
-function saveNavigation(
-  key,
-  navigation,
-) {
+function saveNavigation(key, navigation) {
   if (!key) return;
 
   try {
@@ -410,16 +401,13 @@ function saveNavigation(
   } catch {}
 }
 
-function BrandLogo({
-  className = "",
-}) {
+function BrandLogo({ className = "" }) {
   return (
     <img
       src={LOGO}
       alt="Telugu Sports Book logo"
       className={
-        "block h-full w-full " +
-        "object-contain " +
+        "block h-full w-full object-contain " +
         className
       }
     />
@@ -427,25 +415,17 @@ function BrandLogo({
 }
 
 function GameImage({ game }) {
-  const [failed, setFailed] =
-    useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     setFailed(false);
   }, [game.image]);
 
   if (game.artwork) {
-    return (
-      <GameArtwork
-        game={game.id}
-      />
-    );
+    return <GameArtwork game={game.id} />;
   }
 
-  if (
-    failed ||
-    !game.image
-  ) {
+  if (failed || !game.image) {
     return game.icon ? (
       <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-[#061a25] via-[#113f48] to-[#791b3e] p-2 text-center text-white">
         <span
@@ -471,9 +451,7 @@ function GameImage({ game }) {
       src={game.image}
       alt={game.name}
       loading="lazy"
-      onError={() =>
-        setFailed(true)
-      }
+      onError={() => setFailed(true)}
       className="h-full w-full object-cover"
     />
   );
@@ -487,9 +465,7 @@ function GameSection({
 }) {
   return (
     <section
-      aria-label={
-        title || "Games"
-      }
+      aria-label={title || "Games"}
       className="border-t border-slate-200 bg-white px-3 py-3"
     >
       {title && (
@@ -503,78 +479,51 @@ function GameSection({
       )}
 
       <div className="grid grid-cols-4 gap-1.5 sm:gap-3">
-        {games.map(
-          (game, index) => (
-            <button
-              key={
-                game.id ||
-                game.name
+        {games.map((game, index) => (
+          <button
+            key={game.id || game.name}
+            type="button"
+            onClick={() => onGameClick(game)}
+            className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-slate-900 shadow-lg transition active:scale-95"
+          >
+            <div
+              className={
+                "relative w-full overflow-hidden bg-black " +
+                (compact
+                  ? "aspect-[3/2]"
+                  : "aspect-square")
               }
-              type="button"
-              onClick={() =>
-                onGameClick(game)
-              }
-              className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-slate-900 shadow-lg transition active:scale-95"
             >
-              <div
-                className={
-                  "relative w-full " +
-                  "overflow-hidden bg-black " +
-                  (
-                    compact
-                      ? "aspect-[3/2]"
-                      : "aspect-square"
-                  )
-                }
-              >
-                <GameImage
-                  game={game}
-                />
+              <GameImage game={game} />
 
-                {!game.href && (
-                  <span className="absolute right-1 top-1 rounded bg-black/80 px-1 py-0.5 text-[6px] font-bold text-amber-200">
-                    SOON
-                  </span>
-                )}
-              </div>
-
-              <div
-                className="flex min-h-[26px] items-center justify-center px-1 py-1"
-                style={
-                  gridLabelColor(
-                    index,
-                  )
-                }
-              >
-                <span className="text-center text-[7px] font-black uppercase leading-tight sm:text-[10px]">
-                  {game.name}
+              {!game.href && (
+                <span className="absolute right-1 top-1 rounded bg-black/80 px-1 py-0.5 text-[6px] font-bold text-amber-200">
+                  SOON
                 </span>
-              </div>
-            </button>
-          ),
-        )}
+              )}
+            </div>
+
+            <div
+              className="flex min-h-[26px] items-center justify-center px-1 py-1"
+              style={gridLabelColor(index)}
+            >
+              <span className="text-center text-[7px] font-black uppercase leading-tight sm:text-[10px]">
+                {game.name}
+              </span>
+            </div>
+          </button>
+        ))}
       </div>
     </section>
   );
 }
 
-function TopGamesSlider({
-  onGameClick,
-}) {
-  const scrollerRef =
-    useRef(null);
-
-  const pauseUntilRef =
-    useRef(0);
-
-  const focusedRef =
-    useRef(false);
-
-  const suppressClickUntilRef =
-    useRef(0);
-
-  const gestureRef =
-    useRef(null);
+function TopGamesSlider({ onGameClick }) {
+  const scrollerRef = useRef(null);
+  const pauseUntilRef = useRef(0);
+  const focusedRef = useRef(false);
+  const suppressClickUntilRef = useRef(0);
+  const gestureRef = useRef(null);
 
   const pause = () => {
     pauseUntilRef.current =
@@ -582,32 +531,25 @@ function TopGamesSlider({
   };
 
   useEffect(() => {
-    const scroller =
-      scrollerRef.current;
+    const scroller = scrollerRef.current;
 
     if (!scroller) {
       return undefined;
     }
 
-    const motion =
-      window.matchMedia(
-        "(prefers-reduced-motion: reduce)",
-      );
+    const motion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    );
 
     let frameId;
     let previousTime = 0;
-    let position =
-      scroller.scrollLeft;
+    let position = scroller.scrollLeft;
     let direction = 1;
 
     const animate = now => {
-      const elapsed =
-        previousTime
-          ? Math.min(
-              now - previousTime,
-              50,
-            )
-          : 0;
+      const elapsed = previousTime
+        ? Math.min(now - previousTime, 50)
+        : 0;
 
       previousTime = now;
 
@@ -616,174 +558,134 @@ function TopGamesSlider({
         document.hidden ||
         focusedRef.current ||
         gestureRef.current !== null ||
-        now <
-          pauseUntilRef.current;
+        now < pauseUntilRef.current;
 
       const maximum =
         scroller.scrollWidth -
         scroller.clientWidth;
 
-      if (
-        paused ||
-        maximum <= 0
-      ) {
-        position =
-          scroller.scrollLeft;
+      if (paused || maximum <= 0) {
+        position = scroller.scrollLeft;
       } else {
         position +=
-          direction *
-          elapsed *
-          0.025;
+          direction * elapsed * 0.025;
 
-        if (
-          position >= maximum
-        ) {
+        if (position >= maximum) {
           position = maximum;
           direction = -1;
-        } else if (
-          position <= 0
-        ) {
+        } else if (position <= 0) {
           position = 0;
           direction = 1;
         }
 
-        scroller.scrollLeft =
-          position;
+        scroller.scrollLeft = position;
       }
 
       frameId =
-        window.requestAnimationFrame(
-          animate,
-        );
+        window.requestAnimationFrame(animate);
     };
 
     frameId =
-      window.requestAnimationFrame(
-        animate,
-      );
+      window.requestAnimationFrame(animate);
 
     return () =>
-      window.cancelAnimationFrame(
-        frameId,
-      );
+      window.cancelAnimationFrame(frameId);
   }, []);
 
-  const handlePointerDown =
-    event => {
+  const handlePointerDown = event => {
+    if (
+      !event.isPrimary ||
+      event.button !== 0
+    ) {
+      return;
+    }
+
+    pause();
+    suppressClickUntilRef.current = 0;
+
+    gestureRef.current = {
+      id: event.pointerId,
+      type: event.pointerType,
+      x: event.clientX,
+      y: event.clientY,
+      scrollLeft:
+        event.currentTarget.scrollLeft,
+      moved: false,
+    };
+  };
+
+  const handlePointerMove = event => {
+    const gesture = gestureRef.current;
+
+    if (
+      !gesture ||
+      gesture.id !== event.pointerId
+    ) {
+      return;
+    }
+
+    const distanceX =
+      event.clientX - gesture.x;
+
+    const distanceY =
+      event.clientY - gesture.y;
+
+    if (
+      Math.abs(distanceX) > 8 ||
+      Math.abs(distanceY) > 8
+    ) {
+      gesture.moved = true;
+    }
+
+    if (
+      gesture.type === "mouse" &&
+      Math.abs(distanceX) > 8
+    ) {
+      event.preventDefault();
+
       if (
-        !event.isPrimary ||
-        event.button !== 0
+        !event.currentTarget.hasPointerCapture(
+          event.pointerId,
+        )
       ) {
-        return;
+        event.currentTarget.setPointerCapture(
+          event.pointerId,
+        );
       }
 
-      pause();
+      event.currentTarget.scrollLeft =
+        gesture.scrollLeft - distanceX;
+    }
+  };
 
+  const finishGesture = event => {
+    const gesture = gestureRef.current;
+
+    if (
+      !gesture ||
+      gesture.id !== event.pointerId
+    ) {
+      return;
+    }
+
+    if (gesture.moved) {
       suppressClickUntilRef.current =
-        0;
+        performance.now() + 800;
+    }
 
-      gestureRef.current = {
-        id: event.pointerId,
-        type: event.pointerType,
-        x: event.clientX,
-        y: event.clientY,
+    gestureRef.current = null;
+    pause();
 
-        scrollLeft:
-          event.currentTarget
-            .scrollLeft,
-
-        moved: false,
-      };
-    };
-
-  const handlePointerMove =
-    event => {
-      const gesture =
-        gestureRef.current;
-
-      if (
-        !gesture ||
-        gesture.id !==
-          event.pointerId
-      ) {
-        return;
-      }
-
-      const distanceX =
-        event.clientX -
-        gesture.x;
-
-      const distanceY =
-        event.clientY -
-        gesture.y;
-
-      if (
-        Math.abs(distanceX) > 8 ||
-        Math.abs(distanceY) > 8
-      ) {
-        gesture.moved = true;
-      }
-
-      if (
-        gesture.type === "mouse" &&
-        Math.abs(distanceX) > 8
-      ) {
-        event.preventDefault();
-
-        if (
-          !event.currentTarget
-            .hasPointerCapture(
-              event.pointerId,
-            )
-        ) {
-          event.currentTarget
-            .setPointerCapture(
-              event.pointerId,
-            );
-        }
-
-        event.currentTarget
-          .scrollLeft =
-          gesture.scrollLeft -
-          distanceX;
-      }
-    };
-
-  const finishGesture =
-    event => {
-      const gesture =
-        gestureRef.current;
-
-      if (
-        !gesture ||
-        gesture.id !==
-          event.pointerId
-      ) {
-        return;
-      }
-
-      if (gesture.moved) {
-        suppressClickUntilRef.current =
-          performance.now() + 800;
-      }
-
-      gestureRef.current =
-        null;
-
-      pause();
-
-      if (
-        event.currentTarget
-          .hasPointerCapture(
-            event.pointerId,
-          )
-      ) {
-        event.currentTarget
-          .releasePointerCapture(
-            event.pointerId,
-          );
-      }
-    };
+    if (
+      event.currentTarget.hasPointerCapture(
+        event.pointerId,
+      )
+    ) {
+      event.currentTarget.releasePointerCapture(
+        event.pointerId,
+      );
+    }
+  };
 
   return (
     <section className="border-b border-slate-200 bg-white py-3">
@@ -792,134 +694,83 @@ function TopGamesSlider({
         role="region"
         aria-label="Games. Swipe left or right to browse."
         className="tsb-game-scroller tsb-scrollbar"
-
-        onPointerDown={
-          handlePointerDown
-        }
-
-        onPointerMove={
-          handlePointerMove
-        }
-
-        onPointerUp={
-          finishGesture
-        }
-
-        onPointerCancel={
-          finishGesture
-        }
-
-        onLostPointerCapture={
-          finishGesture
-        }
-
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={finishGesture}
+        onPointerCancel={finishGesture}
+        onLostPointerCapture={finishGesture}
         onPointerLeave={event => {
           if (
-            event.pointerType ===
-              "mouse" &&
-            !event.currentTarget
-              .hasPointerCapture(
-                event.pointerId,
-              )
+            event.pointerType === "mouse" &&
+            !event.currentTarget.hasPointerCapture(
+              event.pointerId,
+            )
           ) {
             finishGesture(event);
           }
         }}
-
         onTouchEnd={pause}
         onWheel={pause}
-
         onScroll={() => {
-          if (
-            gestureRef.current
-          ) {
-            gestureRef.current
-              .moved = true;
-
+          if (gestureRef.current) {
+            gestureRef.current.moved = true;
             pause();
           }
         }}
-
         onFocusCapture={event => {
           if (
-            event.target.matches(
-              ":focus-visible",
-            )
+            event.target.matches(":focus-visible")
           ) {
-            focusedRef.current =
-              true;
+            focusedRef.current = true;
           }
 
           pause();
         }}
-
         onBlurCapture={event => {
           if (
-            !event.currentTarget
-              .contains(
-                event.relatedTarget,
-              )
+            !event.currentTarget.contains(
+              event.relatedTarget,
+            )
           ) {
-            focusedRef.current =
-              false;
-
+            focusedRef.current = false;
             pause();
           }
         }}
-
         onClickCapture={event => {
           if (
             event.detail !== 0 &&
             performance.now() <
-              suppressClickUntilRef
-                .current
+              suppressClickUntilRef.current
           ) {
             event.preventDefault();
             event.stopPropagation();
           }
         }}
-
         onDragStart={event =>
           event.preventDefault()
         }
       >
         <div className="flex w-max gap-2 px-3 pb-1">
-          {GAMES.map(
-            (game, index) => (
-              <button
-                key={game.id}
-                type="button"
+          {GAMES.map((game, index) => (
+            <button
+              key={game.id}
+              type="button"
+              aria-label={`Open ${game.name}`}
+              onClick={() => onGameClick(game)}
+              className="w-[82px] shrink-0 select-none rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#08b7bc]"
+            >
+              <div className="pointer-events-none relative h-[54px] overflow-hidden rounded-lg border border-slate-200 bg-black">
+                <GameImage game={game} />
+              </div>
 
-                aria-label={
-                  `Open ${game.name}`
-                }
-
-                onClick={() =>
-                  onGameClick(game)
-                }
-
-                className="w-[82px] shrink-0 select-none rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#08b7bc]"
+              <span
+                className="pointer-events-none mt-1 block truncate rounded-full text-center text-[7px] font-black"
+                style={sliderLabelColor(index)}
               >
-                <div className="pointer-events-none relative h-[54px] overflow-hidden rounded-lg border border-slate-200 bg-black">
-                  <GameImage
-                    game={game}
-                  />
-                </div>
-
-                <span
-                  className="pointer-events-none mt-1 block truncate rounded-full text-center text-[7px] font-black"
-
-                  style={
-                    sliderLabelColor(
-                      index,
-                    )
-                  }
-                >
-                  {game.name}
-                </span>
-              </button>
-            ),
-          )}
+                {game.name}
+              </span>
+            </button>
+          ))}
         </div>
       </div>
     </section>
@@ -931,14 +782,10 @@ function DashboardContent({
   onLogout,
   storageKey,
 }) {
-  const [
-    navigation,
-    setNavigation,
-  ] = useState(() =>
-    restoreNavigation(
-      storageKey,
-    ),
-  );
+  const [navigation, setNavigation] =
+    useState(() =>
+      restoreNavigation(storageKey),
+    );
 
   const {
     page,
@@ -948,31 +795,21 @@ function DashboardContent({
     selectedMatch,
   } = navigation;
 
-  const navigationRef =
-    useRef(navigation);
-
-  const loggedOutRef =
-    useRef(false);
+  const navigationRef = useRef(navigation);
+  const loggedOutRef = useRef(false);
 
   const [
     showCustomerMenu,
     setShowCustomerMenu,
   ] = useState(false);
 
-  const [
-    demoBalance,
-    setDemoBalance,
-  ] = useState(null);
+  const [demoBalance, setDemoBalance] =
+    useState(null);
 
-  const [
-    balanceError,
-    setBalanceError,
-  ] = useState("");
+  const [balanceError, setBalanceError] =
+    useState("");
 
-  const [
-    notice,
-    setNotice,
-  ] = useState("");
+  const [notice, setNotice] = useState("");
 
   const customerId =
     user?.id ??
@@ -985,22 +822,14 @@ function DashboardContent({
       ...patch,
     };
 
-    navigationRef.current =
-      next;
-
-    saveNavigation(
-      storageKey,
-      next,
-    );
-
+    navigationRef.current = next;
+    saveNavigation(storageKey, next);
     setNavigation(next);
   };
 
   useEffect(() => {
     const persist = () => {
-      if (
-        !loggedOutRef.current
-      ) {
+      if (!loggedOutRef.current) {
         saveNavigation(
           storageKey,
           navigationRef.current,
@@ -1010,8 +839,7 @@ function DashboardContent({
 
     const onVisibility = () => {
       if (
-        document.visibilityState ===
-        "hidden"
+        document.visibilityState === "hidden"
       ) {
         persist();
       }
@@ -1044,104 +872,82 @@ function DashboardContent({
     let active = true;
     let loading = false;
 
-    const controller =
-      new AbortController();
+    const controller = new AbortController();
 
-    const loadBalance =
-      async () => {
-        if (loading) {
-          return;
+    const loadBalance = async () => {
+      if (loading) {
+        return;
+      }
+
+      if (!customerId) {
+        if (active) {
+          setDemoBalance(null);
+
+          setBalanceError(
+            "Customer ID is missing. Please login again.",
+          );
         }
 
-        if (!customerId) {
-          if (active) {
-            setDemoBalance(null);
+        return;
+      }
 
-            setBalanceError(
-              "Customer ID is missing. Please login again.",
-            );
-          }
+      loading = true;
 
-          return;
+      try {
+        const response = await fetch(
+          `/api/customers/${encodeURIComponent(
+            customerId,
+          )}/demo-balance`,
+          {
+            credentials: "same-origin",
+            cache: "no-store",
+            signal: controller.signal,
+          },
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.error ||
+              "Unable to load balance.",
+          );
         }
 
-        loading = true;
+        const rawBalance =
+          data.balance ??
+          data.demo_coin_balance ??
+          data.customer?.demo_coin_balance;
 
-        try {
-          const response =
-            await fetch(
-              `/api/customers/${
-                encodeURIComponent(
-                  customerId,
-                )
-              }/demo-balance`,
-
-              {
-                credentials:
-                  "same-origin",
-
-                cache:
-                  "no-store",
-
-                signal:
-                  controller.signal,
-              },
-            );
-
-          const data =
-            await response.json();
-
-          if (!response.ok) {
-            throw new Error(
-              data.error ||
-                "Unable to load balance.",
-            );
-          }
-
-          const rawBalance =
-            data.balance ??
-            data.demo_coin_balance ??
-            data.customer
-              ?.demo_coin_balance;
-
-          if (
-            rawBalance === null ||
-            rawBalance === undefined ||
-            !Number.isFinite(
-              Number(rawBalance),
-            )
-          ) {
-            throw new Error(
-              "Wallet balance is unavailable.",
-            );
-          }
-
-          if (active) {
-            setDemoBalance(
-              Number(rawBalance),
-            );
-
-            setBalanceError("");
-          }
-        } catch (failure) {
-          if (
-            active &&
-            failure.name !==
-              "AbortError"
-          ) {
-            setBalanceError(
-              failure.message,
-            );
-          }
-        } finally {
-          loading = false;
+        if (
+          rawBalance === null ||
+          rawBalance === undefined ||
+          !Number.isFinite(Number(rawBalance))
+        ) {
+          throw new Error(
+            "Wallet balance is unavailable.",
+          );
         }
-      };
+
+        if (active) {
+          setDemoBalance(Number(rawBalance));
+          setBalanceError("");
+        }
+      } catch (failure) {
+        if (
+          active &&
+          failure.name !== "AbortError"
+        ) {
+          setBalanceError(failure.message);
+        }
+      } finally {
+        loading = false;
+      }
+    };
 
     const onVisibility = () => {
       if (
-        document.visibilityState ===
-        "visible"
+        document.visibilityState === "visible"
       ) {
         void loadBalance();
       }
@@ -1166,7 +972,6 @@ function DashboardContent({
 
     return () => {
       active = false;
-
       controller.abort();
 
       window.removeEventListener(
@@ -1184,11 +989,7 @@ function DashboardContent({
         onVisibility,
       );
     };
-  }, [
-    customerId,
-    page,
-    selectedMatch,
-  ]);
+  }, [customerId, page, selectedMatch]);
 
   const goHome = () => {
     navigate({
@@ -1198,14 +999,11 @@ function DashboardContent({
 
     setShowCustomerMenu(false);
     setNotice("");
-
     window.scrollTo(0, 0);
   };
 
   const openPage = nextPage => {
-    if (
-      !PAGES.has(nextPage)
-    ) {
+    if (!PAGES.has(nextPage)) {
       return;
     }
 
@@ -1216,7 +1014,6 @@ function DashboardContent({
 
     setShowCustomerMenu(false);
     setNotice("");
-
     window.scrollTo(0, 0);
   };
 
@@ -1228,31 +1025,23 @@ function DashboardContent({
 
     setShowCustomerMenu(false);
     setNotice("");
-
     window.scrollTo(0, 0);
   };
 
   const handleLogout = () => {
-    loggedOutRef.current =
-      true;
+    loggedOutRef.current = true;
 
     try {
       if (storageKey) {
-        sessionStorage.removeItem(
-          storageKey,
-        );
+        sessionStorage.removeItem(storageKey);
       }
     } catch {}
 
     navigationRef.current =
       defaultNavigation();
 
-    setNavigation(
-      navigationRef.current,
-    );
-
+    setNavigation(navigationRef.current);
     setShowCustomerMenu(false);
-
     onLogout?.();
   };
 
@@ -1263,10 +1052,7 @@ function DashboardContent({
         navigationRef.current,
       );
 
-      window.location.assign(
-        game.href,
-      );
-
+      window.location.assign(game.href);
       return;
     }
 
@@ -1418,28 +1204,26 @@ function DashboardContent({
         }
 
         .tsb-dashboard .tsb-wallet-plain {
-          display: block;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
           margin: 0;
-          padding: 0;
-          border: 0;
-          border-radius: 0;
-          background: transparent;
+          padding: 6px 10px;
+          border: 1px solid rgba(103,232,249,.2);
+          border-radius: 999px;
+          background: rgba(40,78,87,.85);
           box-shadow: none;
           color: #ffffff;
-          font-size: 20px;
-          font-weight: 900;
-          line-height: 1.4;
+          font-size: 13px;
+          font-weight: 700;
+          line-height: 1.3;
           font-variant-numeric: tabular-nums;
           white-space: nowrap;
         }
 
-        .tsb-wallet-demo-label {
-          display: block;
-          margin-top: 2px;
-          color: #ffffff;
-          font-size: 8px;
-          font-weight: 700;
-          letter-spacing: .3px;
+        .tsb-dashboard .tsb-wallet-currency {
+          font-size: 11px;
         }
 
         .tsb-neon-track {
@@ -1490,9 +1274,7 @@ function DashboardContent({
           border-radius: 999px;
         }
 
-        @media (
-          prefers-reduced-motion: reduce
-        ) {
+        @media (prefers-reduced-motion: reduce) {
           .tsb-neon-track {
             animation: none;
           }
@@ -1501,7 +1283,6 @@ function DashboardContent({
 
       <header
         className="tsb-header border-b border-slate-200 px-4 pb-3 pt-4 text-white"
-
         style={{
           "--tsb-header-image":
             `url("${HEADER_BACKGROUND}")`,
@@ -1533,40 +1314,38 @@ function DashboardContent({
               aria-live="polite"
               aria-label="Demo wallet balance"
             >
-              {demoBalance === null
-                ? balanceError
-                  ? "—"
-                  : "Loading…"
-                : `₹${
-                    demoBalance.toLocaleString(
+              {demoBalance === null ? (
+                balanceError ? "—" : "Loading…"
+              ) : (
+                <>
+                  <span className="tsb-wallet-currency">
+                    ₹
+                  </span>
+
+                  <span>
+                    {demoBalance.toLocaleString(
                       "en-IN",
                       {
+                        minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       },
-                    )
-                  }`}
+                    )}
+                  </span>
+                </>
+              )}
             </p>
-
-            <span className="tsb-wallet-demo-label">
-              DEMO COINS
-            </span>
 
             <button
               type="button"
-
-              aria-expanded={
-                showCustomerMenu
-              }
-
+              aria-expanded={showCustomerMenu}
               aria-controls="customer-menu"
-
               onClick={() =>
                 setShowCustomerMenu(
                   value => !value,
                 )
               }
-
-              className="mt-2 max-w-[135px] truncate rounded-lg border border-cyan-400/50 bg-[#031b29]/90 px-3 py-2 text-[10px] font-black text-cyan-200"
+              className="mt-2 block max-w-[135px] truncate rounded-lg border border-cyan-400/50 bg-[#031b29]/90 px-3 py-2 text-[10px] font-black text-cyan-200"
+              style={{ marginLeft: "auto" }}
             >
               {user?.name ||
                 user?.loginId ||
@@ -1581,22 +1360,15 @@ function DashboardContent({
                 className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-56 overflow-y-auto rounded-xl border border-slate-200 bg-white text-left shadow-2xl"
               >
                 {MENU_ITEMS.map(
-                  ([
-                    label,
-                    target,
-                  ]) => (
+                  ([label, target]) => (
                     <button
                       key={target}
                       type="button"
-
                       onClick={() =>
                         target === "home"
                           ? goHome()
-                          : openPage(
-                              target,
-                            )
+                          : openPage(target)
                       }
-
                       className="block w-full border-b border-slate-100 px-4 py-3 text-left text-[11px] font-bold text-[#791b3e] hover:bg-slate-50"
                     >
                       {label}
@@ -1606,9 +1378,7 @@ function DashboardContent({
 
                 <button
                   type="button"
-                  onClick={
-                    handleLogout
-                  }
+                  onClick={handleLogout}
                   className="block w-full bg-[#791b3e] px-4 py-3 text-left text-[11px] font-black text-white"
                 >
                   Logout
@@ -1630,11 +1400,7 @@ function DashboardContent({
         <div className="mt-4 grid grid-cols-2 gap-3">
           <button
             type="button"
-
-            onClick={() =>
-              openPage("deposit")
-            }
-
+            onClick={() => openPage("deposit")}
             className="rounded-2xl border border-[#08b7bc] bg-[#08b7bc] px-3 py-3 text-left shadow-[0_0_8px_rgba(8,183,188,.25)] active:scale-95"
           >
             <span className="flex items-center gap-2">
@@ -1654,13 +1420,9 @@ function DashboardContent({
 
           <button
             type="button"
-
             onClick={() =>
-              openPage(
-                "withdrawal",
-              )
+              openPage("withdrawal")
             }
-
             className="rounded-2xl border border-[#791b3e] bg-[#791b3e] px-3 py-3 text-left shadow-[0_0_8px_rgba(121,27,62,.25)] active:scale-95"
           >
             <span className="flex items-center gap-2">
@@ -1681,31 +1443,23 @@ function DashboardContent({
 
         <div className="mt-3 overflow-hidden rounded-lg border border-black bg-black">
           <div className="tsb-neon-track">
-            {[0, 1].map(
-              index => (
-                <span
-                  key={index}
-
-                  aria-hidden={
-                    index === 1
-                  }
-
-                  className="tsb-neon-text"
-                >
-                  ✦ TELUGU SPORTS BOOK
-                  {" "}• PREMIUM SPORTS &amp;
-                  {" "}ENTERTAINMENT ✦
-                </span>
-              ),
-            )}
+            {[0, 1].map(index => (
+              <span
+                key={index}
+                aria-hidden={index === 1}
+                className="tsb-neon-text"
+              >
+                ✦ TELUGU SPORTS BOOK
+                {" "}• PREMIUM SPORTS &amp;
+                {" "}ENTERTAINMENT ✦
+              </span>
+            ))}
           </div>
         </div>
       </header>
 
       <TopGamesSlider
-        onGameClick={
-          handleGameClick
-        }
+        onGameClick={handleGameClick}
       />
 
       <div className="px-4 py-3">
@@ -1720,22 +1474,18 @@ function DashboardContent({
             <button
               key={tab}
               type="button"
-
               onClick={() =>
                 navigate({
                   selectedTab: tab,
                 })
               }
-
               className={
                 "shrink-0 rounded-lg border " +
                 "px-4 py-2 text-[9px] " +
                 "font-black text-white " +
-                (
-                  selectedTab === tab
-                    ? "border-[#a72a55] bg-[#a12450] shadow-[0_0_10px_rgba(161,36,80,.2)]"
-                    : "border-[#791b3e] bg-[#791b3e]"
-                )
+                (selectedTab === tab
+                  ? "border-[#a72a55] bg-[#a12450] shadow-[0_0_10px_rgba(161,36,80,.2)]"
+                  : "border-[#791b3e] bg-[#791b3e]")
               }
             >
               {tab}
@@ -1746,42 +1496,34 @@ function DashboardContent({
 
       <section className="tsb-scrollbar overflow-x-auto border-b border-slate-200 bg-white">
         <div className="flex w-max gap-2 px-3 py-3">
-          {sports.map(
-            sport => (
-              <button
-                key={sport.name}
-                type="button"
+          {sports.map(sport => (
+            <button
+              key={sport.name}
+              type="button"
+              onClick={() =>
+                navigate({
+                  selectedSport: sport.name,
+                })
+              }
+              className={
+                "w-[90px] shrink-0 " +
+                "rounded-xl border " +
+                "bg-[#08b7bc] px-2 py-2 " +
+                "text-center text-black " +
+                (selectedSport === sport.name
+                  ? "border-[#087f83] shadow-[inset_0_0_0_1px_#087f83]"
+                  : "border-[#08b7bc]")
+              }
+            >
+              <span className="block text-xl">
+                {sport.icon}
+              </span>
 
-                onClick={() =>
-                  navigate({
-                    selectedSport:
-                      sport.name,
-                  })
-                }
-
-                className={
-                  "w-[90px] shrink-0 " +
-                  "rounded-xl border " +
-                  "bg-[#08b7bc] px-2 py-2 " +
-                  "text-center text-black " +
-                  (
-                    selectedSport ===
-                    sport.name
-                      ? "border-[#087f83] shadow-[inset_0_0_0_1px_#087f83]"
-                      : "border-[#08b7bc]"
-                  )
-                }
-              >
-                <span className="block text-xl">
-                  {sport.icon}
-                </span>
-
-                <span className="mt-2 block whitespace-nowrap text-[7px] font-black">
-                  {sport.name}
-                </span>
-              </button>
-            ),
-          )}
+              <span className="mt-2 block whitespace-nowrap text-[7px] font-black">
+                {sport.name}
+              </span>
+            </button>
+          ))}
         </div>
       </section>
 
@@ -1795,56 +1537,41 @@ function DashboardContent({
         </div>
 
         <div className="mt-3 flex gap-2">
-          {FILTERS.map(
-            filter => (
-              <button
-                key={filter}
-                type="button"
-
-                onClick={() =>
-                  navigate({
-                    matchFilter:
-                      filter,
-                  })
-                }
-
-                className={
-                  "rounded-lg border " +
-                  "px-4 py-2 text-[8px] " +
-                  "font-black text-white " +
-                  (
-                    matchFilter ===
-                    filter
-                      ? "border-[#ac2854] bg-[#ac2854]"
-                      : "border-[#791b3e] bg-[#791b3e]"
-                  )
-                }
-              >
-                {filter}
-              </button>
-            ),
-          )}
+          {FILTERS.map(filter => (
+            <button
+              key={filter}
+              type="button"
+              onClick={() =>
+                navigate({
+                  matchFilter: filter,
+                })
+              }
+              className={
+                "rounded-lg border " +
+                "px-4 py-2 text-[8px] " +
+                "font-black text-white " +
+                (matchFilter === filter
+                  ? "border-[#ac2854] bg-[#ac2854]"
+                  : "border-[#791b3e] bg-[#791b3e]")
+              }
+            >
+              {filter}
+            </button>
+          ))}
         </div>
       </section>
 
       <section className="px-3 pb-4">
         <div
           className="tsb-match-scroller tsb-scrollbar rounded-xl"
-
           role="region"
-
           aria-label="Matches. Scroll through matches, then continue scrolling the page."
-
           tabIndex={0}
         >
-          {selectedSport ===
-            "CRICKET" &&
-          matchFilter ===
-            "LIVE" ? (
+          {selectedSport === "CRICKET" &&
+          matchFilter === "LIVE" ? (
             <CricketMatchList
-              onOpenMatch={
-                openMatch
-              }
+              onOpenMatch={openMatch}
             />
           ) : (
             <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs leading-6 text-slate-600">
@@ -1864,18 +1591,12 @@ function DashboardContent({
           role="status"
           className="mx-3 mb-3 flex items-center justify-between gap-3 rounded-xl border border-[#791b3e] bg-white p-3 text-xs text-[#791b3e]"
         >
-          <span>
-            {notice}
-          </span>
+          <span>{notice}</span>
 
           <button
             type="button"
             aria-label="Dismiss message"
-
-            onClick={() =>
-              setNotice("")
-            }
-
+            onClick={() => setNotice("")}
             className="px-2 text-lg"
           >
             ×
@@ -1887,33 +1608,25 @@ function DashboardContent({
         title="POPULAR GAMES"
         games={GAMES}
         compact
-        onGameClick={
-          handleGameClick
-        }
+        onGameClick={handleGameClick}
       />
 
       <GameSection
         title="NEW LAUNCH"
         games={newLaunch}
-        onGameClick={
-          handleGameClick
-        }
+        onGameClick={handleGameClick}
       />
 
       <GameSection
         title="MY FAVOURITES"
         games={favourites}
-        onGameClick={
-          handleGameClick
-        }
+        onGameClick={handleGameClick}
       />
 
       <GameSection
         title="OUR PROVIDERS"
         games={providers}
-        onGameClick={
-          handleGameClick
-        }
+        onGameClick={handleGameClick}
       />
 
       <footer className="border-t border-slate-200 bg-white px-5 py-8 text-center">
@@ -1939,8 +1652,7 @@ export default function DemoDashboard({
   user,
   onLogout,
 }) {
-  const storageKey =
-    navigationKey(user);
+  const storageKey = navigationKey(user);
 
   return (
     <DashboardContent
@@ -1948,7 +1660,6 @@ export default function DemoDashboard({
         storageKey ||
         "customer-without-id"
       }
-
       storageKey={storageKey}
       user={user}
       onLogout={onLogout}
