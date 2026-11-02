@@ -2034,13 +2034,14 @@ const CSS = `
   }
 
   .cr-player-image {
-    display: block;
-    width: 30px;
-    height: 40px;
-    object-fit: contain;
-    pointer-events: none;
-    user-select: none;
-    -webkit-user-drag: none;
+  display: block;
+  width: 60px;
+  height: 80px;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
   }
 
   .cr-player.cr-jump {
