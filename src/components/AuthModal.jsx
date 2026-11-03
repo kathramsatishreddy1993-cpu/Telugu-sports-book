@@ -28,7 +28,9 @@ function normalizeWhatsAppNumber(value) {
   return digits;
 }
 
-function WhatsAppIcon({ className = "h-6 w-6" }) {
+function WhatsAppIcon({
+  className = "h-6 w-6",
+}) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -346,7 +348,7 @@ export default function AuthModal({
 
     if (requireDetails && !cleanId) {
       setError(
-        "Please enter your Preferred User ID.",
+        "Please enter your User ID.",
       );
       return;
     }
@@ -368,7 +370,7 @@ export default function AuthModal({
 
     if (cleanId) {
       lines.push(
-        `Preferred User ID: ${cleanId}.`,
+        `User ID: ${cleanId}`,
       );
     }
 
@@ -501,12 +503,16 @@ export default function AuthModal({
                   className="mt-5 space-y-4"
                 >
                   <div className="relative">
-                    <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xl text-gray-400">
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xl text-gray-400"
+                    >
                       ♙
                     </div>
 
                     <input
                       type="text"
+                      aria-label="Customer ID"
                       value={identifier}
                       disabled={loading}
                       onChange={event =>
@@ -521,7 +527,10 @@ export default function AuthModal({
                   </div>
 
                   <div className="relative">
-                    <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg text-gray-400">
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg text-gray-400"
+                    >
                       🔒
                     </div>
 
@@ -531,6 +540,7 @@ export default function AuthModal({
                           ? "text"
                           : "password"
                       }
+                      aria-label="Password"
                       value={password}
                       disabled={loading}
                       onChange={event =>
@@ -610,7 +620,10 @@ export default function AuthModal({
                     disabled={loading}
                     className="flex h-[56px] w-full items-center justify-center gap-3 rounded-xl border-2 border-cyan-400 bg-[#06121d]/90 text-sm font-black uppercase tracking-wide text-white shadow-[0_0_20px_rgba(34,211,238,0.15)] transition active:scale-[0.99] disabled:opacity-50"
                   >
-                    <span className="text-xl">
+                    <span
+                      aria-hidden="true"
+                      className="text-xl"
+                    >
                       🎮
                     </span>
 
@@ -643,7 +656,10 @@ export default function AuthModal({
                       </div>
                     </div>
 
-                    <span className="ml-auto text-xl text-gray-400">
+                    <span
+                      aria-hidden="true"
+                      className="ml-auto text-xl text-gray-400"
+                    >
                       ›
                     </span>
                   </button>
@@ -683,7 +699,7 @@ export default function AuthModal({
                       htmlFor="tsb-preferred-id"
                       className="mb-2 block text-xs font-bold text-gray-300"
                     >
-                      Preferred User ID
+                      User ID
                     </label>
 
                     <input
@@ -695,7 +711,7 @@ export default function AuthModal({
                           event.target.value,
                         )
                       }
-                      placeholder="Example: satish123"
+                      placeholder="User ID"
                       autoComplete="off"
                       className="h-[56px] w-full rounded-xl border border-slate-500/70 bg-[#071522]/95 px-4 text-sm text-white outline-none placeholder:text-gray-400 focus:border-cyan-400"
                     />
@@ -755,7 +771,10 @@ export default function AuthModal({
 
 function ErrorBox({ text }) {
   return (
-    <div className="rounded-xl border border-red-500/30 bg-red-950/50 px-3 py-3 text-sm text-red-300">
+    <div
+      role="alert"
+      className="rounded-xl border border-red-500/30 bg-red-950/50 px-3 py-3 text-sm text-red-300"
+    >
       {text}
     </div>
   );
