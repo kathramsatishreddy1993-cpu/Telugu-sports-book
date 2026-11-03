@@ -1,161 +1,140 @@
-function FlightScene({
-  round,
-  phase,
-  multiplier,
-  growthRate = 0.085,
-  now,
-  start,
-  verified,
-  fresh,
-}) {
-  const WINE = "#791b3e";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
-  const running = phase === "RUNNING";
-  const crashed = phase === "CRASHED";
+import {
+  flightApi,
+  useFlightState,
+  flightRequestKey,
+  notifyFlightWallet,
+} from "./flightClient";
+
+const WINE = "#791b3e";
+
+function money(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    !Number.isFinite(Number(value))
+  ) {
+    return "—";
+  }
+
+  return `₹${Number(value).toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function AmountBox({ value }) {
+  return (
+    <span className="inline-flex max-w-full items-center justify-center rounded-lg border border-[#166534] bg-white px-3 py-2 text-sm font-black tabular-nums text-[#166534]">
+      {money(value)}
+    </span>
+  );
+}
+
+/*
+ * Smoothly approach server-confirmed values.
+ * Never estimate beyond the latest confirmed multiplier.
+ */
+function useSmoothMultiplier(roundId, phase, multiplier) {
+  const target = Number.isFinite(Number(multiplier))
+    ? Math.max(1, Number(multiplier))
+    : 1;
+
+  const id = roundId == null ? null : String(roundId);
 
   const [paint, setPaint] = useState({
-    roundId: null,
-    value: 1,
+    id,
+    value: target,
   });
 
   const motion = useRef({
-    roundId: null,
-    value: 1,
-    target: 1,
+    id: null,
     phase: "WAITING",
-    previousTargetAt: null,
+    value: 1,
     from: 1,
+    target: 1,
     beganAt: 0,
     duration: 500,
+    previousTargetAt: null,
   });
 
-  /*
-   * Animate only toward a value already confirmed
-   * by the server. Never predict beyond that value.
-   */
   useEffect(() => {
     const current = motion.current;
-
-    const roundId =
-      round?.id == null
-        ? null
-        : String(round.id);
-
-    const target =
-      Number.isFinite(Number(multiplier))
-        ? Math.max(1, Number(multiplier))
-        : 1;
-
     const timestamp = performance.now();
 
-    const newRound =
-      current.roundId !== roundId;
-
-    const enteringFlight =
-      current.phase !== "RUNNING" &&
-      running;
-
     if (
-      newRound ||
+      current.id !== id ||
       phase === "WAITING" ||
       phase === "COUNTDOWN"
     ) {
       const value =
-        running || crashed
+        phase === "RUNNING" || phase === "CRASHED"
           ? target
           : 1;
 
       motion.current = {
-        roundId,
-        value,
-        target: value,
+        id,
         phase,
-        previousTargetAt: null,
+        value,
         from: value,
+        target: value,
         beganAt: timestamp,
         duration: 500,
+        previousTargetAt: null,
       };
 
-      setPaint({
-        roundId,
-        value,
-      });
-
+      setPaint({ id, value });
       return;
     }
 
-    if (crashed) {
-      /*
-       * Crash is authoritative.
-       * Stop at the exact server result immediately.
-       */
-      current.value = target;
-      current.target = target;
-      current.from = target;
+    if (phase === "CRASHED") {
       current.phase = phase;
+      current.value = target;
+      current.from = target;
+      current.target = target;
       current.previousTargetAt = null;
 
-      setPaint({
-        roundId,
-        value: target,
-      });
-
+      setPaint({ id, value: target });
       return;
     }
 
     current.phase = phase;
 
-    if (!running) return;
-
-    if (enteringFlight) {
-      current.previousTargetAt = null;
+    if (
+      phase !== "RUNNING" ||
+      Math.abs(target - current.target) < 0.000001
+    ) {
+      return;
     }
 
-    if (
-      Math.abs(target - current.target) <
-      0.000001
-    ) {
+    if (target < current.value) {
       return;
     }
 
     const interval =
       current.previousTargetAt === null
         ? 500
-        : timestamp -
-          current.previousTargetAt;
+        : timestamp - current.previousTargetAt;
 
-    current.previousTargetAt =
-      timestamp;
-
-    /*
-     * A same-round running display never moves
-     * backwards if an older snapshot arrives.
-     */
-    if (target < current.value) {
-      return;
-    }
-
+    current.previousTargetAt = timestamp;
     current.from = current.value;
     current.target = target;
     current.beganAt = timestamp;
-
     current.duration = Math.max(
       120,
       Math.min(1200, interval),
     );
-  }, [
-    round?.id,
-    phase,
-    multiplier,
-    running,
-    crashed,
-  ]);
+  }, [id, phase, target]);
 
   useEffect(() => {
     let frame;
     let disposed = false;
 
-    const reduced = window.matchMedia?.(
+    const media = window.matchMedia?.(
       "(prefers-reduced-motion: reduce)",
     );
 
@@ -168,61 +147,38 @@ function FlightScene({
         current.phase === "RUNNING" &&
         current.value < current.target
       ) {
-        const progress =
-          reduced?.matches
-            ? 1
-            : Math.max(
-                0,
-                Math.min(
-                  1,
-                  (
-                    timestamp -
-                    current.beganAt
-                  ) / current.duration,
-                ),
-              );
+        const progress = media?.matches
+          ? 1
+          : Math.max(
+              0,
+              Math.min(
+                1,
+                (timestamp - current.beganAt) /
+                  current.duration,
+              ),
+            );
 
-        /*
-         * Geometric interpolation follows the
-         * flight's exponential growth curve.
-         */
-        const from = Math.max(
-          1,
-          current.from,
-        );
-
-        const target = Math.max(
-          from,
-          current.target,
-        );
+        const from = Math.max(1, current.from);
+        const end = Math.max(from, current.target);
 
         const next =
-          from *
-          Math.pow(
-            target / from,
-            progress,
-          );
+          from * Math.pow(end / from, progress);
 
         current.value = Math.min(
-          target,
-          Math.max(
-            current.value,
-            next,
-          ),
+          end,
+          Math.max(current.value, next),
         );
 
         setPaint({
-          roundId: current.roundId,
+          id: current.id,
           value: current.value,
         });
       }
 
-      frame =
-        requestAnimationFrame(animate);
+      frame = requestAnimationFrame(animate);
     };
 
-    frame =
-      requestAnimationFrame(animate);
+    frame = requestAnimationFrame(animate);
 
     return () => {
       disposed = true;
@@ -230,90 +186,1005 @@ function FlightScene({
     };
   }, []);
 
-  const currentRoundId =
-    round?.id == null
-      ? null
-      : String(round.id);
+  if (phase === "CRASHED") return target;
 
-  const confirmed =
-    Number.isFinite(Number(multiplier))
-      ? Math.max(1, Number(multiplier))
-      : 1;
+  if (
+    phase === "WAITING" ||
+    phase === "COUNTDOWN"
+  ) {
+    return 1;
+  }
 
-  const displayedMultiplier =
-    crashed
-      ? confirmed
-      : running
-        ? paint.roundId === currentRoundId
-          ? Math.min(
-              confirmed,
-              Math.max(1, paint.value),
-            )
-          : confirmed
+  return paint.id === id
+    ? Math.min(target, Math.max(1, paint.value))
+    : target;
+}
+
+export default function TSBFlightPage({
+  user,
+  onBack,
+  onLogout,
+}) {
+  const {
+    data,
+    error,
+    unauthorized,
+    receivedAt,
+    refresh,
+  } = useFlightState("/api/flight/state");
+
+  const [clock, setClock] = useState(Date.now());
+
+  const [drafts, setDrafts] = useState({
+    1: "50",
+    2: "50",
+  });
+
+  const [verified, setVerified] = useState("");
+  const lastBalance = useRef(null);
+
+  useEffect(() => {
+    const timer = setInterval(
+      () => setClock(Date.now()),
+      50,
+    );
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const customerId =
+    user?.id ??
+    user?.customerId ??
+    user?.customer_id;
+
+  const wrongAccount = Boolean(
+    data &&
+      String(data.customerId) !== String(customerId),
+  );
+
+  const round = data?.round;
+
+  const elapsed = Number.isFinite(receivedAt)
+    ? Math.max(0, clock - receivedAt)
+    : Infinity;
+
+  const serverTime = data?.serverTime
+    ? new Date(data.serverTime).getTime()
+    : NaN;
+
+  const serverNow =
+    Number.isFinite(serverTime) &&
+    Number.isFinite(elapsed)
+      ? serverTime + elapsed
+      : clock;
+
+  const start = round
+    ? new Date(round.startsAt).getTime()
+    : 0;
+
+  const fresh = Boolean(
+    data &&
+      !error &&
+      !unauthorized &&
+      Number.isFinite(serverTime) &&
+      elapsed < 3500 &&
+      !wrongAccount,
+  );
+
+  const phase =
+    round?.phase === "CRASHED"
+      ? "CRASHED"
+      : !round
+        ? "WAITING"
+        : serverNow < start
+          ? "COUNTDOWN"
+          : "RUNNING";
+
+  const confirmed = Number(
+    round?.phase === "CRASHED"
+      ? round.crashMultiplier
+      : round?.multiplier,
+  );
+
+  const multiplier =
+    phase === "COUNTDOWN" || phase === "WAITING"
+      ? 1
+      : Number.isFinite(confirmed)
+        ? Math.max(1, confirmed)
         : 1;
 
-  /*
-   * Floor during flight so rounding cannot display
-   * a multiplier that has not been reached.
-   */
-  const multiplierText =
-    crashed
-      ? confirmed.toFixed(2)
-      : (
-          Math.floor(
-            displayedMultiplier * 100 +
-              0.0000001,
-          ) / 100
-        ).toFixed(2);
+  const rate = Number(data?.growthRate);
 
-  const rate =
-    Number.isFinite(Number(growthRate)) &&
-    Number(growthRate) > 0
-      ? Number(growthRate)
+  const growthRate =
+    Number.isFinite(rate) && rate > 0
+      ? rate
       : 0.085;
+
+  const sound = useFlightSound(
+    phase,
+    round?.id,
+    fresh,
+  );
+
+  const balanceAvailable =
+    !wrongAccount &&
+    !unauthorized &&
+    data?.balance !== null &&
+    data?.balance !== undefined &&
+    Number.isFinite(Number(data.balance));
+
+  useEffect(() => {
+    if (
+      wrongAccount ||
+      unauthorized ||
+      data?.balance === null ||
+      data?.balance === undefined ||
+      !Number.isFinite(Number(data.balance))
+    ) {
+      lastBalance.current = null;
+      return;
+    }
+
+    const balance = Number(data.balance);
+    const previous = lastBalance.current;
+
+    lastBalance.current = balance;
+
+    if (previous !== null && previous !== balance) {
+      notifyFlightWallet();
+    }
+  }, [data?.balance, wrongAccount, unauthorized]);
+
+  useEffect(() => {
+    let active = true;
+    setVerified("");
+
+    if (
+      round?.phase === "CRASHED" &&
+      round.seed &&
+      globalThis.crypto?.subtle
+    ) {
+      const text =
+        `${round.id}:` +
+        `${Math.round(round.crashMultiplier * 100)}:` +
+        `${round.seed}`;
+
+      globalThis.crypto.subtle
+        .digest(
+          "SHA-256",
+          new TextEncoder().encode(text),
+        )
+        .then(hash => {
+          const result = Array.from(
+            new Uint8Array(hash),
+            value =>
+              value.toString(16).padStart(2, "0"),
+          ).join("");
+
+          if (active) {
+            setVerified(
+              result === round.commitment
+                ? "Locked result verified ✓"
+                : "Result verification failed",
+            );
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setVerified("Verification unavailable.");
+          }
+        });
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [
+    round?.id,
+    round?.phase,
+    round?.seed,
+    round?.crashMultiplier,
+    round?.commitment,
+  ]);
+
+  const visibleBets =
+    !wrongAccount && !unauthorized
+      ? data?.bets || []
+      : [];
+
+  return (
+    <div className="tsb-flight-page min-h-screen bg-[#060d19] font-sans text-white">
+      <style>{`
+        .tsb-flight-wallet {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          gap: 4px;
+          margin: 0;
+          padding: 6px 10px;
+          border: 1px solid rgba(103,232,249,.2);
+          border-radius: 999px;
+          background: rgba(40,78,87,.85);
+          color: #fff;
+          font-size: 13px;
+          font-weight: 700;
+          line-height: 1.3;
+          font-variant-numeric: tabular-nums;
+          white-space: nowrap;
+        }
+
+        .tsb-flight-wallet-currency {
+          font-size: 11px;
+        }
+      `}</style>
+
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#0b1628] p-4">
+        <button
+          type="button"
+          onClick={onBack}
+          className="rounded-lg border border-cyan-400/30 px-3 py-2 text-sm text-cyan-200"
+        >
+          ← Home
+        </button>
+
+        <div className="min-w-0 flex-1 text-center">
+          <h1 className="text-lg font-black text-cyan-300">
+            TSB FLIGHT
+          </h1>
+
+          <p className="text-[10px] text-slate-400">
+            MULTIPLAYER DEMO
+          </p>
+        </div>
+
+        <p
+          aria-live="polite"
+          aria-label="Demo wallet balance"
+          title={
+            balanceAvailable && !fresh
+              ? "Last received balance"
+              : "Demo wallet balance"
+          }
+          className="tsb-flight-wallet"
+        >
+          {balanceAvailable ? (
+            <>
+              <span className="tsb-flight-wallet-currency">
+                ₹
+              </span>
+
+              <span>
+                {Number(data.balance).toLocaleString(
+                  "en-IN",
+                  {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  },
+                )}
+              </span>
+            </>
+          ) : data || error || unauthorized ? (
+            "—"
+          ) : (
+            "Loading…"
+          )}
+        </p>
+      </header>
+
+      <div className="mx-auto flex max-w-4xl justify-end px-4 pt-2">
+        <button
+          type="button"
+          onClick={sound.toggle}
+          aria-pressed={sound.enabled}
+          className="rounded-lg border border-cyan-400/30 px-3 py-2 text-xs text-cyan-200"
+        >
+          {sound.enabled
+            ? "🔊 Sound ON"
+            : "🔇 Sound OFF"}
+        </button>
+      </div>
+
+      <main className="mx-auto max-w-4xl space-y-4 p-4">
+        {(error || wrongAccount || unauthorized) && (
+          <div
+            role="alert"
+            className="rounded-xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-200"
+          >
+            {wrongAccount
+              ? "Customer session does not match. Logout and login again."
+              : unauthorized
+                ? "Login required."
+                : String(error?.message || error)}
+
+            <button
+              type="button"
+              onClick={onLogout}
+              className="ml-3 underline"
+            >
+              Logout / login again
+            </button>
+          </div>
+        )}
+
+        <FlightScene
+          round={round}
+          phase={phase}
+          multiplier={multiplier}
+          growthRate={growthRate}
+          now={serverNow}
+          start={start}
+          verified={verified}
+          fresh={fresh}
+        />
+
+        {[1, 2].map(slot => (
+          <BetBox
+            key={`${customerId}-${slot}`}
+            slot={slot}
+            round={round}
+            phase={phase}
+            fresh={fresh}
+            multiplier={multiplier}
+            stake={drafts[slot]}
+            setStake={value =>
+              setDrafts(previous => ({
+                ...previous,
+                [slot]: value,
+              }))
+            }
+            bets={visibleBets}
+            refresh={refresh}
+          />
+        ))}
+
+        <section className="rounded-2xl border border-white/10 bg-[#0d192a] p-4">
+          <h2 className="font-black">
+            Recent rounds
+          </h2>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {data?.history?.map(item => (
+              <span
+                key={item.id}
+                className="rounded-full border border-red-400/20 bg-red-400/10 px-3 py-1 text-xs text-red-200"
+              >
+                #{item.id} ·{" "}
+                {Number(item.crashMultiplier).toFixed(2)}
+                ×
+              </span>
+            ))}
+
+            {!data?.history?.length && (
+              <p className="text-xs text-slate-400">
+                No completed rounds.
+              </p>
+            )}
+          </div>
+        </section>
+
+        <section className="overflow-hidden rounded-2xl border border-[#166534] bg-white p-4 text-[#166534]">
+          <h2 className="font-black">
+            Your flight history
+          </h2>
+
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[560px] text-left text-xs">
+              <thead className="bg-[#166534] text-white">
+                <tr>
+                  <th className="p-3">Round</th>
+                  <th className="p-3">Box</th>
+                  <th className="p-3">Stake</th>
+                  <th className="p-3">Result</th>
+                  <th className="p-3">Returned</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {visibleBets.map(bet => (
+                  <tr
+                    key={bet.id}
+                    className="border-b border-[#166534]/20"
+                  >
+                    <td className="p-3 font-bold">
+                      #{bet.roundId}
+                    </td>
+
+                    <td className="p-3">
+                      {bet.slot || 1}
+                    </td>
+
+                    <td className="p-3">
+                      <AmountBox value={bet.stake} />
+                    </td>
+
+                    <td className="p-3">
+                      <span className="font-bold text-[#722f37]">
+                        {bet.status}
+                      </span>
+
+                      {bet.cashoutMultiplier
+                        ? ` · ${Number(
+                            bet.cashoutMultiplier,
+                          ).toFixed(2)}×`
+                        : ""}
+                    </td>
+
+                    <td className="p-3">
+                      {bet.status === "PLACED" ? (
+                        <span className="rounded-lg border border-[#722f37] px-3 py-2 text-[10px] font-bold text-[#722f37]">
+                          PENDING
+                        </span>
+                      ) : (
+                        <AmountBox value={bet.payout} />
+                      )}
+                    </td>
+                  </tr>
+                ))}
+
+                {!visibleBets.length && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="p-6 text-center"
+                    >
+                      No flight bets yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <p className="px-1 text-[10px] leading-5 text-slate-400">
+          Demo coins only · ₹ is the display symbol
+          for virtual demo balance. Controller fixes
+          the crash before betting opens. Closing
+          the page does not cash out; the server
+          must accept cash out before crash.
+        </p>
+
+        {round && (
+          <details className="break-all rounded-xl border border-white/10 p-3 text-[10px] text-slate-400">
+            <summary className="cursor-pointer">
+              Locked round verification
+            </summary>
+
+            <p className="mt-2">
+              SHA-256 commitment: {round.commitment}
+            </p>
+
+            {round.seed && (
+              <p className="mt-2">
+                Revealed seed: {round.seed}
+              </p>
+            )}
+
+            <p className="mt-2">
+              Commitment input: round ID : crash
+              multiplier × 100 : seed. This verifies
+              the locked result; this test mode is
+              admin-selected, not random.
+            </p>
+          </details>
+        )}
+      </main>
+    </div>
+  );
+}
+
+function BetBox({
+  slot,
+  round,
+  phase,
+  fresh,
+  multiplier,
+  bets,
+  refresh,
+  stake,
+  setStake,
+}) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [saved, setSaved] = useState(null);
+  const [queued, setQueued] = useState(null);
+
+  const pending = useRef(null);
+  const inflight = useRef(false);
+  const mounted = useRef(false);
+  const queueRef = useRef(null);
+  const latest = useRef(null);
+
+  useEffect(() => {
+    mounted.current = true;
+
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  const remote = bets
+    .filter(
+      bet =>
+        String(bet.roundId) === String(round?.id) &&
+        Number(bet.slot || 1) === slot,
+    )
+    .reduce(
+      (best, bet) =>
+        !best || BigInt(bet.id) > BigInt(best.id)
+          ? bet
+          : best,
+      null,
+    );
+
+  const local =
+    saved &&
+    String(saved.roundId) === String(round?.id)
+      ? saved
+      : null;
+
+  let bet = remote;
+
+  if (
+    local &&
+    (!remote || BigInt(local.id) > BigInt(remote.id))
+  ) {
+    bet = local;
+  } else if (
+    local &&
+    remote &&
+    String(local.id) === String(remote.id) &&
+    local.status !== "PLACED"
+  ) {
+    bet = local;
+  }
+
+  const placed = bet?.status === "PLACED";
+  const cancel = placed && phase === "COUNTDOWN";
+  const cashout = placed && phase === "RUNNING";
+
+  const canBet =
+    (!bet || bet.status === "CANCELLED") &&
+    phase === "COUNTDOWN";
+
+  const editable =
+    !busy && !queued && !placed && !pending.current;
+
+  latest.current = {
+    fresh,
+    round,
+    phase,
+    bet,
+    canBet,
+  };
+
+  const clearQueue = () => {
+    queueRef.current = null;
+    setQueued(null);
+  };
+
+  const submit = async (
+    action,
+    payload,
+    selectedBet,
+  ) => {
+    if (inflight.current) return;
+
+    inflight.current = true;
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const result =
+        action === "bet"
+          ? await flightApi(
+              "/api/flight/bets",
+              payload,
+            )
+          : await flightApi(
+              `/api/flight/bets/${selectedBet.id}/${action}`,
+              {},
+            );
+
+      if (!result?.bet) {
+        throw new Error(
+          "Unable to confirm bet status.",
+        );
+      }
+
+      if (action === "bet") {
+        pending.current = null;
+      }
+
+      notifyFlightWallet();
+
+      if (mounted.current) {
+        setSaved(result.bet);
+
+        setMessage(
+          result.bet.status === "CANCELLED"
+            ? "Bet cancelled · stake returned."
+            : result.bet.status === "CASHED_OUT"
+              ? `Cashed out · ${money(
+                  result.bet.payout,
+                )} demo balance returned.`
+              : "",
+        );
+      }
+    } catch (failure) {
+      if (
+        [400, 401, 403, 404, 409].includes(
+          failure.status,
+        )
+      ) {
+        pending.current = null;
+      }
+
+      if (mounted.current) {
+        setMessage(
+          action === "bet" && pending.current
+            ? "Confirming bet · tap RETRY to check."
+            : failure.status === 409
+              ? "Action closed · refreshing status."
+              : failure.message ||
+                "Unable to complete action.",
+        );
+      }
+    } finally {
+      inflight.current = false;
+
+      if (mounted.current) {
+        setBusy(false);
+
+        try {
+          await refresh();
+        } catch {
+          if (mounted.current) {
+            setMessage(
+              "Unable to refresh status. Waiting for the server connection.",
+            );
+          }
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    const queue = queueRef.current;
+
+    if (
+      !queue ||
+      !fresh ||
+      inflight.current ||
+      phase !== "COUNTDOWN" ||
+      !round
+    ) {
+      return;
+    }
+
+    if (
+      queue.afterRound != null &&
+      BigInt(round.id) <= BigInt(queue.afterRound)
+    ) {
+      return;
+    }
+
+    clearQueue();
+
+    if (!canBet) {
+      setMessage("This box already has a bet.");
+      return;
+    }
+
+    const payload = {
+      roundId: round.id,
+      slot,
+      stake: queue.stake,
+      requestKey: queue.requestKey,
+    };
+
+    pending.current = payload;
+    void submit("bet", payload);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [round?.id, phase, fresh, queued, canBet]);
+
+  const change = delta => {
+    if (!editable) return;
+
+    setStake(
+      String(
+        Math.min(
+          25000,
+          Math.max(
+            10,
+            (Number(stake) || 0) + delta,
+          ),
+        ),
+      ),
+    );
+  };
+
+  const act = () => {
+    if (inflight.current) return;
+
+    if (queueRef.current) {
+      clearQueue();
+      setMessage("Next bet cancelled.");
+      return;
+    }
+
+    if (!latest.current.fresh) {
+      setMessage("Connection unavailable.");
+      return;
+    }
+
+    if (cancel) {
+      void submit("cancel", null, bet);
+      return;
+    }
+
+    if (cashout) {
+      void submit("cashout", null, bet);
+      return;
+    }
+
+    if (pending.current) {
+      void submit("bet", pending.current);
+      return;
+    }
+
+    const amount = Number(stake);
+
+    if (
+      !Number.isSafeInteger(amount) ||
+      amount < 10 ||
+      amount > 25000
+    ) {
+      setMessage(
+        "Enter ₹10–₹25,000 in whole demo units.",
+      );
+      return;
+    }
+
+    if (placed) {
+      setMessage("Refreshing bet status.");
+      void refresh();
+      return;
+    }
+
+    let requestKey;
+
+    try {
+      requestKey = flightRequestKey();
+    } catch {
+      setMessage(
+        "A secure browser connection is required.",
+      );
+      return;
+    }
+
+    if (canBet) {
+      const payload = {
+        roundId: round.id,
+        slot,
+        stake: amount,
+        requestKey,
+      };
+
+      pending.current = payload;
+      void submit("bet", payload);
+    } else {
+      const queue = {
+        stake: amount,
+        requestKey,
+        afterRound: round?.id ?? null,
+      };
+
+      queueRef.current = queue;
+      setQueued(queue);
+      setMessage("");
+    }
+  };
+
+  const cancelStyle = Boolean(queued || cancel);
+
+  const label = busy
+    ? "PROCESSING…"
+    : cancelStyle
+      ? "CANCEL"
+      : cashout
+        ? "CASH OUT"
+        : pending.current
+          ? "RETRY"
+          : "BET";
+
+  const displayAmount = cashout
+    ? `≈ ${money(
+        Math.floor(Number(bet.stake) * multiplier),
+      )}`
+    : money(
+        queued?.stake ??
+          (cancel ? bet.stake : stake || 0),
+      );
+
+  return (
+    <section className="rounded-2xl border border-white/10 bg-[#0d192a] p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-black text-cyan-200">
+          BET BOX {slot}
+        </h2>
+
+        <span className="text-[10px] text-slate-400">
+          ₹10–₹25,000 · Demo balance
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 items-end gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center rounded-xl border-2 border-[#166534] bg-white p-1 text-[#166534]">
+            <button
+              type="button"
+              aria-label={`Decrease box ${slot} stake`}
+              disabled={!editable}
+              onClick={() => change(-10)}
+              className="h-10 w-7 shrink-0 rounded-lg text-xl font-black disabled:opacity-30"
+            >
+              −
+            </button>
+
+            <span
+              aria-hidden="true"
+              className="shrink-0 text-lg font-black"
+            >
+              ₹
+            </span>
+
+            <input
+              aria-label={`Box ${slot} demo stake`}
+              inputMode="numeric"
+              value={stake}
+              disabled={!editable}
+              onChange={event => {
+                if (/^\d*$/.test(event.target.value)) {
+                  setStake(event.target.value);
+                }
+              }}
+              className="w-full min-w-0 bg-transparent text-center text-lg font-black outline-none disabled:opacity-50"
+            />
+
+            <button
+              type="button"
+              aria-label={`Increase box ${slot} stake`}
+              disabled={!editable}
+              onClick={() => change(10)}
+              className="h-10 w-7 shrink-0 rounded-lg text-xl font-black disabled:opacity-30"
+            >
+              +
+            </button>
+          </div>
+
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {[100, 500, 1000, 5000].map(value => (
+              <button
+                key={value}
+                type="button"
+                disabled={!editable}
+                onClick={() => change(value)}
+                className="rounded-lg border border-[#166534] bg-white py-2 text-xs font-black text-[#166534] disabled:opacity-30"
+              >
+                +{money(value)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="min-w-0">
+          <p className="mb-2 text-center text-[9px] text-slate-400 sm:text-xs">
+            {queued
+              ? "Waiting for next round"
+              : cancel
+                ? "Bet placed"
+                : cashout
+                  ? "Flight running"
+                  : "\u00a0"}
+          </p>
+
+          <button
+            type="button"
+            disabled={busy || (!fresh && !queued)}
+            onClick={act}
+            className={`w-full min-w-0 rounded-2xl px-2 py-3 font-black disabled:opacity-40 ${
+              cancelStyle
+                ? "bg-[#722f37] text-white"
+                : "bg-[#166534] text-white"
+            }`}
+          >
+            <span className="block text-sm">
+              {label}
+            </span>
+
+            <span className="mt-2 block break-words rounded-lg border border-white/40 bg-white px-1 py-2 text-lg tabular-nums text-[#166534] sm:text-xl">
+              {displayAmount}
+            </span>
+
+            <span className="mt-1 block text-[10px]">
+              DEMO COINS
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {message && (
+        <p
+          role="status"
+          className="mt-2 text-xs text-cyan-100"
+        >
+          {message}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function FlightScene({
+  round,
+  phase,
+  multiplier,
+  growthRate,
+  now,
+  start,
+  verified,
+  fresh,
+}) {
+  const running = phase === "RUNNING";
+  const crashed = phase === "CRASHED";
+
+  const displayedMultiplier = useSmoothMultiplier(
+    round?.id,
+    phase,
+    multiplier,
+  );
+
+  const multiplierText = crashed
+    ? Number(multiplier).toFixed(2)
+    : (
+        Math.floor(
+          displayedMultiplier * 100 + 0.0000001,
+        ) / 100
+      ).toFixed(2);
 
   const duration =
     running || crashed
       ? Math.log(
-          Math.max(
-            1,
-            displayedMultiplier,
-          ),
-        ) / rate
+          Math.max(1, displayedMultiplier),
+        ) / growthRate
       : 0;
 
   const progress =
     running || crashed
-      ? 1 -
-        Math.exp(-duration / 15)
+      ? 1 - Math.exp(-duration / 15)
       : 0;
 
-  const x =
-    52 + 440 * progress;
+  const x = 52 + 440 * progress;
 
   const y =
     265 -
-    165 *
-      Math.pow(progress, 1.35) +
-    (
-      running
-        ? Math.sin(duration * 2) *
-          4 *
-          progress
-        : 0
-    );
+    165 * Math.pow(progress, 1.35) +
+    (running
+      ? Math.sin(duration * 2) * 4 * progress
+      : 0);
 
   const curve =
-    `M 52 265 Q ${
-      52 + (x - 52) * 0.55
-    } 265 ${x} ${y}`;
+    `M 52 265 Q ` +
+    `${52 + (x - 52) * 0.55} 265 ${x} ${y}`;
 
-  const flightColor =
-    crashed
-      ? "#f87171"
-      : running
-        ? WINE
-        : "#67e8f9";
+  const flightColor = crashed
+    ? "#f87171"
+    : running
+      ? WINE
+      : "#67e8f9";
 
   return (
     <section className="relative overflow-hidden rounded-3xl border border-cyan-400/20 bg-[#07111f]">
@@ -326,8 +1197,7 @@ function FlightScene({
 
         @keyframes tsb-depart {
           to {
-            transform:
-              translate(200px,-120px);
+            transform: translate(200px,-120px);
             opacity: 0;
           }
         }
@@ -357,8 +1227,7 @@ function FlightScene({
         }
 
         .tsb-flight-grid.fly {
-          animation:
-            tsb-grid 2s linear infinite;
+          animation: tsb-grid 2s linear infinite;
         }
 
         .tsb-plane-depart {
@@ -375,15 +1244,11 @@ function FlightScene({
 
         .tsb-running-multiplier {
           color: #791b3e;
-          -webkit-text-stroke:
-            .7px #e7b6c9;
-          text-shadow:
-            0 2px 2px #0009;
+          -webkit-text-stroke: .7px #e7b6c9;
+          text-shadow: 0 2px 2px #0009;
         }
 
-        @media (
-          prefers-reduced-motion: reduce
-        ) {
+        @media(prefers-reduced-motion: reduce) {
           .tsb-flight-grid.fly,
           .tsb-plane-engine {
             animation: none;
@@ -392,11 +1257,9 @@ function FlightScene({
       `}</style>
 
       <div
-        className={
-          `tsb-flight-grid ${
-            running ? "fly" : ""
-          }`
-        }
+        className={`tsb-flight-grid ${
+          running ? "fly" : ""
+        }`}
       />
 
       <div className="absolute inset-x-0 top-5 z-10 px-3 text-center">
@@ -407,25 +1270,20 @@ function FlightScene({
         </p>
 
         <p
-          className={
-            `mt-4 text-5xl font-black ` +
-            `tabular-nums sm:text-7xl ${
-              crashed
-                ? "text-red-400"
-                : running
-                  ? "tsb-running-multiplier"
-                  : "text-cyan-300"
-            }`
-          }
+          className={`mt-4 text-5xl font-black tabular-nums sm:text-7xl ${
+            crashed
+              ? "text-red-400"
+              : running
+                ? "tsb-running-multiplier"
+                : "text-cyan-300"
+          }`}
         >
           {phase === "WAITING"
             ? "WAITING"
             : phase === "COUNTDOWN"
               ? Math.max(
                   0,
-                  Math.ceil(
-                    (start - now) / 1000,
-                  ),
+                  Math.ceil((start - now) / 1000),
                 )
               : `${multiplierText}×`}
         </p>
@@ -482,10 +1340,7 @@ function FlightScene({
         {(running || crashed) && (
           <>
             <path
-              d={
-                `${curve} ` +
-                `L ${x} 285 L 52 285 Z`
-              }
+              d={`${curve} L ${x} 285 L 52 285 Z`}
               fill="url(#tsb-flight-fill)"
             />
 
@@ -499,27 +1354,17 @@ function FlightScene({
           </>
         )}
 
-        <g
-          transform={
-            `translate(${x} ${y})`
-          }
-        >
+        <g transform={`translate(${x} ${y})`}>
           <g
-            key={
-              `${round?.id}-${crashed}`
-            }
+            key={`${round?.id}-${crashed}`}
             className={
-              crashed
-                ? "tsb-plane-depart"
-                : ""
+              crashed ? "tsb-plane-depart" : ""
             }
           >
             <g
-              transform={
-                `rotate(${
-                  -8 - progress * 25
-                })`
-              }
+              transform={`rotate(${
+                -8 - progress * 25
+              })`}
             >
               {running && (
                 <path
@@ -533,9 +1378,7 @@ function FlightScene({
                 d="M -36 -5 L -14 -6 L -5 -26 L 5 -26 L 4 -6 L 25 -5 Q 42 -3 44 1 Q 39 6 25 7 L 3 7 L -14 25 L -24 25 L -14 6 L -34 6 L -45 15 L -51 15 L -44 2 L -51 -11 L -44 -11 Z"
                 fill={flightColor}
                 stroke={
-                  running
-                    ? "#f5dce6"
-                    : "#ecfeff"
+                  running ? "#f5dce6" : "#ecfeff"
                 }
                 strokeWidth="1.3"
               />
@@ -543,9 +1386,7 @@ function FlightScene({
               <path
                 d="M 18 -4 L 28 -3 L 32 0 L 18 0 Z"
                 fill={
-                  running
-                    ? "#fff"
-                    : "#0c4a6e"
+                  running ? "#fff" : "#0c4a6e"
                 }
               />
             </g>
@@ -560,4 +1401,265 @@ function FlightScene({
       </div>
     </section>
   );
+}
+
+function useFlightSound(phase, roundId, fresh) {
+  const [enabled, setEnabled] = useState(false);
+
+  const [visible, setVisible] = useState(
+    () => !document.hidden,
+  );
+
+  const context = useRef(null);
+  const previous = useRef(null);
+
+  useEffect(() => {
+    const changed = () =>
+      setVisible(!document.hidden);
+
+    document.addEventListener(
+      "visibilitychange",
+      changed,
+    );
+
+    return () =>
+      document.removeEventListener(
+        "visibilitychange",
+        changed,
+      );
+  }, []);
+
+  useEffect(
+    () => () => {
+      context.current?.close().catch(() => {});
+    },
+    [],
+  );
+
+  const toggle = async () => {
+    if (enabled) {
+      setEnabled(false);
+      return;
+    }
+
+    try {
+      const AudioContext =
+        window.AudioContext ||
+        window.webkitAudioContext;
+
+      if (!AudioContext) return;
+
+      if (!context.current) {
+        context.current = new AudioContext();
+      }
+
+      await context.current.resume();
+      setEnabled(true);
+    } catch {
+      setEnabled(false);
+    }
+  };
+
+  useEffect(() => {
+    const key = `${roundId}:${phase}`;
+
+    const transitioned =
+      previous.current &&
+      previous.current !== key;
+
+    previous.current = key;
+
+    const ctx = context.current;
+
+    if (!enabled || !visible || !fresh || !ctx) {
+      return;
+    }
+
+    const nodes = [];
+
+    const master =
+      ctx.createDynamicsCompressor();
+
+    master.threshold.value = -12;
+    master.knee.value = 18;
+    master.ratio.value = 6;
+    master.attack.value = 0.005;
+    master.release.value = 0.15;
+
+    const outputBoost = ctx.createGain();
+    outputBoost.gain.value = 4.5;
+
+    const limiter =
+      ctx.createDynamicsCompressor();
+
+    limiter.threshold.value = -1;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.001;
+    limiter.release.value = 0.08;
+
+    master.connect(outputBoost);
+    outputBoost.connect(limiter);
+    limiter.connect(ctx.destination);
+
+    nodes.push(master, outputBoost, limiter);
+
+    const tone = (
+      frequency,
+      duration,
+      type = "sine",
+      volume = 0.22,
+      end = frequency,
+    ) => {
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      oscillator.type = type;
+
+      oscillator.frequency.setValueAtTime(
+        frequency,
+        ctx.currentTime,
+      );
+
+      oscillator.frequency
+        .exponentialRampToValueAtTime(
+          end,
+          ctx.currentTime + duration,
+        );
+
+      gain.gain.setValueAtTime(
+        volume,
+        ctx.currentTime,
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        0.0001,
+        ctx.currentTime + duration,
+      );
+
+      oscillator.connect(gain);
+      gain.connect(master);
+
+      oscillator.start();
+      oscillator.stop(ctx.currentTime + duration);
+
+      nodes.push(oscillator, gain);
+    };
+
+    let timer;
+
+    if (phase === "RUNNING") {
+      const thump = () => {
+        const now = ctx.currentTime;
+
+        const bass = ctx.createOscillator();
+        const knock = ctx.createOscillator();
+        const body = ctx.createGain();
+        const attack = ctx.createGain();
+
+        bass.type = "sine";
+        knock.type = "triangle";
+
+        bass.frequency.setValueAtTime(135, now);
+        bass.frequency.exponentialRampToValueAtTime(
+          48,
+          now + 0.19,
+        );
+
+        knock.frequency.setValueAtTime(380, now);
+        knock.frequency.exponentialRampToValueAtTime(
+          105,
+          now + 0.055,
+        );
+
+        body.gain.setValueAtTime(0.0001, now);
+        body.gain.linearRampToValueAtTime(
+          0.85,
+          now + 0.008,
+        );
+        body.gain.exponentialRampToValueAtTime(
+          0.0001,
+          now + 0.24,
+        );
+
+        attack.gain.setValueAtTime(0.28, now);
+        attack.gain.exponentialRampToValueAtTime(
+          0.0001,
+          now + 0.075,
+        );
+
+        bass.connect(body);
+        body.connect(master);
+
+        knock.connect(attack);
+        attack.connect(master);
+
+        bass.start(now);
+        knock.start(now);
+
+        bass.stop(now + 0.26);
+        knock.stop(now + 0.09);
+
+        const group = [
+          bass,
+          knock,
+          body,
+          attack,
+        ];
+
+        nodes.push(...group);
+
+        bass.onended = () => {
+          group.forEach(node => {
+            node.disconnect();
+
+            const index = nodes.indexOf(node);
+
+            if (index >= 0) {
+              nodes.splice(index, 1);
+            }
+          });
+        };
+      };
+
+      thump();
+      timer = setInterval(thump, 290);
+    } else if (phase === "COUNTDOWN") {
+      tone(660, 0.09);
+
+      timer = setInterval(
+        () => tone(660, 0.09),
+        1000,
+      );
+    } else if (
+      phase === "CRASHED" &&
+      transitioned
+    ) {
+      tone(320, 0.8, "triangle", 0.4, 65);
+    }
+
+    return () => {
+      clearInterval(timer);
+
+      nodes.forEach(node => {
+        try {
+          if (node.stop) {
+            node.stop();
+          }
+
+          node.disconnect();
+        } catch {
+          // Already stopped.
+        }
+      });
+    };
+  }, [
+    enabled,
+    visible,
+    fresh,
+    phase,
+    roundId,
+  ]);
+
+  return { enabled, toggle };
 }
