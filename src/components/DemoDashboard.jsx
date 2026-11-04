@@ -23,6 +23,9 @@ const LOGO =
 const HEADER_BACKGROUND =
   "/games/tsb-header-bg.jpg";
 
+const DEFAULT_WHATSAPP_NUMBER =
+  "919346824432";
+
 const WINE_LABEL = {
   backgroundColor: "#791b3e",
   color: "#ffffff",
@@ -154,10 +157,7 @@ const sports = [
 ];
 
 const newLaunch = [
-  {
-    name: "JILI",
-    image: "/games/jili.png",
-  },
+  { name: "JILI", image: "/games/jili.png" },
   {
     name: "GOLDEN KICK",
     image: "/games/golden-kick.png",
@@ -315,8 +315,7 @@ function navigationKey(user) {
     user?.loginId ??
     user?.identifier;
 
-  return identity == null ||
-    identity === ""
+  return identity == null || identity === ""
     ? ""
     : `telugu_sports_dashboard_v1:${String(identity)}`;
 }
@@ -324,9 +323,7 @@ function navigationKey(user) {
 function restoreNavigation(key) {
   const initial = defaultNavigation();
 
-  if (!key) {
-    return initial;
-  }
+  if (!key) return initial;
 
   try {
     const saved = JSON.parse(
@@ -342,9 +339,7 @@ function restoreNavigation(key) {
     }
 
     const match = saved.selectedMatch;
-
-    const matchId =
-      match?.eventId ?? match?.id;
+    const matchId = match?.eventId ?? match?.id;
 
     const validMatch =
       match &&
@@ -365,15 +360,11 @@ function restoreNavigation(key) {
         ? saved.selectedSport
         : initial.selectedSport,
 
-      selectedTab: TABS.includes(
-        saved.selectedTab,
-      )
+      selectedTab: TABS.includes(saved.selectedTab)
         ? saved.selectedTab
         : initial.selectedTab,
 
-      matchFilter: FILTERS.includes(
-        saved.matchFilter,
-      )
+      matchFilter: FILTERS.includes(saved.matchFilter)
         ? saved.matchFilter
         : initial.matchFilter,
 
@@ -399,6 +390,101 @@ function saveNavigation(key, navigation) {
       }),
     );
   } catch {}
+}
+
+function normalizeWhatsAppNumber(value) {
+  const digits = String(value || "").replace(
+    /\D/g,
+    "",
+  );
+
+  if (!digits) return DEFAULT_WHATSAPP_NUMBER;
+
+  return digits.length === 10
+    ? `91${digits}`
+    : digits;
+}
+
+function WhatsAppCustomerService() {
+  const [number, setNumber] = useState(
+    DEFAULT_WHATSAPP_NUMBER,
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+
+    const load = async () => {
+      try {
+        const response = await fetch(
+          "/api/public/settings",
+          {
+            headers: {
+              Accept: "application/json",
+            },
+            credentials: "same-origin",
+            cache: "no-store",
+            signal: controller.signal,
+          },
+        );
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+
+        if (active) {
+          setNumber(
+            normalizeWhatsAppNumber(
+              data?.whatsappNumber ||
+                data?.number ||
+                data?.phone ||
+                DEFAULT_WHATSAPP_NUMBER,
+            ),
+          );
+        }
+      } catch {
+        // Keep the default contact number.
+      }
+    };
+
+    void load();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, []);
+
+  const message = encodeURIComponent(
+    "Hello, I need customer service assistance.",
+  );
+
+  return (
+    <a
+      href={`https://wa.me/${number}?text=${message}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="24/7 Customer Service on WhatsApp"
+      className="tsb-whatsapp-service"
+    >
+      <span className="tsb-whatsapp-service-icon">
+        <svg
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M20.52 3.48A11.91 11.91 0 0 0 12.04 0C5.44 0 .06 5.37.06 11.97c0 2.11.55 4.17 1.6 5.99L0 24l6.2-1.63a11.97 11.97 0 0 0 5.83 1.49h.01c6.6 0 11.97-5.37 11.97-11.97 0-3.2-1.24-6.2-3.49-8.41ZM12.04 21.84a9.91 9.91 0 0 1-5.05-1.38l-.36-.21-3.68.97.98-3.59-.23-.37a9.91 9.91 0 0 1-1.52-5.29c0-5.49 4.47-9.96 9.97-9.96a9.9 9.9 0 0 1 7.04 2.92 9.9 9.9 0 0 1 2.91 7.05c0 5.49-4.47 9.96-9.96 9.96Zm5.46-7.46c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.95 1.17-.17.2-.35.22-.64.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.67-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.49s1.07 2.89 1.22 3.09c.15.2 2.1 3.2 5.09 4.49.71.31 1.27.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.13-.27-.2-.57-.35Z" />
+        </svg>
+      </span>
+
+      <span className="tsb-whatsapp-service-text">
+        <strong>24/7</strong>
+        <span>Customer</span>
+        <span>Service</span>
+      </span>
+    </a>
+  );
 }
 
 function BrandLogo({ className = "" }) {
@@ -532,10 +618,7 @@ function TopGamesSlider({ onGameClick }) {
 
   useEffect(() => {
     const scroller = scrollerRef.current;
-
-    if (!scroller) {
-      return undefined;
-    }
+    if (!scroller) return undefined;
 
     const motion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
@@ -567,8 +650,7 @@ function TopGamesSlider({ onGameClick }) {
       if (paused || maximum <= 0) {
         position = scroller.scrollLeft;
       } else {
-        position +=
-          direction * elapsed * 0.025;
+        position += direction * elapsed * 0.025;
 
         if (position >= maximum) {
           position = maximum;
@@ -593,10 +675,7 @@ function TopGamesSlider({ onGameClick }) {
   }, []);
 
   const handlePointerDown = event => {
-    if (
-      !event.isPrimary ||
-      event.button !== 0
-    ) {
+    if (!event.isPrimary || event.button !== 0) {
       return;
     }
 
@@ -608,8 +687,7 @@ function TopGamesSlider({ onGameClick }) {
       type: event.pointerType,
       x: event.clientX,
       y: event.clientY,
-      scrollLeft:
-        event.currentTarget.scrollLeft,
+      scrollLeft: event.currentTarget.scrollLeft,
       moved: false,
     };
   };
@@ -624,11 +702,8 @@ function TopGamesSlider({ onGameClick }) {
       return;
     }
 
-    const distanceX =
-      event.clientX - gesture.x;
-
-    const distanceY =
-      event.clientY - gesture.y;
+    const distanceX = event.clientX - gesture.x;
+    const distanceY = event.clientY - gesture.y;
 
     if (
       Math.abs(distanceX) > 8 ||
@@ -783,9 +858,7 @@ function DashboardContent({
   storageKey,
 }) {
   const [navigation, setNavigation] =
-    useState(() =>
-      restoreNavigation(storageKey),
-    );
+    useState(() => restoreNavigation(storageKey));
 
   const {
     page,
@@ -798,10 +871,8 @@ function DashboardContent({
   const navigationRef = useRef(navigation);
   const loggedOutRef = useRef(false);
 
-  const [
-    showCustomerMenu,
-    setShowCustomerMenu,
-  ] = useState(false);
+  const [showCustomerMenu, setShowCustomerMenu] =
+    useState(false);
 
   const [demoBalance, setDemoBalance] =
     useState(null);
@@ -838,17 +909,12 @@ function DashboardContent({
     };
 
     const onVisibility = () => {
-      if (
-        document.visibilityState === "hidden"
-      ) {
+      if (document.visibilityState === "hidden") {
         persist();
       }
     };
 
-    window.addEventListener(
-      "pagehide",
-      persist,
-    );
+    window.addEventListener("pagehide", persist);
 
     document.addEventListener(
       "visibilitychange",
@@ -871,18 +937,14 @@ function DashboardContent({
   useEffect(() => {
     let active = true;
     let loading = false;
-
     const controller = new AbortController();
 
     const loadBalance = async () => {
-      if (loading) {
-        return;
-      }
+      if (loading) return;
 
       if (!customerId) {
         if (active) {
           setDemoBalance(null);
-
           setBalanceError(
             "Customer ID is missing. Please login again.",
           );
@@ -909,8 +971,7 @@ function DashboardContent({
 
         if (!response.ok) {
           throw new Error(
-            data.error ||
-              "Unable to load balance.",
+            data.error || "Unable to load balance.",
           );
         }
 
@@ -946,19 +1007,14 @@ function DashboardContent({
     };
 
     const onVisibility = () => {
-      if (
-        document.visibilityState === "visible"
-      ) {
+      if (document.visibilityState === "visible") {
         void loadBalance();
       }
     };
 
     void loadBalance();
 
-    window.addEventListener(
-      "focus",
-      loadBalance,
-    );
+    window.addEventListener("focus", loadBalance);
 
     window.addEventListener(
       "demo-balance-updated",
@@ -1003,9 +1059,7 @@ function DashboardContent({
   };
 
   const openPage = nextPage => {
-    if (!PAGES.has(nextPage)) {
-      return;
-    }
+    if (!PAGES.has(nextPage)) return;
 
     navigate({
       page: nextPage,
@@ -1037,9 +1091,7 @@ function DashboardContent({
       }
     } catch {}
 
-    navigationRef.current =
-      defaultNavigation();
-
+    navigationRef.current = defaultNavigation();
     setNavigation(navigationRef.current);
     setShowCustomerMenu(false);
     onLogout?.();
@@ -1063,10 +1115,7 @@ function DashboardContent({
 
   if (page === "deposit") {
     return (
-      <DepositPage
-        user={user}
-        onBack={goHome}
-      />
+      <DepositPage user={user} onBack={goHome} />
     );
   }
 
@@ -1137,10 +1186,7 @@ function DashboardContent({
 
   if (page === "rules") {
     return (
-      <RulesPage
-        user={user}
-        onBack={goHome}
-      />
+      <RulesPage user={user} onBack={goHome} />
     );
   }
 
@@ -1189,7 +1235,6 @@ function DashboardContent({
 
         .tsb-header {
           background-color: #061a25;
-
           background-image:
             linear-gradient(
               180deg,
@@ -1197,7 +1242,6 @@ function DashboardContent({
               rgba(0,10,18,.06)
             ),
             var(--tsb-header-image);
-
           background-position: center;
           background-size: cover;
           background-repeat: no-repeat;
@@ -1214,7 +1258,7 @@ function DashboardContent({
           border-radius: 999px;
           background: rgba(40,78,87,.85);
           box-shadow: none;
-          color: #ffffff;
+          color: #fff;
           font-size: 13px;
           font-weight: 700;
           line-height: 1.3;
@@ -1229,8 +1273,7 @@ function DashboardContent({
         .tsb-neon-track {
           display: flex;
           width: max-content;
-          animation:
-            tsbNeonSlide 20s linear infinite;
+          animation: tsbNeonSlide 20s linear infinite;
         }
 
         .tsb-neon-text {
@@ -1241,23 +1284,16 @@ function DashboardContent({
           letter-spacing: 1px;
           line-height: 30px;
           color: #28e1e5;
-          text-shadow:
-            0 0 8px rgba(8,183,188,.55);
+          text-shadow: 0 0 8px rgba(8,183,188,.55);
         }
 
         @keyframes tsbNeonSlide {
-          from {
-            transform: translateX(0);
-          }
-
-          to {
-            transform: translateX(-50%);
-          }
+          from { transform: translateX(0); }
+          to { transform: translateX(-50%); }
         }
 
         .tsb-scrollbar {
-          scrollbar-color:
-            #08b7bc #f1f5f9;
+          scrollbar-color: #08b7bc #f1f5f9;
         }
 
         .tsb-scrollbar::-webkit-scrollbar {
@@ -1274,7 +1310,72 @@ function DashboardContent({
           border-radius: 999px;
         }
 
-        @media (prefers-reduced-motion: reduce) {
+        .tsb-whatsapp-service {
+          position: fixed;
+          right: 12px;
+          bottom: calc(
+            18px + env(safe-area-inset-bottom,0px)
+          );
+          z-index: 40;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 5px;
+          width: 82px;
+          padding: 9px 6px;
+          border: 1px solid #c9e8d4;
+          border-radius: 16px;
+          background: #fff;
+          color: #166534;
+          text-align: center;
+          text-decoration: none;
+          box-shadow: 0 4px 18px #0003;
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        .tsb-whatsapp-service-icon {
+          display: grid;
+          place-items: center;
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+          background: #25d366;
+          color: #fff;
+        }
+
+        .tsb-whatsapp-service-icon svg {
+          display: block;
+          width: 25px;
+          height: 25px;
+        }
+
+        .tsb-whatsapp-service-text {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          font-family: Arial,sans-serif;
+          font-size: 10px;
+          font-weight: 700;
+          line-height: 1.3;
+        }
+
+        .tsb-whatsapp-service-text strong {
+          color: #791b3e;
+          font-size: 14px;
+          font-weight: 900;
+        }
+
+        .tsb-whatsapp-service:focus-visible {
+          outline: 3px solid #791b3e;
+          outline-offset: 3px;
+        }
+
+        .tsb-whatsapp-service:active {
+          transform: scale(.97);
+        }
+
+        @media(prefers-reduced-motion: reduce) {
           .tsb-neon-track {
             animation: none;
           }
@@ -1359,22 +1460,20 @@ function DashboardContent({
                 id="customer-menu"
                 className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-56 overflow-y-auto rounded-xl border border-slate-200 bg-white text-left shadow-2xl"
               >
-                {MENU_ITEMS.map(
-                  ([label, target]) => (
-                    <button
-                      key={target}
-                      type="button"
-                      onClick={() =>
-                        target === "home"
-                          ? goHome()
-                          : openPage(target)
-                      }
-                      className="block w-full border-b border-slate-100 px-4 py-3 text-left text-[11px] font-bold text-[#791b3e] hover:bg-slate-50"
-                    >
-                      {label}
-                    </button>
-                  ),
-                )}
+                {MENU_ITEMS.map(([label, target]) => (
+                  <button
+                    key={target}
+                    type="button"
+                    onClick={() =>
+                      target === "home"
+                        ? goHome()
+                        : openPage(target)
+                    }
+                    className="block w-full border-b border-slate-100 px-4 py-3 text-left text-[11px] font-bold text-[#791b3e] hover:bg-slate-50"
+                  >
+                    {label}
+                  </button>
+                ))}
 
                 <button
                   type="button"
@@ -1404,14 +1503,10 @@ function DashboardContent({
             className="rounded-2xl border border-[#08b7bc] bg-[#08b7bc] px-3 py-3 text-left shadow-[0_0_8px_rgba(8,183,188,.25)] active:scale-95"
           >
             <span className="flex items-center gap-2">
-              <span className="text-2xl">
-                💰
-              </span>
-
+              <span className="text-2xl">💰</span>
               <strong className="text-xs text-white">
                 DEPOSIT
               </strong>
-
               <span className="ml-auto text-xl text-white">
                 ›
               </span>
@@ -1420,20 +1515,14 @@ function DashboardContent({
 
           <button
             type="button"
-            onClick={() =>
-              openPage("withdrawal")
-            }
+            onClick={() => openPage("withdrawal")}
             className="rounded-2xl border border-[#791b3e] bg-[#791b3e] px-3 py-3 text-left shadow-[0_0_8px_rgba(121,27,62,.25)] active:scale-95"
           >
             <span className="flex items-center gap-2">
-              <span className="text-2xl">
-                💵
-              </span>
-
+              <span className="text-2xl">💵</span>
               <strong className="whitespace-nowrap text-xs text-white">
                 WITHDRAWAL
               </strong>
-
               <span className="ml-auto text-xl text-white">
                 ›
               </span>
@@ -1475,14 +1564,11 @@ function DashboardContent({
               key={tab}
               type="button"
               onClick={() =>
-                navigate({
-                  selectedTab: tab,
-                })
+                navigate({ selectedTab: tab })
               }
               className={
-                "shrink-0 rounded-lg border " +
-                "px-4 py-2 text-[9px] " +
-                "font-black text-white " +
+                "shrink-0 rounded-lg border px-4 py-2 " +
+                "text-[9px] font-black text-white " +
                 (selectedTab === tab
                   ? "border-[#a72a55] bg-[#a12450] shadow-[0_0_10px_rgba(161,36,80,.2)]"
                   : "border-[#791b3e] bg-[#791b3e]")
@@ -1506,10 +1592,8 @@ function DashboardContent({
                 })
               }
               className={
-                "w-[90px] shrink-0 " +
-                "rounded-xl border " +
-                "bg-[#08b7bc] px-2 py-2 " +
-                "text-center text-black " +
+                "w-[90px] shrink-0 rounded-xl border " +
+                "bg-[#08b7bc] px-2 py-2 text-center text-black " +
                 (selectedSport === sport.name
                   ? "border-[#087f83] shadow-[inset_0_0_0_1px_#087f83]"
                   : "border-[#08b7bc]")
@@ -1542,14 +1626,11 @@ function DashboardContent({
               key={filter}
               type="button"
               onClick={() =>
-                navigate({
-                  matchFilter: filter,
-                })
+                navigate({ matchFilter: filter })
               }
               className={
-                "rounded-lg border " +
-                "px-4 py-2 text-[8px] " +
-                "font-black text-white " +
+                "rounded-lg border px-4 py-2 " +
+                "text-[8px] font-black text-white " +
                 (matchFilter === filter
                   ? "border-[#ac2854] bg-[#ac2854]"
                   : "border-[#791b3e] bg-[#791b3e]")
@@ -1575,12 +1656,9 @@ function DashboardContent({
             />
           ) : (
             <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs leading-6 text-slate-600">
-              No{" "}
-              {matchFilter.toLowerCase()}
-              {" "}
-              {selectedSport.toLowerCase()}
-              {" "}fixtures are available
-              in this view.
+              No {matchFilter.toLowerCase()}{" "}
+              {selectedSport.toLowerCase()} fixtures
+              are available in this view.
             </p>
           )}
         </div>
@@ -1629,7 +1707,7 @@ function DashboardContent({
         onGameClick={handleGameClick}
       />
 
-      <footer className="border-t border-slate-200 bg-white px-5 py-8 text-center">
+      <footer className="border-t border-slate-200 bg-white px-5 pb-40 pt-8 text-center">
         <div className="mx-auto h-14 w-14 overflow-hidden rounded-xl border border-amber-400/20 bg-black">
           <BrandLogo />
         </div>
@@ -1639,11 +1717,13 @@ function DashboardContent({
         </p>
 
         <p className="mx-auto mt-3 max-w-xl text-[9px] leading-5 text-slate-500">
-          Demonstration and informational
-          purposes only. No real-money
-          transactions are processed.
+          Demonstration and informational purposes
+          only. No real-money transactions are
+          processed.
         </p>
       </footer>
+
+      <WhatsAppCustomerService />
     </div>
   );
 }
@@ -1656,10 +1736,7 @@ export default function DemoDashboard({
 
   return (
     <DashboardContent
-      key={
-        storageKey ||
-        "customer-without-id"
-      }
+      key={storageKey || "customer-without-id"}
       storageKey={storageKey}
       user={user}
       onLogout={onLogout}
