@@ -157,7 +157,10 @@ const sports = [
 ];
 
 const newLaunch = [
-  { name: "JILI", image: "/games/jili.png" },
+  {
+    name: "JILI",
+    image: "/games/jili.png",
+  },
   {
     name: "GOLDEN KICK",
     image: "/games/golden-kick.png",
@@ -398,7 +401,9 @@ function normalizeWhatsAppNumber(value) {
     "",
   );
 
-  if (!digits) return DEFAULT_WHATSAPP_NUMBER;
+  if (!digits) {
+    return DEFAULT_WHATSAPP_NUMBER;
+  }
 
   return digits.length === 10
     ? `91${digits}`
@@ -618,6 +623,7 @@ function TopGamesSlider({ onGameClick }) {
 
   useEffect(() => {
     const scroller = scrollerRef.current;
+
     if (!scroller) return undefined;
 
     const motion = window.matchMedia(
@@ -650,7 +656,8 @@ function TopGamesSlider({ onGameClick }) {
       if (paused || maximum <= 0) {
         position = scroller.scrollLeft;
       } else {
-        position += direction * elapsed * 0.025;
+        position +=
+          direction * elapsed * 0.025;
 
         if (position >= maximum) {
           position = maximum;
@@ -687,7 +694,8 @@ function TopGamesSlider({ onGameClick }) {
       type: event.pointerType,
       x: event.clientX,
       y: event.clientY,
-      scrollLeft: event.currentTarget.scrollLeft,
+      scrollLeft:
+        event.currentTarget.scrollLeft,
       moved: false,
     };
   };
@@ -702,8 +710,11 @@ function TopGamesSlider({ onGameClick }) {
       return;
     }
 
-    const distanceX = event.clientX - gesture.x;
-    const distanceY = event.clientY - gesture.y;
+    const distanceX =
+      event.clientX - gesture.x;
+
+    const distanceY =
+      event.clientY - gesture.y;
 
     if (
       Math.abs(distanceX) > 8 ||
@@ -858,7 +869,9 @@ function DashboardContent({
   storageKey,
 }) {
   const [navigation, setNavigation] =
-    useState(() => restoreNavigation(storageKey));
+    useState(() =>
+      restoreNavigation(storageKey),
+    );
 
   const {
     page,
@@ -871,8 +884,10 @@ function DashboardContent({
   const navigationRef = useRef(navigation);
   const loggedOutRef = useRef(false);
 
-  const [showCustomerMenu, setShowCustomerMenu] =
-    useState(false);
+  const [
+    showCustomerMenu,
+    setShowCustomerMenu,
+  ] = useState(false);
 
   const [demoBalance, setDemoBalance] =
     useState(null);
@@ -909,12 +924,17 @@ function DashboardContent({
     };
 
     const onVisibility = () => {
-      if (document.visibilityState === "hidden") {
+      if (
+        document.visibilityState === "hidden"
+      ) {
         persist();
       }
     };
 
-    window.addEventListener("pagehide", persist);
+    window.addEventListener(
+      "pagehide",
+      persist,
+    );
 
     document.addEventListener(
       "visibilitychange",
@@ -937,6 +957,7 @@ function DashboardContent({
   useEffect(() => {
     let active = true;
     let loading = false;
+
     const controller = new AbortController();
 
     const loadBalance = async () => {
@@ -945,6 +966,7 @@ function DashboardContent({
       if (!customerId) {
         if (active) {
           setDemoBalance(null);
+
           setBalanceError(
             "Customer ID is missing. Please login again.",
           );
@@ -971,7 +993,8 @@ function DashboardContent({
 
         if (!response.ok) {
           throw new Error(
-            data.error || "Unable to load balance.",
+            data.error ||
+              "Unable to load balance.",
           );
         }
 
@@ -1007,14 +1030,19 @@ function DashboardContent({
     };
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible") {
+      if (
+        document.visibilityState === "visible"
+      ) {
         void loadBalance();
       }
     };
 
     void loadBalance();
 
-    window.addEventListener("focus", loadBalance);
+    window.addEventListener(
+      "focus",
+      loadBalance,
+    );
 
     window.addEventListener(
       "demo-balance-updated",
@@ -1091,7 +1119,9 @@ function DashboardContent({
       }
     } catch {}
 
-    navigationRef.current = defaultNavigation();
+    navigationRef.current =
+      defaultNavigation();
+
     setNavigation(navigationRef.current);
     setShowCustomerMenu(false);
     onLogout?.();
@@ -1115,7 +1145,10 @@ function DashboardContent({
 
   if (page === "deposit") {
     return (
-      <DepositPage user={user} onBack={goHome} />
+      <DepositPage
+        user={user}
+        onBack={goHome}
+      />
     );
   }
 
@@ -1186,7 +1219,10 @@ function DashboardContent({
 
   if (page === "rules") {
     return (
-      <RulesPage user={user} onBack={goHome} />
+      <RulesPage
+        user={user}
+        onBack={goHome}
+      />
     );
   }
 
@@ -1273,7 +1309,8 @@ function DashboardContent({
         .tsb-neon-track {
           display: flex;
           width: max-content;
-          animation: tsbNeonSlide 20s linear infinite;
+          animation:
+            tsbNeonSlide 20s linear infinite;
         }
 
         .tsb-neon-text {
@@ -1284,16 +1321,23 @@ function DashboardContent({
           letter-spacing: 1px;
           line-height: 30px;
           color: #28e1e5;
-          text-shadow: 0 0 8px rgba(8,183,188,.55);
+          text-shadow:
+            0 0 8px rgba(8,183,188,.55);
         }
 
         @keyframes tsbNeonSlide {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
+          from {
+            transform: translateX(0);
+          }
+
+          to {
+            transform: translateX(-50%);
+          }
         }
 
         .tsb-scrollbar {
-          scrollbar-color: #08b7bc #f1f5f9;
+          scrollbar-color:
+            #08b7bc #f1f5f9;
         }
 
         .tsb-scrollbar::-webkit-scrollbar {
@@ -1332,6 +1376,9 @@ function DashboardContent({
           text-decoration: none;
           box-shadow: 0 4px 18px #0003;
           -webkit-tap-highlight-color: transparent;
+
+          transform: scale(.7);
+          transform-origin: bottom right;
         }
 
         .tsb-whatsapp-service-icon {
@@ -1372,7 +1419,7 @@ function DashboardContent({
         }
 
         .tsb-whatsapp-service:active {
-          transform: scale(.97);
+          transform: scale(.68);
         }
 
         @media(prefers-reduced-motion: reduce) {
@@ -1446,7 +1493,9 @@ function DashboardContent({
                 )
               }
               className="mt-2 block max-w-[135px] truncate rounded-lg border border-cyan-400/50 bg-[#031b29]/90 px-3 py-2 text-[10px] font-black text-cyan-200"
-              style={{ marginLeft: "auto" }}
+              style={{
+                marginLeft: "auto",
+              }}
             >
               {user?.name ||
                 user?.loginId ||
@@ -1460,20 +1509,22 @@ function DashboardContent({
                 id="customer-menu"
                 className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-56 overflow-y-auto rounded-xl border border-slate-200 bg-white text-left shadow-2xl"
               >
-                {MENU_ITEMS.map(([label, target]) => (
-                  <button
-                    key={target}
-                    type="button"
-                    onClick={() =>
-                      target === "home"
-                        ? goHome()
-                        : openPage(target)
-                    }
-                    className="block w-full border-b border-slate-100 px-4 py-3 text-left text-[11px] font-bold text-[#791b3e] hover:bg-slate-50"
-                  >
-                    {label}
-                  </button>
-                ))}
+                {MENU_ITEMS.map(
+                  ([label, target]) => (
+                    <button
+                      key={target}
+                      type="button"
+                      onClick={() =>
+                        target === "home"
+                          ? goHome()
+                          : openPage(target)
+                      }
+                      className="block w-full border-b border-slate-100 px-4 py-3 text-left text-[11px] font-bold text-[#791b3e] hover:bg-slate-50"
+                    >
+                      {label}
+                    </button>
+                  ),
+                )}
 
                 <button
                   type="button"
@@ -1499,14 +1550,20 @@ function DashboardContent({
         <div className="mt-4 grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={() => openPage("deposit")}
+            onClick={() =>
+              openPage("deposit")
+            }
             className="rounded-2xl border border-[#08b7bc] bg-[#08b7bc] px-3 py-3 text-left shadow-[0_0_8px_rgba(8,183,188,.25)] active:scale-95"
           >
             <span className="flex items-center gap-2">
-              <span className="text-2xl">💰</span>
+              <span className="text-2xl">
+                💰
+              </span>
+
               <strong className="text-xs text-white">
                 DEPOSIT
               </strong>
+
               <span className="ml-auto text-xl text-white">
                 ›
               </span>
@@ -1515,14 +1572,20 @@ function DashboardContent({
 
           <button
             type="button"
-            onClick={() => openPage("withdrawal")}
+            onClick={() =>
+              openPage("withdrawal")
+            }
             className="rounded-2xl border border-[#791b3e] bg-[#791b3e] px-3 py-3 text-left shadow-[0_0_8px_rgba(121,27,62,.25)] active:scale-95"
           >
             <span className="flex items-center gap-2">
-              <span className="text-2xl">💵</span>
+              <span className="text-2xl">
+                💵
+              </span>
+
               <strong className="whitespace-nowrap text-xs text-white">
                 WITHDRAWAL
               </strong>
+
               <span className="ml-auto text-xl text-white">
                 ›
               </span>
@@ -1564,7 +1627,9 @@ function DashboardContent({
               key={tab}
               type="button"
               onClick={() =>
-                navigate({ selectedTab: tab })
+                navigate({
+                  selectedTab: tab,
+                })
               }
               className={
                 "shrink-0 rounded-lg border px-4 py-2 " +
@@ -1626,7 +1691,9 @@ function DashboardContent({
               key={filter}
               type="button"
               onClick={() =>
-                navigate({ matchFilter: filter })
+                navigate({
+                  matchFilter: filter,
+                })
               }
               className={
                 "rounded-lg border px-4 py-2 " +
@@ -1656,9 +1723,12 @@ function DashboardContent({
             />
           ) : (
             <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs leading-6 text-slate-600">
-              No {matchFilter.toLowerCase()}{" "}
-              {selectedSport.toLowerCase()} fixtures
-              are available in this view.
+              No{" "}
+              {matchFilter.toLowerCase()}
+              {" "}
+              {selectedSport.toLowerCase()}
+              {" "}fixtures are available
+              in this view.
             </p>
           )}
         </div>
@@ -1717,9 +1787,9 @@ function DashboardContent({
         </p>
 
         <p className="mx-auto mt-3 max-w-xl text-[9px] leading-5 text-slate-500">
-          Demonstration and informational purposes
-          only. No real-money transactions are
-          processed.
+          Demonstration and informational
+          purposes only. No real-money
+          transactions are processed.
         </p>
       </footer>
 
@@ -1736,7 +1806,10 @@ export default function DemoDashboard({
 
   return (
     <DashboardContent
-      key={storageKey || "customer-without-id"}
+      key={
+        storageKey ||
+        "customer-without-id"
+      }
       storageKey={storageKey}
       user={user}
       onLogout={onLogout}
