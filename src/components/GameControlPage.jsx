@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   flightApi,
   useFlightState,
@@ -34,6 +34,17 @@ const futureGames = [
   'Teen Patti',
 ];
 
+const MODE_NAMES = {
+  RANDOM: 'Random — automatic server outcome',
+  ADMIN: 'Admin Control 01 — fixed multipliers',
+  ADMIN2: 'Admin Control 02 — fixed multipliers',
+};
+
+const emptyPlans = () => ({
+  '01': Array(50).fill(''),
+  '02': Array(50).fill(''),
+});
+
 export default function GameControlPage() {
   const {
     data,
@@ -44,18 +55,12 @@ export default function GameControlPage() {
 
   const [id, setId] = useState('');
   const [password, setPassword] = useState('');
-  const [multiplier, setMultiplier] = useState('2.00');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
 
   const pending = useRef(false);
 
   const loggedIn = Boolean(data && !unauthorized);
-
-  const active =
-    data?.round &&
-    data.round.phase !== 'CRASHED';
 
   const act = async (action, event) => {
     event?.preventDefault();
@@ -79,23 +84,6 @@ export default function GameControlPage() {
         await flightApi('/api/game-control/logout', {});
         window.location.assign('/game-control');
         return;
-      } else {
-        if (!confirmed) {
-          throw new Error(
-            'Confirm that the crash point cannot be edited after locking.',
-          );
-        }
-
-        const result = await flightApi(
-          '/api/game-control/flight/rounds',
-          { multiplier },
-        );
-
-        setMessage(
-          `Round #${result.round.id} locked at ${result.lockedMultiplier.toFixed(2)}×. Betting countdown has started.`,
-        );
-
-        setConfirmed(false);
       }
 
       await refresh();
@@ -227,12 +215,12 @@ export default function GameControlPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-black text-cyan-300">
-                    ✈ TSB Flight
+                    ✈ Aviator
                   </h2>
 
                   <p className="mt-1 text-xs text-slate-400">
-                    Admin-controlled demo test mode · shared
-                    multiplayer rounds
+                    Automatic shared rounds · Random / Admin
+                    Control 01 / 02
                   </p>
                 </div>
 
@@ -257,89 +245,24 @@ export default function GameControlPage() {
                     : 'WAITING FOR FIRST ROUND'}
                 </p>
 
-                {active && (
-                  <p className="mt-2 text-amber-200">
-                    Locked crash:{' '}
-                    {Number(
-                      data.lockedMultiplier,
-                    ).toFixed(2)}
-                    ×
+                {data.round && (
+                  <p className="mt-2 text-xs text-amber-200">
+                    {MODE_NAMES[data.round.mode] ||
+                      data.round.mode}
+                    {data.round.mode !== 'RANDOM' &&
+                    data.currentPlanSlot
+                      ? ` · Current box #${data.currentPlanSlot}`
+                      : ''}
                   </p>
                 )}
 
                 <p className="mt-2 text-xs leading-5 text-slate-400">
-                  Locked rounds cannot be edited, cancelled,
-                  paused or crashed early from this panel.
-                  Customer bets open only after Confirm & Lock.
+                  Changes apply from the next betting countdown.
+                  The current round stays locked.
                 </p>
               </div>
 
-              <form
-                onSubmit={(event) =>
-                  act('lock', event)
-                }
-                className="mt-5 space-y-4"
-              >
-                <label className="block text-xs font-bold">
-                  Next test round crash multiplier
-                  (1.00×–1000.00×)
-
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    required
-                    value={multiplier}
-                    disabled={active || busy}
-                    onChange={(event) =>
-                      setMultiplier(event.target.value)
-                    }
-                    className="mt-2 block w-full max-w-xs rounded-lg border border-white/20 bg-[#080d16] p-3 text-xl font-black disabled:opacity-40"
-                  />
-                </label>
-
-                <label className="flex items-start gap-3 text-xs leading-5 text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={confirmed}
-                    disabled={active || busy}
-                    onChange={(event) =>
-                      setConfirmed(event.target.checked)
-                    }
-                    className="mt-1"
-                  />
-
-                  I confirm this result is fixed before any bets
-                  are accepted. Locking immediately opens the
-                  10-second countdown. It cannot be changed
-                  afterward.
-                </label>
-
-                <button
-                  type="submit"
-                  disabled={
-                    active ||
-                    busy ||
-                    !confirmed ||
-                    Boolean(error)
-                  }
-                  className="rounded-xl bg-cyan-400 px-6 py-3 text-sm font-black text-black disabled:opacity-40"
-                >
-                  {busy
-                    ? 'LOCKING…'
-                    : active
-                      ? 'ROUND LOCKED'
-                      : 'CONFIRM & LOCK'}
-                </button>
-              </form>
-
-              {message && (
-                <p
-                  role="status"
-                  className="mt-4 rounded-lg bg-white/5 p-3 text-sm text-amber-100"
-                >
-                  {message}
-                </p>
-              )}
+              <FlightPlanPanel />
 
               {error && (
                 <p
@@ -421,6 +344,190 @@ export default function GameControlPage() {
         )}
       </main>
     </div>
+  );
+}
+
+function FlightPlanPanel() {
+  const [mode, setMode] = useState('RANDOM');
+  const [plans, setPlans] = useState(emptyPlans);
+  const [ready, setReady] = useState(false);
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // Loaded once, so typing is never overwritten by live refreshes.
+  useEffect(() => {
+    let alive = true;
+
+    fetch('/api/game-control/flight-plan', {
+      cache: 'no-store',
+      credentials: 'same-origin',
+    })
+      .then(async (response) => {
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            result.error || 'Unable to load Aviator plans.',
+          );
+        }
+
+        return result;
+      })
+      .then((result) => {
+        if (!alive) return;
+
+        const show = (plan) =>
+          plan.map((value) =>
+            value === null || value === undefined
+              ? ''
+              : Number(value).toFixed(2),
+          );
+
+        setMode(result.configuredMode);
+
+        setPlans({
+          '01': show(result.plans['01']),
+          '02': show(result.plans['02']),
+        });
+
+        setReady(true);
+      })
+      .catch((failure) => {
+        if (alive) setMessage(failure.message);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const setBox = (bank, index, value) =>
+    setPlans((previous) => ({
+      ...previous,
+      [bank]: previous[bank].map((item, i) =>
+        i === index ? value : item,
+      ),
+    }));
+
+  const save = async (event) => {
+    event.preventDefault();
+
+    if (busy || !ready) return;
+
+    setBusy(true);
+    setMessage('');
+
+    try {
+      const body = {
+        mode,
+        plans: Object.fromEntries(
+          ['01', '02'].map((bank) => [
+            bank,
+            plans[bank].map((value) => {
+              const text = String(value).trim();
+              return text === '' ? null : Number(text);
+            }),
+          ]),
+        ),
+      };
+
+      await flightApi('/api/game-control/flight-plan', body);
+
+      setMessage(
+        'Saved. The selected plan starts at its first filled box from the next countdown.',
+      );
+    } catch (failure) {
+      setMessage(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const bank =
+    mode === 'ADMIN' ? '01' : mode === 'ADMIN2' ? '02' : null;
+
+  return (
+    <form onSubmit={save} className="mt-5 space-y-4">
+      <label className="block text-xs font-bold">
+        Next Round Mode
+
+        <select
+          value={mode}
+          disabled={!ready || busy}
+          onChange={(event) => setMode(event.target.value)}
+          className="mt-2 block w-full rounded-lg border border-white/20 bg-[#080d16] p-3 text-sm font-bold disabled:opacity-40"
+        >
+          {Object.entries(MODE_NAMES).map(([value, name]) => (
+            <option key={value} value={value}>
+              {name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {bank && (
+        <fieldset>
+          <legend className="text-sm font-black text-cyan-200">
+            Admin Control {bank} — 50 multipliers (1.00–50.00x)
+          </legend>
+
+          <p className="mt-1 text-xs text-slate-400">
+            Fill any boxes. Empty boxes are skipped. The plan
+            repeats only its own filled boxes.
+          </p>
+
+          <div className="mt-3 grid grid-cols-5 gap-2">
+            {plans[bank].map((value, index) => (
+              <label
+                key={index}
+                className="block min-w-0 text-[10px] text-cyan-200"
+              >
+                #{index + 1}
+
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  step="0.01"
+                  inputMode="decimal"
+                  placeholder="—"
+                  value={value}
+                  disabled={!ready || busy}
+                  onChange={(event) =>
+                    setBox(bank, index, event.target.value)
+                  }
+                  className="mt-1 w-full min-w-0 rounded-lg border border-white/20 bg-[#080d16] px-1 py-2 text-center text-sm font-bold"
+                />
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
+
+      <p className="text-xs leading-5 text-slate-400">
+        Save starts the selected plan at its first filled box, runs
+        in numbered order, then repeats. Plans 01 and 02 never
+        switch automatically; pick another mode and Save to switch.
+        Both plans are saved separately.
+      </p>
+
+      <button
+        type="submit"
+        disabled={!ready || busy}
+        className="rounded-xl bg-cyan-400 px-6 py-3 text-sm font-black text-black disabled:opacity-40"
+      >
+        {busy ? 'SAVING…' : 'SAVE NEXT ROUND MODE'}
+      </button>
+
+      {message && (
+        <p
+          role="status"
+          className="rounded-lg bg-white/5 p-3 text-sm text-amber-100"
+        >
+          {message}
+        </p>
+      )}
+    </form>
   );
 }
 
