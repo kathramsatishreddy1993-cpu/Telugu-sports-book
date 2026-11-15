@@ -1,6 +1,9 @@
 import { randomBytes, randomInt, createHash } from 'node:crypto';
 
-import { requireControllerAccount } from './controllerAccounts.js';
+import {
+  requireControllerAccount,
+  verifyControllerForMutation,
+} from './controllerAccounts.js';
 
 const LOCK = 746219;
 export const GROWTH_RATE = 0.16;
@@ -1136,6 +1139,7 @@ export function registerFlightRoutes(app, pool) {
           round: roundView(latest.rows[0], now),
           history: history.rows.map(round => roundView(round, now)),
           lockedMultiplier: null,
+          currentPlanSlot: latest.rows[0]?.plan_slot ?? null,
         };
       });
 
@@ -1155,136 +1159,168 @@ export function registerFlightRoutes(app, pool) {
     wrap(async () => {
       throw fail(
         409,
-        'Aviator rounds now run automatically. Choose Random / Admin Control 01 / 02 in the Admin panel (Aviator Game Control).',
+        'Aviator rounds now run automatically. Set Random / Admin Control 01 / 02 in the Game Control panel.',
       );
     }),
   );
 
-  // Main Admin only: /api/admin is already protected by requireOldAdmin in index.js.
-  app.get(
-    '/api/admin/flight-plan/page',
-    (req, res) => {
-      res.set({
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'no-store',
-      });
+  async function readPlan() {
+    const settings = await loadSettings(pool);
 
-      res.send(PLAN_PAGE);
-    },
-  );
+    const now = new Date(
+      (await pool.query('SELECT clock_timestamp() AS now')).rows[0].now,
+    ).getTime();
+
+    const latest = (
+      await pool.query(
+        `SELECT *
+         FROM tsb_flight_rounds
+         ORDER BY id DESC
+         LIMIT 1`,
+      )
+    ).rows[0];
+
+    const view = roundView(latest, now);
+
+    return {
+      success: true,
+
+      configuredMode: MODES.includes(settings[KEYS.mode])
+        ? settings[KEYS.mode]
+        : 'RANDOM',
+
+      plans: {
+        '01': savedPlan(settings, '01'),
+        '02': savedPlan(settings, '02'),
+      },
+
+      next: {
+        '01': nextSlot(settings, '01'),
+        '02': nextSlot(settings, '02'),
+      },
+
+      current: latest
+        ? {
+            id: view.id,
+            phase: view.phase,
+            mode: view.mode,
+            planSlot: latest.plan_slot,
+            multiplier: view.multiplier,
+          }
+        : null,
+    };
+  }
+
+  async function savePlan(data, verify) {
+    if (!MODES.includes(data.mode)) {
+      throw fail(
+        400,
+        'Choose Random, Admin Control 01 or Admin Control 02.',
+      );
+    }
+
+    if (
+      !data.plans ||
+      typeof data.plans !== 'object' ||
+      Array.isArray(data.plans)
+    ) {
+      throw fail(400, 'Provide both admin plans.');
+    }
+
+    let plans;
+
+    try {
+      plans = {
+        '01': normalizePlan(data.plans['01'], data.mode !== 'ADMIN'),
+        '02': normalizePlan(data.plans['02'], data.mode !== 'ADMIN2'),
+      };
+    } catch (error) {
+      throw fail(400, error.message);
+    }
+
+    await transaction(pool, async client => {
+      if (verify) await verify(client);
+
+      const settings = await loadSettings(client);
+
+      const activeBank =
+        data.mode === 'ADMIN2'
+          ? '02'
+          : data.mode === 'ADMIN'
+            ? '01'
+            : null;
+
+      for (const bank of ['01', '02']) {
+        const planKey = bank === '01' ? KEYS.plan1 : KEYS.plan2;
+        const cursorKey = bank === '01' ? KEYS.cur1 : KEYS.cur2;
+
+        const changed =
+          JSON.stringify(plans[bank]) !==
+          JSON.stringify(savedPlan(settings, bank));
+
+        await saveSetting(client, planKey, JSON.stringify(plans[bank]));
+
+        // The selected plan restarts at its first filled box;
+        // the other plan keeps its own position unless its boxes changed.
+        if (changed || bank === activeBank) {
+          await saveSetting(client, cursorKey, '0');
+        }
+      }
+
+      await saveSetting(client, KEYS.mode, data.mode);
+    });
+
+    return { success: true, appliesFromNextCountdown: true };
+  }
+
+  // Main Admin: /api/admin is already protected by requireOldAdmin in index.js.
+  app.get('/api/admin/flight-plan/page', (req, res) => {
+    res.set({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+    });
+
+    res.send(PLAN_PAGE);
+  });
 
   app.get(
     '/api/admin/flight-plan',
     wrap(async (req, res) => {
-      const settings = await loadSettings(pool);
-
-      const now = new Date(
-        (await pool.query('SELECT clock_timestamp() AS now')).rows[0].now,
-      ).getTime();
-
-      const latest = (
-        await pool.query(
-          `SELECT *
-           FROM tsb_flight_rounds
-           ORDER BY id DESC
-           LIMIT 1`,
-        )
-      ).rows[0];
-
-      const view = roundView(latest, now);
-
-      res.json({
-        success: true,
-
-        configuredMode: MODES.includes(settings[KEYS.mode])
-          ? settings[KEYS.mode]
-          : 'RANDOM',
-
-        plans: {
-          '01': savedPlan(settings, '01'),
-          '02': savedPlan(settings, '02'),
-        },
-
-        next: {
-          '01': nextSlot(settings, '01'),
-          '02': nextSlot(settings, '02'),
-        },
-
-        current: latest
-          ? {
-              id: view.id,
-              phase: view.phase,
-              mode: view.mode,
-              planSlot: latest.plan_slot,
-              multiplier: view.multiplier,
-            }
-          : null,
-      });
+      res.json(await readPlan());
     }),
   );
 
   app.post(
     '/api/admin/flight-plan',
     wrap(async (req, res) => {
-      const data = req.body || {};
+      res.json(await savePlan(req.body || {}));
+    }),
+  );
 
-      if (!MODES.includes(data.mode)) {
-        throw fail(
-          400,
-          'Choose Random, Admin Control 01 or Admin Control 02.',
-        );
+  // Game Controller panel (same plans, controller login).
+  app.get(
+    '/api/game-control/flight-plan',
+    controllerSession,
+    onlyDemo,
+    wrap(async (req, res) => {
+      if (req.controllerAccount.must_change_password) {
+        throw fail(403, 'Change your temporary password first.');
       }
 
-      if (
-        !data.plans ||
-        typeof data.plans !== 'object' ||
-        Array.isArray(data.plans)
-      ) {
-        throw fail(400, 'Provide both admin plans.');
-      }
+      res.json(await readPlan());
+    }),
+  );
 
-      let plans;
-
-      try {
-        plans = {
-          '01': normalizePlan(data.plans['01'], data.mode !== 'ADMIN'),
-          '02': normalizePlan(data.plans['02'], data.mode !== 'ADMIN2'),
-        };
-      } catch (error) {
-        throw fail(400, error.message);
-      }
-
-      await transaction(pool, async client => {
-        const settings = await loadSettings(client);
-
-        const activeBank =
-          data.mode === 'ADMIN2'
-            ? '02'
-            : data.mode === 'ADMIN'
-              ? '01'
-              : null;
-
-        for (const bank of ['01', '02']) {
-          const planKey = bank === '01' ? KEYS.plan1 : KEYS.plan2;
-          const cursorKey = bank === '01' ? KEYS.cur1 : KEYS.cur2;
-
-          const changed =
-            JSON.stringify(plans[bank]) !==
-            JSON.stringify(savedPlan(settings, bank));
-
-          await saveSetting(client, planKey, JSON.stringify(plans[bank]));
-
-          // The selected plan restarts at its first filled box;
-          // the other plan keeps its own position unless its boxes changed.
-          if (changed || bank === activeBank) {
-            await saveSetting(client, cursorKey, '0');
-          }
-        }
-
-        await saveSetting(client, KEYS.mode, data.mode);
-      });
-
-      res.json({ success: true, appliesFromNextCountdown: true });
+  app.post(
+    '/api/game-control/flight-plan',
+    controller,
+    onlyDemo,
+    wrap(async (req, res) => {
+      res.json(
+        await savePlan(req.body || {}, client =>
+          verifyControllerForMutation(client, req.controllerAccount),
+        ),
+      );
     }),
   );
 
