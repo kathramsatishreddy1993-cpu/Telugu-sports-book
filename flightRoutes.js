@@ -1,12 +1,22 @@
-import { randomBytes, createHash } from 'node:crypto';
+import { randomBytes, randomInt, createHash } from 'node:crypto';
 
-import {
-  requireControllerAccount,
-  verifyControllerForMutation,
-} from './controllerAccounts.js';
+import { requireControllerAccount } from './controllerAccounts.js';
 
 const LOCK = 746219;
-export const GROWTH_RATE = 0.085;
+export const GROWTH_RATE = 0.16;
+
+const COUNTDOWN_MS = 10000;
+const HOLD_MS = 3500;
+const MAX_BALANCE = 2147483647;
+const MODES = ['RANDOM', 'ADMIN', 'ADMIN2'];
+
+const KEYS = {
+  mode: 'flight_game_mode',
+  plan1: 'flight_plan_01',
+  plan2: 'flight_plan_02',
+  cur1: 'flight_cursor_01',
+  cur2: 'flight_cursor_02',
+};
 
 const digest = value =>
   createHash('sha256').update(String(value)).digest('hex');
@@ -43,6 +53,9 @@ const betView = bet =>
         payout: Number(bet.payout),
         cashoutMultiplier: bet.cashout_hundredths
           ? bet.cashout_hundredths / 100
+          : null,
+        autoCashout: bet.auto_cashout_hundredths
+          ? bet.auto_cashout_hundredths / 100
           : null,
         createdAt: bet.created_at,
       }
@@ -96,9 +109,141 @@ export function roundView(round, now) {
         ? round.crash_hundredths / 100
         : null,
     seed: phase === 'CRASHED' ? round.seed : null,
-    mode: 'ADMIN_CONTROLLED_DEMO',
+    mode: round.mode || 'ADMIN',
   };
 }
+
+// ---------- Plans (two independent banks of 50 multiplier boxes) ----------
+
+export function normalizePlan(values, allowEmpty = false) {
+  if (!Array.isArray(values) || values.length > 50) {
+    throw new Error('Use up to 50 multiplier boxes.');
+  }
+
+  const slots = Array(50).fill(null);
+
+  for (let index = 0; index < values.length; index++) {
+    const value = values[index];
+
+    if (value === null || value === undefined) continue;
+
+    if (
+      typeof value !== 'number' ||
+      !Number.isFinite(value) ||
+      value < 1 ||
+      value > 50 ||
+      Math.abs(value * 100 - Math.round(value * 100)) > 0.00001
+    ) {
+      throw new Error(
+        `Box ${index + 1}: enter 1.00–50.00, with at most two decimals.`,
+      );
+    }
+
+    slots[index] = Math.round(value * 100) / 100;
+  }
+
+  if (!allowEmpty && !slots.some(value => value !== null)) {
+    throw new Error('Fill at least one multiplier box for Admin Control.');
+  }
+
+  return slots;
+}
+
+async function loadSettings(db) {
+  const result = await db.query(
+    `SELECT setting_key,setting_value
+     FROM site_settings
+     WHERE setting_key = ANY($1)`,
+    [Object.values(KEYS)],
+  );
+
+  return Object.fromEntries(
+    result.rows.map(row => [row.setting_key, row.setting_value]),
+  );
+}
+
+const saveSetting = (db, key, value) =>
+  db.query(
+    `INSERT INTO site_settings(setting_key,setting_value,updated_at)
+     VALUES($1,$2,NOW())
+     ON CONFLICT(setting_key)
+     DO UPDATE SET
+       setting_value=EXCLUDED.setting_value,
+       updated_at=NOW()`,
+    [key, String(value)],
+  );
+
+function savedPlan(settings, bank) {
+  const key = bank === '02' ? KEYS.plan2 : KEYS.plan1;
+
+  try {
+    return normalizePlan(JSON.parse(settings[key] || '[]'), true);
+  } catch {
+    return Array(50).fill(null);
+  }
+}
+
+function planEntries(settings, bank) {
+  return savedPlan(settings, bank)
+    .map((value, index) => ({ value, slot: index + 1 }))
+    .filter(entry => entry.value !== null);
+}
+
+function nextSlot(settings, bank) {
+  const entries = planEntries(settings, bank);
+  if (!entries.length) return null;
+
+  const stored = Number(
+    settings[bank === '02' ? KEYS.cur2 : KEYS.cur1] || 0,
+  );
+
+  const cursor =
+    Number.isSafeInteger(stored) && stored >= 0
+      ? stored % entries.length
+      : 0;
+
+  return entries[cursor].slot;
+}
+
+async function takeTarget(client, bank, settings) {
+  const entries = planEntries(settings, bank);
+
+  // Defensive fallback for an empty plan.
+  if (!entries.length) return { value: 2, slot: null };
+
+  const cursorKey = bank === '02' ? KEYS.cur2 : KEYS.cur1;
+  const stored = Number(settings[cursorKey] || 0);
+
+  const cursor =
+    Number.isSafeInteger(stored) && stored >= 0
+      ? stored % entries.length
+      : 0;
+
+  await saveSetting(client, cursorKey, (cursor + 1) % entries.length);
+
+  return entries[cursor];
+}
+
+function parseTarget(value) {
+  if (value === undefined || value === null || value === 0) return 0;
+
+  if (
+    typeof value !== 'number' ||
+    !Number.isFinite(value) ||
+    value < 1.01 ||
+    value > 49.99 ||
+    Math.abs(value * 100 - Math.round(value * 100)) > 0.000001
+  ) {
+    throw fail(
+      400,
+      'Auto cash out must be 1.01–49.99x, with at most two decimals.',
+    );
+  }
+
+  return Math.round(value * 100);
+}
+
+// ---------- Database ----------
 
 export async function initializeFlight(pool) {
   const client = await pool.connect();
@@ -225,6 +370,35 @@ export async function initializeFlight(pool) {
         BEFORE UPDATE OR DELETE ON tsb_flight_rounds
         FOR EACH ROW
         EXECUTE FUNCTION tsb_flight_protect_locked_round();
+
+      -- Aviator (Super Fast Aviator game plan) additions.
+      ALTER TABLE tsb_flight_rounds
+        ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'ADMIN';
+
+      ALTER TABLE tsb_flight_rounds
+        ADD COLUMN IF NOT EXISTS plan_slot SMALLINT;
+
+      ALTER TABLE tsb_flight_bets
+        ADD COLUMN IF NOT EXISTS auto_cashout_hundredths
+        INTEGER NOT NULL DEFAULT 0;
+
+      CREATE TABLE IF NOT EXISTS tsb_flight_auto_plans (
+        id BIGSERIAL PRIMARY KEY,
+        customer_id INTEGER NOT NULL
+          REFERENCES customers(id) ON DELETE CASCADE,
+        bet_slot SMALLINT NOT NULL CHECK(bet_slot IN (1,2)),
+        stake INTEGER NOT NULL CHECK(stake BETWEEN 10 AND 25000),
+        auto_cashout_hundredths INTEGER NOT NULL DEFAULT 0,
+        remaining INTEGER NOT NULL DEFAULT 0,
+        enabled BOOLEAN NOT NULL DEFAULT FALSE,
+        not_before_round BIGINT NOT NULL DEFAULT 0,
+        last_round BIGINT NOT NULL DEFAULT 0,
+        last_error TEXT NOT NULL DEFAULT '',
+        UNIQUE(customer_id,bet_slot)
+      );
+
+      CREATE INDEX IF NOT EXISTS tsb_flight_auto_due
+        ON tsb_flight_auto_plans(enabled,not_before_round,last_round);
     `);
 
     await client.query('COMMIT');
@@ -242,30 +416,6 @@ async function serverNow(client) {
   );
 
   return new Date(result.rows[0].now).getTime();
-}
-
-async function expireRound(client) {
-  await client.query(
-    'SELECT pg_advisory_xact_lock($1)',
-    [LOCK],
-  );
-
-  const expired = await client.query(
-    `UPDATE tsb_flight_rounds
-     SET status='CRASHED'
-     WHERE status='LOCKED'
-       AND crashes_at<=clock_timestamp()
-     RETURNING id`,
-  );
-
-  for (const round of expired.rows) {
-    await client.query(
-      `UPDATE tsb_flight_bets
-       SET status='LOST',settled_at=NOW()
-       WHERE round_id=$1 AND status='PLACED'`,
-      [round.id],
-    );
-  }
 }
 
 async function transaction(pool, fn) {
@@ -290,13 +440,470 @@ async function transaction(pool, fn) {
   }
 }
 
+// Capped at the wallet limit so one huge balance can never block the game loop.
+async function creditWallet(client, customerId, amount, type, note) {
+  await client.query(
+    `UPDATE customers
+     SET demo_coin_balance=LEAST(
+           $3::BIGINT,
+           demo_coin_balance::BIGINT+$1::BIGINT
+         ),
+         updated_at=NOW()
+     WHERE id=$2`,
+    [amount, customerId, MAX_BALANCE],
+  );
+
+  await client.query(
+    `INSERT INTO demo_coin_transactions(
+      customer_id,amount,transaction_type,note
+    )
+    VALUES($1,$2,$3,$4)`,
+    [customerId, amount, type, note],
+  );
+}
+
+// Auto cash out uses the locked target, even if a server tick is a little late.
+// A target equal to the crash multiplier loses (cash out before crash).
+async function autoCashouts(client, roundId, limitHundredths, crashHundredths) {
+  const bets = await client.query(
+    `SELECT *
+     FROM tsb_flight_bets
+     WHERE round_id=$1
+       AND status='PLACED'
+       AND auto_cashout_hundredths>=101
+       AND auto_cashout_hundredths<=$2
+       AND auto_cashout_hundredths<$3
+     ORDER BY id
+     FOR UPDATE`,
+    [roundId, limitHundredths, crashHundredths],
+  );
+
+  for (const bet of bets.rows) {
+    const payout = Math.floor(
+      Number(bet.stake) * bet.auto_cashout_hundredths / 100,
+    );
+
+    const saved = await client.query(
+      `UPDATE tsb_flight_bets
+       SET status='CASHED_OUT',
+           payout=$1,
+           cashout_hundredths=$2,
+           settled_at=NOW()
+       WHERE id=$3 AND status='PLACED'
+       RETURNING id`,
+      [payout, bet.auto_cashout_hundredths, bet.id],
+    );
+
+    if (saved.rows[0]) {
+      await creditWallet(
+        client,
+        bet.customer_id,
+        payout,
+        'FLIGHT_PAYOUT',
+        `TSB Aviator round #${bet.round_id}, bet #${bet.id}, ${bet.auto_cashout_hundredths / 100}x auto cash out (stake included)`,
+      );
+    }
+  }
+}
+
+async function expireRound(client) {
+  const expired = await client.query(
+    `UPDATE tsb_flight_rounds
+     SET status='CRASHED'
+     WHERE status='LOCKED'
+       AND crashes_at<=clock_timestamp()
+     RETURNING id,crash_hundredths`,
+  );
+
+  for (const round of expired.rows) {
+    await autoCashouts(
+      client,
+      round.id,
+      round.crash_hundredths,
+      round.crash_hundredths,
+    );
+
+    await client.query(
+      `UPDATE tsb_flight_bets
+       SET status='LOST',settled_at=NOW()
+       WHERE round_id=$1 AND status='PLACED'`,
+      [round.id],
+    );
+  }
+}
+
+async function createRound(client, now) {
+  const settings = await loadSettings(client);
+
+  const mode = MODES.includes(settings[KEYS.mode])
+    ? settings[KEYS.mode]
+    : 'RANDOM';
+
+  let hundredths;
+  let slot = null;
+
+  if (mode === 'RANDOM') {
+    const r = randomInt(0, 1000000) / 1000000;
+
+    const multiplier = Math.min(
+      50,
+      Math.max(1, Math.floor(0.97 / (1 - r) * 100) / 100),
+    );
+
+    hundredths = Math.round(multiplier * 100);
+  } else {
+    const target = await takeTarget(
+      client,
+      mode === 'ADMIN2' ? '02' : '01',
+      settings,
+    );
+
+    hundredths = Math.round(target.value * 100);
+    slot = target.slot;
+  }
+
+  const start = now + COUNTDOWN_MS;
+
+  const crash =
+    start +
+    Math.ceil(Math.log(hundredths / 100) / GROWTH_RATE * 1000);
+
+  const sequence = await client.query(
+    `SELECT nextval(
+      pg_get_serial_sequence('tsb_flight_rounds','id')
+    ) AS id`,
+  );
+
+  const id = String(sequence.rows[0].id);
+  const seed = randomBytes(32).toString('hex');
+
+  const saved = await client.query(
+    `INSERT INTO tsb_flight_rounds(
+      id,
+      crash_hundredths,
+      seed,
+      commitment,
+      controller_id,
+      starts_at,
+      crashes_at,
+      mode,
+      plan_slot
+    )
+    VALUES($1,$2,$3,$4,'AUTO',$5,$6,$7,$8)
+    RETURNING *`,
+    [
+      id,
+      hundredths,
+      seed,
+      flightCommitment(id, hundredths, seed),
+      new Date(start),
+      new Date(crash),
+      mode,
+      slot,
+    ],
+  );
+
+  return saved.rows[0];
+}
+
+async function insertBet(client, input) {
+  const saved = await client.query(
+    `INSERT INTO tsb_flight_bets(
+      round_id,
+      customer_id,
+      request_key,
+      stake,
+      bet_slot,
+      auto_cashout_hundredths
+    )
+    VALUES($1,$2,$3,$4,$5,$6)
+    RETURNING *`,
+    [
+      input.roundId,
+      input.customerId,
+      input.requestKey,
+      input.stake,
+      input.slot,
+      input.autoHundredths,
+    ],
+  );
+
+  await client.query(
+    `UPDATE customers
+     SET demo_coin_balance=demo_coin_balance-$1,
+         updated_at=NOW()
+     WHERE id=$2`,
+    [input.stake, input.customerId],
+  );
+
+  await client.query(
+    `INSERT INTO demo_coin_transactions(
+      customer_id,amount,transaction_type,note
+    )
+    VALUES($1,$2,'FLIGHT_STAKE',$3)`,
+    [
+      input.customerId,
+      -input.stake,
+      `TSB Aviator round #${input.roundId}, bet #${saved.rows[0].id}`,
+    ],
+  );
+
+  return saved.rows[0];
+}
+
+// Auto bets continue for the chosen rounds. They stop when the account is
+// unavailable, the balance is too low, or the customer has logged out.
+async function placeAutoBets(client, round, now) {
+  if (now >= new Date(round.starts_at).getTime()) return;
+
+  const due = await client.query(
+    `SELECT
+       p.*,
+       c.status AS customer_status,
+       EXISTS(
+         SELECT 1
+         FROM demo_customer_sessions s
+         WHERE s.customer_id=p.customer_id
+           AND s.expires_at>NOW()
+       ) AS has_session
+     FROM tsb_flight_auto_plans p
+     JOIN customers c ON c.id=p.customer_id
+     WHERE p.enabled=TRUE
+       AND p.not_before_round<=$1
+       AND p.last_round<>$1
+     ORDER BY p.id`,
+    [round.id],
+  );
+
+  const stop = (plan, reason) =>
+    client.query(
+      `UPDATE tsb_flight_auto_plans
+       SET enabled=FALSE,last_error=$1
+       WHERE id=$2`,
+      [reason, plan.id],
+    );
+
+  for (const plan of due.rows) {
+    if (plan.remaining <= 0) {
+      await stop(plan, '');
+      continue;
+    }
+
+    if (!plan.has_session) {
+      await stop(plan, 'Logged out');
+      continue;
+    }
+
+    if (plan.customer_status !== 'ACTIVE') {
+      await stop(plan, 'Account unavailable');
+      continue;
+    }
+
+    const duplicate = await client.query(
+      `SELECT id
+       FROM tsb_flight_bets
+       WHERE round_id=$1
+         AND customer_id=$2
+         AND bet_slot=$3
+         AND status<>'CANCELLED'`,
+      [round.id, plan.customer_id, plan.bet_slot],
+    );
+
+    if (duplicate.rows.length) {
+      await client.query(
+        'UPDATE tsb_flight_auto_plans SET last_round=$1 WHERE id=$2',
+        [round.id, plan.id],
+      );
+      continue;
+    }
+
+    const wallet = await client.query(
+      `SELECT demo_coin_balance
+       FROM customers
+       WHERE id=$1
+       FOR UPDATE`,
+      [plan.customer_id],
+    );
+
+    if (Number(wallet.rows[0].demo_coin_balance) < plan.stake) {
+      await stop(plan, 'Insufficient balance');
+      continue;
+    }
+
+    await insertBet(client, {
+      roundId: round.id,
+      customerId: plan.customer_id,
+      requestKey: `auto_${round.id}_${plan.bet_slot}`,
+      stake: plan.stake,
+      slot: plan.bet_slot,
+      autoHundredths: plan.auto_cashout_hundredths,
+    });
+
+    const left = plan.remaining - 1;
+
+    await client.query(
+      `UPDATE tsb_flight_auto_plans
+       SET remaining=$1,
+           enabled=$2,
+           last_round=$3,
+           last_error=''
+       WHERE id=$4`,
+      [left, left > 0, round.id, plan.id],
+    );
+  }
+}
+
+// One step of the game loop: settle crashes, start the next round, auto bets and auto cash outs.
+async function advance(client) {
+  await expireRound(client);
+
+  const now = await serverNow(client);
+
+  const latest = (
+    await client.query(
+      `SELECT *
+       FROM tsb_flight_rounds
+       ORDER BY id DESC
+       LIMIT 1`,
+    )
+  ).rows[0];
+
+  let round = latest;
+
+  if (
+    !latest ||
+    (
+      latest.status === 'CRASHED' &&
+      now >= new Date(latest.crashes_at).getTime() + HOLD_MS
+    )
+  ) {
+    round = await createRound(client, now);
+  }
+
+  if (round && round.status === 'LOCKED') {
+    const start = new Date(round.starts_at).getTime();
+
+    if (now < start) {
+      await placeAutoBets(client, round, now);
+    } else {
+      await autoCashouts(
+        client,
+        round.id,
+        flightMultiplier(start, now),
+        round.crash_hundredths,
+      );
+    }
+  }
+
+  return round;
+}
+
+// ---------- Admin plan page (plain HTML, no build step) ----------
+
+const PLAN_PAGE = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Aviator Game Control</title>
+<style>
+body{margin:0;background:#f3f5f7;color:#1b252a;font-family:Arial,Helvetica,sans-serif;padding:16px}
+h1{color:#781a40;font-size:22px;margin:0 0 12px}
+.card{background:#fff;border:1px solid #e3e8ea;border-radius:12px;padding:16px;max-width:900px;margin:0 auto 16px}
+.banner{padding:10px 14px;border:1px solid #0cb2b7;border-radius:8px;background:#e0f7f7;color:#134145;font-size:13px;line-height:1.5;margin-bottom:12px}
+select,input{font:inherit;padding:10px;border:1px solid #b7c7cc;border-radius:8px;background:#fff;color:#1b252a}
+select{width:100%;margin:6px 0 16px}
+fieldset{border:0;padding:0;margin:16px 0}
+legend{font-weight:700;margin-bottom:8px}
+.grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.grid label{font-size:11px;color:#781a40;min-width:0}
+.grid input{width:100%;box-sizing:border-box;padding:9px 3px;text-align:center;font-weight:700}
+button{background:#781a40;color:#fff;border:0;border-radius:10px;padding:13px 18px;font:inherit;font-weight:700;cursor:pointer;width:100%}
+.muted{color:#65747a;font-size:12px;line-height:1.5}
+.err{color:#9d1648;font-size:14px;margin-top:10px}
+.ok{color:#0a6f73;font-size:14px;margin-top:10px}
+</style></head><body>
+<div class="card">
+<h1>Aviator Game Control</h1>
+<div id="banner" class="banner">Loading...</div>
+<p class="muted">Changes apply from the next betting countdown. The current round stays locked.</p>
+<form id="f">
+<label>Next Round Mode
+<select id="mode">
+<option value="RANDOM">Random - automatic server outcome</option>
+<option value="ADMIN">Admin Control 01 - fixed multipliers</option>
+<option value="ADMIN2">Admin Control 02 - fixed multipliers</option>
+</select></label>
+<div id="banks"></div>
+<p class="muted">Save starts the selected plan at its first filled box on the next countdown. It runs in numbered order, then repeats from its first filled box. Plans 01 and 02 never switch automatically; choose another mode and Save to switch. Both plans are saved separately. Simulation balance only.</p>
+<button type="submit">SAVE NEXT ROUND MODE</button>
+<p id="msg"></p>
+</form></div>
+<script>
+var NAMES={RANDOM:'Random - automatic server outcome',ADMIN:'Admin Control 01 - fixed multipliers',ADMIN2:'Admin Control 02 - fixed multipliers'};
+function el(id){return document.getElementById(id);}
+function api(method,body){
+  return fetch('/api/admin/flight-plan',{method:method,cache:'no-store',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined})
+    .then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Request failed');return j;});});
+}
+function bankHtml(bank,plan){
+  var h='<fieldset data-bank="'+bank+'"><legend>Admin Control '+bank+' - 50 multipliers (1.00-50.00x)</legend><p class="muted">Fill any boxes. Empty boxes are skipped. This plan repeats only its own filled boxes.</p><div class="grid">';
+  for(var i=0;i<50;i++){
+    var v=plan[i]==null?'':Number(plan[i]).toFixed(2);
+    h+='<label><span>#'+(i+1)+'</span><input type="number" min="1" max="50" step="0.01" inputmode="decimal" data-bank="'+bank+'" data-i="'+i+'" value="'+v+'" placeholder="-"></label>';
+  }
+  return h+'</div><p class="muted" id="next'+bank+'"></p></fieldset>';
+}
+function showBanks(){
+  var mode=el('mode').value;
+  var items=document.querySelectorAll('fieldset[data-bank]');
+  for(var i=0;i<items.length;i++){
+    var bank=items[i].getAttribute('data-bank');
+    items[i].hidden=!((bank==='01'&&mode==='ADMIN')||(bank==='02'&&mode==='ADMIN2'));
+  }
+}
+function status(d){
+  var c=d.current;
+  el('banner').textContent=c?('Current round #'+c.id+': '+NAMES[c.mode]+' | '+c.phase+' | Current box: '+(c.mode!=='RANDOM'&&c.planSlot?'#'+c.planSlot:'-')):'No round yet. The first round starts automatically.';
+  el('next01').textContent='Next saved box for plan 01: '+(d.next['01']?'#'+d.next['01']:'-');
+  el('next02').textContent='Next saved box for plan 02: '+(d.next['02']?'#'+d.next['02']:'-');
+}
+function load(full){
+  return api('GET').then(function(d){
+    if(full){
+      el('mode').value=d.configuredMode;
+      el('banks').innerHTML=bankHtml('01',d.plans['01'])+bankHtml('02',d.plans['02']);
+      showBanks();
+    }
+    status(d);
+  }).catch(function(e){el('banner').textContent=e.message;});
+}
+el('mode').onchange=showBanks;
+el('f').onsubmit=function(ev){
+  ev.preventDefault();
+  var plans={'01':[],'02':[]};
+  var inputs=document.querySelectorAll('input[data-bank]');
+  for(var i=0;i<inputs.length;i++){
+    var v=inputs[i].value.trim();
+    plans[inputs[i].getAttribute('data-bank')][Number(inputs[i].getAttribute('data-i'))]=v===''?null:Number(v);
+  }
+  el('msg').className='';el('msg').textContent='';
+  api('POST',{mode:el('mode').value,plans:plans}).then(function(){
+    el('msg').className='ok';el('msg').textContent='Saved. Starts from the next countdown.';
+    return load(true);
+  }).catch(function(e){el('msg').className='err';el('msg').textContent=e.message;});
+};
+load(true);
+setInterval(function(){load(false);},1000);
+</script></body></html>`;
+
+// ---------- Routes ----------
+
 export function registerFlightRoutes(app, pool) {
   const onlyDemo = (req, res, next) =>
     demoEnabled()
       ? next()
       : res.status(409).json({
           error:
-            'TSB Flight is a demo-only game. Enable DEMO_GAMES_MODE=demo.',
+            'Aviator is a demo-only game. Enable DEMO_GAMES_MODE=demo.',
         });
 
   const customer = wrap(async (req, res, next) => {
@@ -344,74 +951,146 @@ export function registerFlightRoutes(app, pool) {
     next();
   });
 
-  async function state(isController, customerId) {
-    return transaction(pool, async client => {
-      await expireRound(client);
+  // Read-only snapshot for customers. The game loop below does all the writing.
+  async function snapshot(customerId) {
+    const now = new Date(
+      (await pool.query('SELECT clock_timestamp() AS now')).rows[0].now,
+    ).getTime();
 
-      const latest = await client.query(
+    const latest = (
+      await pool.query(
         `SELECT *
          FROM tsb_flight_rounds
          ORDER BY id DESC
          LIMIT 1`,
-      );
+      )
+    ).rows[0];
 
-      const now = await serverNow(client);
+    const history = await pool.query(
+      `SELECT *
+       FROM tsb_flight_rounds
+       WHERE status='CRASHED'
+       ORDER BY id DESC
+       LIMIT 12`,
+    );
 
-      const history = await client.query(
-        `SELECT *
-         FROM tsb_flight_rounds
-         WHERE status='CRASHED'
-         ORDER BY id DESC
-         LIMIT 20`,
-      );
+    const wallet = await pool.query(
+      `SELECT demo_coin_balance
+       FROM customers
+       WHERE id=$1`,
+      [customerId],
+    );
 
-      const data = {
-        success: true,
-        serverTime: new Date(now).toISOString(),
-        growthRate: GROWTH_RATE,
-        round: roundView(latest.rows[0], now),
-        history: history.rows.map(
-          round => roundView(round, now),
-        ),
-      };
+    if (!wallet.rows[0]) {
+      throw fail(401, 'Customer account not found.');
+    }
 
-      if (isController) {
-        data.lockedMultiplier =
-          latest.rows[0]?.status === 'LOCKED'
-            ? latest.rows[0].crash_hundredths / 100
-            : null;
-      } else {
-        const wallet = await client.query(
-          `SELECT demo_coin_balance
-           FROM customers
-           WHERE id=$1`,
-          [customerId],
-        );
+    const bets = await pool.query(
+      `SELECT *
+       FROM tsb_flight_bets
+       WHERE customer_id=$1
+       ORDER BY id DESC
+       LIMIT 50`,
+      [customerId],
+    );
 
-        if (!wallet.rows[0]) {
-          throw fail(401, 'Customer account not found.');
-        }
+    const everyone = latest
+      ? await pool.query(
+          `SELECT
+             b.id,
+             b.customer_id,
+             b.stake,
+             b.status,
+             b.payout,
+             b.cashout_hundredths,
+             c.login_id
+           FROM tsb_flight_bets b
+           JOIN customers c ON c.id=b.customer_id
+           WHERE b.round_id=$1 AND b.status<>'CANCELLED'
+           ORDER BY b.stake DESC,b.id DESC
+           LIMIT 500`,
+          [latest.id],
+        )
+      : { rows: [] };
 
-        const bets = await client.query(
-          `SELECT *
-           FROM tsb_flight_bets
-           WHERE customer_id=$1
-           ORDER BY id DESC
-           LIMIT 50`,
-          [customerId],
-        );
+    const plans = await pool.query(
+      `SELECT
+         bet_slot,
+         stake,
+         auto_cashout_hundredths,
+         remaining,
+         enabled,
+         last_error
+       FROM tsb_flight_auto_plans
+       WHERE customer_id=$1
+       ORDER BY bet_slot`,
+      [customerId],
+    );
 
-        data.customerId = customerId;
-        data.balance = Number(
-          wallet.rows[0].demo_coin_balance,
-        );
-        data.bets = bets.rows.map(betView);
-      }
+    return {
+      success: true,
+      serverTime: new Date(now).toISOString(),
+      growthRate: GROWTH_RATE,
+      round: roundView(latest, now),
+      history: history.rows.map(round => roundView(round, now)),
+      customerId,
+      balance: Number(wallet.rows[0].demo_coin_balance),
+      bets: bets.rows.map(betView),
 
-      return data;
-    });
+      allBets: everyone.rows.map(row => {
+        const name = String(row.login_id || 'S');
+
+        return {
+          id: String(row.id),
+          stake: Number(row.stake),
+
+          status:
+            row.status === 'CASHED_OUT'
+              ? 'WON'
+              : row.status === 'LOST'
+                ? 'LOST'
+                : 'ACTIVE',
+
+          mult: row.cashout_hundredths
+            ? row.cashout_hundredths / 100
+            : 0,
+
+          payout: Number(row.payout),
+
+          username:
+            (/^\d/.test(name)
+              ? name.slice(0, 2)
+              : name.slice(0, 1).toUpperCase()) + '****',
+
+          avatarId:
+            digest(`aviator-avatar:${row.customer_id}`)
+              .slice(0, 8)
+              .split('')
+              .reduce((sum, ch) => sum * 16 + parseInt(ch, 16), 0) % 300,
+        };
+      }),
+
+      autoPlans: plans.rows.map(plan => ({
+        panel: Number(plan.bet_slot),
+        stake: Number(plan.stake),
+        autoCashout: plan.auto_cashout_hundredths / 100,
+        remaining: Number(plan.remaining),
+        enabled: Boolean(plan.enabled),
+        lastError: plan.last_error || '',
+      })),
+    };
   }
 
+  app.get(
+    '/api/flight/state',
+    customer,
+    onlyDemo,
+    wrap(async (req, res) => {
+      res.json(await snapshot(req.flightCustomer.id));
+    }),
+  );
+
+  // Game controller screen: rounds are now automatic, so it only shows status.
   app.get(
     '/api/game-control/state',
     controllerSession,
@@ -430,8 +1109,38 @@ export function registerFlightRoutes(app, pool) {
         });
       }
 
+      const data = await transaction(pool, async client => {
+        await expireRound(client);
+
+        const now = await serverNow(client);
+
+        const latest = await client.query(
+          `SELECT *
+           FROM tsb_flight_rounds
+           ORDER BY id DESC
+           LIMIT 1`,
+        );
+
+        const history = await client.query(
+          `SELECT *
+           FROM tsb_flight_rounds
+           WHERE status='CRASHED'
+           ORDER BY id DESC
+           LIMIT 20`,
+        );
+
+        return {
+          success: true,
+          serverTime: new Date(now).toISOString(),
+          growthRate: GROWTH_RATE,
+          round: roundView(latest.rows[0], now),
+          history: history.rows.map(round => roundView(round, now)),
+          lockedMultiplier: null,
+        };
+      });
+
       res.json({
-        ...(await state(true)),
+        ...data,
         controllerId: account.login_id,
         controllerName: account.name,
         mustChangePassword: false,
@@ -439,111 +1148,147 @@ export function registerFlightRoutes(app, pool) {
     }),
   );
 
-  app.get(
-    '/api/flight/state',
-    customer,
-    onlyDemo,
-    wrap(async (req, res) => {
-      res.json(await state(false, req.flightCustomer.id));
-    }),
-  );
-
   app.post(
     '/api/game-control/flight/rounds',
     controller,
     onlyDemo,
-    wrap(async (req, res) => {
-      const text = String(req.body?.multiplier || '');
+    wrap(async () => {
+      throw fail(
+        409,
+        'Aviator rounds now run automatically. Choose Random / Admin Control 01 / 02 in the Admin panel (Aviator Game Control).',
+      );
+    }),
+  );
 
-      if (
-        !/^\d{1,4}(\.\d{1,2})?$/.test(text) ||
-        Number(text) < 1 ||
-        Number(text) > 1000
-      ) {
+  // Main Admin only: /api/admin is already protected by requireOldAdmin in index.js.
+  app.get(
+    '/api/admin/flight-plan/page',
+    (req, res) => {
+      res.set({
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store',
+      });
+
+      res.send(PLAN_PAGE);
+    },
+  );
+
+  app.get(
+    '/api/admin/flight-plan',
+    wrap(async (req, res) => {
+      const settings = await loadSettings(pool);
+
+      const now = new Date(
+        (await pool.query('SELECT clock_timestamp() AS now')).rows[0].now,
+      ).getTime();
+
+      const latest = (
+        await pool.query(
+          `SELECT *
+           FROM tsb_flight_rounds
+           ORDER BY id DESC
+           LIMIT 1`,
+        )
+      ).rows[0];
+
+      const view = roundView(latest, now);
+
+      res.json({
+        success: true,
+
+        configuredMode: MODES.includes(settings[KEYS.mode])
+          ? settings[KEYS.mode]
+          : 'RANDOM',
+
+        plans: {
+          '01': savedPlan(settings, '01'),
+          '02': savedPlan(settings, '02'),
+        },
+
+        next: {
+          '01': nextSlot(settings, '01'),
+          '02': nextSlot(settings, '02'),
+        },
+
+        current: latest
+          ? {
+              id: view.id,
+              phase: view.phase,
+              mode: view.mode,
+              planSlot: latest.plan_slot,
+              multiplier: view.multiplier,
+            }
+          : null,
+      });
+    }),
+  );
+
+  app.post(
+    '/api/admin/flight-plan',
+    wrap(async (req, res) => {
+      const data = req.body || {};
+
+      if (!MODES.includes(data.mode)) {
         throw fail(
           400,
-          'Enter a multiplier from 1.00 to 1000.00 (up to two decimals).',
+          'Choose Random, Admin Control 01 or Admin Control 02.',
         );
       }
 
-      const hundredths = Math.round(Number(text) * 100);
+      if (
+        !data.plans ||
+        typeof data.plans !== 'object' ||
+        Array.isArray(data.plans)
+      ) {
+        throw fail(400, 'Provide both admin plans.');
+      }
 
-      const data = await transaction(pool, async client => {
-        await verifyControllerForMutation(
-          client,
-          req.controllerAccount,
-        );
+      let plans;
 
-        await expireRound(client);
+      try {
+        plans = {
+          '01': normalizePlan(data.plans['01'], data.mode !== 'ADMIN'),
+          '02': normalizePlan(data.plans['02'], data.mode !== 'ADMIN2'),
+        };
+      } catch (error) {
+        throw fail(400, error.message);
+      }
 
-        const active = await client.query(
-          `SELECT id
-           FROM tsb_flight_rounds
-           WHERE status='LOCKED'`,
-        );
+      await transaction(pool, async client => {
+        const settings = await loadSettings(client);
 
-        if (active.rows.length) {
-          throw fail(
-            409,
-            'A locked countdown or running round already exists. It cannot be changed.',
-          );
+        const activeBank =
+          data.mode === 'ADMIN2'
+            ? '02'
+            : data.mode === 'ADMIN'
+              ? '01'
+              : null;
+
+        for (const bank of ['01', '02']) {
+          const planKey = bank === '01' ? KEYS.plan1 : KEYS.plan2;
+          const cursorKey = bank === '01' ? KEYS.cur1 : KEYS.cur2;
+
+          const changed =
+            JSON.stringify(plans[bank]) !==
+            JSON.stringify(savedPlan(settings, bank));
+
+          await saveSetting(client, planKey, JSON.stringify(plans[bank]));
+
+          // The selected plan restarts at its first filled box;
+          // the other plan keeps its own position unless its boxes changed.
+          if (changed || bank === activeBank) {
+            await saveSetting(client, cursorKey, '0');
+          }
         }
 
-        const now = await serverNow(client);
-        const start = now + 10000;
-        const crash =
-          start +
-          Math.ceil(
-            Math.log(hundredths / 100) / GROWTH_RATE * 1000,
-          );
-
-        const sequence = await client.query(
-          `SELECT nextval(
-            pg_get_serial_sequence('tsb_flight_rounds','id')
-          ) AS id`,
-        );
-
-        const id = String(sequence.rows[0].id);
-        const seed = randomBytes(32).toString('hex');
-        const commitment = flightCommitment(
-          id,
-          hundredths,
-          seed,
-        );
-
-        const saved = await client.query(
-          `INSERT INTO tsb_flight_rounds(
-            id,
-            crash_hundredths,
-            seed,
-            commitment,
-            controller_id,
-            starts_at,
-            crashes_at
-          )
-          VALUES($1,$2,$3,$4,$5,$6,$7)
-          RETURNING *`,
-          [
-            id,
-            hundredths,
-            seed,
-            commitment,
-            req.controllerId,
-            new Date(start),
-            new Date(crash),
-          ],
-        );
-
-        return {
-          success: true,
-          round: roundView(saved.rows[0], now),
-          lockedMultiplier: hundredths / 100,
-        };
+        await saveSetting(client, KEYS.mode, data.mode);
       });
 
-      res.status(201).json(data);
+      res.json({ success: true, appliesFromNextCountdown: true });
     }),
   );
+
+  // ---------- Customer actions ----------
 
   app.post(
     '/api/flight/bets',
@@ -553,10 +1298,13 @@ export function registerFlightRoutes(app, pool) {
       const amount = Number(req.body?.stake);
       const roundId = String(req.body?.roundId || '');
       const requestKey = String(req.body?.requestKey || '');
+
       const slot =
         req.body?.slot === undefined
           ? 1
           : Number(req.body.slot);
+
+      const target = parseTarget(req.body?.autoCashout);
 
       if (
         !positiveId(roundId) ||
@@ -568,7 +1316,7 @@ export function registerFlightRoutes(app, pool) {
       ) {
         throw fail(
           400,
-          'Valid round, request key and 10–25,000 whole demo coins and slot 1 or 2 are required.',
+          'Valid round, request key, 10–25,000 whole demo coins and bet box 1 or 2 are required.',
         );
       }
 
@@ -637,7 +1385,7 @@ export function registerFlightRoutes(app, pool) {
         if (existing.rows.length) {
           throw fail(
             409,
-            'This bet box already has a bet for this round.',
+            'Only one bet per panel per round.',
           );
         }
 
@@ -655,174 +1403,24 @@ export function registerFlightRoutes(app, pool) {
           round.status !== 'LOCKED' ||
           now >= new Date(round.starts_at).getTime()
         ) {
-          throw fail(409, 'Betting is closed for this round.');
-        }
-
-        const saved = await client.query(
-          `INSERT INTO tsb_flight_bets(
-            round_id,
-            customer_id,
-            request_key,
-            stake,
-            bet_slot
-          )
-          VALUES($1,$2,$3,$4,$5)
-          RETURNING *`,
-          [
-            roundId,
-            req.flightCustomer.id,
-            requestKey,
-            amount,
-            slot,
-          ],
-        );
-
-        await client.query(
-          `UPDATE customers
-           SET demo_coin_balance=$1,updated_at=NOW()
-           WHERE id=$2`,
-          [balance, req.flightCustomer.id],
-        );
-
-        await client.query(
-          `INSERT INTO demo_coin_transactions(
-            customer_id,amount,transaction_type,note
-          )
-          VALUES($1,$2,'FLIGHT_STAKE',$3)`,
-          [
-            req.flightCustomer.id,
-            -amount,
-            `TSB Flight round #${roundId}, bet #${saved.rows[0].id}`,
-          ],
-        );
-
-        return {
-          success: true,
-          bet: betView(saved.rows[0]),
-          balance,
-        };
-      });
-
-      res.json(data);
-    }),
-  );
-
-  app.post(
-    '/api/flight/bets/:id/cancel',
-    customer,
-    onlyDemo,
-    wrap(async (req, res) => {
-      if (!positiveId(req.params.id)) {
-        throw fail(400, 'Invalid bet ID.');
-      }
-
-      const data = await transaction(pool, async client => {
-        await expireRound(client);
-
-        const result = await client.query(
-          `SELECT
-            b.*,
-            r.starts_at,
-            r.status AS round_status
-           FROM tsb_flight_bets b
-           JOIN tsb_flight_rounds r ON r.id=b.round_id
-           WHERE b.id=$1 AND b.customer_id=$2
-           FOR UPDATE OF b,r`,
-          [req.params.id, req.flightCustomer.id],
-        );
-
-        const bet = result.rows[0];
-
-        if (!bet) {
-          throw fail(404, 'Bet not found.');
-        }
-
-        const wallet = await client.query(
-          `SELECT status,demo_coin_balance
-           FROM customers
-           WHERE id=$1
-           FOR UPDATE`,
-          [req.flightCustomer.id],
-        );
-
-        if (wallet.rows[0]?.status !== 'ACTIVE') {
-          throw fail(403, 'Customer account is inactive.');
-        }
-
-        // Repeated cancellation must never refund twice.
-        if (bet.status === 'CANCELLED') {
-          return {
-            success: true,
-            replayed: true,
-            bet: betView(bet),
-            balance: Number(wallet.rows[0].demo_coin_balance),
-          };
-        }
-
-        if (bet.status !== 'PLACED') {
           throw fail(
             409,
-            'Only an active countdown bet can be cancelled.',
+            'Betting closed. Wait for the next round.',
           );
         }
 
-        const balance =
-          Number(wallet.rows[0].demo_coin_balance) +
-          Number(bet.stake);
-
-        if (balance > 2147483647) {
-          throw fail(409, 'Demo wallet balance limit reached.');
-        }
-
-        const now = await serverNow(client);
-
-        if (
-          bet.round_status !== 'LOCKED' ||
-          now >= new Date(bet.starts_at).getTime()
-        ) {
-          throw fail(
-            409,
-            'Flight has started. Cancellation is closed; use cash out while the flight is running.',
-          );
-        }
-
-        const saved = await client.query(
-          `UPDATE tsb_flight_bets
-           SET status='CANCELLED',
-               payout=stake,
-               cashout_hundredths=NULL,
-               settled_at=NOW()
-           WHERE id=$1 AND status='PLACED'
-           RETURNING *`,
-          [bet.id],
-        );
-
-        if (!saved.rows[0]) {
-          throw fail(409, 'Bet status changed. Refresh and try again.');
-        }
-
-        await client.query(
-          `UPDATE customers
-           SET demo_coin_balance=$1,updated_at=NOW()
-           WHERE id=$2`,
-          [balance, req.flightCustomer.id],
-        );
-
-        await client.query(
-          `INSERT INTO demo_coin_transactions(
-            customer_id,amount,transaction_type,note
-          )
-          VALUES($1,$2,'FLIGHT_REFUND',$3)`,
-          [
-            req.flightCustomer.id,
-            Number(bet.stake),
-            `TSB Flight round #${bet.round_id}, bet #${bet.id}: cancelled before start; stake returned`,
-          ],
-        );
+        const saved = await insertBet(client, {
+          roundId,
+          customerId: req.flightCustomer.id,
+          requestKey,
+          stake: amount,
+          slot,
+          autoHundredths: target,
+        });
 
         return {
           success: true,
-          bet: betView(saved.rows[0]),
+          bet: betView(saved),
           balance,
         };
       });
@@ -884,13 +1482,6 @@ export function registerFlightRoutes(app, pool) {
           };
         }
 
-        if (bet.status === 'CANCELLED') {
-          throw fail(
-            409,
-            'This bet was cancelled and its stake was returned.',
-          );
-        }
-
         const now = await serverNow(client);
         const start = new Date(bet.starts_at).getTime();
 
@@ -901,7 +1492,7 @@ export function registerFlightRoutes(app, pool) {
         ) {
           throw fail(
             409,
-            'Round has crashed. Cash out is closed.',
+            'Round has ended. Cash out is closed.',
           );
         }
 
@@ -924,7 +1515,7 @@ export function registerFlightRoutes(app, pool) {
         const balance =
           Number(wallet.rows[0].demo_coin_balance) + payout;
 
-        if (balance > 2147483647) {
+        if (balance > MAX_BALANCE) {
           throw fail(409, 'Demo wallet balance limit reached.');
         }
 
@@ -954,7 +1545,7 @@ export function registerFlightRoutes(app, pool) {
           [
             req.flightCustomer.id,
             payout,
-            `TSB Flight round #${bet.round_id}, bet #${bet.id}, ${hundredths / 100}x (stake included)`,
+            `TSB Aviator round #${bet.round_id}, bet #${bet.id}, ${hundredths / 100}x (stake included)`,
           ],
         );
 
@@ -969,23 +1560,194 @@ export function registerFlightRoutes(app, pool) {
     }),
   );
 
+  app.post(
+    '/api/flight/auto/start',
+    customer,
+    onlyDemo,
+    wrap(async (req, res) => {
+      const slot = Number(req.body?.slot);
+      const stake = Number(req.body?.stake);
+      const rounds = Number(req.body?.rounds);
+      const target = parseTarget(req.body?.autoCashout);
+
+      if (
+        ![1, 2].includes(slot) ||
+        !Number.isSafeInteger(stake) ||
+        stake < 10 ||
+        stake > 25000
+      ) {
+        throw fail(
+          400,
+          'Choose bet box 1 or 2 and a whole amount from ₹10 to ₹25,000.',
+        );
+      }
+
+      if (
+        !Number.isSafeInteger(rounds) ||
+        rounds < 1 ||
+        rounds > 100
+      ) {
+        throw fail(400, 'Choose 1–100 auto rounds.');
+      }
+
+      const data = await transaction(pool, async client => {
+        await advance(client);
+
+        const wallet = await client.query(
+          `SELECT status,demo_coin_balance
+           FROM customers
+           WHERE id=$1
+           FOR UPDATE`,
+          [req.flightCustomer.id],
+        );
+
+        if (wallet.rows[0]?.status !== 'ACTIVE') {
+          throw fail(403, 'Customer account is inactive.');
+        }
+
+        if (Number(wallet.rows[0].demo_coin_balance) < stake) {
+          throw fail(400, 'Insufficient balance.');
+        }
+
+        const running = await client.query(
+          `SELECT id
+           FROM tsb_flight_auto_plans
+           WHERE customer_id=$1
+             AND bet_slot=$2
+             AND enabled=TRUE`,
+          [req.flightCustomer.id, slot],
+        );
+
+        if (running.rows.length) {
+          throw fail(
+            409,
+            'Auto is already running. Stop it before changing its settings.',
+          );
+        }
+
+        const round = (
+          await client.query(
+            `SELECT *
+             FROM tsb_flight_rounds
+             ORDER BY id DESC
+             LIMIT 1`,
+          )
+        ).rows[0];
+
+        const now = await serverNow(client);
+
+        const open =
+          Boolean(round) &&
+          round.status === 'LOCKED' &&
+          now < new Date(round.starts_at).getTime();
+
+        const existing = open
+          ? (
+              await client.query(
+                `SELECT id
+                 FROM tsb_flight_bets
+                 WHERE round_id=$1
+                   AND customer_id=$2
+                   AND bet_slot=$3
+                   AND status<>'CANCELLED'`,
+                [round.id, req.flightCustomer.id, slot],
+              )
+            ).rows[0]
+          : null;
+
+        const first =
+          BigInt(round ? round.id : 0) +
+          BigInt(open && !existing ? 0 : 1);
+
+        await client.query(
+          `INSERT INTO tsb_flight_auto_plans(
+            customer_id,
+            bet_slot,
+            stake,
+            auto_cashout_hundredths,
+            remaining,
+            enabled,
+            not_before_round,
+            last_round,
+            last_error
+          )
+          VALUES($1,$2,$3,$4,$5,TRUE,$6,0,'')
+          ON CONFLICT(customer_id,bet_slot)
+          DO UPDATE SET
+            stake=EXCLUDED.stake,
+            auto_cashout_hundredths=EXCLUDED.auto_cashout_hundredths,
+            remaining=EXCLUDED.remaining,
+            enabled=TRUE,
+            not_before_round=EXCLUDED.not_before_round,
+            last_round=0,
+            last_error=''`,
+          [
+            req.flightCustomer.id,
+            slot,
+            stake,
+            target,
+            rounds,
+            String(first),
+          ],
+        );
+
+        if (open) {
+          await placeAutoBets(client, round, now);
+        }
+
+        return { success: true, started: true, firstRound: String(first) };
+      });
+
+      res.json(data);
+    }),
+  );
+
+  app.post(
+    '/api/flight/auto/stop',
+    customer,
+    onlyDemo,
+    wrap(async (req, res) => {
+      const slot = Number(req.body?.slot);
+
+      if (![1, 2].includes(slot)) {
+        throw fail(400, 'Invalid bet panel.');
+      }
+
+      await pool.query(
+        `UPDATE tsb_flight_auto_plans
+         SET enabled=FALSE,last_error=''
+         WHERE customer_id=$1 AND bet_slot=$2`,
+        [req.flightCustomer.id, slot],
+      );
+
+      res.json({ success: true, stopped: true });
+    }),
+  );
+
+  // ---------- Game loop ----------
+
   let updating = false;
+  let lastLogged = 0;
 
   const timer = setInterval(async () => {
-    if (updating) return;
+    if (updating || !demoEnabled()) return;
     updating = true;
 
     try {
-      await transaction(pool, expireRound);
+      await transaction(pool, advance);
     } catch (error) {
-      console.error(
-        'Flight round update failed:',
-        error.message,
-      );
+      if (Date.now() - lastLogged > 10000) {
+        lastLogged = Date.now();
+
+        console.error(
+          'Aviator round update failed:',
+          error.message,
+        );
+      }
     } finally {
       updating = false;
     }
-  }, 1000);
+  }, 250);
 
   timer.unref?.();
   return () => clearInterval(timer);
